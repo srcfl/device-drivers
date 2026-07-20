@@ -36,6 +36,7 @@ PILOTS = {
     "sdm630": ROOT / "packages" / "v1" / "sdm630" / "package-source.json",
     "sungrow": ROOT / "packages" / "v1" / "sungrow" / "package-source.json",
 }
+CONTROLLABLE = ROOT / "packages" / "v1" / "pixii" / "package-source.json"
 SOURCE_COMMIT = "a" * 40
 SOURCE_DATE_EPOCH = 1_700_000_000
 BASE_URL = "https://github.com/srcfl/device-drivers/releases/download/test"
@@ -109,11 +110,18 @@ def test_pilot_safety_metadata_is_explicit() -> None:
 
     sungrow = load_json(PILOTS["sungrow"])
     targets = {item["target"]: item for item in sungrow["compatibility"]}
-    assert sungrow["read_only"] is False
-    assert sungrow["default_mode"]["entrypoint"] == "driver_default_mode_v2"
+    assert sungrow["read_only"] is True
+    assert sungrow["version"] == "1.3.2"
+    assert sungrow["commands"] == []
+    assert sungrow["capabilities"]["control"] == []
+    assert sungrow["permissions"] == ["modbus.read"]
+    assert sungrow["default_mode"]["strategy"] == "not_applicable"
     assert set(targets) == {"ftw-core"}
     assert targets["ftw-core"]["control_enabled"] is False
-    assert sungrow["lease_policy"]["expiry_action"] == "return_to_default"
+    assert sungrow["lease_policy"]["expiry_action"] == "not_applicable"
+    assert [item["model_family"] for item in sungrow["device_matches"]] == [
+        "SH-RT (Three-Phase Hybrid)"
+    ]
 
 
 def test_packaging_is_byte_for_byte_deterministic(
@@ -133,19 +141,24 @@ def test_packaging_is_byte_for_byte_deterministic(
         assert path.read_bytes() == (second / path.name).read_bytes()
 
 
-def test_sungrow_package_uses_the_staged_ftw_v2_adapter(
+def test_sungrow_package_uses_the_observe_only_ftw_target(
     tmp_path: Path, fake_luac55: Path
 ) -> None:
     source = load_json(PILOTS["sungrow"])
-    assert source["source"]["path"] == "packages/v1/sungrow/targets/ftw.lua"
+    assert source["source"]["path"] == "packages/v1/sungrow/targets/ftw-observe.lua"
     assert source["artifact_inputs"][0]["input_path"] == source["source"]["path"]
 
     payload = build_pilot("sungrow", tmp_path / "package", fake_luac55)
     artifact = tmp_path / "package" / payload["artifacts"][0]["filename"]
     lua = artifact.read_text(encoding="utf-8")
-    assert "function driver_command_v2(" in lua
-    assert "function driver_default_mode_v2(" in lua
-    assert "function driver_command(" not in lua
+    assert "host.modbus_write" not in lua
+    assert "host.modbus_write_multi" not in lua
+    assert "function driver_command_v2(" not in lua
+    assert "function driver_default_mode_v2(" not in lua
+    assert "function driver_command(" in lua
+    assert "function driver_default_mode(" in lua
+    assert payload["read_only"] is True
+    assert payload["permissions"] == ["modbus.read"]
     assert payload["compatibility"][0]["control_enabled"] is False
 
 
@@ -353,19 +366,19 @@ def test_policy_rejects_unsafe_read_only_and_lease_combinations() -> None:
     with pytest.raises(PackageError, match="default mode"):
         validate_document(read_only)
 
-    controllable = load_json(PILOTS["sungrow"])
+    controllable = load_json(CONTROLLABLE)
     controllable["lease_policy"]["heartbeat_interval_seconds"] = 30
     with pytest.raises(PackageError, match="heartbeat interval"):
         validate_document(controllable)
 
-    controllable = load_json(PILOTS["sungrow"])
+    controllable = load_json(CONTROLLABLE)
     del controllable["lease_policy"]["heartbeat_interval_seconds"]
     with pytest.raises(PackageError, match="bounded lease"):
         validate_document(controllable)
 
 
 def test_control_target_requires_approved_v2_runtime() -> None:
-    controllable = load_json(PILOTS["sungrow"])
+    controllable = load_json(CONTROLLABLE)
     controllable["compatibility"][0]["control_enabled"] = True
     validate_document(controllable)
 
@@ -379,7 +392,7 @@ def test_control_target_requires_approved_v2_runtime() -> None:
     with pytest.raises(PackageError, match="control requires gopher-lua-source-v2"):
         validate_document(controllable)
 
-    controllable = load_json(PILOTS["sungrow"])
+    controllable = load_json(CONTROLLABLE)
     controllable["compatibility"][0]["control_enabled"] = True
     controllable["default_mode"]["entrypoint"] = "driver_default_mode"
     with pytest.raises(PackageError, match="driver_default_mode_v2"):

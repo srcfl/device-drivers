@@ -709,6 +709,50 @@ local function test_sungrow_ftw_v2()
     return #errors == 0, errors
 end
 
+local function test_sungrow_ftw_observe()
+    host.reset()
+    clear_driver_globals()
+
+    local errors = {}
+    local driver_path = script_dir .. "../../../packages/v1/sungrow/targets/ftw-observe.lua"
+    local load_ok, load_err = pcall(dofile, driver_path)
+    if not load_ok then
+        return false, {"Failed to load: " .. tostring(load_err)}
+    end
+    if not DRIVER or DRIVER.version ~= "1.3.2" or
+       DRIVER.host_api_min ~= 1 or DRIVER.host_api_max ~= 1 or
+       not DRIVER.legacy_ids or DRIVER.legacy_ids[1] ~= "sungrow-shx" then
+        table.insert(errors, "Sungrow observe-only metadata is wrong")
+    end
+    if type(driver_command) ~= "function" or
+       type(driver_default_mode) ~= "function" or
+       type(driver_command_v2) == "function" or
+       type(driver_default_mode_v2) == "function" then
+        table.insert(errors, "Sungrow observe-only entrypoints are wrong")
+        return false, errors
+    end
+
+    local init_ok, init_err = pcall(driver_init, {
+        host = "127.0.0.1",
+        port = 502,
+        unit_id = 1,
+        model = "SH10RT",
+        firmware = "unknown",
+    })
+    if init_ok or not string.find(tostring(init_err), "not approved", 1, true) then
+        table.insert(errors, "Sungrow observe-only target did not block an unapproved profile")
+    end
+
+    driver_command("battery", 1000, {})
+    driver_default_mode()
+    driver_cleanup()
+    if host._modbus_write_attempts ~= 0 then
+        table.insert(errors, "Sungrow observe-only lifecycle attempted a write")
+    end
+
+    return #errors == 0, errors
+end
+
 local function test_pixii_ftw_v2()
     host.reset()
     clear_driver_globals()
@@ -850,6 +894,7 @@ for _, name in ipairs(driver_files) do
 end
 max_name_len = max_name_len + 2
 max_name_len = math.max(max_name_len, #"sungrow-ftw-v2" + 2)
+max_name_len = math.max(max_name_len, #"sungrow-ftw-observe" + 2)
 max_name_len = math.max(max_name_len, #"pixii-ftw-v2" + 2)
 
 -- Run tests
@@ -923,6 +968,23 @@ else
     io.write(string.format("  %s%s%s[FAIL]%s  staged control adapter\n",
         ftw_name, ftw_padding, RED, RESET))
     for _, err in ipairs(ftw_errors) do
+        io.write(string.format("          %s- %s%s\n", RED, err, RESET))
+    end
+end
+
+total = total + 1
+local observe_name = "sungrow-ftw-observe"
+local observe_ok, observe_errors = test_sungrow_ftw_observe()
+local observe_padding = string.rep(" ", max_name_len - #observe_name)
+if observe_ok then
+    passed = passed + 1
+    io.write(string.format("  %s%s%s[PASS]%s  read-only and profile-blocked\n",
+        observe_name, observe_padding, GREEN, RESET))
+else
+    failed = failed + 1
+    io.write(string.format("  %s%s%s[FAIL]%s  read-only and profile-blocked\n",
+        observe_name, observe_padding, RED, RESET))
+    for _, err in ipairs(observe_errors) do
         io.write(string.format("          %s- %s%s\n", RED, err, RESET))
     end
 end
