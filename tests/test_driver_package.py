@@ -311,9 +311,40 @@ function driver_cleanup() end
             read_only=True,
             package_version="1.0.0",
         )
+    missing_read_only = (
+        lifecycle
+        + b'DRIVER = { version = "1.0.0", host_api_min = 1, host_api_max = 1 }\n'
+    )
+    with pytest.raises(PackageError, match="must declare read_only = true"):
+        _validate_lua_source_for_target(
+            missing_read_only,
+            target="ftw-core",
+            read_only=True,
+            package_version="1.0.0",
+        )
+    other_metadata_is_not_ftw_metadata = (
+        missing_read_only
+        + b'DRIVER_MANIFEST = { version = "1.0.0", read_only = true }\n'
+        + b'-- read_only = true\n'
+    )
+    with pytest.raises(PackageError, match="must declare read_only = true"):
+        _validate_lua_source_for_target(
+            other_metadata_is_not_ftw_metadata,
+            target="ftw-core",
+            read_only=True,
+            package_version="1.0.0",
+        )
+    wrong_read_only = missing_read_only.replace(b" }", b", read_only = false }")
+    with pytest.raises(PackageError, match="must match the package"):
+        _validate_lua_source_for_target(
+            wrong_read_only,
+            target="ftw-core",
+            read_only=True,
+            package_version="1.0.0",
+        )
     unsafe = (
         lifecycle
-        + b'DRIVER_MANIFEST = { version = "1.0.0" }\n'
+        + b'DRIVER_MANIFEST = { version = "1.0.0", read_only = true }\n'
         + b"host.modbus_write(1, 2)\n"
     )
     with pytest.raises(PackageError, match="read-only"):
