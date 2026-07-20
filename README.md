@@ -4,7 +4,8 @@ This public repository is the source of truth for Sourceful device driver
 code, package metadata, compatibility contracts and tests. It serves several
 hosts, including FTW and Blixt. The private Device Support service builds and
 signs reviewed commits from this repository; it does not own a second editable
-copy of the source.
+copy of the source. Hosts install only signed packages and indexes from
+`drivers.sourceful.energy`; they never install GitHub source directly.
 
 ## Contribute a driver
 
@@ -51,9 +52,11 @@ public PR -> public CI -> reviewed commit -> private signer -> beta package
           -> supervised site test -> exact-byte stable promotion
 ```
 
-FTW and other hosts consume the signed package index. Refreshing an index never
-installs or activates code. Each host keeps its own safety and activation
-authority.
+FTW and Blixt consume the signed package index. A public source pin in a host
+repository is only a CI fixture and does not tie driver updates to a host
+release. Refreshing an index never installs or activates code. Each host keeps
+its own safety and activation authority. Zap is a future target, not a current
+production target. Hugin has no active runtime or registry role.
 
 ## License
 

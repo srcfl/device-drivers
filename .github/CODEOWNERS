@@ -1,1 +1,8 @@
 * @srcfl/core
+/packages/ @srcfl/core
+/spec/ @srcfl/core
+/spec/control-runtime-v2.md @srcfl/core
+/spec/schemas/sourceful.driver-command.v1.schema.json @srcfl/core
+/spec/schemas/sourceful.driver-command-result.v1.schema.json @srcfl/core
+/drivers/lua/ @srcfl/core
+/.github/ @srcfl/core
