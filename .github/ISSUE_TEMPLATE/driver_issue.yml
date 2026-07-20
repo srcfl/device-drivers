@@ -1,0 +1,54 @@
+name: Driver issue
+description: Report a problem with an existing device driver
+title: "[driver] "
+labels: ["driver", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use FTW's **Copy diagnostics** action when possible. Review the text
+        before you paste it. Do not post IP addresses, serial numbers,
+        credentials, site IDs, raw config, logs or private vendor documents.
+  - type: input
+    id: device
+    attributes:
+      label: Device make, model and firmware
+      description: Omit serial numbers and network addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized FTW driver diagnostics
+      description: Paste the short text copied from FTW, then check it once more.
+      render: markdown
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: State the wrong telemetry, identity, health or lifecycle behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Configure the driver read-only.
+        2. Run Test connection.
+        3. Compare the result with the device UI or meter.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed IP addresses, serial numbers, credentials, site IDs, raw config, logs and private documents.
+          required: true
