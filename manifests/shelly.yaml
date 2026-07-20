@@ -1,0 +1,102 @@
+name: "shelly"
+version: "1.1.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: http
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "Shelly"
+    model_family: "Pro 3EM"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "3-phase energy meter with CT clamps, DIN rail (Gen2)"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "3EM Gen3"
+    variants: [3EM Gen3, 3EM-63W Gen3]
+    regions: []
+    firmware_versions: ""
+    notes: "3-phase energy meter, triphase and monophase profiles"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "Pro EM-50"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "Single-phase energy meter, 2 channels, DIN rail (Gen2)"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "EM Gen3"
+    variants: [EM Gen3 50A]
+    regions: []
+    firmware_versions: ""
+    notes: "Single-phase energy meter with contactor"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "Mini PM Gen3"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "Compact power monitor, no relay (confirmed on real hardware)"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "Plus 1PM"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "Single-channel relay with power metering (Gen2)"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "1PM Gen3"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "Single-channel relay with power metering"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "Plus 2PM"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "Dual-channel relay with power metering (Gen2)"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "2PM Gen3"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "Dual-channel relay with power metering"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "Pro 4PM"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "4-channel relay with power metering, DIN rail (Gen2)"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "Plus Plug S"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "Smart plug with energy metering (Gen2)"
+    min_driver_version: "1.1.0"
+  - manufacturer: "Shelly"
+    model_family: "Plug S Gen3"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "Smart plug with energy metering"
+    min_driver_version: "1.1.0"
+min_host_version: "2.1.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

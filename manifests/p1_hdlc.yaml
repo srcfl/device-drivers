@@ -1,0 +1,31 @@
+name: "p1_hdlc"
+version: "2.0.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: serial
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "Aidon"
+    model_family: "RJ45 HAN/NVE"
+    variants: [6534, 6540, 6550, 6560, 6474, 6484]
+    regions: [NO, SE]
+    firmware_versions: ""
+    notes: "2400 baud, 8E1, HDLC/DLMS/COSEM"
+    min_driver_version: "2.0.0"
+  - manufacturer: "Kaifa"
+    model_family: "MA Series HAN"
+    variants: [MA105H2E, MA304H3E, MA304H4, MA304T3, MA304T4]
+    regions: [NO]
+    firmware_versions: ""
+    notes: "2400 baud, 8E1, HDLC/DLMS/COSEM"
+    min_driver_version: "2.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "p1_hdlc"
+sha256: ""
+signature: ""
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

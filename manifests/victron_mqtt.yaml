@@ -1,0 +1,53 @@
+name: "victron_mqtt"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: mqtt
+ders: [pv, battery, meter]
+control: false
+tested_devices:
+  - manufacturer: "Victron Energy"
+    model_family: "GX Devices"
+    variants: [Cerbo GX, Venus GX, Ekrano GX]
+    regions: []
+    firmware_versions: ""
+    notes: "Requires Venus OS with MQTT enabled on GX device"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Victron Energy"
+    model_family: "MultiPlus-II"
+    variants: [MultiPlus-II 3000, MultiPlus-II 5000, MultiPlus-II 8000, MultiPlus-II 10000, MultiPlus-II 15000]
+    regions: []
+    firmware_versions: ""
+    notes: "Requires Venus OS with MQTT enabled on GX device"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Victron Energy"
+    model_family: "Quattro-II"
+    variants: [Quattro-II 5000, Quattro-II 8000, Quattro-II 10000, Quattro-II 15000]
+    regions: []
+    firmware_versions: ""
+    notes: "Requires Venus OS with MQTT enabled on GX device"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Victron Energy"
+    model_family: "SmartSolar MPPT"
+    variants: [SmartSolar MPPT 75/10, SmartSolar MPPT 100/20, SmartSolar MPPT 150/35, SmartSolar MPPT 250/60, SmartSolar MPPT 250/85, SmartSolar MPPT 250/100]
+    regions: []
+    firmware_versions: ""
+    notes: "Requires Venus OS with MQTT enabled on GX device"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Victron Energy"
+    model_family: "SmartShunt"
+    variants: [SmartShunt 500A, BMV-712]
+    regions: []
+    firmware_versions: ""
+    notes: "Requires Venus OS with MQTT enabled on GX device"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

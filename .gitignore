@@ -1,0 +1,7 @@
+/.artifacts/
+/.venv/
+/lua55
+/luac55
+/.pytest_cache/
+/**/__pycache__/
+*.pyc

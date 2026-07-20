@@ -1,0 +1,28 @@
+name: "ferroamp"
+version: "1.1.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: mqtt
+ders: [battery, meter, pv]
+control: true
+tested_devices:
+  - manufacturer: "Ferroamp"
+    model_family: "EnergyHub"
+    variants: [EnergyHub XL]
+    regions: []
+    firmware_versions: ""
+    notes: "MQTT broker on the EnergyHub, port 1883 with default auth."
+    min_driver_version: "1.1.0"
+connection_defaults:
+  mqtt_username: "extapi"
+  mqtt_password: "ferroampExtApi"
+min_host_version: "2.0.0"
+size_bytes: 6828
+dkb_id: "ferroamp"
+sha256: "2148a811e3b726580929140024689b0147101fb434b8e640e8021c558f53ca39"
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

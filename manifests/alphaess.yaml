@@ -1,0 +1,32 @@
+name: "alphaess"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [pv, battery, meter]
+control: false
+tested_devices:
+  - manufacturer: "AlphaESS"
+    model_family: "Smile Series"
+    variants: [Smile5, Smile-Hi5, Smile-Hi10, Smile-B3, Smile-B3-Plus]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "AlphaESS"
+    model_family: "G2 Series"
+    variants: [G2-H30, G2-H50]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

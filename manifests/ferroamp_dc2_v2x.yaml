@@ -1,0 +1,28 @@
+name: "ferroamp_dc2_v2x"
+version: "1.0.1"
+tier: core
+author: "Sourceful Labs AB"
+protocol: mqtt
+ders: [v2x_charger]
+control: true
+tested_devices:
+  - manufacturer: "Ferroamp"
+    model_family: "DC2 V2X"
+    variants: [DC2 V2X 20 kW]
+    regions: []
+    firmware_versions: ""
+    notes: "Bidirectional DC charger (CCS2) on Ferroamp DC nanogrid. MQTT broker on charger port 1883 with auth. Must be in Manual mode for MQTT control. Always paired with EnergyHub."
+    min_driver_version: "1.0.0"
+connection_defaults:
+  mqtt_username: "dc2"
+  mqtt_password: "dc2mqtt"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "ferroamp_dc2_v2x"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "Map negotiated EV power limits to the host V2X field names."

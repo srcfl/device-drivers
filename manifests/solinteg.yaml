@@ -1,0 +1,53 @@
+name: "solinteg"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter, pv]
+control: true
+tested_devices:
+  - manufacturer: "Solinteg"
+    model_family: "MHT Gen1 Three-Phase 2-MPPT (4-20kW)"
+    variants: [MHT-4K-25, MHT-5K-25, MHT-6K-25, MHT-8K-25, MHT-10K-25, MHT-12K-25, MHT-10K-40, MHT-12K-40, MHT-15K-40, MHT-20K-40]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Gen1 three-phase hybrid, 2 MPPT inputs"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Solinteg"
+    model_family: "MHT Gen1 Three-Phase 4-MPPT (25-50kW)"
+    variants: [MHT-25K-100, MHT-30K-100, MHT-36K-100, MHT-40K-100, MHT-50K-100, MHT-40K-100-P, MHT-50K-100-P]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Gen1 three-phase hybrid, 4 MPPT inputs, PV3/PV4 support"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Solinteg"
+    model_family: "MHS Gen1 Single-Phase"
+    variants: [MHS-3K-30, MHS-3.6K-30, MHS-4.2K-30, MHS-5K-30, MHS-6K-30, MHS-7K-30, MHS-8K-30]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Gen1 single-phase hybrid inverter"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Solinteg"
+    model_family: "M2HT Gen2 Three-Phase (25-50kW)"
+    variants: [M2HT-25K-150, M2HT-29.9K-150, M2HT-30K-150, M2HT-40K-150, M2HT-50K-150, M2HT-25-50K]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Gen2 three-phase hybrid, 4 MPPT inputs"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Solinteg"
+    model_family: "M2HS Gen2 Single-Phase"
+    variants: [M2HS-3K-30, M2HS-3.6K-30, M2HS-4.2K-30, M2HS-4.6K-30, M2HS-5K-30, M2HS-6K-30]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Gen2 single-phase hybrid inverter"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "solinteg"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

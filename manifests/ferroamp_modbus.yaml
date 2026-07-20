@@ -1,0 +1,25 @@
+name: "ferroamp_modbus"
+version: "1.0.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter, pv]
+control: true
+tested_devices:
+  - manufacturer: "Ferroamp"
+    model_family: "EnergyHub"
+    variants: [EnergyHub XL]
+    regions: []
+    firmware_versions: ""
+    notes: "Modbus TCP must be enabled by Ferroamp support. Port 502, Unit ID 1. Word-swapped float32."
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "ferroamp_modbus"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

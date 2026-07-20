@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.sourceful.energy/sourceful.driver-index/v1",
+  "title": "Sourceful Driver Index v1",
+  "description": "Signed discovery index of immutable driver package envelopes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "channel", "source_date_epoch", "packages"],
+  "properties": {
+    "schema_version": {"const": "sourceful.driver-index/v1"},
+    "channel": {"enum": ["beta", "stable"]},
+    "source_date_epoch": {"type": "integer", "minimum": 0},
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "package_id",
+          "version",
+          "envelope_url",
+          "envelope_sha256",
+          "targets"
+        ],
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "pattern": "^com\\.sourceful\\.driver\\.[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+          },
+          "version": {
+            "$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/$defs/semver"
+          },
+          "envelope_url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "envelope_sha256": {
+            "$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/$defs/sha256"
+          },
+          "targets": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/$defs/target"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,67 @@
+name: "sma"
+version: "1.2.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter, pv]
+control: false
+tested_devices:
+  - manufacturer: "SMA"
+    model_family: "Sunny Tripower X"
+    variants: [STP-X-12, STP-X-15, STP-X-20, STP-X-25]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Latest three-phase hybrid platform"
+    min_driver_version: "1.2.0"
+  - manufacturer: "SMA"
+    model_family: "Sunny Tripower"
+    variants: [STP 15000, STP 17000, STP 20000, STP 25000]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Three-phase string inverter (legacy)"
+    min_driver_version: "1.2.0"
+  - manufacturer: "SMA"
+    model_family: "Sunny Tripower CORE1"
+    variants: [STP 50-40, STP 50-41]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Commercial three-phase string inverter"
+    min_driver_version: "1.2.0"
+  - manufacturer: "SMA"
+    model_family: "Sunny Tripower CORE2"
+    variants: [STP 110-60]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Large commercial three-phase string inverter"
+    min_driver_version: "1.2.0"
+  - manufacturer: "SMA"
+    model_family: "Sunny Boy"
+    variants: [SB 3.0, SB 3.6, SB 4.0, SB 5.0, SB 6.0]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Single-phase string inverter"
+    min_driver_version: "1.2.0"
+  - manufacturer: "SMA"
+    model_family: "Sunny Island"
+    variants: [SI 4.4M, SI 6.0H, SI 8.0H]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Battery inverter (off-grid / hybrid)"
+    min_driver_version: "1.2.0"
+  - manufacturer: "SMA"
+    model_family: "SMA Home Manager 2.0"
+    variants: []
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Energy meter / system manager"
+    min_driver_version: "1.2.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "sma"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

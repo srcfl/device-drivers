@@ -1,0 +1,33 @@
+name: Driver request
+description: Request support for a device or propose a driver contribution
+title: "[driver] "
+labels: ["driver"]
+body:
+  - type: input
+    id: device
+    attributes:
+      label: Device make and model
+    validations:
+      required: true
+  - type: input
+    id: protocol
+    attributes:
+      label: Protocol or local API
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: Public protocol documentation
+      description: Link public documents. Do not upload credentials or private site data.
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware available for testing
+      description: State what you can test without posting serial numbers or addresses.
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I can help write or test this driver.

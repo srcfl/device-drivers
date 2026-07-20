@@ -1,0 +1,46 @@
+name: "sigenergy"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter, pv]
+control: true
+tested_devices:
+  - manufacturer: "Sigenergy"
+    model_family: "SigenStor EC Single-Phase (3-12kW)"
+    variants: [SigenStor-EC-3.0-SP, SigenStor-EC-3.6-SP, SigenStor-EC-4.0-SP, SigenStor-EC-4.6-SP, SigenStor-EC-5.0-SP, SigenStor-EC-6.0-SP, SigenStor-EC-8.0-SP, SigenStor-EC-10.0-SP, SigenStor-EC-12.0-SP]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Single-phase hybrid inverter with ESS"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Sigenergy"
+    model_family: "Sigen Hybrid Single-Phase (3-6kW)"
+    variants: [Sigen-Hybrid-3.0-SP, Sigen-Hybrid-3.6-SP, Sigen-Hybrid-4.0-SP, Sigen-Hybrid-4.6-SP, Sigen-Hybrid-5.0-SP, Sigen-Hybrid-6.0-SP]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Single-phase hybrid inverter"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Sigenergy"
+    model_family: "Sigen Hybrid Three-Phase (5-30kW)"
+    variants: [Sigen-Hybrid-5.0-TP, Sigen-Hybrid-6.0-TP, Sigen-Hybrid-8.0-TP, Sigen-Hybrid-10.0-TP, Sigen-Hybrid-12.0-TP, Sigen-Hybrid-15.0-TP, Sigen-Hybrid-17.0-TP, Sigen-Hybrid-20.0-TP, Sigen-Hybrid-25.0-TP, Sigen-Hybrid-30.0-TP]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Three-phase hybrid inverter"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Sigenergy"
+    model_family: "SigenStor EC Three-Phase (5-30kW)"
+    variants: [SigenStor-EC-5.0-TP, SigenStor-EC-6.0-TP, SigenStor-EC-8.0-TP, SigenStor-EC-10.0-TP, SigenStor-EC-12.0-TP, SigenStor-EC-15.0-TP, SigenStor-EC-17.0-TP, SigenStor-EC-20.0-TP, SigenStor-EC-25.0-TP, SigenStor-EC-30.0-TP]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Three-phase hybrid inverter with ESS, includes TPLV series"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "sigenergy"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

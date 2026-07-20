@@ -1,0 +1,53 @@
+name: "sungrow"
+version: "1.2.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter, pv]
+control: true
+tested_devices:
+  - manufacturer: "Sungrow"
+    model_family: "SH-RT (Three-Phase Hybrid)"
+    variants: [SH5.0RT, SH6.0RT, SH8.0RT, SH10RT]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Three-phase hybrid inverter, tested"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Sungrow"
+    model_family: "SH-RS (Single-Phase Hybrid)"
+    variants: [SH3.0RS, SH3.6RS, SH4.0RS, SH5.0RS, SH6.0RS]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Single-phase hybrid inverter"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Sungrow"
+    model_family: "SH-T (Three-Phase Hybrid High-Power)"
+    variants: [SH8.0RT, SH10RT, SH15T, SH20T, SH25T]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "High-power three-phase hybrid"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Sungrow"
+    model_family: "SG-RT (Three-Phase String)"
+    variants: [SG5.0RT, SG6.0RT, SG7.0RT, SG8.0RT, SG10RT, SG12RT, SG15RT, SG17RT, SG20RT, SG25RT]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Three-phase string inverter, PV + meter only (no battery)"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Sungrow"
+    model_family: "SG-CX (Three-Phase Commercial)"
+    variants: [SG25CX, SG30CX, SG33CX, SG36CX, SG40CX, SG50CX]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Commercial/industrial three-phase string inverter"
+    min_driver_version: "1.2.0"
+min_host_version: "2.0.0"
+size_bytes: 8456
+dkb_id: "sungrow_sh_rt"
+sha256: "a477befccf24bd83f75581cbe3aa05c64273affff99152e7968381937a0db0d7"
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.sourceful.energy/sourceful.driver-command/v1",
+  "title": "Sourceful Driver Command v1",
+  "description": "A bounded host-owned command and lease passed to a control driver.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "command", "source", "issued_at", "expires_at", "attempt", "lease", "inputs"],
+  "properties": {
+    "schema_version": {"const": "sourceful.driver-command/v1"},
+    "id": {"$ref": "#/$defs/id"},
+    "command": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128},
+    "source": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "attempt": {"type": "integer", "minimum": 1, "maximum": 16},
+    "lease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "expires_at", "heartbeat_interval_ms"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "expires_at": {"type": "string", "format": "date-time"},
+        "heartbeat_interval_ms": {"type": "integer", "minimum": 100, "maximum": 60000}
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": {"type": ["boolean", "number", "string"], "maxLength": 512}
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$"}
+  }
+}

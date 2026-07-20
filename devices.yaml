@@ -1,0 +1,1957 @@
+version: 1
+manufacturers:
+  - name: "ABB"
+    model_families:
+      - name: "B Series / M4M"
+        variants: [A43, A44, B23, B24, M4M 20, M4M 30]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "abb_meter"
+            version: "1.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "Terra AC"
+        variants: [Terra AC 11kW, Terra AC 22kW, Terra AC 7.4kW]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "abb_terra"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "ATMOCE"
+    model_families:
+      - name: "MC100 M-Combiner"
+        variants: [MC100]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "atmoce"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Combiner with integrated gateway module"
+      - name: "MC100-T Three-Phase M-Combiner"
+        variants: [MC100-T]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "atmoce"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Three-phase combiner with integrated gateway, supports MI microinverters and M-ELV batteries"
+      - name: "MG100 M-Gateway"
+        variants: [MG100]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "atmoce"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Standalone gateway module"
+  - name: "Acrel"
+    model_families:
+      - name: "DTSD Series"
+        variants: [DTSD1352]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "acrel"
+            version: "1.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Aidon"
+    model_families:
+      - name: "RJ11 P1/DSMR"
+        variants: [6442, 6490, 6492]
+        regions: [DK, SE]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "115200 baud, 8N1, DSMR v5.0.2"
+      - name: "RJ45 HAN/NVE"
+        variants: [6474, 6484, 6534, 6540, 6550, 6560]
+        regions: [NO, SE]
+        protocols:
+          - protocol: serial
+            driver: "p1_hdlc"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "2400 baud, 8E1, HDLC/DLMS/COSEM"
+  - name: "Alfen"
+    model_families:
+      - name: "Eve Series"
+        variants: [NG910, NG920]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "alfen"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "AlphaESS"
+    model_families:
+      - name: "G2 Series"
+        variants: [G2-H30, G2-H50]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "alphaess"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "Smile Series"
+        variants: [Smile-B3, Smile-B3-Plus, Smile-Hi10, Smile-Hi5, Smile5]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "alphaess"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Ambibox"
+    model_families:
+      - name: "V2X Charger"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "ambibox"
+            version: "1.1.0"
+            ders: [battery, meter, v2x_charger]
+            control: true
+        firmware_versions: ""
+        notes: ""
+  - name: "Carlo Gavazzi"
+    model_families:
+      - name: "EM Series"
+        variants: [EM24, EM300, EM340, EM530, ET300]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "carlo_gavazzi"
+            version: "1.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Chint"
+    model_families:
+      - name: "DSU Series"
+        variants: [DDSU666, DTSU666]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "chint"
+            version: "1.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Circutor"
+    model_families:
+      - name: "CEM / CVM"
+        variants: [CEM M-ETH, CEM-C21, CVM-C10]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "circutor"
+            version: "1.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Deye"
+    model_families:
+      - name: "SUN Single-Phase Hybrid (LV)"
+        variants: [SUN-5K-SG01LP1-EU, SUN-6K-SG01LP1-EU, SUN-8K-SG01LP1-EU]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "deye"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Single-phase hybrid with LV battery"
+      - name: "SUN String (Grid-Tie)"
+        variants: [SUN-10K-G, SUN-12K-G, SUN-8K-G]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "deye"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Three-phase grid-tie string inverter (PV + meter only)"
+      - name: "SUN Three-Phase HV Hybrid"
+        variants: [SUN-10K-SG04LP3-EU, SUN-12K-SG04LP3-EU, SUN-5K-SG04LP3-EU, SUN-6K-SG04LP3-EU, SUN-8K-SG04LP3-EU]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "deye"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Three-phase hybrid with HV battery"
+      - name: "SUN Three-Phase Hybrid"
+        variants: [SUN-10K-SG01HP3-EU-AM2, SUN-12K-SG01HP3-EU-AM2, SUN-15K-SG01HP3-EU-AM2, SUN-20K-SG01HP3-EU-AM2, SUN-25K-SG01HP3-EU-AM2, SUN-5K-SG01HP3-EU-AM2, SUN-6K-SG01HP3-EU-AM2, SUN-8K-SG01HP3-EU-AM2]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "deye"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Three-phase hybrid, supports LV and HV variants with runtime detection"
+  - name: "Easee"
+    model_families:
+      - name: "Easee"
+        variants: [Easee Charge, Easee Home]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "easee"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, may require specific firmware for Modbus TCP"
+  - name: "Eastron"
+    model_families:
+      - name: "SDM630"
+        variants: [SDM630-Modbus]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "sdm630"
+            version: "1.1.1"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: ""
+  - name: "Etrel"
+    model_families:
+      - name: "INCH"
+        variants: [INCH DUO, INCH HOME, INCH PRO]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "etrel"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Ferroamp"
+    model_families:
+      - name: "DC2 V2X"
+        variants: [DC2 V2X 20 kW]
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "ferroamp_dc2_v2x"
+            version: "1.0.1"
+            ders: [v2x_charger]
+            control: true
+        firmware_versions: ""
+        notes: "Bidirectional DC charger (CCS2) on Ferroamp DC nanogrid. MQTT broker on charger port 1883 with auth. Must be in Manual mode for MQTT control. Always paired with EnergyHub."
+      - name: "EnergyHub"
+        variants: [EnergyHub XL]
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "ferroamp"
+            version: "1.1.0"
+            ders: [battery, meter, pv]
+            control: true
+          - protocol: modbus
+            driver: "ferroamp_modbus"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "MQTT broker on the EnergyHub, port 1883 with default auth."
+  - name: "Fox ESS"
+    model_families:
+      - name: "AIO-H3 (All-in-One)"
+        variants: [AIO-H3-10.0, AIO-H3-3.0, AIO-H3-5.0, AIO-H3-6.0, AIO-H3-8.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "foxess"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "H1 (Single-Phase Hybrid)"
+        variants: [H1-3.0, H1-3.7, H1-4.6, H1-5.0, H1-6.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "foxess"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "H3 (Three-Phase Hybrid)"
+        variants: [H3-10.0, H3-12.0, H3-5.0, H3-6.0, H3-8.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "foxess"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "H3 PRO"
+        variants: [H3-PRO-10.0, H3-PRO-15.0, H3-PRO-20.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "foxess"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "KH Series"
+        variants: [KH-3.0, KH-3.7, KH-5.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "foxess"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Fronius"
+    model_families:
+      - name: "Fronius Primo (Classic)"
+        variants: [Primo 3.0, Primo 3.5, Primo 3.6, Primo 4.0, Primo 4.6, Primo 5.0, Primo 6.0, Primo 8.2]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "fronius"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Classic single-phase string inverter"
+      - name: "Fronius Symo (Classic)"
+        variants: [Symo 10.0, Symo 12.5, Symo 15.0, Symo 17.5, Symo 20.0, Symo 3.0, Symo 3.7, Symo 4.5, Symo 5.0, Symo 6.0, Symo 7.0, Symo 8.2]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "fronius"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Classic three-phase string inverter"
+      - name: "Fronius Tauro"
+        variants: [Tauro 100-3-D, Tauro 50-3-D]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "fronius"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Commercial/industrial three-phase inverter"
+      - name: "Fronius Verto"
+        variants: []
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "fronius"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "New Gen25 platform"
+      - name: "Primo GEN24"
+        variants: [Primo GEN24 3.0, Primo GEN24 3.6, Primo GEN24 4.0, Primo GEN24 4.6, Primo GEN24 5.0, Primo GEN24 6.0]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "fronius"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Single-phase hybrid inverter"
+      - name: "Smart Meter TS"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "fronius_smart_meter"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: ""
+      - name: "Solar API (All Models)"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "fronius_api"
+            version: "1.0.0"
+            ders: [pv, meter]
+            control: false
+        firmware_versions: ""
+        notes: "HTTP alternative to Modbus driver, read-only"
+      - name: "Symo GEN24"
+        variants: [Symo GEN24 10.0, Symo GEN24 12.0, Symo GEN24 15.0, Symo GEN24 20.0, Symo GEN24 6.0, Symo GEN24 8.0]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "fronius"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Three-phase hybrid inverter, tested"
+  - name: "GoodWe"
+    model_families:
+      - name: "BH Series (Single-Phase Hybrid LV)"
+        variants: [BH10, BH5, BH8]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+      - name: "BP Series (Three-Phase AC-Coupled)"
+        variants: [BP10, BP5, BP8]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+      - name: "BT Series (Three-Phase Hybrid LV)"
+        variants: [BT10, BT5, BT6, BT8]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+      - name: "DNS Series (Single-Phase String)"
+        variants: [DNS3, DNS4, DNS5, DNS6]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+      - name: "DT Series (Three-Phase String)"
+        variants: [DT10, DT15, DT17, DT20, DT25]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+      - name: "EH Series (Single-Phase Hybrid)"
+        variants: [EH10, EH15, EH5, EH8]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+      - name: "EM Series (Single-Phase Hybrid)"
+        variants: [EM3, EM5]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+      - name: "ES Series (Single-Phase Hybrid)"
+        variants: [ES3.6, ES4.6, ES5.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+      - name: "ET Series (Three-Phase Hybrid)"
+        variants: [ET15, ET16, ET20, ET25, ET30]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+      - name: "XS Series (Micro)"
+        variants: [XS2, XS3]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goodwe"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, requires v2 LAN+WiFi dongle"
+  - name: "Growatt"
+    model_families:
+      - name: "MAX Series (Three-Phase Commercial)"
+        variants: [MAX100, MAX110, MAX125, MAX50, MAX60, MAX70, MAX75, MAX80]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "growatt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "MIC Series (Micro)"
+        variants: [MIC1000, MIC1500, MIC2000, MIC2500, MIC3000, MIC600, MIC750]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "growatt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "MIN Series (Single-Phase String)"
+        variants: [MIN2500, MIN3000, MIN3600, MIN4200, MIN4600, MIN5000, MIN6000]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "growatt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "MOD Series (Three-Phase String)"
+        variants: [MOD10000, MOD3000, MOD4000, MOD5000, MOD6000, MOD7000, MOD8000, MOD9000]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "growatt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "SPH Series (Single-Phase Hybrid)"
+        variants: [SPH3000, SPH3600, SPH4000, SPH4600, SPH5000, SPH6000]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "growatt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "SPH-TL3 Series (Three-Phase Hybrid)"
+        variants: [SPH10000TL3, SPH5000TL3, SPH6000TL3, SPH8000TL3]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "growatt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "HardyBarth"
+    model_families:
+      - name: "cPH / Salia"
+        variants: [Salia, cPH1]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "hardybarth"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Hoymiles"
+    model_families:
+      - name: "HM Series"
+        variants: [HM-1000, HM-1200, HM-1500, HM-300, HM-350, HM-400, HM-600, HM-700, HM-800]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "opendtu"
+            version: "1.0.0"
+            ders: [pv, meter]
+            control: false
+          - protocol: mqtt
+            driver: "opendtu_mqtt"
+            version: "1.0.0"
+            ders: [pv, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Requires OpenDTU or Ahoy DTU hardware (ESP32)"
+      - name: "HMS Series"
+        variants: [HMS-1000, HMS-1600, HMS-1800, HMS-2000, HMS-300, HMS-350, HMS-400, HMS-500, HMS-600, HMS-700, HMS-800, HMS-900]
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "opendtu_mqtt"
+            version: "1.0.0"
+            ders: [pv, meter]
+            control: false
+        firmware_versions: ""
+        notes: "MQTT alternative, requires OpenDTU MQTT configured"
+      - name: "HMS Series (WiFi)"
+        variants: [HMS-1000, HMS-1600, HMS-1800, HMS-2000, HMS-300, HMS-350, HMS-400, HMS-500, HMS-600, HMS-700, HMS-800, HMS-900]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "opendtu"
+            version: "1.0.0"
+            ders: [pv, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Requires OpenDTU or Ahoy DTU hardware (ESP32)"
+      - name: "HMT Series"
+        variants: [HMT-1600, HMT-1800, HMT-2000, HMT-2250]
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "opendtu_mqtt"
+            version: "1.0.0"
+            ders: [pv, meter]
+            control: false
+        firmware_versions: ""
+        notes: "MQTT alternative, requires OpenDTU MQTT configured"
+      - name: "HMT Series (Three-Phase)"
+        variants: [HMT-1600, HMT-1800, HMT-2000, HMT-2250]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "opendtu"
+            version: "1.0.0"
+            ders: [pv, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Requires OpenDTU or Ahoy DTU hardware (ESP32)"
+  - name: "Huawei"
+    model_families:
+      - name: "LUNA2000 (Battery)"
+        variants: [LUNA2000-10-S0, LUNA2000-15-S0, LUNA2000-5-S0]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "huawei"
+            version: "1.3.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "High-voltage lithium battery modules (5/10/15 kWh)"
+      - name: "SUN2000 (Single-Phase)"
+        variants: [SUN2000-2KTL-L1, SUN2000-3KTL-L1, SUN2000-4KTL-L1, SUN2000-5KTL-L1, SUN2000-6KTL-L1]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "huawei"
+            version: "1.3.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Single-phase residential inverter"
+      - name: "SUN2000 (Three-Phase Commercial)"
+        variants: [SUN2000-12KTL-M2, SUN2000-15KTL-M2, SUN2000-17KTL-M2, SUN2000-20KTL-M2, SUN2000-25KTL-M5, SUN2000-30KTL-M3, SUN2000-36KTL, SUN2000-40KTL-M3, SUN2000-50KTL-M3]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "huawei"
+            version: "1.3.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Three-phase commercial string inverter"
+      - name: "SUN2000 (Three-Phase Residential)"
+        variants: [SUN2000-10KTL-M1, SUN2000-3KTL-M1, SUN2000-4KTL-M1, SUN2000-5KTL-M1, SUN2000-6KTL-M1, SUN2000-8KTL-M1]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "huawei"
+            version: "1.3.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Three-phase residential inverter, tested with SUN2000-10KTL-M1"
+      - name: "SmartLogger"
+        variants: [SmartLogger 1000A, SmartLogger 3000A]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "huawei"
+            version: "1.3.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "C&I aggregator gateway, Modbus TCP server"
+  - name: "Iskraemeco"
+    model_families:
+      - name: "AM550"
+        variants: [AM550 DLMS, AM550 DSMR]
+        regions: [BE, NL, SI]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "115200 8N1 (DSMR) or 38400 8N1 (SI custom)"
+  - name: "Janitza"
+    model_families:
+      - name: "UMG Series"
+        variants: [UMG 511, UMG 512, UMG 604 Pro, UMG 806, UMG 96, UMG 96RM]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "janitza"
+            version: "1.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "KSTAR"
+    model_families:
+      - name: "BluE-S Series"
+        variants: [BluE-S-3K, BluE-S-5K, BluE-S-6K]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "kstar"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "KSE (Hybrid)"
+        variants: [KSE-10K, KSE-5K, KSE-8K]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "kstar"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Kaifa"
+    model_families:
+      - name: "MA Series DLMS (AT)"
+        variants: [MA309MH4]
+        regions: [AT]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "2400 baud, 8N1, HDLC/DLMS/COSEM, may require encryption key"
+      - name: "MA Series HAN"
+        variants: [MA105H2E, MA304H3E, MA304H4, MA304T3, MA304T4]
+        regions: [NO]
+        protocols:
+          - protocol: serial
+            driver: "p1_hdlc"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "2400 baud, 8E1, HDLC/DLMS/COSEM"
+  - name: "Kamstrup"
+    model_families:
+      - name: "Omnia"
+        variants: [Omnia E-meter]
+        regions: [DK, SE]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "115200 baud, 8N1, DSMR v5.0.2"
+      - name: "Omnipower HAN"
+        variants: [684212, 684213, 685212, 685213, 686211, C65]
+        regions: [DK, NO, SE]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "2400 baud 8N1 (HAN/NVE) or 115200 8N1 (P1 adapter)"
+  - name: "Keba"
+    model_families:
+      - name: "KeContact P30"
+        variants: [P30 c-series, P30 x-series]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "keba"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Kostal"
+    model_families:
+      - name: "PIKO IQ"
+        variants: [PIKO IQ 10.0, PIKO IQ 4.2, PIKO IQ 5.5, PIKO IQ 7.0, PIKO IQ 8.5]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "kostal"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "SunSpec compliant, port 1502"
+      - name: "PIKO MP Plus"
+        variants: [PIKO MP Plus 1.5, PIKO MP Plus 2.0, PIKO MP Plus 2.5, PIKO MP Plus 3.0, PIKO MP Plus 3.6, PIKO MP Plus 4.2, PIKO MP Plus 4.6, PIKO MP Plus 5.5]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "kostal"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "SunSpec compliant, port 1502"
+      - name: "Plenticore BI"
+        variants: [Plenticore BI 10.0, Plenticore BI 3.0, Plenticore BI 4.2, Plenticore BI 5.5, Plenticore BI 7.0, Plenticore BI 8.5]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "kostal"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "SunSpec compliant, port 1502"
+      - name: "Plenticore Plus"
+        variants: [Plenticore Plus 10.0, Plenticore Plus 3.0, Plenticore Plus 4.2, Plenticore Plus 5.5, Plenticore Plus 7.0, Plenticore Plus 8.5]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "kostal"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "SunSpec compliant, port 1502"
+  - name: "Landis+Gyr"
+    model_families:
+      - name: "E350"
+        variants: [E350]
+        regions: [NO]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "2400 baud, 8N1, HAN/NVE, requires Embriq module"
+      - name: "E360"
+        variants: [E360]
+        regions: [DK, SE]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "115200 baud, 8N1, DSMR v5.0.2"
+      - name: "E450"
+        variants: [E450 S4, E450 S5]
+        regions: [AT, CH]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "2400 baud, 8E1, HDLC/DLMS/COSEM, may require encryption key"
+  - name: "Mennekes"
+    model_families:
+      - name: "AMTRON"
+        variants: [AMTRON Charge Control, AMTRON Premium]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "mennekes"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "NES"
+    model_families:
+      - name: "G5"
+        variants: [G5 83335-X]
+        regions: [DK]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "115200 baud, 8N1, DSMR v5.0.2"
+  - name: "OpenEVSE"
+    model_families:
+      - name: "OpenEVSE"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "openevse"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Pixii"
+    model_families:
+      - name: "PowerShaper"
+        variants: [PowerShaper 2.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "pixii"
+            version: "1.1.0"
+            ders: [battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: ""
+  - name: "SAJ"
+    model_families:
+      - name: "AS2 (Three-Phase String)"
+        variants: [AS2-10K, AS2-3K, AS2-4K, AS2-5K, AS2-6K, AS2-8K]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "saj"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "H2 (Three-Phase Hybrid)"
+        variants: [H2-10K, H2-12K, H2-15K, H2-20K, H2-25K, H2-5K, H2-6K, H2-8K]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "saj"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "HS2 (Single-Phase Hybrid)"
+        variants: [HS2-3K, HS2-4K, HS2-5K, HS2-6K]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "saj"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "SMA"
+    model_families:
+      - name: "SMA Home Manager 2.0"
+        variants: []
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "sma"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Energy meter / system manager"
+      - name: "Sunny Boy"
+        variants: [SB 3.0, SB 3.6, SB 4.0, SB 5.0, SB 6.0]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "sma"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Single-phase string inverter"
+      - name: "Sunny Island"
+        variants: [SI 4.4M, SI 6.0H, SI 8.0H]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "sma"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Battery inverter (off-grid / hybrid)"
+      - name: "Sunny Tripower"
+        variants: [STP 15000, STP 17000, STP 20000, STP 25000]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "sma"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Three-phase string inverter (legacy)"
+      - name: "Sunny Tripower CORE1"
+        variants: [STP 50-40, STP 50-41]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "sma"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Commercial three-phase string inverter"
+      - name: "Sunny Tripower CORE2"
+        variants: [STP 110-60]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "sma"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Large commercial three-phase string inverter"
+      - name: "Sunny Tripower X"
+        variants: [STP-X-12, STP-X-15, STP-X-20, STP-X-25]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "sma"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Latest three-phase hybrid platform"
+  - name: "Sagemcom"
+    model_families:
+      - name: "S/T211 P1"
+        variants: [S211, T211]
+        regions: [SE]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "115200 baud, 8N1, DSMR v5.0.2"
+      - name: "T210-D/S210 DLMS"
+        variants: [S210, T210-D]
+        regions: [AT]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "2400 baud, 8N1, HDLC/DLMS/COSEM, may require encryption key"
+  - name: "Sanxing"
+    model_families:
+      - name: "S34U18"
+        variants: [S34U18]
+        regions: [HU, SE]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "115200 baud, 8N1, DSMR v5.0.2 (SE) or EON payload (HU)"
+  - name: "Schneider Electric"
+    model_families:
+      - name: "iEM3xxx/PM5xxx"
+        variants: [PM5100, PM5110, PM5300, PM5310, PM5330, PM5340, PM710, iEM3150, iEM3155, iEM3250, iEM3255, iEM3350, iEM3355]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "schneider_meter"
+            version: "1.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Schrack"
+    model_families:
+      - name: "i-CHARGE"
+        variants: [i-CHARGE CION, i-CHARGE CION PRO]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "schrack_ev"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Shelly"
+    model_families:
+      - name: "1PM Gen3"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Single-channel relay with power metering"
+      - name: "2PM Gen3"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Dual-channel relay with power metering"
+      - name: "3EM Gen3"
+        variants: [3EM Gen3, 3EM-63W Gen3]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "3-phase energy meter, triphase and monophase profiles"
+      - name: "EM Gen3"
+        variants: [EM Gen3 50A]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Single-phase energy meter with contactor"
+      - name: "Mini PM Gen3"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Compact power monitor, no relay (confirmed on real hardware)"
+      - name: "Plug S Gen3"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Smart plug with energy metering"
+      - name: "Plus 1PM"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Single-channel relay with power metering (Gen2)"
+      - name: "Plus 2PM"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Dual-channel relay with power metering (Gen2)"
+      - name: "Plus Plug S"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Smart plug with energy metering (Gen2)"
+      - name: "Pro 3EM"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "3-phase energy meter with CT clamps, DIN rail (Gen2)"
+      - name: "Pro 4PM"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "4-channel relay with power metering, DIN rail (Gen2)"
+      - name: "Pro EM-50"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "shelly"
+            version: "1.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Single-phase energy meter, 2 channels, DIN rail (Gen2)"
+  - name: "Siemens"
+    model_families:
+      - name: "PAC Series"
+        variants: [PAC1020, PAC2200, PAC3200]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "siemens_pac"
+            version: "1.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Sigenergy"
+    model_families:
+      - name: "Sigen Hybrid Single-Phase (3-6kW)"
+        variants: [Sigen-Hybrid-3.0-SP, Sigen-Hybrid-3.6-SP, Sigen-Hybrid-4.0-SP, Sigen-Hybrid-4.6-SP, Sigen-Hybrid-5.0-SP, Sigen-Hybrid-6.0-SP]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "sigenergy"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Single-phase hybrid inverter"
+      - name: "Sigen Hybrid Three-Phase (5-30kW)"
+        variants: [Sigen-Hybrid-10.0-TP, Sigen-Hybrid-12.0-TP, Sigen-Hybrid-15.0-TP, Sigen-Hybrid-17.0-TP, Sigen-Hybrid-20.0-TP, Sigen-Hybrid-25.0-TP, Sigen-Hybrid-30.0-TP, Sigen-Hybrid-5.0-TP, Sigen-Hybrid-6.0-TP, Sigen-Hybrid-8.0-TP]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "sigenergy"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Three-phase hybrid inverter"
+      - name: "SigenStor EC Single-Phase (3-12kW)"
+        variants: [SigenStor-EC-10.0-SP, SigenStor-EC-12.0-SP, SigenStor-EC-3.0-SP, SigenStor-EC-3.6-SP, SigenStor-EC-4.0-SP, SigenStor-EC-4.6-SP, SigenStor-EC-5.0-SP, SigenStor-EC-6.0-SP, SigenStor-EC-8.0-SP]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "sigenergy"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Single-phase hybrid inverter with ESS"
+      - name: "SigenStor EC Three-Phase (5-30kW)"
+        variants: [SigenStor-EC-10.0-TP, SigenStor-EC-12.0-TP, SigenStor-EC-15.0-TP, SigenStor-EC-17.0-TP, SigenStor-EC-20.0-TP, SigenStor-EC-25.0-TP, SigenStor-EC-30.0-TP, SigenStor-EC-5.0-TP, SigenStor-EC-6.0-TP, SigenStor-EC-8.0-TP]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "sigenergy"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Three-phase hybrid inverter with ESS, includes TPLV series"
+  - name: "Socomec"
+    model_families:
+      - name: "Diris / countis"
+        variants: [Diris A-10, Diris A-20, Diris A-40, countis P44]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "socomec"
+            version: "1.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Sofar Solar"
+    model_families:
+      - name: "HYD Series (Three-Phase Hybrid)"
+        variants: [HYD10K-TL-3PH, HYD15K-TL-3PH, HYD20K-TL-3PH, HYD5K-TL-3PH, HYD6K-TL-3PH, HYD8K-TL-3PH]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "sofar"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "HYD-ES (Single-Phase Hybrid)"
+        variants: [HYD3K-ES, HYD4K-ES, HYD5K-ES, HYD6K-ES]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "sofar"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "ME Series (Single-Phase Hybrid)"
+        variants: [ME3000SP]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "sofar"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "SolaX"
+    model_families:
+      - name: "X1 Hybrid G4"
+        variants: [X1-3.0, X1-3.7, X1-5.0, X1-6.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "solax"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "X3 Hybrid G4"
+        variants: [X3-10.0, X3-12.0, X3-15.0, X3-5.0, X3-6.0, X3-8.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "solax"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "X3 Hybrid G4 PRO"
+        variants: [X3-PRO-10.0, X3-PRO-15.0, X3-PRO-20.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "solax"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "X3 MIC/PRO G2 (String)"
+        variants: [X3-MIC-4.0, X3-MIC-5.0, X3-MIC-6.0, X3-MIC-8.0]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "solax"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "SolarEdge"
+    model_families:
+      - name: "SE Series (Single-Phase)"
+        variants: [SE2200H, SE3000H, SE3500H, SE4000H, SE5000H, SE6000H]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "solaredge"
+            version: "1.2.0"
+            ders: [meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Single-phase string inverters, port 1502"
+      - name: "SE Series (Three-Phase)"
+        variants: [SE10K, SE12.5K, SE15K, SE16K, SE17K, SE25K, SE27.6K, SE33.3K, SE5K, SE7K, SE8K, SE9K]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "solaredge"
+            version: "1.2.0"
+            ders: [meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Three-phase string inverters, port 1502"
+      - name: "SolarEdge Home"
+        variants: [SE3000H, SE3680H, SE4000H, SE5000H, SE6000H]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "solaredge"
+            version: "1.2.0"
+            ders: [meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Residential single-phase series"
+      - name: "StorEdge"
+        variants: [SE10000H-US, SE3680H, SE5000H-RWSEZ, SE7600H-US]
+        regions: [EU, US]
+        protocols:
+          - protocol: modbus
+            driver: "solaredge"
+            version: "1.2.0"
+            ders: [meter, pv]
+            control: false
+        firmware_versions: ""
+        notes: "Hybrid inverters with battery support"
+  - name: "Solinteg"
+    model_families:
+      - name: "M2HS Gen2 Single-Phase"
+        variants: [M2HS-3.6K-30, M2HS-3K-30, M2HS-4.2K-30, M2HS-4.6K-30, M2HS-5K-30, M2HS-6K-30]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "solinteg"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Gen2 single-phase hybrid inverter"
+      - name: "M2HT Gen2 Three-Phase (25-50kW)"
+        variants: [M2HT-25-50K, M2HT-25K-150, M2HT-29.9K-150, M2HT-30K-150, M2HT-40K-150, M2HT-50K-150]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "solinteg"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Gen2 three-phase hybrid, 4 MPPT inputs"
+      - name: "MHS Gen1 Single-Phase"
+        variants: [MHS-3.6K-30, MHS-3K-30, MHS-4.2K-30, MHS-5K-30, MHS-6K-30, MHS-7K-30, MHS-8K-30]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "solinteg"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Gen1 single-phase hybrid inverter"
+      - name: "MHT Gen1 Three-Phase 2-MPPT (4-20kW)"
+        variants: [MHT-10K-25, MHT-10K-40, MHT-12K-25, MHT-12K-40, MHT-15K-40, MHT-20K-40, MHT-4K-25, MHT-5K-25, MHT-6K-25, MHT-8K-25]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "solinteg"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Gen1 three-phase hybrid, 2 MPPT inputs"
+      - name: "MHT Gen1 Three-Phase 4-MPPT (25-50kW)"
+        variants: [MHT-25K-100, MHT-30K-100, MHT-36K-100, MHT-40K-100, MHT-40K-100-P, MHT-50K-100, MHT-50K-100-P]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "solinteg"
+            version: "1.0.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Gen1 three-phase hybrid, 4 MPPT inputs, PV3/PV4 support"
+  - name: "Solis"
+    model_families:
+      - name: "S5-GR3P (Three-Phase String)"
+        variants: [S5-GR3P10K, S5-GR3P5K, S5-GR3P6K, S5-GR3P8K]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "solis"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Three-phase string inverter (PV only)"
+      - name: "S6-EH1P (Single-Phase Hybrid)"
+        variants: [S6-EH1P3.6K, S6-EH1P3K, S6-EH1P4.6K, S6-EH1P5K, S6-EH1P6K]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "solis"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Single-phase hybrid inverter"
+      - name: "S6-EH3P (Three-Phase Hybrid)"
+        variants: [S6-EH3P10K, S6-EH3P12K, S6-EH3P15K, S6-EH3P6K, S6-EH3P8K]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "solis"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Three-phase hybrid, tested"
+      - name: "S6-GR3P (Three-Phase String)"
+        variants: [S6-GR3P10K, S6-GR3P5K, S6-GR3P6K, S6-GR3P8K]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "solis"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Next-gen three-phase string inverter"
+      - name: "Solis C&I (Commercial)"
+        variants: [Solis-100K-5G, Solis-110K-5G, Solis-80K-5G]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "solis"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Commercial/industrial inverter"
+  - name: "Sungrow"
+    model_families:
+      - name: "SG-CX (Three-Phase Commercial)"
+        variants: [SG25CX, SG30CX, SG33CX, SG36CX, SG40CX, SG50CX]
+        regions: [EU, INT]
+        protocols:
+          - protocol: modbus
+            driver: "sungrow"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Commercial/industrial three-phase string inverter"
+      - name: "SG-RT (Three-Phase String)"
+        variants: [SG10RT, SG12RT, SG15RT, SG17RT, SG20RT, SG25RT, SG5.0RT, SG6.0RT, SG7.0RT, SG8.0RT]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "sungrow"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Three-phase string inverter, PV + meter only (no battery)"
+      - name: "SH-RS (Single-Phase Hybrid)"
+        variants: [SH3.0RS, SH3.6RS, SH4.0RS, SH5.0RS, SH6.0RS]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "sungrow"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Single-phase hybrid inverter"
+      - name: "SH-RT (Three-Phase Hybrid)"
+        variants: [SH10RT, SH5.0RT, SH6.0RT, SH8.0RT]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "sungrow"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "Three-phase hybrid inverter, tested"
+      - name: "SH-T (Three-Phase Hybrid High-Power)"
+        variants: [SH10RT, SH15T, SH20T, SH25T, SH8.0RT]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "sungrow"
+            version: "1.2.0"
+            ders: [battery, meter, pv]
+            control: true
+        firmware_versions: ""
+        notes: "High-power three-phase hybrid"
+  - name: "VARTA"
+    model_families:
+      - name: "element"
+        variants: [element 12, element 15, element 18, element 6, element 9]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "varta"
+            version: "1.0.0"
+            ders: [battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "link"
+        variants: [link 30, link 40, link 50, link 60]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "varta"
+            version: "1.0.0"
+            ders: [battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "pulse neo"
+        variants: [pulse neo 3, pulse neo 6, pulse neo 9]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "varta"
+            version: "1.0.0"
+            ders: [battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Various (Austrian)"
+    model_families:
+      - name: "Austrian Smart Meter"
+        variants: []
+        regions: [AT, CH, LU]
+        protocols:
+          - protocol: serial
+            driver: "p1_encrypted"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "HDLC/DLMS/COSEM, AES-GCM encrypted"
+  - name: "Various (Belgian)"
+    model_families:
+      - name: "Belgian e-MUCS/SMR5"
+        variants: []
+        regions: [BE]
+        protocols:
+          - protocol: serial
+            driver: "p1_encrypted"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "DSMR v5 + Belgian extensions, AES-GCM encrypted, requires keys from DSO"
+  - name: "Various (DSMR)"
+    model_families:
+      - name: "DSMR v2.2"
+        variants: []
+        regions: [NL]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "9600 baud, 7E1, Dutch legacy meters"
+      - name: "DSMR v2.2/v4/v5"
+        variants: []
+        regions: [BE, DK, NL, SE]
+        protocols:
+          - protocol: serial
+            driver: "p1_dsmr"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "IEC 62056-21 ASCII telegrams, 115200 8N1 (v5) or 9600 7E1 (v2.2)"
+      - name: "DSMR v4.x"
+        variants: []
+        regions: [NL]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "115200 baud, 8N1, Dutch smart meters"
+      - name: "DSMR v5.0"
+        variants: []
+        regions: [BE, DK, NL, SE]
+        protocols:
+          - protocol: serial
+            driver: "p1_meter"
+            version: "2.0.0"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "115200 baud, 8N1, current standard"
+  - name: "Victron Energy"
+    model_families:
+      - name: "GX Devices"
+        variants: [Cerbo GX, Ekrano GX, Venus GX]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "victron"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+          - protocol: mqtt
+            driver: "victron_mqtt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Requires Venus OS with Modbus TCP enabled on GX device"
+      - name: "MultiPlus-II"
+        variants: [MultiPlus-II 10000, MultiPlus-II 15000, MultiPlus-II 3000, MultiPlus-II 5000, MultiPlus-II 8000]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "victron"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+          - protocol: mqtt
+            driver: "victron_mqtt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Requires Venus OS with Modbus TCP enabled on GX device"
+      - name: "Quattro-II"
+        variants: [Quattro-II 10000, Quattro-II 15000, Quattro-II 5000, Quattro-II 8000]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "victron"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+          - protocol: mqtt
+            driver: "victron_mqtt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Requires Venus OS with Modbus TCP enabled on GX device"
+      - name: "SmartShunt"
+        variants: [BMV-712, SmartShunt 500A]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "victron"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+          - protocol: mqtt
+            driver: "victron_mqtt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Requires Venus OS with Modbus TCP enabled on GX device"
+      - name: "SmartSolar MPPT"
+        variants: [SmartSolar MPPT 100/20, SmartSolar MPPT 150/35, SmartSolar MPPT 250/100, SmartSolar MPPT 250/60, SmartSolar MPPT 250/85, SmartSolar MPPT 75/10]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "victron"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+          - protocol: mqtt
+            driver: "victron_mqtt"
+            version: "1.0.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Requires Venus OS with Modbus TCP enabled on GX device"
+  - name: "Wallbox"
+    model_families:
+      - name: "Commander/Pulsar"
+        variants: [Commander 2, Pulsar Plus]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "wallbox"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "Zaptec"
+    model_families:
+      - name: "Zaptec"
+        variants: [Zaptec GO, Zaptec PRO]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "zaptec"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+  - name: "go-e"
+    model_families:
+      - name: "Gemini"
+        variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goe"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"
+      - name: "Gemini HTTP"
+        variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "goe_http"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: false
+        firmware_versions: ""
+        notes: "HTTP alternative to Modbus driver"
+  - name: "sonnen"
+    model_families:
+      - name: "sonnenBatterie"
+        variants: [sonnenBatterie 10 performance, sonnenBatterie FlexStack, sonnenBatterie eco 8.0]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "sonnen"
+            version: "1.0.0"
+            ders: [battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Community driver, untested"

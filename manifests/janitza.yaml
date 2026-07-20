@@ -1,0 +1,25 @@
+name: "janitza"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "Janitza"
+    model_family: "UMG Series"
+    variants: [UMG 96, UMG 604 Pro, UMG 806, UMG 96RM, UMG 511, UMG 512]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

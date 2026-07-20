@@ -1,0 +1,25 @@
+name: "mennekes"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [v2x_charger]
+control: false
+tested_devices:
+  - manufacturer: "Mennekes"
+    model_family: "AMTRON"
+    variants: [AMTRON Charge Control, AMTRON Premium]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

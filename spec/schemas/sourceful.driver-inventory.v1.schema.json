@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.sourceful.energy/sourceful.driver-inventory/v1",
+  "title": "Sourceful Driver Inventory v1",
+  "description": "A bounded, secret-free snapshot of drivers used by one authenticated host.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "host", "drivers"],
+  "properties": {
+    "schema_version": {"const": "sourceful.driver-inventory/v1"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product", "version", "update_channel", "target", "runtime_abi", "host_api"],
+      "properties": {
+        "product": {"enum": ["ftw", "blixt-gateway"]},
+        "version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "update_channel": {"enum": ["beta", "stable", "unknown"]},
+        "target": {"enum": ["ftw-core", "blixt-l1"]},
+        "runtime_abi": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"},
+        "host_api": {"type": "integer", "minimum": 1, "maximum": 2147483647}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"product": {"const": "ftw"}}},
+          "then": {"properties": {"target": {"const": "ftw-core"}}}
+        },
+        {
+          "if": {"properties": {"product": {"const": "blixt-gateway"}}},
+          "then": {"properties": {"target": {"const": "blixt-l1"}}}
+        }
+      ]
+    },
+    "drivers": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["driver_id", "version", "source", "control_class", "configured_instances", "running_instances", "health"],
+        "properties": {
+          "driver_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"},
+          "version": {"type": "string", "minLength": 1, "maxLength": 64},
+          "source": {"enum": ["bundled", "managed", "legacy_repository", "local_override"]},
+          "package_id": {"type": "string", "pattern": "^com\\.sourceful\\.driver\\.[a-z0-9]+(?:[.-][a-z0-9]+)*$"},
+          "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+          "package_channel": {"enum": ["beta", "stable"]},
+          "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "control_class": {"enum": ["read_only", "control", "unknown"]},
+          "configured_instances": {"type": "integer", "minimum": 1, "maximum": 128},
+          "running_instances": {"type": "integer", "minimum": 0, "maximum": 128},
+          "health": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ok", "degraded", "offline", "unknown"],
+            "properties": {
+              "ok": {"type": "integer", "minimum": 0, "maximum": 128},
+              "degraded": {"type": "integer", "minimum": 0, "maximum": 128},
+              "offline": {"type": "integer", "minimum": 0, "maximum": 128},
+              "unknown": {"type": "integer", "minimum": 0, "maximum": 128}
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"source": {"const": "managed"}}},
+            "then": {
+              "required": ["package_id", "repository_id", "package_channel", "artifact_sha256"],
+              "not": {"required": ["source_sha256"]}
+            }
+          },
+          {
+            "if": {"properties": {"source": {"const": "legacy_repository"}}},
+            "then": {
+              "required": ["repository_id", "artifact_sha256"],
+              "not": {
+                "anyOf": [
+                  {"required": ["package_id"]},
+                  {"required": ["package_channel"]},
+                  {"required": ["source_sha256"]}
+                ]
+              }
+            }
+          },
+          {
+            "if": {"properties": {"source": {"enum": ["bundled", "local_override"]}}},
+            "then": {
+              "required": ["source_sha256"],
+              "not": {
+                "anyOf": [
+                  {"required": ["package_id"]},
+                  {"required": ["repository_id"]},
+                  {"required": ["package_channel"]},
+                  {"required": ["artifact_sha256"]}
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

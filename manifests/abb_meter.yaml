@@ -1,0 +1,25 @@
+name: "abb_meter"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "ABB"
+    model_family: "B Series / M4M"
+    variants: [B23, B24, A43, A44, M4M 20, M4M 30]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

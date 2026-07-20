@@ -1,0 +1,32 @@
+name: "kstar"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [pv, battery, meter]
+control: false
+tested_devices:
+  - manufacturer: "KSTAR"
+    model_family: "KSE (Hybrid)"
+    variants: [KSE-5K, KSE-8K, KSE-10K]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "KSTAR"
+    model_family: "BluE-S Series"
+    variants: [BluE-S-3K, BluE-S-5K, BluE-S-6K]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

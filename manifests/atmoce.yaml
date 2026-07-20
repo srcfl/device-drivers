@@ -1,0 +1,39 @@
+name: "atmoce"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter, pv]
+control: true
+tested_devices:
+  - manufacturer: "ATMOCE"
+    model_family: "MC100-T Three-Phase M-Combiner"
+    variants: [MC100-T]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Three-phase combiner with integrated gateway, supports MI microinverters and M-ELV batteries"
+    min_driver_version: "1.0.0"
+  - manufacturer: "ATMOCE"
+    model_family: "MC100 M-Combiner"
+    variants: [MC100]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Combiner with integrated gateway module"
+    min_driver_version: "1.0.0"
+  - manufacturer: "ATMOCE"
+    model_family: "MG100 M-Gateway"
+    variants: [MG100]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Standalone gateway module"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "atmoce"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

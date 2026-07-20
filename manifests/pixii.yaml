@@ -1,0 +1,25 @@
+name: "pixii"
+version: "1.1.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter]
+control: false
+tested_devices:
+  - manufacturer: "Pixii"
+    model_family: "PowerShaper"
+    variants: [PowerShaper 2.0]
+    regions: []
+    firmware_versions: ""
+    notes: ""
+    min_driver_version: "1.1.0"
+min_host_version: "2.0.0"
+size_bytes: 7831
+dkb_id: "pixii"
+sha256: "2e91e590397e6c2328c88fa48dc07d414baa5e56973be7a345fbcb828612cc18"
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

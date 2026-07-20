@@ -1,0 +1,24 @@
+name: "p1_dsmr"
+version: "2.0.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: serial
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "Various (DSMR)"
+    model_family: "DSMR v2.2/v4/v5"
+    variants: []
+    regions: [NL, BE, SE, DK]
+    firmware_versions: ""
+    notes: "IEC 62056-21 ASCII telegrams, 115200 8N1 (v5) or 9600 7E1 (v2.2)"
+    min_driver_version: "2.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "p1_dsmr"
+sha256: ""
+signature: ""
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

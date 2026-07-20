@@ -1,0 +1,25 @@
+name: "fronius_smart_meter"
+version: "1.1.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "Fronius"
+    model_family: "Smart Meter TS"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: ""
+    min_driver_version: "1.1.0"
+min_host_version: "2.0.0"
+size_bytes: 3295
+dkb_id: "fronius_smart_meter"
+sha256: "2955fa26fba3e753e88a98b7f21bcb1afb0b9e17fb1b52edc3170afc5065476d"
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

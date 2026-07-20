@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.sourceful.energy/sourceful.driver-package-source/v1",
+  "title": "Sourceful Driver Package Build Source v1",
+  "description": "Reviewable source metadata consumed by the deterministic v1 packager. It never contains credentials or runtime configuration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "package_id",
+    "version",
+    "channel",
+    "display_name",
+    "identity",
+    "source",
+    "builder_id",
+    "device_matches",
+    "capabilities",
+    "permissions",
+    "telemetry",
+    "commands",
+    "read_only",
+    "default_mode",
+    "lease_policy",
+    "rollback",
+    "compatibility",
+    "artifact_inputs"
+  ],
+  "properties": {
+    "schema_version": {"const": "sourceful.driver-package-source/v1"},
+    "package_id": {"type": "string", "pattern": "^com\\.sourceful\\.driver\\.[a-z0-9]+(?:[.-][a-z0-9]+)*$"},
+    "version": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/$defs/semver"},
+    "channel": {"enum": ["beta", "stable"]},
+    "display_name": {"type": "string", "minLength": 1, "maxLength": 120},
+    "identity": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/identity"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "path"],
+      "properties": {
+        "repository": {"type": "string", "format": "uri", "pattern": "^https://"},
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"}
+      }
+    },
+    "builder_id": {"type": "string", "format": "uri"},
+    "device_matches": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/device_matches"},
+    "capabilities": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/capabilities"},
+    "permissions": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/permissions"},
+    "telemetry": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/telemetry"},
+    "commands": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/commands"},
+    "read_only": {"type": "boolean"},
+    "default_mode": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/default_mode"},
+    "lease_policy": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/lease_policy"},
+    "rollback": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/rollback"},
+    "compatibility": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/properties/compatibility"},
+    "artifact_inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifact_id", "target", "media_type", "input_path", "transform", "extension"],
+        "properties": {
+          "artifact_id": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/$defs/identifier"},
+          "target": {"$ref": "https://schemas.sourceful.energy/sourceful.driver-package/v1#/$defs/target"},
+          "media_type": {"enum": ["application/vnd.sourceful.lua.source", "application/vnd.sourceful.lua.bytecode"]},
+          "input_path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+          "transform": {"enum": ["copy", "lua55-strip"]},
+          "extension": {"enum": ["lua", "luac"]}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"transform": {"const": "copy"}}},
+            "then": {"properties": {"media_type": {"const": "application/vnd.sourceful.lua.source"}, "extension": {"const": "lua"}}}
+          },
+          {
+            "if": {"properties": {"transform": {"const": "lua55-strip"}}},
+            "then": {"properties": {"media_type": {"const": "application/vnd.sourceful.lua.bytecode"}, "extension": {"const": "luac"}, "target": {"const": "zap-firmware"}}}
+          }
+        ]
+      }
+    }
+  }
+}

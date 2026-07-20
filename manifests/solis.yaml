@@ -1,0 +1,53 @@
+name: "solis"
+version: "1.2.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter, pv]
+control: true
+tested_devices:
+  - manufacturer: "Solis"
+    model_family: "S6-EH3P (Three-Phase Hybrid)"
+    variants: [S6-EH3P6K, S6-EH3P8K, S6-EH3P10K, S6-EH3P12K, S6-EH3P15K]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Three-phase hybrid, tested"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Solis"
+    model_family: "S6-EH1P (Single-Phase Hybrid)"
+    variants: [S6-EH1P3K, S6-EH1P3.6K, S6-EH1P4.6K, S6-EH1P5K, S6-EH1P6K]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Single-phase hybrid inverter"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Solis"
+    model_family: "S5-GR3P (Three-Phase String)"
+    variants: [S5-GR3P5K, S5-GR3P6K, S5-GR3P8K, S5-GR3P10K]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Three-phase string inverter (PV only)"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Solis"
+    model_family: "S6-GR3P (Three-Phase String)"
+    variants: [S6-GR3P5K, S6-GR3P6K, S6-GR3P8K, S6-GR3P10K]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Next-gen three-phase string inverter"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Solis"
+    model_family: "Solis C&I (Commercial)"
+    variants: [Solis-80K-5G, Solis-100K-5G, Solis-110K-5G]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Commercial/industrial inverter"
+    min_driver_version: "1.2.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "solis"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

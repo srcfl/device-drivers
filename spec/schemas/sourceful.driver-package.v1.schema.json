@@ -1,0 +1,551 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.sourceful.energy/sourceful.driver-package/v1",
+  "title": "Sourceful Driver Package v1",
+  "description": "Immutable, target-neutral metadata for one signed Sourceful driver release.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "package_id",
+    "version",
+    "channel",
+    "display_name",
+    "identity",
+    "source",
+    "provenance",
+    "device_matches",
+    "capabilities",
+    "permissions",
+    "telemetry",
+    "commands",
+    "read_only",
+    "default_mode",
+    "lease_policy",
+    "rollback",
+    "compatibility",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "sourceful.driver-package/v1"
+    },
+    "package_id": {
+      "type": "string",
+      "pattern": "^com\\.sourceful\\.driver\\.[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+    },
+    "version": {
+      "$ref": "#/$defs/semver"
+    },
+    "channel": {
+      "enum": ["beta", "stable"]
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "make", "serial", "host_fallbacks", "persistent_state_owner"],
+      "properties": {
+        "schema": {"const": "sourceful.hardware-identity/v1"},
+        "make": {"const": "driver_reported"},
+        "serial": {"enum": ["driver_reported_when_available", "unavailable"]},
+        "host_fallbacks": {
+          "type": "array",
+          "items": {"enum": ["mac", "endpoint"]},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "persistent_state_owner": {"const": "host"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "commit", "path"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["builder_id", "build_type", "source_date_epoch", "materials"],
+      "properties": {
+        "builder_id": {
+          "type": "string",
+          "format": "uri"
+        },
+        "build_type": {
+          "const": "sourceful.driver-package/v1"
+        },
+        "source_date_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "materials": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["uri", "sha256"],
+            "properties": {
+              "uri": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        }
+      }
+    },
+    "device_matches": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["manufacturer", "model_family", "variants", "regions"],
+        "properties": {
+          "manufacturer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model_family": {
+            "type": "string",
+            "minLength": 1
+          },
+          "variants": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "regions": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["telemetry", "control"],
+      "properties": {
+        "telemetry": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/capability"},
+          "uniqueItems": true
+        },
+        "control": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]+$"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "http.get",
+          "http.post",
+          "modbus.read",
+          "modbus.write",
+          "mqtt.publish",
+          "mqtt.subscribe",
+          "serial.read",
+          "serial.write"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "sign_convention", "streams"],
+      "properties": {
+        "schema": {
+          "const": "sourceful.telemetry/v2"
+        },
+        "sign_convention": {
+          "const": "sourceful.site-import-positive/v1"
+        },
+        "streams": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "power_field", "meaning"],
+            "properties": {
+              "kind": {"$ref": "#/$defs/capability"},
+              "power_field": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]*$"
+              },
+              "meaning": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240
+              }
+            }
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "capability", "runtime_action", "description", "inputs"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]+$"
+          },
+          "capability": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]+$"
+          },
+          "runtime_action": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "type", "unit", "required"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                },
+                "type": {
+                  "enum": ["boolean", "integer", "number", "string"]
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "read_only": {
+      "type": "boolean"
+    },
+    "default_mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "description"],
+      "properties": {
+        "strategy": {
+          "enum": ["not_applicable", "vendor_autonomous"]
+        },
+        "entrypoint": {
+          "enum": ["driver_default_mode", "driver_default_mode_v2"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        }
+      }
+    },
+    "lease_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_for_control", "expiry_action"],
+      "properties": {
+        "required_for_control": {
+          "type": "boolean"
+        },
+        "max_duration_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "heartbeat_interval_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expiry_action": {
+          "enum": ["not_applicable", "return_to_default"]
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "state_owner", "automatic"],
+      "properties": {
+        "strategy": {"const": "install_previous_verified_package"},
+        "state_owner": {"const": "host"},
+        "automatic": {"type": "boolean"}
+      }
+    },
+    "compatibility": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "artifact_id", "host", "runtime", "control_enabled"],
+        "properties": {
+          "target": {"$ref": "#/$defs/target"},
+          "artifact_id": {"$ref": "#/$defs/identifier"},
+          "host": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["product", "min_version"],
+            "properties": {
+              "product": {
+                "enum": ["ftw", "blixt-gateway", "zap"]
+              },
+              "min_version": {"$ref": "#/$defs/semver"},
+              "max_version_exclusive": {"$ref": "#/$defs/semver"}
+            }
+          },
+          "runtime": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "semantics", "version", "abi", "host_api"],
+            "properties": {
+              "name": {
+                "enum": ["gopher-lua", "luajit", "lua", "native", "wasm"]
+              },
+              "semantics": {
+                "enum": ["lua-5.1", "lua-5.5", "native", "wasm"]
+              },
+              "version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "abi": {
+                "type": "string",
+                "minLength": 1
+              },
+              "host_api": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["profile", "min", "max"],
+                "properties": {
+                  "profile": {
+                    "type": "string",
+                    "pattern": "^sourceful\\.host/[a-z0-9-]+/v[1-9][0-9]*$"
+                  },
+                  "min": {"type": "integer", "minimum": 1},
+                  "max": {"type": "integer", "minimum": 1}
+                }
+              }
+            }
+          },
+          "control_enabled": {
+            "type": "boolean"
+          },
+          "constraints": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "max_artifact_bytes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "max_instances": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"target": {"const": "ftw-core"}}},
+            "then": {
+              "properties": {
+                "host": {"properties": {"product": {"const": "ftw"}}},
+                "runtime": {
+                  "properties": {
+                    "name": {"const": "gopher-lua"},
+                    "semantics": {"const": "lua-5.1"},
+                    "host_api": {"properties": {"profile": {"enum": ["sourceful.host/ftw-core/v1", "sourceful.host/ftw-core/v2"]}}}
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {"properties": {"target": {"const": "blixt-l1"}}},
+            "then": {
+              "properties": {
+                "host": {"properties": {"product": {"const": "blixt-gateway"}}},
+                "runtime": {
+                  "properties": {
+                    "name": {"const": "luajit"},
+                    "semantics": {"const": "lua-5.1"},
+                    "host_api": {"properties": {"profile": {"enum": ["sourceful.host/blixt-l1/v1", "sourceful.host/blixt-l1/v2"]}}}
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {"properties": {"target": {"const": "zap-firmware"}}},
+            "then": {
+              "properties": {
+                "host": {"properties": {"product": {"const": "zap"}}},
+                "runtime": {
+                  "properties": {
+                    "name": {"const": "lua"},
+                    "semantics": {"const": "lua-5.5"},
+                    "host_api": {"properties": {"profile": {"const": "sourceful.host/zap-firmware/v1"}}}
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifact_id",
+          "target",
+          "media_type",
+          "filename",
+          "url",
+          "sha256",
+          "size_bytes"
+        ],
+        "properties": {
+          "artifact_id": {"$ref": "#/$defs/identifier"},
+          "target": {"$ref": "#/$defs/target"},
+          "media_type": {
+            "enum": [
+              "application/vnd.sourceful.lua.source",
+              "application/vnd.sourceful.lua.bytecode"
+            ]
+          },
+          "filename": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]+$"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"read_only": {"const": true}}},
+      "then": {
+        "properties": {
+          "capabilities": {"properties": {"control": {"maxItems": 0}}},
+          "commands": {"maxItems": 0},
+          "default_mode": {
+            "properties": {"strategy": {"const": "not_applicable"}},
+            "not": {"required": ["entrypoint"]}
+          },
+          "lease_policy": {
+            "properties": {
+              "required_for_control": {"const": false},
+              "expiry_action": {"const": "not_applicable"}
+            },
+            "not": {
+              "anyOf": [
+                {"required": ["max_duration_seconds"]},
+                {"required": ["heartbeat_interval_seconds"]}
+              ]
+            }
+          },
+          "compatibility": {
+            "items": {"properties": {"control_enabled": {"const": false}}}
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "capabilities": {"properties": {"control": {"minItems": 1}}},
+          "commands": {"minItems": 1},
+          "default_mode": {
+            "required": ["entrypoint"],
+            "properties": {"strategy": {"const": "vendor_autonomous"}}
+          },
+          "lease_policy": {
+            "required": ["max_duration_seconds", "heartbeat_interval_seconds"],
+            "properties": {
+              "required_for_control": {"const": true},
+              "expiry_action": {"const": "return_to_default"}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]+$"
+    },
+    "capability": {
+      "enum": ["battery", "evse", "meter", "pv", "v2x_charger"]
+    },
+    "target": {
+      "enum": ["ftw-core", "blixt-l1", "zap-firmware"]
+    }
+  }
+}

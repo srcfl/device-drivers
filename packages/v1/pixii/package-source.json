@@ -1,0 +1,109 @@
+{
+  "schema_version": "sourceful.driver-package-source/v1",
+  "package_id": "com.sourceful.driver.pixii",
+  "version": "1.2.0",
+  "channel": "beta",
+  "display_name": "Pixii PowerShaper",
+  "identity": {
+    "schema": "sourceful.hardware-identity/v1",
+    "make": "driver_reported",
+    "serial": "driver_reported_when_available",
+    "host_fallbacks": ["mac", "endpoint"],
+    "persistent_state_owner": "host"
+  },
+  "source": {
+    "repository": "https://github.com/srcfl/device-drivers",
+    "path": "packages/v1/pixii/targets/ftw.lua"
+  },
+  "builder_id": "https://github.com/srcfl/device-drivers/blob/main/tools/driver_package.py",
+  "device_matches": [
+    {
+      "manufacturer": "Pixii",
+      "model_family": "PowerShaper",
+      "variants": ["PowerShaper 2.0"],
+      "regions": []
+    }
+  ],
+  "capabilities": {
+    "telemetry": ["battery", "meter"],
+    "control": ["battery.dispatch"]
+  },
+  "permissions": ["modbus.read", "modbus.write"],
+  "telemetry": {
+    "schema": "sourceful.telemetry/v2",
+    "sign_convention": "sourceful.site-import-positive/v1",
+    "streams": [
+      {
+        "kind": "battery",
+        "power_field": "w",
+        "meaning": "Positive is charging and negative is discharging."
+      },
+      {
+        "kind": "meter",
+        "power_field": "w",
+        "meaning": "Positive is grid import and negative is grid export at the site boundary."
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "battery.set_power",
+      "capability": "battery.dispatch",
+      "runtime_action": "battery",
+      "description": "Set signed battery power in the site convention; zero returns the Pixii to idle.",
+      "inputs": [
+        {"name": "power_w", "type": "number", "unit": "W", "required": true}
+      ]
+    }
+  ],
+  "read_only": false,
+  "default_mode": {
+    "strategy": "vendor_autonomous",
+    "entrypoint": "driver_default_mode_v2",
+    "description": "Write a zero active-power setpoint and let the Pixii handshake expire to its safe idle mode."
+  },
+  "lease_policy": {
+    "required_for_control": true,
+    "max_duration_seconds": 30,
+    "heartbeat_interval_seconds": 10,
+    "expiry_action": "return_to_default"
+  },
+  "rollback": {
+    "strategy": "install_previous_verified_package",
+    "state_owner": "host",
+    "automatic": false
+  },
+  "compatibility": [
+    {
+      "target": "ftw-core",
+      "artifact_id": "ftw.lua51.source",
+      "host": {
+        "product": "ftw",
+        "min_version": "1.8.0-beta.1",
+        "max_version_exclusive": "2.0.0"
+      },
+      "runtime": {
+        "name": "gopher-lua",
+        "semantics": "lua-5.1",
+        "version": "1.1.2",
+        "abi": "gopher-lua-source-v2",
+        "host_api": {
+          "profile": "sourceful.host/ftw-core/v2",
+          "min": 2,
+          "max": 2
+        }
+      },
+      "control_enabled": false
+    }
+  ],
+  "artifact_inputs": [
+    {
+      "artifact_id": "ftw.lua51.source",
+      "target": "ftw-core",
+      "media_type": "application/vnd.sourceful.lua.source",
+      "input_path": "packages/v1/pixii/targets/ftw.lua",
+      "transform": "copy",
+      "extension": "lua"
+    }
+  ]
+}

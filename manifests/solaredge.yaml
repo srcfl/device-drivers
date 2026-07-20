@@ -1,0 +1,46 @@
+name: "solaredge"
+version: "1.2.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [meter, pv]
+control: false
+tested_devices:
+  - manufacturer: "SolarEdge"
+    model_family: "SE Series (Single-Phase)"
+    variants: [SE2200H, SE3000H, SE3500H, SE4000H, SE5000H, SE6000H]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Single-phase string inverters, port 1502"
+    min_driver_version: "1.2.0"
+  - manufacturer: "SolarEdge"
+    model_family: "SE Series (Three-Phase)"
+    variants: [SE5K, SE7K, SE8K, SE9K, SE10K, SE12.5K, SE15K, SE16K, SE17K, SE25K, SE27.6K, SE33.3K]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Three-phase string inverters, port 1502"
+    min_driver_version: "1.2.0"
+  - manufacturer: "SolarEdge"
+    model_family: "StorEdge"
+    variants: [SE3680H, SE5000H-RWSEZ, SE7600H-US, SE10000H-US]
+    regions: [EU, US]
+    firmware_versions: ""
+    notes: "Hybrid inverters with battery support"
+    min_driver_version: "1.2.0"
+  - manufacturer: "SolarEdge"
+    model_family: "SolarEdge Home"
+    variants: [SE3000H, SE3680H, SE4000H, SE5000H, SE6000H]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Residential single-phase series"
+    min_driver_version: "1.2.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "solaredge"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

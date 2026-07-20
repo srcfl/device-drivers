@@ -1,0 +1,31 @@
+name: "p1_encrypted"
+version: "2.0.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: serial
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "Various (Belgian)"
+    model_family: "Belgian e-MUCS/SMR5"
+    variants: []
+    regions: [BE]
+    firmware_versions: ""
+    notes: "DSMR v5 + Belgian extensions, AES-GCM encrypted, requires keys from DSO"
+    min_driver_version: "2.0.0"
+  - manufacturer: "Various (Austrian)"
+    model_family: "Austrian Smart Meter"
+    variants: []
+    regions: [AT, CH, LU]
+    firmware_versions: ""
+    notes: "HDLC/DLMS/COSEM, AES-GCM encrypted"
+    min_driver_version: "2.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "p1_encrypted"
+sha256: ""
+signature: ""
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

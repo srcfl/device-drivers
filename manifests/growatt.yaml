@@ -1,0 +1,60 @@
+name: "growatt"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [pv, battery, meter]
+control: false
+tested_devices:
+  - manufacturer: "Growatt"
+    model_family: "SPH Series (Single-Phase Hybrid)"
+    variants: [SPH3000, SPH3600, SPH4000, SPH4600, SPH5000, SPH6000]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Growatt"
+    model_family: "SPH-TL3 Series (Three-Phase Hybrid)"
+    variants: [SPH5000TL3, SPH6000TL3, SPH8000TL3, SPH10000TL3]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Growatt"
+    model_family: "MIN Series (Single-Phase String)"
+    variants: [MIN2500, MIN3000, MIN3600, MIN4200, MIN4600, MIN5000, MIN6000]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Growatt"
+    model_family: "MIC Series (Micro)"
+    variants: [MIC600, MIC750, MIC1000, MIC1500, MIC2000, MIC2500, MIC3000]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Growatt"
+    model_family: "MOD Series (Three-Phase String)"
+    variants: [MOD3000, MOD4000, MOD5000, MOD6000, MOD7000, MOD8000, MOD9000, MOD10000]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Growatt"
+    model_family: "MAX Series (Three-Phase Commercial)"
+    variants: [MAX50, MAX60, MAX70, MAX75, MAX80, MAX100, MAX110, MAX125]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

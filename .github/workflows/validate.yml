@@ -1,0 +1,84 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra package --extra dev
+      - run: uv run --no-sync python tools/check_public_boundary.py
+
+  drivers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra package --extra dev
+      - run: bash tools/build_luac.sh --with-interpreter ./luac55
+      - run: |
+          for file in drivers/lua/*.lua; do
+            ./luac55 -p "$file"
+          done
+      - run: bash tools/check_sandbox.sh
+      - run: uv run --no-sync python tools/validate_manifest.py
+      - run: uv run --no-sync python tools/generate_index.py
+      - run: git diff --exit-code -- index.yaml
+      - run: uv run --no-sync python tools/generate_devices.py
+      - run: git diff --exit-code -- devices.yaml
+      - run: uv run --no-sync pytest -q drivers/tests tests
+
+  packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra package --extra dev
+      - name: Build each unsigned package candidate
+        run: |
+          for source in packages/v1/*/package-source.json; do
+            id="$(basename "$(dirname "$source")")"
+            uv run --no-sync python tools/build_candidate.py \
+              --id "$id" \
+              --output-dir "/tmp/device-driver-candidates/$id"
+          done
+
+  dco:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Require Developer Certificate of Origin sign-off
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          missing=0
+          while IFS= read -r commit; do
+            if ! git show -s --format=%B "$commit" | grep -qi '^Signed-off-by: .\+ <.\+>$'; then
+              echo "Missing Signed-off-by: $commit" >&2
+              missing=1
+            fi
+          done < <(git rev-list "$BASE_SHA..$HEAD_SHA")
+          exit "$missing"

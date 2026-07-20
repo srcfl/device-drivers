@@ -1,0 +1,46 @@
+name: "solax"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [pv, battery, meter]
+control: false
+tested_devices:
+  - manufacturer: "SolaX"
+    model_family: "X1 Hybrid G4"
+    variants: [X1-3.0, X1-3.7, X1-5.0, X1-6.0]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "SolaX"
+    model_family: "X3 Hybrid G4"
+    variants: [X3-5.0, X3-6.0, X3-8.0, X3-10.0, X3-12.0, X3-15.0]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "SolaX"
+    model_family: "X3 Hybrid G4 PRO"
+    variants: [X3-PRO-10.0, X3-PRO-15.0, X3-PRO-20.0]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "SolaX"
+    model_family: "X3 MIC/PRO G2 (String)"
+    variants: [X3-MIC-4.0, X3-MIC-5.0, X3-MIC-6.0, X3-MIC-8.0]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

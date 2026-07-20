@@ -1,0 +1,39 @@
+name: "opendtu_mqtt"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: mqtt
+ders: [pv, meter]
+control: false
+tested_devices:
+  - manufacturer: "Hoymiles"
+    model_family: "HM Series"
+    variants: [HM-300, HM-350, HM-400, HM-600, HM-700, HM-800]
+    regions: []
+    firmware_versions: ""
+    notes: "MQTT alternative, requires OpenDTU MQTT configured"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Hoymiles"
+    model_family: "HMS Series"
+    variants: [HMS-300, HMS-350, HMS-400, HMS-500, HMS-600, HMS-700, HMS-800, HMS-900, HMS-1000, HMS-1600, HMS-1800, HMS-2000]
+    regions: []
+    firmware_versions: ""
+    notes: "MQTT alternative, requires OpenDTU MQTT configured"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Hoymiles"
+    model_family: "HMT Series"
+    variants: [HMT-1600, HMT-1800, HMT-2000, HMT-2250]
+    regions: []
+    firmware_versions: ""
+    notes: "MQTT alternative, requires OpenDTU MQTT configured"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

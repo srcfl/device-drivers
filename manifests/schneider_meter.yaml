@@ -1,0 +1,25 @@
+name: "schneider_meter"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "Schneider Electric"
+    model_family: "iEM3xxx/PM5xxx"
+    variants: [iEM3150, iEM3155, iEM3250, iEM3255, iEM3350, iEM3355, PM5100, PM5110, PM5300, PM5310, PM5330, PM5340, PM710]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

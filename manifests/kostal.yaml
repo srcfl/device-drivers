@@ -1,0 +1,46 @@
+name: "kostal"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [pv, battery, meter]
+control: false
+tested_devices:
+  - manufacturer: "Kostal"
+    model_family: "Plenticore Plus"
+    variants: [Plenticore Plus 3.0, Plenticore Plus 4.2, Plenticore Plus 5.5, Plenticore Plus 7.0, Plenticore Plus 8.5, Plenticore Plus 10.0]
+    regions: []
+    firmware_versions: ""
+    notes: "SunSpec compliant, port 1502"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Kostal"
+    model_family: "Plenticore BI"
+    variants: [Plenticore BI 3.0, Plenticore BI 4.2, Plenticore BI 5.5, Plenticore BI 7.0, Plenticore BI 8.5, Plenticore BI 10.0]
+    regions: []
+    firmware_versions: ""
+    notes: "SunSpec compliant, port 1502"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Kostal"
+    model_family: "PIKO MP Plus"
+    variants: [PIKO MP Plus 1.5, PIKO MP Plus 2.0, PIKO MP Plus 2.5, PIKO MP Plus 3.0, PIKO MP Plus 3.6, PIKO MP Plus 4.2, PIKO MP Plus 4.6, PIKO MP Plus 5.5]
+    regions: []
+    firmware_versions: ""
+    notes: "SunSpec compliant, port 1502"
+    min_driver_version: "1.0.0"
+  - manufacturer: "Kostal"
+    model_family: "PIKO IQ"
+    variants: [PIKO IQ 4.2, PIKO IQ 5.5, PIKO IQ 7.0, PIKO IQ 8.5, PIKO IQ 10.0]
+    regions: []
+    firmware_versions: ""
+    notes: "SunSpec compliant, port 1502"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

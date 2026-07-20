@@ -1,0 +1,27 @@
+# Mapping between driver manifest names and novacore API names.
+# This file is the bridge between the two naming systems.
+# Neither side changes — this mapping resolves the differences.
+
+der_types:
+  # manifest_name: novacore_name
+  pv: solar
+  battery: battery
+  meter: meter
+  v2x_charger: ev_charger_port
+
+protocols:
+  # manifest_protocol: [novacore_connection_types]
+  modbus: [modbus_tcp, modbus_rtu]
+  mqtt: [mqtt]
+  http: [http]
+  serial: [p1_uart]
+  standalone: []
+
+device_type_inference:
+  # If a driver's DERs include this type → infer this device_type
+  # Checked in order; first match wins
+  pv: inverter
+  v2x_charger: ev_charger
+  battery: inverter
+  # Fallback: if only meter DERs → energy_meter
+  meter: energy_meter

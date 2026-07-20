@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.sourceful.energy/sourceful.driver-index-envelope/v1",
+  "title": "Sourceful Driver Index Signed Envelope v1",
+  "description": "Ed25519 signature over Sourceful Canonical JSON v1 bytes of a driver discovery index.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "payload_type",
+    "canonicalization",
+    "key_id",
+    "algorithm",
+    "payload",
+    "signature"
+  ],
+  "properties": {
+    "schema_version": {"const": "sourceful.driver-index-envelope/v1"},
+    "payload_type": {"const": "application/vnd.sourceful.driver-index.v1+json"},
+    "canonicalization": {"const": "sourceful.canonical-json/v1"},
+    "key_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$"
+    },
+    "algorithm": {"const": "Ed25519"},
+    "payload": {
+      "$ref": "https://schemas.sourceful.energy/sourceful.driver-index/v1"
+    },
+    "signature": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "pattern": "^[A-Za-z0-9+/]{86}==$"
+    }
+  }
+}

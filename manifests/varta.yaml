@@ -1,0 +1,39 @@
+name: "varta"
+version: "1.0.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter]
+control: false
+tested_devices:
+  - manufacturer: "VARTA"
+    model_family: "pulse neo"
+    variants: [pulse neo 3, pulse neo 6, pulse neo 9]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "VARTA"
+    model_family: "element"
+    variants: [element 6, element 9, element 12, element 15, element 18]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+  - manufacturer: "VARTA"
+    model_family: "link"
+    variants: [link 30, link 40, link 50, link 60]
+    regions: []
+    firmware_versions: ""
+    notes: "Community driver, untested"
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

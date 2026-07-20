@@ -1,0 +1,46 @@
+name: "deye"
+version: "1.2.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter, pv]
+control: false
+tested_devices:
+  - manufacturer: "Deye"
+    model_family: "SUN Single-Phase Hybrid (LV)"
+    variants: [SUN-5K-SG01LP1-EU, SUN-6K-SG01LP1-EU, SUN-8K-SG01LP1-EU]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Single-phase hybrid with LV battery"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Deye"
+    model_family: "SUN Three-Phase Hybrid"
+    variants: [SUN-5K-SG01HP3-EU-AM2, SUN-6K-SG01HP3-EU-AM2, SUN-8K-SG01HP3-EU-AM2, SUN-10K-SG01HP3-EU-AM2, SUN-12K-SG01HP3-EU-AM2, SUN-15K-SG01HP3-EU-AM2, SUN-20K-SG01HP3-EU-AM2, SUN-25K-SG01HP3-EU-AM2]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Three-phase hybrid, supports LV and HV variants with runtime detection"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Deye"
+    model_family: "SUN Three-Phase HV Hybrid"
+    variants: [SUN-5K-SG04LP3-EU, SUN-6K-SG04LP3-EU, SUN-8K-SG04LP3-EU, SUN-10K-SG04LP3-EU, SUN-12K-SG04LP3-EU]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Three-phase hybrid with HV battery"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Deye"
+    model_family: "SUN String (Grid-Tie)"
+    variants: [SUN-8K-G, SUN-10K-G, SUN-12K-G]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Three-phase grid-tie string inverter (PV + meter only)"
+    min_driver_version: "1.2.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "deye"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""

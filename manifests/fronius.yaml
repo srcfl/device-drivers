@@ -1,0 +1,60 @@
+name: "fronius"
+version: "1.2.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [battery, meter, pv]
+control: false
+tested_devices:
+  - manufacturer: "Fronius"
+    model_family: "Primo GEN24"
+    variants: [Primo GEN24 3.0, Primo GEN24 3.6, Primo GEN24 4.0, Primo GEN24 4.6, Primo GEN24 5.0, Primo GEN24 6.0]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Single-phase hybrid inverter"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Fronius"
+    model_family: "Symo GEN24"
+    variants: [Symo GEN24 6.0, Symo GEN24 8.0, Symo GEN24 10.0, Symo GEN24 12.0, Symo GEN24 15.0, Symo GEN24 20.0]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Three-phase hybrid inverter, tested"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Fronius"
+    model_family: "Fronius Verto"
+    variants: []
+    regions: [EU]
+    firmware_versions: ""
+    notes: "New Gen25 platform"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Fronius"
+    model_family: "Fronius Tauro"
+    variants: [Tauro 50-3-D, Tauro 100-3-D]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Commercial/industrial three-phase inverter"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Fronius"
+    model_family: "Fronius Symo (Classic)"
+    variants: [Symo 3.0, Symo 3.7, Symo 4.5, Symo 5.0, Symo 6.0, Symo 7.0, Symo 8.2, Symo 10.0, Symo 12.5, Symo 15.0, Symo 17.5, Symo 20.0]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Classic three-phase string inverter"
+    min_driver_version: "1.2.0"
+  - manufacturer: "Fronius"
+    model_family: "Fronius Primo (Classic)"
+    variants: [Primo 3.0, Primo 3.5, Primo 3.6, Primo 4.0, Primo 4.6, Primo 5.0, Primo 6.0, Primo 8.2]
+    regions: [EU, INT]
+    firmware_versions: ""
+    notes: "Classic single-phase string inverter"
+    min_driver_version: "1.2.0"
+min_host_version: "2.0.0"
+size_bytes: 0
+dkb_id: "fronius_symo_gen24"
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: ""
