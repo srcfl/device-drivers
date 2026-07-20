@@ -13,23 +13,23 @@ jobs:
   public-boundary:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           python-version: "3.12"
-      - run: uv sync --extra package --extra dev
+      - run: uv sync --frozen --extra package --extra dev
       - run: uv run --no-sync python tools/check_public_boundary.py
 
   drivers:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           python-version: "3.12"
-      - run: uv sync --extra package --extra dev
+      - run: uv sync --frozen --extra package --extra dev
       - run: bash tools/build_luac.sh --with-interpreter ./luac55
       - run: |
           for file in drivers/lua/*.lua; do
@@ -46,13 +46,13 @@ jobs:
   packages:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 1
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           python-version: "3.12"
-      - run: uv sync --extra package --extra dev
+      - run: uv sync --frozen --extra package --extra dev
       - name: Build each unsigned package candidate
         run: |
           for source in packages/v1/*/package-source.json; do
@@ -66,7 +66,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
       - name: Require Developer Certificate of Origin sign-off
@@ -82,3 +82,14 @@ jobs:
             fi
           done < <(git rev-list "$BASE_SHA..$HEAD_SHA")
           exit "$missing"
+
+  history-secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: "3.12"
+      - run: git log --all --format=fuller -p | uv run --frozen python tools/check_history_secrets.py
