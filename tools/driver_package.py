@@ -472,6 +472,57 @@ def _compile_lua55(compiler: Path, source: Path, source_date_epoch: int) -> byte
     return bytecode
 
 
+def _lua_named_table_body(source: str, name: str) -> str | None:
+    """Return one Lua assignment table body without crossing into another block."""
+    assignment = re.search(rf"\b{re.escape(name)}\s*=\s*{{", source)
+    if not assignment:
+        return None
+    start = assignment.end() - 1
+    depth = 0
+    quote: str | None = None
+    i = start
+    while i < len(source):
+        char = source[i]
+        if quote is not None:
+            if char == "\\":
+                i += 2
+                continue
+            if char == quote:
+                quote = None
+            i += 1
+            continue
+        if source.startswith("--", i):
+            long_comment = re.match(r"--\[(=*)\[", source[i:])
+            if long_comment:
+                close = "]" + long_comment.group(1) + "]"
+                end = source.find(close, i + long_comment.end())
+                if end < 0:
+                    return None
+                i = end + len(close)
+                continue
+            newline = source.find("\n", i + 2)
+            i = len(source) if newline < 0 else newline + 1
+            continue
+        long_string = re.match(r"\[(=*)\[", source[i:])
+        if long_string:
+            close = "]" + long_string.group(1) + "]"
+            end = source.find(close, i + long_string.end())
+            if end < 0:
+                return None
+            i = end + len(close)
+            continue
+        if char in {'"', "'"}:
+            quote = char
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return source[start + 1 : i]
+        i += 1
+    return None
+
+
 def _validate_lua_source_for_target(
     source_bytes: bytes,
     *,
@@ -503,12 +554,12 @@ def _validate_lua_source_for_target(
         required_entrypoints.add(default_entrypoint or "driver_default_mode")
     if target == "blixt-l1":
         required_entrypoints.add("driver_cleanup")
-        metadata = re.search(r"\bDRIVER_MANIFEST\s*=\s*{(?P<body>.*?)}", source, re.DOTALL)
-        if not metadata:
+        metadata_body = _lua_named_table_body(source, "DRIVER_MANIFEST")
+        if metadata_body is None:
             raise PackageError("blixt-l1: Lua source must declare DRIVER_MANIFEST")
     elif target == "ftw-core":
-        metadata = re.search(r"\bDRIVER\s*=\s*{(?P<body>.*?)}", source, re.DOTALL)
-        if not metadata:
+        metadata_body = _lua_named_table_body(source, "DRIVER")
+        if metadata_body is None:
             raise PackageError("ftw-core: Lua source must declare DRIVER")
         if not re.search(r"\bhost_api_min\s*=", source) or not re.search(
             r"\bhost_api_max\s*=", source
@@ -521,12 +572,20 @@ def _validate_lua_source_for_target(
 
     declared_version = re.search(
         r"\bversion\s*=\s*[\"'](?P<version>[^\"']+)[\"']",
-        metadata.group("body"),
+        metadata_body,
     )
     if not declared_version or declared_version.group("version") != package_version:
         raise PackageError(
             f"{target}: Lua metadata version must equal package version {package_version}"
         )
+
+    declared_read_only = re.search(
+        r"\bread_only\s*=\s*(?P<value>true|false)\b", metadata_body
+    )
+    if target == "ftw-core" and read_only and not declared_read_only:
+        raise PackageError(f"{target}: read-only Lua source must declare read_only = true")
+    if declared_read_only and (declared_read_only.group("value") == "true") != read_only:
+        raise PackageError(f"{target}: Lua read_only metadata must match the package")
 
     missing = sorted(required_entrypoints - entrypoints)
     if missing:

@@ -50,6 +50,7 @@ DRIVER = {{
   name         = "Sungrow observe-only pilot",
   manufacturer = "Sungrow",
   version      = "1.3.2",
+  read_only    = true,
   legacy_ids   = {{ "sungrow-shx" }},
   protocols    = {{ "modbus" }},
   capabilities = {{ "meter", "pv", "battery" }},
