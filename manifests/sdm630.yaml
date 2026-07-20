@@ -1,5 +1,5 @@
 name: "sdm630"
-version: "1.1.1"
+version: "1.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -22,4 +22,4 @@ signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "Reserve the first package version built from public source provenance."

@@ -1,0 +1,1717 @@
+{
+  "drivers": [
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "abb_meter",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "abb_terra",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "acrel",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "alfen",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "alphaess",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.1.0",
+      "driver_id": "ambibox",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "atmoce",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "carlo_gavazzi",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "chint",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "circutor",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.2.0",
+      "driver_id": "deye",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "easee",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "etrel",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.1.0",
+      "driver_id": "ferroamp",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.1",
+      "driver_id": "ferroamp_dc2_v2x",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "ferroamp_modbus",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "foxess",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.2.0",
+      "driver_id": "fronius",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "fronius_api",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.1.0",
+      "driver_id": "fronius_smart_meter",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "goe",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "goe_http",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "goodwe",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "growatt",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "hardybarth",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.1.0",
+      "driver_id": "hello",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.3.0",
+      "driver_id": "huawei",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "janitza",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "keba",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "kostal",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "kstar",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "mennekes",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "opendtu",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "opendtu_mqtt",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "openevse",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "2.0.0",
+      "driver_id": "p1_dsmr",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "2.0.0",
+      "driver_id": "p1_encrypted",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "2.0.0",
+      "driver_id": "p1_hdlc",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "2.0.0",
+      "driver_id": "p1_meter",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.1.0",
+      "driver_id": "pixii",
+      "package_id": "com.sourceful.driver.pixii",
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": "1.2.1",
+          "control_enabled": false,
+          "hil": "required",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "blocked",
+          "note": "Target differs materially from the FTW legacy driver. Golden telemetry, identity, fault, default-mode parity and physical HIL are required before activation.",
+          "stable_package_version": null,
+          "target_conformance": "staged"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "saj",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "schneider_meter",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "schrack_ev",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.1.2",
+      "driver_id": "sdm630",
+      "package_id": "com.sourceful.driver.sdm630",
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": "1.1.2",
+          "control_enabled": false,
+          "hil": "required_for_public_source_candidate",
+          "historical_signed_beta_version": "1.1.1",
+          "legacy_parity": "not_applicable_new_pilot",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "contract_passed"
+        },
+        "ftw-core": {
+          "candidate_package_version": "1.1.2",
+          "control_enabled": false,
+          "hil": "required_for_public_source_candidate",
+          "historical_signed_beta_version": "1.1.1",
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "contract_passed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.1.0",
+      "driver_id": "shelly",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "siemens_pac",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "sigenergy",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.2.0",
+      "driver_id": "sma",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "socomec",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "sofar",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.2.0",
+      "driver_id": "solaredge",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "solax",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "solinteg",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.2.0",
+      "driver_id": "solis",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "sonnen",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.2.0",
+      "driver_id": "sungrow",
+      "package_id": "com.sourceful.driver.sungrow",
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": "1.3.1",
+          "control_enabled": false,
+          "hil": "required",
+          "historical_signed_beta_version": "1.3.0",
+          "legacy_parity": "not_assessed",
+          "note": "Control stays disabled pending per-driver process isolation, readback and command evidence, and physical Sungrow HIL.",
+          "stable_package_version": null,
+          "target_conformance": "staged_control_off"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "varta",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "victron",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "victron_mqtt",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "wallbox",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "1.0.0",
+      "driver_id": "zaptec",
+      "package_id": null,
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    }
+  ],
+  "schema_version": "sourceful.driver-support-status/v1",
+  "targets": [
+    "ftw-core",
+    "blixt-l1"
+  ]
+}

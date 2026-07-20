@@ -31,7 +31,7 @@ SECRET_PATTERNS = (
 TEXT_SUFFIXES = {
     ".c", ".h", ".json", ".lua", ".md", ".py", ".sh", ".txt", ".yaml", ".yml"
 }
-PROVENANCE_EXCEPTIONS = {Path("SOURCE_IMPORT.md")}
+PROVENANCE_EXCEPTIONS = {Path("SOURCE_IMPORT.md"), Path("source-import-delta.json")}
 SECRET_PATTERN_EXCEPTIONS = {
     Path("tools/check_public_boundary.py"),
     Path("tools/driver_package.py"),

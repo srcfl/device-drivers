@@ -14,7 +14,7 @@ DRIVER = {
     id = "sdm630",
     name = "Eastron SDM630 meter",
     manufacturer = "Eastron",
-    version = "1.1.1",
+    version = "1.1.2",
     protocols = { "modbus" },
     capabilities = { "meter" },
     read_only = true,
@@ -32,7 +32,7 @@ DRIVER = {
 
 DRIVER_MANIFEST = {
     name = "sdm630",
-    version = "1.1.1",
+    version = "1.1.2",
     role = "meter",
     requires = {},
     options = {},

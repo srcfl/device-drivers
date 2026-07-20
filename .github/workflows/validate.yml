@@ -41,6 +41,8 @@ jobs:
       - run: git diff --exit-code -- index.yaml
       - run: uv run --no-sync python tools/generate_devices.py
       - run: git diff --exit-code -- devices.yaml
+      - run: uv run --no-sync python tools/generate_support_status.py
+      - run: git diff --exit-code -- support-status.json SUPPORT_STATUS.md
       - run: uv run --no-sync pytest -q drivers/tests tests
 
   packages:
