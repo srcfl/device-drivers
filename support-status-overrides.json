@@ -23,11 +23,11 @@
   },
   "sungrow": {
     "ftw-core": {
-      "target_conformance": "staged_control_off",
+      "target_conformance": "observe_only_profile_blocked",
       "historical_signed_beta_version": "1.3.0",
-      "hil": "required",
+      "hil": "exact_model_firmware_required",
       "legacy_parity": "not_assessed",
-      "note": "Control stays disabled pending per-driver process isolation, readback and command evidence, and physical Sungrow HIL."
+      "note": "Version 1.3.2 is read-only and blocks activation until an exact model and firmware profile passes review. Version 1.3.1 remains staged and must not run on the pilot site."
     }
   }
 }

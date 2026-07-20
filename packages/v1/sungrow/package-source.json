@@ -1,9 +1,9 @@
 {
   "schema_version": "sourceful.driver-package-source/v1",
   "package_id": "com.sourceful.driver.sungrow",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "channel": "beta",
-  "display_name": "Sungrow hybrid and string inverters",
+  "display_name": "Sungrow observe-only pilot",
   "identity": {
     "schema": "sourceful.hardware-identity/v1",
     "make": "driver_reported",
@@ -13,46 +13,22 @@
   },
   "source": {
     "repository": "https://github.com/srcfl/device-drivers",
-    "path": "packages/v1/sungrow/targets/ftw.lua"
+    "path": "packages/v1/sungrow/targets/ftw-observe.lua"
   },
   "builder_id": "https://github.com/srcfl/device-drivers/blob/main/tools/driver_package.py",
   "device_matches": [
     {
       "manufacturer": "Sungrow",
-      "model_family": "SG-CX (Three-Phase Commercial)",
-      "variants": ["SG25CX", "SG30CX", "SG33CX", "SG36CX", "SG40CX", "SG50CX"],
-      "regions": ["EU", "INT"]
-    },
-    {
-      "manufacturer": "Sungrow",
-      "model_family": "SG-RT (Three-Phase String)",
-      "variants": ["SG5.0RT", "SG6.0RT", "SG7.0RT", "SG8.0RT", "SG10RT", "SG12RT", "SG15RT", "SG17RT", "SG20RT", "SG25RT"],
-      "regions": ["EU"]
-    },
-    {
-      "manufacturer": "Sungrow",
-      "model_family": "SH-RS (Single-Phase Hybrid)",
-      "variants": ["SH3.0RS", "SH3.6RS", "SH4.0RS", "SH5.0RS", "SH6.0RS"],
-      "regions": ["EU"]
-    },
-    {
-      "manufacturer": "Sungrow",
       "model_family": "SH-RT (Three-Phase Hybrid)",
       "variants": ["SH5.0RT", "SH6.0RT", "SH8.0RT", "SH10RT"],
-      "regions": ["EU"]
-    },
-    {
-      "manufacturer": "Sungrow",
-      "model_family": "SH-T (Three-Phase Hybrid High-Power)",
-      "variants": ["SH8.0RT", "SH10RT", "SH15T", "SH20T", "SH25T"],
       "regions": ["EU"]
     }
   ],
   "capabilities": {
     "telemetry": ["battery", "meter", "pv"],
-    "control": ["battery.dispatch"]
+    "control": []
   },
-  "permissions": ["modbus.read", "modbus.write"],
+  "permissions": ["modbus.read"],
   "telemetry": {
     "schema": "sourceful.telemetry/v2",
     "sign_convention": "sourceful.site-import-positive/v1",
@@ -74,44 +50,15 @@
       }
     ]
   },
-  "commands": [
-    {
-      "id": "battery.set_power",
-      "capability": "battery.dispatch",
-      "runtime_action": "battery",
-      "description": "Set signed battery power in the site convention; zero returns vendor auto mode.",
-      "inputs": [
-        {"name": "power_w", "type": "number", "unit": "W", "required": true}
-      ]
-    },
-    {
-      "id": "battery.force_charge",
-      "capability": "battery.dispatch",
-      "runtime_action": "curtail",
-      "description": "Invoke the legacy curtail action, which forces battery charging at an absolute watt limit.",
-      "inputs": [
-        {"name": "power_w", "type": "number", "unit": "W", "required": true}
-      ]
-    },
-    {
-      "id": "battery.force_charge.disable",
-      "capability": "battery.dispatch",
-      "runtime_action": "curtail_disable",
-      "description": "Disable forced charging and return the inverter to vendor auto mode.",
-      "inputs": []
-    }
-  ],
-  "read_only": false,
+  "commands": [],
+  "read_only": true,
   "default_mode": {
-    "strategy": "vendor_autonomous",
-    "entrypoint": "driver_default_mode_v2",
-    "description": "Write operating mode 0 so the inverter resumes its vendor-managed autonomous mode."
+    "strategy": "not_applicable",
+    "description": "The observe-only target never changes inverter state."
   },
   "lease_policy": {
-    "required_for_control": true,
-    "max_duration_seconds": 30,
-    "heartbeat_interval_seconds": 10,
-    "expiry_action": "return_to_default"
+    "required_for_control": false,
+    "expiry_action": "not_applicable"
   },
   "rollback": {
     "strategy": "install_previous_verified_package",
@@ -131,11 +78,11 @@
         "name": "gopher-lua",
         "semantics": "lua-5.1",
         "version": "1.1.2",
-        "abi": "gopher-lua-source-v2",
+        "abi": "gopher-lua-source-v1",
         "host_api": {
-          "profile": "sourceful.host/ftw-core/v2",
-          "min": 2,
-          "max": 2
+          "profile": "sourceful.host/ftw-core/v1",
+          "min": 1,
+          "max": 1
         }
       },
       "control_enabled": false
@@ -146,7 +93,7 @@
       "artifact_id": "ftw.lua51.source",
       "target": "ftw-core",
       "media_type": "application/vnd.sourceful.lua.source",
-      "input_path": "packages/v1/sungrow/targets/ftw.lua",
+      "input_path": "packages/v1/sungrow/targets/ftw-observe.lua",
       "transform": "copy",
       "extension": "lua"
     }

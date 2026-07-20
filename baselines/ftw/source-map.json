@@ -1,0 +1,18 @@
+{
+  "schema_version": "sourceful.ftw-legacy-source-map/v1",
+  "repository": "https://github.com/srcfl/ftw",
+  "commit": "699873db3e7abe81f76e8110d1cefa4a38ba6efb",
+  "drivers": [
+    {
+      "source_path": "drivers/sungrow.lua",
+      "baseline_path": "baselines/ftw/drivers/sungrow.lua",
+      "source_sha256": "466a5f8637e6756fc2e1af4197d4edc1845474231413c0016f0e5900acb7b7ac",
+      "original_id": "sungrow-shx",
+      "original_version": "1.1.0",
+      "canonical_id": "sungrow",
+      "import_status": "byte_exact",
+      "package_eligibility": "observe_only_target_required",
+      "live_activation": "blocked"
+    }
+  ]
+}
