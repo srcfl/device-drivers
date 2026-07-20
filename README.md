@@ -49,7 +49,7 @@ beta from an exact reviewed commit through the private release service.
 
 ```text
 public PR -> public CI -> reviewed commit -> private signer -> beta package
-          -> supervised site test -> exact-byte stable promotion
+          -> supervised site test -> stable envelope over the same artifacts
 ```
 
 FTW and Blixt consume the signed package index. A public source pin in a host
@@ -57,6 +57,11 @@ repository is only a CI fixture and does not tie driver updates to a host
 release. Refreshing an index never installs or activates code. Each host keeps
 its own safety and activation authority. Zap is a future target, not a current
 production target. Hugin has no active runtime or registry role.
+
+The catalog is not an install claim. See [SUPPORT_STATUS.md](SUPPORT_STATUS.md)
+for source, target conformance, signed beta, HIL, stable and legacy parity per
+driver and target. Nova and fleet inventory use the same driver, package and
+target identities from [support-status.json](support-status.json).
 
 ## License
 

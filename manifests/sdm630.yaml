@@ -1,5 +1,5 @@
 name: "sdm630"
-version: "1.1.1"
+version: "1.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,12 +14,12 @@ tested_devices:
     notes: ""
     min_driver_version: "1.1.1"
 min_host_version: "2.0.0"
-size_bytes: 5189
+size_bytes: 5488
 dkb_id: "sdm630"
-sha256: "da2cbcc670bdd1463b95e5cdae3dc04c8cdf8adae5dcda233ff4dd65d9bd74ec"
+sha256: "a84cbf69301719c9c4b0fa96aa597618c4a39f594d07c2835c039bbeaef0146e"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "Reserve the first package version built from public source provenance."

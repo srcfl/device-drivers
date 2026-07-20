@@ -345,13 +345,13 @@ drivers:
     size_bytes: 2371
     sha256: "0cbd680246cc45f8cd4bde2ca82a2bdbb39a903791ae4b4e80e170a97d8eb87a"
   - name: "sdm630"
-    version: "1.1.1"
+    version: "1.1.2"
     tier: core
     protocol: modbus
     ders: [meter]
     control: false
     size_bytes: 5488
-    sha256: "27d5612b891b01c98b054304a16295bd3e78982d166f731fd99372e3871eea54"
+    sha256: "a84cbf69301719c9c4b0fa96aa597618c4a39f594d07c2835c039bbeaef0146e"
   - name: "shelly"
     version: "1.1.0"
     tier: community

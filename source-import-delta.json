@@ -1,0 +1,37 @@
+{
+  "schema_version": "sourceful.driver-source-import-delta/v1",
+  "base_repository": "srcfl/srcful-device-support",
+  "base_commit": "5b16f74fc64321aedf09044622dfe05b3155a5e4",
+  "deltas": [
+    {
+      "paths": ["README.md", "drivers/lua/README.md"],
+      "kind": "documentation",
+      "reason": "Describe the public source and private signing boundary."
+    },
+    {
+      "paths": ["drivers/tests/conftest.py"],
+      "kind": "test-path-fix",
+      "reason": "Resolve root manifests from the public repository layout."
+    },
+    {
+      "paths": [
+        "packages/v1/pixii/package-source.json",
+        "packages/v1/sdm630/package-source.json",
+        "packages/v1/sungrow/package-source.json"
+      ],
+      "kind": "provenance",
+      "reason": "Bind source and builder URLs to srcfl/device-drivers."
+    },
+    {
+      "paths": [
+        "drivers/lua/ferroamp_dc2_v2x.lua",
+        "manifests/ferroamp_dc2_v2x.yaml",
+        "drivers/tests/test_ferroamp_dc2_v2x_contract.py"
+      ],
+      "kind": "host-contract-fix",
+      "reason": "Map ISO 15118 power limits to the host V2X field names.",
+      "package_release_allowed": false,
+      "hil_status": "required"
+    }
+  ]
+}

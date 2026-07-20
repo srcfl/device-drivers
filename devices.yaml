@@ -257,7 +257,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sdm630"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [meter]
             control: false
         firmware_versions: ""

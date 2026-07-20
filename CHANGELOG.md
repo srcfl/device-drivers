@@ -7,6 +7,12 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Changed
+- **pixii** 1.2.1 — First public-source package version; control remains disabled
+- **sdm630** 1.1.2 — First public-source package version for FTW and Blixt
+- **sungrow** 1.3.1 — First public-source package version; control remains disabled pending FTW process isolation and physical HIL
+- Repository provenance now binds public source commits instead of the former private source repository
+
 ### Added
 - **pixii** 1.2.0 — Staged FTW control v2 package that keeps battery and site-meter telemetry live while calibration marks the battery unavailable for dispatch; control stays disabled pending runtime isolation and physical HIL
 - **sungrow** 1.3.0 — Staged FTW control v2 adapter with checked Modbus writes, exact readback, structured results and vendor-auto default mode; the FTW target stays disabled pending runtime isolation and physical HIL
@@ -30,7 +36,7 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 - Versioning policy in manifest spec
 - This changelog
 
-### Changed
+### Earlier changes
 - All manifests: `tested_devices.model` renamed to `tested_devices.model_family`
 - All manifests: version bumped from 1.0.0 to 1.1.0
 - Manifest spec (`spec/manifest-v2.md`) updated with new tested_devices fields
