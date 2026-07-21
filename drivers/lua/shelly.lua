@@ -103,7 +103,9 @@ end
 
 local function poll_em()
     local data = http_get_json("/rpc/EM.GetStatus?id=0")
-    if not data then return nil end
+    if not data or data.a_act_power == nil or data.b_act_power == nil or data.c_act_power == nil then
+        return nil
+    end
 
     local meter = {}
 
@@ -146,10 +148,12 @@ local function poll_em1()
     local total_w = 0
     local total_import = 0
     local total_export = 0
+	local successful_channels = 0
 
     for i = 0, channel_count - 1 do
         local data = http_get_json("/rpc/EM1.GetStatus?id=" .. i)
-        if data then
+		if data and data.act_power ~= nil then
+			successful_channels = successful_channels + 1
             local phase_w = data.act_power or 0
             total_w = total_w + phase_w
 
@@ -174,6 +178,8 @@ local function poll_em1()
         end
     end
 
+	if successful_channels ~= channel_count then return nil end
+
     meter.w = total_w
     meter.import_wh = total_import
     meter.export_wh = total_export
@@ -190,10 +196,12 @@ local function poll_pm1()
     local total_w = 0
     local total_import = 0
     local total_export = 0
+	local successful_channels = 0
 
     for i = 0, channel_count - 1 do
         local data = http_get_json("/rpc/PM1.GetStatus?id=" .. i)
-        if data then
+		if data and data.apower ~= nil then
+			successful_channels = successful_channels + 1
             local phase_w = data.apower or 0
             total_w = total_w + phase_w
 
@@ -217,6 +225,8 @@ local function poll_pm1()
         end
     end
 
+	if successful_channels ~= channel_count then return nil end
+
     meter.w = total_w
     meter.import_wh = total_import
     meter.export_wh = total_export
@@ -233,10 +243,12 @@ local function poll_switch()
     local total_w = 0
     local total_import = 0
     local total_export = 0
+	local successful_channels = 0
 
     for i = 0, channel_count - 1 do
         local data = http_get_json("/rpc/Switch.GetStatus?id=" .. i)
-        if data then
+		if data and data.apower ~= nil then
+			successful_channels = successful_channels + 1
             local phase_w = data.apower or 0
             total_w = total_w + phase_w
 
@@ -264,6 +276,8 @@ local function poll_switch()
             total_export = total_export + exp
         end
     end
+
+	if successful_channels ~= channel_count then return nil end
 
     meter.w = total_w
     meter.import_wh = total_import

@@ -115,13 +115,14 @@ class TestModbusRegisterAccess:
 class TestModbusDecoding:
     """Validate that decode functions are used correctly."""
 
-    def test_decode_u32_takes_2_args(self, driver_name):
-        """decode_u32 and decode_i32 should take exactly 2 arguments."""
+    def test_32_bit_decoders_take_2_args(self, driver_name):
+        """All 32-bit integer decoders should take exactly 2 arguments."""
         code = read_driver(driver_name)
         calls = _extract_decode_calls(code)
 
         for func_name, arg_count in calls:
             if func_name in ('decode_u32', 'decode_i32',
+                             'decode_u32_be', 'decode_i32_be',
                              'decode_u32_le', 'decode_i32_le',
                              'decode_f32'):
                 assert arg_count == 2, (
@@ -161,6 +162,7 @@ class TestModbusDecoding:
         valid_decoders = {
             'decode_i16', 'decode_u16',
             'decode_u32', 'decode_i32',
+            'decode_u32_be', 'decode_i32_be',
             'decode_u32_le', 'decode_i32_le',
             'decode_f32',
             'decode_u64',

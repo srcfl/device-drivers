@@ -55,6 +55,11 @@ make check
 The package command creates an unsigned candidate under `.artifacts/`. It does
 not grant release or signing rights.
 
+The FTW release build turns each source file into a signed, read-only Lua
+artifact. The channel includes the full catalog and checks every generated
+artifact against the FTW v1 lifecycle and host API. A merged source change
+reaches beta only after the signed release workflow passes.
+
 ## Pull request evidence
 
 State:
@@ -69,6 +74,8 @@ State:
 Do not post credentials, full configuration, serial numbers, private addresses
 or energy history from a real site.
 
-New contributions use the `community` tier. A maintainer may promote a driver
-only after the stated review and hardware checks. Control support always uses a
-separate change and cannot rely on community-tier review alone.
+New contributions use the `community` tier. That tier states the current test
+and support evidence; it does not mean the public repo is unofficial or
+unmaintained. A maintainer may promote a driver only after the stated review
+and hardware checks. Control support always uses a separate change and cannot
+rely on community-tier review alone.

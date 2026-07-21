@@ -41,13 +41,13 @@ drivers:
     size_bytes: 3039
     sha256: "b9e1e4ba52c07f04157152f423b489d9a750d7bdd7ef59d3b8b36bf2867b701e"
   - name: "ambibox"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: core
     protocol: mqtt
     ders: [battery, meter, v2x_charger]
     control: true
-    size_bytes: 6853
-    sha256: "d7e8b9b74fbff52fd9230100e0ce407ff738502bfb4720873d2f54cc7ab78ec1"
+    size_bytes: 7203
+    sha256: "12de1c99cfed144f35c2e2a7f372186ef09e2a43120918a54e3622c572e5cd2e"
   - name: "atmoce"
     version: "1.0.0"
     tier: community
@@ -105,21 +105,21 @@ drivers:
     size_bytes: 2361
     sha256: "35924a3e5ef994362a8738d652f1e0c59ec78c3537c1f01abdf90ff97ee362d1"
   - name: "ferroamp"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: core
     protocol: mqtt
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 9106
-    sha256: "c65b52c203d21b6807e4499a3258894055d1d02d20fb681dc2cdf437a3713595"
+    size_bytes: 9233
+    sha256: "452ceabbaab41c8e989ebc7a0b8fc99fead00f33252c7586658b7effefa6f68d"
   - name: "ferroamp_dc2_v2x"
-    version: "1.0.1"
+    version: "1.0.2"
     tier: core
     protocol: mqtt
     ders: [v2x_charger]
     control: true
-    size_bytes: 5628
-    sha256: "8a48f999e3d593d70ccfa1558c270798beb05435c9b73584438dc5fa334f151a"
+    size_bytes: 5830
+    sha256: "1bb07ec76653b096c7fee4f72200d8dd2be480c03d8eb5478254da2c608a947f"
   - name: "ferroamp_modbus"
     version: "1.0.0"
     tier: core
@@ -177,13 +177,13 @@ drivers:
     size_bytes: 3340
     sha256: "48b6d9ded6043e9b42a09bf03bd8edbab6363b18781e2279e957eee237556d25"
   - name: "goodwe"
-    version: "1.0.0"
+    version: "1.0.1"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 6369
-    sha256: "39ab6d08a87a69488f1c24d4d0bba6a3ad973dd4975691646b70c09a63ecbcb6"
+    size_bytes: 8055
+    sha256: "be88e2cee62989558551ff0516211981323c6c76946f604495eb3f478f3f61e8"
   - name: "growatt"
     version: "1.0.0"
     tier: community
@@ -265,13 +265,13 @@ drivers:
     size_bytes: 3758
     sha256: "952ed411581591817a1ebfc0eacad0e211f55d4ce0d05ad218d780d1bdefba5e"
   - name: "opendtu_mqtt"
-    version: "1.0.0"
+    version: "1.0.1"
     tier: community
     protocol: mqtt
     ders: [pv, meter]
     control: false
-    size_bytes: 3896
-    sha256: "a5054a2f4f63d296baab413c6fdd9af7dd6168e41f4c40bfdf18990be321d63b"
+    size_bytes: 3995
+    sha256: "79c1676e49c088ccca0e72db139338792d88536a6badb62bcc9a737422af59b1"
   - name: "openevse"
     version: "1.0.0"
     tier: community
@@ -353,13 +353,13 @@ drivers:
     size_bytes: 5488
     sha256: "a84cbf69301719c9c4b0fa96aa597618c4a39f594d07c2835c039bbeaef0146e"
   - name: "shelly"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: community
     protocol: http
     ders: [meter]
     control: false
-    size_bytes: 11305
-    sha256: "88545a4bc5f9e78f8c68419b7fff9b840444d85fe8de9125c8e1c52d1a373943"
+    size_bytes: 11878
+    sha256: "ca209373857d72f26e75a2c215a85279b6cc905647b947e1bb05ded9c76c61fd"
   - name: "siemens_pac"
     version: "1.0.0"
     tier: community
@@ -465,13 +465,13 @@ drivers:
     size_bytes: 3943
     sha256: "037b43796c5df8ee0f9410b5c3819b630b090ae2a844269236df6c6668b93881"
   - name: "victron_mqtt"
-    version: "1.0.0"
+    version: "1.0.1"
     tier: community
     protocol: mqtt
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 5225
-    sha256: "647f5ebd717a88d137498e59d94a75e4e3a9209f44ca52dad3cb328f7e468350"
+    size_bytes: 5762
+    sha256: "b10764e026e43278ac15f015aae2eb1f6c6c1f7f96248f32814f94e206fe6d14"
   - name: "wallbox"
     version: "1.0.0"
     tier: community

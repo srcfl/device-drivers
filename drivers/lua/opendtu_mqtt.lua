@@ -66,7 +66,9 @@ end
 
 function driver_poll()
     local messages = host.mqtt_messages()
-    if not messages then return 2000 end
+    if not messages or #messages == 0 then return 2000 end
+
+    local fresh_power = false
 
     -- Process incoming messages and cache values
     for _, msg in ipairs(messages) do
@@ -76,6 +78,7 @@ function driver_poll()
         if topic_ends_with(topic, "/status/AC/Power") then
             ac_power = val
             has_data = true
+            fresh_power = true
         elseif topic_ends_with(topic, "/status/AC/Voltage") then
             ac_voltage = val
         elseif topic_ends_with(topic, "/status/AC/Current") then
@@ -92,7 +95,7 @@ function driver_poll()
     end
 
     -- Only emit if we have received at least one power reading
-    if not has_data then return 2000 end
+    if not has_data or not fresh_power then return 2000 end
 
     -- Emit PV telemetry
     -- Negate power: PV generation is negative by convention

@@ -64,7 +64,9 @@ end
 
 function driver_poll()
     local messages = host.mqtt_messages()
-    if not messages then return 1000 end
+    if not messages or #messages == 0 then return 1000 end
+
+    local fresh_power = false
 
     for _, msg in ipairs(messages) do
         local key = topic_to_key(msg.topic)
@@ -75,11 +77,14 @@ function driver_poll()
             else
                 state[key] = msg.payload
             end
+            if key == "pe/measured_voltage" or key == "pe/measured_current" then
+                fresh_power = true
+            end
         end
     end
 
     -- Only emit if we have some charger data
-    if not state["pe/measured_voltage"] and not state["pe/measured_current"] then
+    if not fresh_power or (not state["pe/measured_voltage"] and not state["pe/measured_current"]) then
         return 1000
     end
 

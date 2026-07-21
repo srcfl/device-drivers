@@ -1,5 +1,5 @@
 name: "ferroamp_dc2_v2x"
-version: "1.0.1"
+version: "1.0.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -25,4 +25,4 @@ signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Map negotiated EV power limits to the host V2X field names."
+changelog: "Map EV power limits and stop emitting cached power when MQTT is idle."

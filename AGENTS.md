@@ -1,14 +1,17 @@
 # Device driver repository guide
 
 This public repository is the only editable source for shared Sourceful device
-drivers. The private Device Support service may vendor a locked copy, build it
-and sign releases, but source changes start here.
+drivers and the main driver source for FTW. It publishes FTW's signed driver
+channel from reviewed commits. Device Support may later consume a locked commit
+for other products or support levels, but it does not own a second source tree.
 
 ## Boundaries
 
-- Keep API, admin, database, deployment and signing code out of this repo.
+- Keep API, admin, database and deployment code out of this repo.
 - Never add private keys, credentials, production account ids or site data.
-- Driver packages are unsigned in public CI.
+- Keep signing keys out of source, logs and build output.
+- Public pull-request builds stay unsigned. The release workflow signs the FTW
+  channel only after a reviewed change reaches `main`.
 - A catalog or package build never grants activation or control authority.
 - New drivers start read-only.
 - Control needs a safe default mode, bounded leases, structured results and HIL

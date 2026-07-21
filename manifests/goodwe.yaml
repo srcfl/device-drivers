@@ -1,5 +1,5 @@
 name: "goodwe"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -85,4 +85,4 @@ signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "Reject failed reads and add the FTW v1 read-only runtime contract."
