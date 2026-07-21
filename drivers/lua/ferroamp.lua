@@ -90,7 +90,9 @@ end
 
 function driver_poll()
     local messages = host.mqtt_messages()
-    if not messages then return 1000 end
+    if not messages or #messages == 0 then return 1000 end
+
+    local fresh_ehub = false
 
     -- Process incoming messages and cache data
     for _, msg in ipairs(messages) do
@@ -98,6 +100,7 @@ function driver_poll()
         if ok and data then
             if msg.topic == "extapi/data/ehub" then
                 ehub_data = data
+                fresh_ehub = true
             elseif msg.topic == "extapi/data/eso" then
                 eso_data = data
             elseif msg.topic == "extapi/data/sso" then
@@ -109,7 +112,7 @@ function driver_poll()
     --------------------------------------------------------------------------
     -- Meter (grid connection point)
     --------------------------------------------------------------------------
-    if ehub_data then
+    if fresh_ehub and ehub_data then
         local pext     = extract_val(ehub_data, "pext")     -- per-phase grid power (W)
         local gridfreq = extract_val(ehub_data, "gridfreq") -- grid frequency (Hz)
         local ul       = extract_val(ehub_data, "ul")       -- per-phase voltage (V)
@@ -155,7 +158,7 @@ function driver_poll()
     --------------------------------------------------------------------------
     -- PV (solar generation)
     --------------------------------------------------------------------------
-    if ehub_data then
+    if fresh_ehub and ehub_data then
         local ppv = extract_val(ehub_data, "ppv")
         if ppv then
             -- ppv can be an array of per-string values or a scalar total
@@ -168,7 +171,7 @@ function driver_poll()
     --------------------------------------------------------------------------
     -- Battery
     --------------------------------------------------------------------------
-    if ehub_data then
+    if fresh_ehub and ehub_data then
         local pbat = extract_val(ehub_data, "pbat")
         if pbat then
             local battery = {}

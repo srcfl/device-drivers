@@ -1,0 +1,187 @@
+name: ftw-drivers-release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "drivers/lua/**"
+      - "manifests/**"
+      - "ftw-channel.json"
+      - "tools/ftw_repository.py"
+      - "tools/manifest_parser.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/ftw-drivers-release.yml"
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: FTW driver channel to publish from the selected Git ref
+        type: choice
+        required: true
+        default: beta
+        options: [beta, stable]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ftw-drivers-${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'beta' }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish signed FTW driver channel
+    runs-on: ubuntu-latest
+    environment: ftw-driver-signing
+    env:
+      FTW_DRIVER_KEY_ID: ftw-drivers-2026-01
+      FTW_DRIVER_SIGNING_PUBLIC_KEY: MX+j27UBkyM099hTyJlmMLK9qlTTDUJsaK/vH12fFKc=
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the protected main commit
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/main"
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+
+      - name: Set up Python
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Install locked build tools
+        run: uv sync --frozen --extra package --extra dev
+
+      - name: Select channel
+        id: channel
+        env:
+          REQUESTED_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'beta' }}
+        run: |
+          set -euo pipefail
+          tag="drivers-${REQUESTED_CHANNEL}"
+          echo "name=${REQUESTED_CHANNEL}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "base_url=https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Require exact beta before stable promotion
+        if: steps.channel.outputs.name == 'stable'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          beta_dir="${RUNNER_TEMP}/ftw-driver-beta"
+          mkdir -p "${beta_dir}"
+          gh release download drivers-beta \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern manifest.json \
+            --dir "${beta_dir}" \
+            --clobber
+          beta_commit="$(uv run --no-sync python tools/ftw_repository.py manifest-commit \
+            --manifest "${beta_dir}/manifest.json" \
+            --key-id "${FTW_DRIVER_KEY_ID}")"
+          if [ "${beta_commit}" != "${GITHUB_SHA}" ]; then
+            echo "drivers-beta contains ${beta_commit:-no commit}, not ${GITHUB_SHA}." >&2
+            echo "Publish and test this exact commit on beta first." >&2
+            exit 1
+          fi
+
+      - name: Download signed channel history
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.channel.outputs.tag }}
+        run: |
+          set -euo pipefail
+          previous_dir="${RUNNER_TEMP}/ftw-driver-previous"
+          mkdir -p "${previous_dir}"
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release download "${TAG}" --repo "${GITHUB_REPOSITORY}" \
+              --pattern manifest.json --dir "${previous_dir}" --clobber
+            echo "FTW_DRIVER_PREVIOUS_MANIFEST=${previous_dir}/manifest.json" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Build signed publication
+        env:
+          FTW_DRIVER_SIGNING_KEY: ${{ secrets.FTW_DRIVER_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${FTW_DRIVER_SIGNING_KEY}" || { echo "Missing FTW_DRIVER_SIGNING_KEY Actions secret"; exit 1; }
+          previous=()
+          if [ -n "${FTW_DRIVER_PREVIOUS_MANIFEST:-}" ]; then
+            previous=(--previous-manifest "${FTW_DRIVER_PREVIOUS_MANIFEST}")
+          fi
+          uv run --no-sync python tools/ftw_repository.py build \
+            --output dist/ftw-driver-repository \
+            --base-url "${{ steps.channel.outputs.base_url }}" \
+            --repository "https://github.com/${GITHUB_REPOSITORY}" \
+            --commit "${GITHUB_SHA}" \
+            --channel "${{ steps.channel.outputs.name }}" \
+            --key-id "${FTW_DRIVER_KEY_ID}" \
+            --source-date-epoch "$(git show -s --format=%ct "${GITHUB_SHA}")" \
+            "${previous[@]}"
+
+      - name: Verify signature and current artifacts
+        run: >-
+          uv run --no-sync python tools/ftw_repository.py verify
+          --manifest dist/ftw-driver-repository/manifest.json
+          --artifacts dist/ftw-driver-repository
+          --key-id "${FTW_DRIVER_KEY_ID}"
+
+      - name: Create channel release when missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.channel.outputs.tag }}
+          CHANNEL: ${{ steps.channel.outputs.name }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            prerelease=()
+            if [ "${CHANNEL}" != stable ]; then
+              prerelease=(--prerelease)
+            fi
+            gh release create "${TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${GITHUB_SHA}" \
+              --title "FTW device drivers (${CHANNEL})" \
+              --notes "Signed FTW channel from the public device-drivers source. The signature proves source integrity, not hardware test status." \
+              --latest=false \
+              "${prerelease[@]}"
+          fi
+
+      - name: Upload artifacts before the channel manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.channel.outputs.tag }}
+        run: |
+          set -euo pipefail
+          artifacts=(dist/ftw-driver-repository/driver-*.lua)
+          test -e "${artifacts[0]}"
+          existing="$(gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json assets --jq '.assets[].name')"
+          for artifact in "${artifacts[@]}"; do
+            name="$(basename "${artifact}")"
+            if ! grep -Fxq "${name}" <<<"${existing}"; then
+              gh release upload "${TAG}" "${artifact}" --repo "${GITHUB_REPOSITORY}"
+            fi
+          done
+          gh release upload "${TAG}" dist/ftw-driver-repository/manifest.payload.json --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release upload "${TAG}" dist/ftw-driver-repository/manifest.json --repo "${GITHUB_REPOSITORY}" --clobber
+
+      - name: Record the current signed source commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.channel.outputs.tag }}
+          CHANNEL: ${{ steps.channel.outputs.name }}
+        run: |
+          set -euo pipefail
+          gh api --method PATCH \
+            "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" \
+            -f sha="${GITHUB_SHA}" \
+            -F force=true >/dev/null
+          gh release edit "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --notes "Signed FTW ${CHANNEL} channel from ${GITHUB_SHA}. The signature proves source integrity, not hardware test status. Driver assets stay immutable so GitHub can retain per-version download counts."

@@ -1,8 +1,8 @@
 # Driver signing boundary
 
-Sourceful driver releases use Ed25519 envelopes to bind each package and index
-to its content, compatibility rules, permissions and source commit. The public
-repository never contains an official private key or a release credential.
+Sourceful driver releases use Ed25519 envelopes to bind release data to its
+content, permissions and source commit. The public repository never contains a
+private key or release credential.
 
 ## Public build
 
@@ -13,17 +13,29 @@ run the same path locally:
 make package-driver ID=sdm630 TARGET=ftw-core
 ```
 
-An unsigned candidate is test input. A host must not treat it as an official
-release or activate it through the normal update path.
+An unsigned candidate is test input. A host must not treat it as a release or
+activate it through the normal update path.
 
-## Official release
+## FTW release
 
-The private Device Support publisher checks out an exact commit from this
-repository. It repeats validation, builds deterministic artifacts, signs the
-canonical package envelope and publishes a signed beta index. Stable promotion
-keeps the exact source commit and artifact hashes from the tested beta.
+`.github/workflows/ftw-drivers-release.yml` builds a read-only FTW artifact for
+every catalog driver under the rules in `ftw-channel.json`. From an exact
+reviewed commit, it signs an
+`ftw.manifest/v1` beta and uploads each content-addressed Lua file before the
+manifest. Stable promotion accepts only the exact commit already published to
+beta. FTW pins the public key and keeps install and activation explicit.
 
-The publisher supplies keys and release credentials at run time. Those inputs
+The FTW key signs distribution integrity. It does not certify a device, change
+the driver's tier or grant control rights.
+
+## Device Support packages
+
+Device Support may later check out an exact commit, repeat validation and sign
+package-v1 data for other products or a higher support level. Those packages
+remain separate from FTW's default channel. Both paths use this repository as
+their only editable source.
+
+Each publisher supplies keys and release credentials at run time. Those inputs
 must not enter source files, package recipes, logs or build output.
 
 ## Host checks

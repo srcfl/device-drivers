@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "include_all": true,
+  "release_mode": "read_only"
+}

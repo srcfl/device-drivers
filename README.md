@@ -1,11 +1,13 @@
 # Sourceful Device Drivers
 
 This public repository is the source of truth for Sourceful device driver
-code, package metadata, compatibility contracts and tests. It serves several
-hosts, including FTW and Blixt. The private Device Support service builds and
-signs reviewed commits from this repository; it does not own a second editable
-copy of the source. Hosts install only signed packages and indexes from
-`drivers.sourceful.energy`; they never install GitHub source directly.
+code, package metadata, compatibility contracts and tests. It is also FTW's
+main driver source. FTW installs signed, content-addressed release assets from
+this repository. It never runs raw code from `main`.
+
+Device Support may later consume an exact public commit to build packages for
+other products or a higher support level. It does not own a second editable
+copy of the source and is not FTW's normal driver source.
 
 ## Contribute a driver
 
@@ -38,25 +40,42 @@ This repository contains only public source and validation code:
 - `packages/v1` — signed-package build recipes and host adapters;
 - `spec` — package, inventory and command contracts;
 - `drivers/tests` and `tests` — driver and package tests;
-- `tools` — local validation and deterministic unsigned package builds.
+- `ftw-channel.json` — the rules for FTW's signed, read-only channel;
+- `tools` — local validation, FTW release builds and unsigned package builds.
 
-The following remain private in Device Support: the API, database, admin UI,
-deployment, signing keys, cloud roles and release service. A public pull
-request can produce an unsigned candidate only. Maintainers publish a signed
-beta from an exact reviewed commit through the private release service.
+Private keys, credentials, cloud roles and service code stay outside this
+repository. A pull request can produce unsigned test output only. GitHub
+Actions signs the FTW channel after review and merge. The signature proves the
+source commit and artifact bytes; it does not claim hardware test coverage.
 
 ## Release flow
 
 ```text
-public PR -> public CI -> reviewed commit -> private signer -> beta package
-          -> supervised site test -> stable envelope over the same artifacts
+public PR -> public CI -> reviewed commit -> signed FTW beta
+          -> site test -> stable promotion of the exact beta commit
 ```
 
-FTW and Blixt consume the signed package index. A public source pin in a host
-repository is only a CI fixture and does not tie driver updates to a host
-release. Refreshing an index never installs or activates code. Each host keeps
-its own safety and activation authority. Zap is a future target, not a current
-production target. Hugin has no active runtime or registry role.
+The FTW channel contains every catalog driver. The release build turns each
+source into a separate, read-only Lua asset and checks its FTW v1 contract.
+The beta workflow runs on protected `main`; stable promotion requires the exact
+signed commit found in beta. Refreshing the signed catalog never installs or
+activates code. FTW keeps its own safety, activation, rollback and bundled
+recovery paths.
+
+Each asset name contains the driver ID, semantic version and source hash. FTW
+downloads only the selected driver. The release workflow never replaces a
+content-addressed driver asset, so GitHub keeps its download count across later
+manifest updates. To view counts by driver, version and channel, run:
+
+```bash
+uv run python tools/ftw_download_stats.py
+```
+
+GitHub counts asset downloads, not unique users or active installs.
+
+The separate package-v1 work remains available for Blixt and later Device
+Support use. It can consume the same public commit without changing FTW's
+default source.
 
 The catalog is not an install claim. See [SUPPORT_STATUS.md](SUPPORT_STATUS.md)
 for source, target conformance, signed beta, HIL, stable and legacy parity per

@@ -48,6 +48,8 @@ host._p1_data        = nil  -- P1 telegram table or nil
 host._modbus_write_error = nil
 host._modbus_write_fail_at = nil
 host._modbus_write_attempts = 0
+host._modbus_read_error = nil
+host._modbus_read_fail_addresses = {}
 
 -- Internal counters
 host._millis_counter = 0
@@ -82,6 +84,8 @@ function host.reset()
     host._modbus_write_error = nil
     host._modbus_write_fail_at = nil
     host._modbus_write_attempts = 0
+    host._modbus_read_error = nil
+    host._modbus_read_fail_addresses = {}
     host._serial_buffer  = ""
     host._millis_counter = 0
 end
@@ -152,6 +156,11 @@ function host.modbus_read(addr, count, kind)
     end
     if type(count) ~= "number" or count < 1 then
         error("modbus_read: count must be a positive number, got " .. tostring(count))
+    end
+
+    local read_error = host._modbus_read_fail_addresses[addr] or host._modbus_read_error
+    if read_error then
+        error(tostring(read_error))
     end
 
     local reg_map = host._modbus_registers[kind]

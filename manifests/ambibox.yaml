@@ -1,5 +1,5 @@
 name: "ambibox"
-version: "1.1.0"
+version: "1.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -22,4 +22,4 @@ signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "Stop emitting cached telemetry when an MQTT poll has no fresh power message."

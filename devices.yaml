@@ -146,7 +146,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "ambibox"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [battery, meter, v2x_charger]
             control: true
         firmware_versions: ""
@@ -283,7 +283,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "ferroamp_dc2_v2x"
-            version: "1.0.1"
+            version: "1.0.2"
             ders: [v2x_charger]
             control: true
         firmware_versions: ""
@@ -294,7 +294,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "ferroamp"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [battery, meter, pv]
             control: true
           - protocol: modbus
@@ -459,7 +459,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -470,7 +470,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -481,7 +481,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -492,7 +492,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -503,7 +503,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -514,7 +514,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -525,7 +525,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -536,7 +536,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -547,7 +547,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -558,7 +558,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goodwe"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -657,7 +657,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "opendtu_mqtt"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, meter]
             control: false
         firmware_versions: ""
@@ -668,7 +668,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "opendtu_mqtt"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, meter]
             control: false
         firmware_versions: ""
@@ -690,7 +690,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "opendtu_mqtt"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, meter]
             control: false
         firmware_versions: ""
@@ -1197,7 +1197,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1208,7 +1208,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1219,7 +1219,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1230,7 +1230,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1241,7 +1241,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1252,7 +1252,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1263,7 +1263,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1274,7 +1274,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1285,7 +1285,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1296,7 +1296,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1307,7 +1307,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1318,7 +1318,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "shelly"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1823,7 +1823,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1839,7 +1839,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1855,7 +1855,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1871,7 +1871,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1887,7 +1887,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.0"
+            version: "1.0.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""

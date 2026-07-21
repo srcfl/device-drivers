@@ -53,7 +53,10 @@ end
 
 function driver_poll()
     local messages = host.mqtt_messages()
-    if not messages then return 1000 end
+    if not messages or #messages == 0 then return 1000 end
+
+    local fresh_ac_power = false
+    local fresh_dc_power = false
 
     -- Process incoming messages: update flat state table
     for _, msg in ipairs(messages) do
@@ -66,6 +69,8 @@ function driver_poll()
             else
                 state[field] = msg.payload
             end
+            if field == "powerAc" then fresh_ac_power = true end
+            if field == "powerDc" then fresh_dc_power = true end
         end
     end
 
@@ -140,7 +145,9 @@ function driver_poll()
         end
     end
 
-    host.emit("v2x_charger", charger)
+    if fresh_ac_power or fresh_dc_power then
+        host.emit("v2x_charger", charger)
+    end
 
     --------------------------------------------------------------------------
     -- Battery telemetry (from DC side of charger)
@@ -158,7 +165,9 @@ function driver_poll()
         battery.SoC_nom_fract = soc_val
     end
 
-    host.emit("battery", battery)
+    if fresh_dc_power then
+        host.emit("battery", battery)
+    end
 
     --------------------------------------------------------------------------
     -- Meter telemetry (from AC side of charger)
@@ -186,7 +195,9 @@ function driver_poll()
     meter.total_import_Wh = snum("energyAcImport")
     meter.total_export_Wh = snum("energyAcExport")
 
-    host.emit("meter", meter)
+    if fresh_ac_power then
+        host.emit("meter", meter)
+    end
 
     return 1000
 end

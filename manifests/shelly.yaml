@@ -1,5 +1,5 @@
 name: "shelly"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -99,4 +99,4 @@ signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "Do not emit meter data when a channel request or main power value fails."
