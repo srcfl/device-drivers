@@ -185,13 +185,13 @@ drivers:
     size_bytes: 3340
     sha256: "48b6d9ded6043e9b42a09bf03bd8edbab6363b18781e2279e957eee237556d25"
   - name: "goodwe"
-    version: "1.0.1"
+    version: "1.0.2"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 8055
-    sha256: "be88e2cee62989558551ff0516211981323c6c76946f604495eb3f478f3f61e8"
+    size_bytes: 7634
+    sha256: "117f7cb0273b2be6d7b4f2d01b798272e41817626a8b9e4365ae9517a5dbcc92"
   - name: "growatt"
     version: "1.0.0"
     tier: community

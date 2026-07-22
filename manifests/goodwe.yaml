@@ -1,82 +1,12 @@
 name: "goodwe"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
-author: "Sourceful Labs AB"
+author: "frekes81 and Sourceful contributors"
 protocol: modbus
 ders: [pv, battery, meter]
 control: false
-tested_devices:
-  - manufacturer: "GoodWe"
-    model_family: "ET Series (Three-Phase Hybrid)"
-    variants: [ET15, ET16, ET20, ET25, ET30]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-  - manufacturer: "GoodWe"
-    model_family: "EH Series (Single-Phase Hybrid)"
-    variants: [EH5, EH8, EH10, EH15]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-  - manufacturer: "GoodWe"
-    model_family: "BT Series (Three-Phase Hybrid LV)"
-    variants: [BT5, BT6, BT8, BT10]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-  - manufacturer: "GoodWe"
-    model_family: "BH Series (Single-Phase Hybrid LV)"
-    variants: [BH5, BH8, BH10]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-  - manufacturer: "GoodWe"
-    model_family: "ES Series (Single-Phase Hybrid)"
-    variants: [ES3.6, ES4.6, ES5.0]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-  - manufacturer: "GoodWe"
-    model_family: "EM Series (Single-Phase Hybrid)"
-    variants: [EM3, EM5]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-  - manufacturer: "GoodWe"
-    model_family: "BP Series (Three-Phase AC-Coupled)"
-    variants: [BP5, BP8, BP10]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-  - manufacturer: "GoodWe"
-    model_family: "DT Series (Three-Phase String)"
-    variants: [DT10, DT15, DT17, DT20, DT25]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-  - manufacturer: "GoodWe"
-    model_family: "DNS Series (Single-Phase String)"
-    variants: [DNS3, DNS4, DNS5, DNS6]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-  - manufacturer: "GoodWe"
-    model_family: "XS Series (Micro)"
-    variants: [XS2, XS3]
-    regions: []
-    firmware_versions: ""
-    notes: "Community driver, requires v2 LAN+WiFi dongle"
-    min_driver_version: "1.0.0"
-min_host_version: "2.0.0"
+tested_devices: []
+min_host_version: "1.10.0-beta.1"
 size_bytes: 0
 dkb_id: ""
 sha256: ""
@@ -85,4 +15,4 @@ signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Reject failed reads and add the FTW v1 read-only runtime contract."
+changelog: "Add an explicit GW8KN-ET/HK3000 profile, batch reads, and fail-closed snapshots."

@@ -119,7 +119,9 @@ if ok and regs then
 end
 ```
 
-Never let an I/O error crash your tick. A failed read returns an error; pcall catches it. Use `0` as fallback for failed reads, not `nil`.
+Never let an I/O error crash your tick. A failed read returns an error; pcall
+catches it. Do not emit a fabricated zero. Return without an emit when a core
+read fails, and omit only fields whose reads are truly optional.
 
 ### 6. Return early when there's nothing to do
 

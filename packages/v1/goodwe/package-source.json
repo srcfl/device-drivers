@@ -1,0 +1,101 @@
+{
+  "schema_version": "sourceful.driver-package-source/v1",
+  "package_id": "com.sourceful.driver.goodwe",
+  "version": "1.0.2",
+  "channel": "beta",
+  "display_name": "GoodWe GW8KN-ET observe-only pilot",
+  "identity": {
+    "schema": "sourceful.hardware-identity/v1",
+    "make": "driver_reported",
+    "serial": "unavailable",
+    "host_fallbacks": ["mac", "endpoint"],
+    "persistent_state_owner": "host"
+  },
+  "source": {
+    "repository": "https://github.com/srcfl/device-drivers",
+    "path": "drivers/lua/goodwe.lua"
+  },
+  "builder_id": "https://github.com/srcfl/device-drivers/blob/main/tools/driver_package.py",
+  "device_matches": [
+    {
+      "manufacturer": "GoodWe",
+      "model_family": "ET Series with HK3000 meter",
+      "variants": ["GW8KN-ET"],
+      "regions": []
+    }
+  ],
+  "capabilities": {
+    "telemetry": ["battery", "meter", "pv"],
+    "control": []
+  },
+  "permissions": ["modbus.read"],
+  "telemetry": {
+    "schema": "sourceful.telemetry/v2",
+    "sign_convention": "sourceful.site-import-positive/v1",
+    "streams": [
+      {
+        "kind": "battery",
+        "power_field": "w",
+        "meaning": "Positive is charging and negative is discharging."
+      },
+      {
+        "kind": "meter",
+        "power_field": "w",
+        "meaning": "Positive is grid import and negative is grid export at the site boundary."
+      },
+      {
+        "kind": "pv",
+        "power_field": "w",
+        "meaning": "PV generation is negative because it reduces site import."
+      }
+    ]
+  },
+  "commands": [],
+  "read_only": true,
+  "default_mode": {
+    "strategy": "not_applicable",
+    "description": "The observe-only target never changes inverter state."
+  },
+  "lease_policy": {
+    "required_for_control": false,
+    "expiry_action": "not_applicable"
+  },
+  "rollback": {
+    "strategy": "install_previous_verified_package",
+    "state_owner": "host",
+    "automatic": false
+  },
+  "compatibility": [
+    {
+      "target": "ftw-core",
+      "artifact_id": "ftw.lua51.source",
+      "host": {
+        "product": "ftw",
+        "min_version": "1.10.0-beta.1",
+        "max_version_exclusive": "2.0.0"
+      },
+      "runtime": {
+        "name": "gopher-lua",
+        "semantics": "lua-5.1",
+        "version": "1.1.2",
+        "abi": "gopher-lua-source-v1",
+        "host_api": {
+          "profile": "sourceful.host/ftw-core/v1",
+          "min": 1,
+          "max": 1
+        }
+      },
+      "control_enabled": false
+    }
+  ],
+  "artifact_inputs": [
+    {
+      "artifact_id": "ftw.lua51.source",
+      "target": "ftw-core",
+      "media_type": "application/vnd.sourceful.lua.source",
+      "input_path": "drivers/lua/goodwe.lua",
+      "transform": "copy",
+      "extension": "lua"
+    }
+  ]
+}
