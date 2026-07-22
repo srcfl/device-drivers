@@ -1,0 +1,106 @@
+{
+  "schema_version": "sourceful.driver-package-source/v1",
+  "package_id": "com.sourceful.driver.esphome-dsmr",
+  "version": "1.0.1",
+  "channel": "beta",
+  "display_name": "ESPHome DSMR (P1)",
+  "identity": {
+    "schema": "sourceful.hardware-identity/v1",
+    "make": "driver_reported",
+    "serial": "driver_reported_when_available",
+    "host_fallbacks": [
+      "mac",
+      "endpoint"
+    ],
+    "persistent_state_owner": "host"
+  },
+  "source": {
+    "repository": "https://github.com/srcfl/device-drivers",
+    "path": "drivers/lua/esphome-dsmr.lua"
+  },
+  "builder_id": "https://github.com/srcfl/device-drivers/blob/main/tools/driver_package.py",
+  "device_matches": [
+    {
+      "manufacturer": "ESPHome",
+      "model_family": "DSMR web_server v3 P1 reader",
+      "variants": [
+        "SlimmeLezer+",
+        "Sourceful Zap P1"
+      ],
+      "regions": [
+        "NL",
+        "BE",
+        "SE",
+        "DK"
+      ]
+    }
+  ],
+  "capabilities": {
+    "telemetry": [
+      "meter"
+    ],
+    "control": []
+  },
+  "permissions": [
+    "http.get"
+  ],
+  "telemetry": {
+    "schema": "sourceful.telemetry/v2",
+    "sign_convention": "sourceful.site-import-positive/v1",
+    "streams": [
+      {
+        "kind": "meter",
+        "power_field": "w",
+        "meaning": "Positive is grid import and negative is grid export at the site boundary."
+      }
+    ]
+  },
+  "commands": [],
+  "read_only": true,
+  "default_mode": {
+    "strategy": "not_applicable",
+    "description": "The ESPHome meter endpoint is read-only and has no control state."
+  },
+  "lease_policy": {
+    "required_for_control": false,
+    "expiry_action": "not_applicable"
+  },
+  "rollback": {
+    "strategy": "install_previous_verified_package",
+    "state_owner": "host",
+    "automatic": false
+  },
+  "compatibility": [
+    {
+      "target": "ftw-core",
+      "artifact_id": "ftw.lua51.source",
+      "host": {
+        "product": "ftw",
+        "min_version": "1.10.0",
+        "max_version_exclusive": "2.0.0"
+      },
+      "runtime": {
+        "name": "gopher-lua",
+        "semantics": "lua-5.1",
+        "version": "1.1.2",
+        "abi": "gopher-lua-source-v1",
+        "host_api": {
+          "profile": "sourceful.host/ftw-core/v1",
+          "min": 1,
+          "max": 1
+        }
+      },
+      "control_enabled": false
+    }
+  ],
+  "artifact_inputs": [
+    {
+      "artifact_id": "ftw.lua51.source",
+      "target": "ftw-core",
+      "media_type": "application/vnd.sourceful.lua.source",
+      "input_path": "drivers/lua/esphome-dsmr.lua",
+      "transform": "copy",
+      "extension": "lua"
+    }
+  ]
+}

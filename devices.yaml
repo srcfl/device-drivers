@@ -236,6 +236,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Three-phase hybrid, supports LV and HV variants with runtime detection"
+  - name: "ESPHome"
+    model_families:
+      - name: "DSMR web_server v3 P1 reader"
+        variants: [SlimmeLezer+, Sourceful Zap P1]
+        regions: [BE, DK, NL, SE]
+        protocols:
+          - protocol: http
+            driver: "esphome-dsmr"
+            version: "1.0.1"
+            ders: [meter]
+            control: false
+        firmware_versions: "DSMR 2022.10.1 on SlimmeLezer+; Sourceful Zap open firmware"
+        notes: "Name-derived phase object_ids live-validated on SlimmeLezer+; explicit Sourceful aliases retained."
   - name: "Easee"
     model_families:
       - name: "Easee"

@@ -28,6 +28,8 @@ Catalog source is not proof that a target can install or run a driver.
 | deye | 1.2.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | easee | 1.0.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | easee | 1.0.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| esphome-dsmr | 1.0.1 | ftw-core | not_assessed | 1.0.1 | — | not_recorded | — | not_assessed | no |
+| esphome-dsmr | 1.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | etrel | 1.0.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | etrel | 1.0.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ferroamp | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

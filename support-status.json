@@ -338,6 +338,34 @@
     },
     {
       "catalog_source": true,
+      "catalog_version": "1.0.1",
+      "driver_id": "esphome-dsmr",
+      "package_id": "com.sourceful.driver.esphome-dsmr",
+      "targets": {
+        "blixt-l1": {
+          "candidate_package_version": null,
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "candidate_package_version": "1.0.1",
+          "control_enabled": false,
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "stable_package_version": null,
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
       "catalog_version": "1.0.0",
       "driver_id": "etrel",
       "package_id": null,
