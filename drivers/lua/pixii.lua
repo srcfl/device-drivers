@@ -5,8 +5,21 @@
 
 PROTOCOL = "modbus"
 
+local REG_METER_ENERGY_SF = 40288 -- SunSpec model 213 offset 53; absent on some firmware
+local has_meter_energy_sf = true -- probed once in driver_init
+
 function driver_init(config)
     host.set_make("Pixii")
+
+    -- Some PowerShaper firmware omits the meter-energy scale factor (Modbus
+    -- exception 0x02 on 40288). Poll evidence counts every failed read, so
+    -- probe once here and skip the register for the rest of the session.
+    local ok, regs = pcall(host.modbus_read, REG_METER_ENERGY_SF, 1, "holding")
+    has_meter_energy_sf = ok and regs ~= nil and regs[1] ~= nil
+    if not has_meter_energy_sf then
+        host.log("info", "Pixii: meter energy scale factor @" .. REG_METER_ENERGY_SF
+            .. " not available; import/export Wh use sf=0")
+    end
 end
 
 function driver_poll()
@@ -72,10 +85,12 @@ function driver_poll()
     local meter_w_sf = 0
     if ok_mwsf then meter_w_sf = host.decode_i16(mwsf_regs[1]) end
 
-    -- Meter energy SF: 40288, I16
-    local ok_mesf, mesf_regs = pcall(host.modbus_read, 40288, 1, "holding")
+    -- Meter energy SF: 40288, I16 (optional on older firmware)
     local meter_energy_sf = 0
-    if ok_mesf then meter_energy_sf = host.decode_i16(mesf_regs[1]) end
+    if has_meter_energy_sf then
+        local ok_mesf, mesf_regs = pcall(host.modbus_read, REG_METER_ENERGY_SF, 1, "holding")
+        if ok_mesf then meter_energy_sf = host.decode_i16(mesf_regs[1]) end
+    end
 
     -- ---- Battery Values ----
 

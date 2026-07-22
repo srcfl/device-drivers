@@ -764,7 +764,7 @@ local function test_pixii_ftw_v2()
     if not load_ok then
         return false, {"Failed to load: " .. tostring(load_err)}
     end
-    if not DRIVER or DRIVER.version ~= "1.2.1" or
+    if not DRIVER or DRIVER.version ~= "1.2.2" or
        DRIVER.host_api_min ~= 2 or DRIVER.host_api_max ~= 2 then
         table.insert(errors, "Pixii FTW v2 metadata is wrong")
     end
@@ -840,6 +840,41 @@ local function test_pixii_ftw_v2()
     if defaulted.status ~= "defaulted" or defaulted.device_state ~= "default" or
        default_power ~= 0 then
         table.insert(errors, "Pixii FTW v2 did not restore its safe idle setpoint")
+    end
+
+    return #errors == 0, errors
+end
+
+local function test_pixii_ftw_v2_missing_meter_energy_sf()
+    host.reset()
+    clear_driver_globals()
+    setup_modbus_data("pixii")
+    host._modbus_read_fail_addresses[40288] = "Illegal Data Address"
+
+    local errors = {}
+    local driver_path = script_dir .. "../../../packages/v1/pixii/targets/ftw.lua"
+    local load_ok, load_err = pcall(dofile, driver_path)
+    if not load_ok then
+        return false, {"Failed to load: " .. tostring(load_err)}
+    end
+
+    driver_init({host = "127.0.0.1", port = 502, unit_id = 1})
+    local poll_ok, poll_err = pcall(driver_poll)
+    if not poll_ok then
+        table.insert(errors, "Pixii FTW v2 poll failed without 40288: " .. tostring(poll_err))
+    end
+    if not host._emitted.battery or not host._emitted.meter then
+        table.insert(errors, "Pixii FTW v2 stopped telemetry when 40288 is absent")
+    end
+
+    local poll_reads_40288 = 0
+    for _, call in ipairs(host._calls) do
+        if call.func == "modbus_read" and call.args[1] == 40288 then
+            poll_reads_40288 = poll_reads_40288 + 1
+        end
+    end
+    if poll_reads_40288 > 1 then
+        table.insert(errors, "Pixii FTW v2 polled optional 40288 more than once")
     end
 
     return #errors == 0, errors
@@ -1002,6 +1037,23 @@ else
     io.write(string.format("  %s%s%s[FAIL]%s  calibration fault and staged control adapter\n",
         pixii_ftw_name, pixii_ftw_padding, RED, RESET))
     for _, err in ipairs(pixii_ftw_errors) do
+        io.write(string.format("          %s- %s%s\n", RED, err, RESET))
+    end
+end
+
+total = total + 1
+local pixii_missing_sf_name = "pixii-ftw-v2-missing-40288"
+local pixii_missing_sf_ok, pixii_missing_sf_errors = test_pixii_ftw_v2_missing_meter_energy_sf()
+local pixii_missing_sf_padding = string.rep(" ", max_name_len - #pixii_missing_sf_name)
+if pixii_missing_sf_ok then
+    passed = passed + 1
+    io.write(string.format("  %s%s%s[PASS]%s  optional meter energy scale factor\n",
+        pixii_missing_sf_name, pixii_missing_sf_padding, GREEN, RESET))
+else
+    failed = failed + 1
+    io.write(string.format("  %s%s%s[FAIL]%s  optional meter energy scale factor\n",
+        pixii_missing_sf_name, pixii_missing_sf_padding, RED, RESET))
+    for _, err in ipairs(pixii_missing_sf_errors) do
         io.write(string.format("          %s- %s%s\n", RED, err, RESET))
     end
 end
