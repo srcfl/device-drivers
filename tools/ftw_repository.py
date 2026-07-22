@@ -418,6 +418,9 @@ def _validate_manifest(manifest: dict[str, Any]) -> None:
     if manifest.get("schema_version") != SCHEMA_VERSION:
         raise RepositoryError("manifest schema_version must be 1")
     _validate_https(str(manifest.get("repository", "")), "manifest repository")
+    commit = manifest.get("commit")
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise RepositoryError("manifest commit must be a full lowercase Git SHA")
     if not isinstance(manifest.get("generated_at"), str):
         raise RepositoryError("manifest generated_at is required")
     drivers = manifest.get("drivers")
@@ -489,6 +492,8 @@ def _validate_manifest(manifest: dict[str, Any]) -> None:
             )
         if not re.fullmatch(r"[0-9a-f]{40}", str(driver.get("source_commit", ""))):
             raise RepositoryError(f"{driver_id}: invalid source_commit")
+        if current and driver["source_commit"] != commit:
+            raise RepositoryError(f"{driver_id}: source_commit does not match manifest commit")
 
 
 def verify_manifest(
@@ -534,6 +539,190 @@ def verify_artifacts(manifest: dict[str, Any], artifacts_dir: Path) -> None:
             raise RepositoryError(f"{driver['id']}: artifact size mismatch")
         if hashlib.sha256(raw).hexdigest() != driver["sha256"]:
             raise RepositoryError(f"{driver['id']}: artifact SHA-256 mismatch")
+
+
+def _artifact_filename(driver: dict[str, Any]) -> str:
+    return Path(urlparse(driver["url"]).path).name
+
+
+def _require_channel_release_urls(manifest: dict[str, Any], channel: str) -> None:
+    expected_base = (
+        f"{manifest['repository'].rstrip('/')}/releases/download/drivers-{channel}"
+    )
+    for driver in manifest["drivers"]:
+        if driver["channel"] != channel:
+            raise RepositoryError(
+                f"{driver['id']}: expected {channel} channel, got {driver['channel']}"
+            )
+        expected_url = f"{expected_base}/{_artifact_filename(driver)}"
+        if driver["url"] != expected_url:
+            raise RepositoryError(
+                f"{driver['id']}: {channel} URL does not use its channel release"
+            )
+
+
+def _promotion_driver(driver: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(driver)
+    normalized.pop("channel", None)
+    normalized["url"] = _artifact_filename(driver)
+    return normalized
+
+
+def _catalog_driver(driver: dict[str, Any]) -> dict[str, Any]:
+    normalized = _promotion_driver(driver)
+    normalized.pop("source_commit", None)
+    return normalized
+
+
+def _driver_delta(
+    previous: dict[str, Any], current: dict[str, Any]
+) -> dict[str, list[str]]:
+    previous_by_id = {driver["id"]: driver for driver in previous["drivers"]}
+    current_by_id = {driver["id"]: driver for driver in current["drivers"]}
+    previous_ids = set(previous_by_id)
+    current_ids = set(current_by_id)
+    changed = sorted(
+        driver_id
+        for driver_id in previous_ids & current_ids
+        if _catalog_driver(previous_by_id[driver_id])
+        != _catalog_driver(current_by_id[driver_id])
+    )
+    return {
+        "added": sorted(current_ids - previous_ids),
+        "removed": sorted(previous_ids - current_ids),
+        "changed": changed,
+    }
+
+
+def _verify_complete_publication(
+    manifest: dict[str, Any], manifest_path: Path, artifacts_dir: Path
+) -> None:
+    verify_artifacts(manifest, artifacts_dir)
+    payload_path = artifacts_dir / "manifest.payload.json"
+    expected_payload = (
+        json.dumps(
+            manifest, ensure_ascii=False, allow_nan=False, indent=2, sort_keys=True
+        ).encode("utf-8")
+        + b"\n"
+    )
+    try:
+        actual_payload = payload_path.read_bytes()
+    except OSError as exc:
+        raise RepositoryError(f"cannot read manifest payload: {exc}") from exc
+    if actual_payload != expected_payload:
+        raise RepositoryError("manifest.payload.json does not match the signed payload")
+
+    expected_files = {
+        "manifest.json",
+        "manifest.payload.json",
+        *(_artifact_filename(driver) for driver in manifest["drivers"]),
+    }
+    try:
+        actual_files = {path.name for path in artifacts_dir.iterdir() if path.is_file()}
+    except OSError as exc:
+        raise RepositoryError(f"cannot list prospective publication: {exc}") from exc
+    if actual_files != expected_files:
+        missing = sorted(expected_files - actual_files)
+        unexpected = sorted(actual_files - expected_files)
+        raise RepositoryError(
+            f"prospective publication file set differs: missing={missing}, "
+            f"unexpected={unexpected}"
+        )
+    if manifest_path.resolve() != (artifacts_dir / "manifest.json").resolve():
+        raise RepositoryError("candidate manifest must be part of the prospective publication")
+
+
+def verify_stable_promotion(
+    *,
+    beta_manifest_path: Path,
+    beta_artifacts_dir: Path,
+    previous_stable_manifest_path: Path,
+    candidate_manifest_path: Path,
+    candidate_artifacts_dir: Path,
+    key_id: str,
+    public_key_base64: str,
+) -> dict[str, Any]:
+    """Verify a complete stable candidate before any release write."""
+    beta = verify_manifest(
+        beta_manifest_path,
+        key_id=key_id,
+        public_key_base64=public_key_base64,
+    )
+    previous_stable = verify_manifest(
+        previous_stable_manifest_path,
+        key_id=key_id,
+        public_key_base64=public_key_base64,
+    )
+    candidate = verify_manifest(
+        candidate_manifest_path,
+        key_id=key_id,
+        public_key_base64=public_key_base64,
+    )
+    _require_channel_release_urls(beta, "beta")
+    _require_channel_release_urls(previous_stable, "stable")
+    _require_channel_release_urls(candidate, "stable")
+    verify_artifacts(beta, beta_artifacts_dir)
+    _verify_complete_publication(
+        candidate, candidate_manifest_path, candidate_artifacts_dir
+    )
+
+    if candidate["commit"] != beta["commit"]:
+        raise RepositoryError(
+            f"stable candidate commit {candidate['commit']} does not match signed beta "
+            f"commit {beta['commit']}"
+        )
+    for field in ("schema_version", "repository", "generated_at"):
+        if candidate[field] != beta[field]:
+            raise RepositoryError(f"stable candidate {field} differs from beta")
+
+    beta_by_id = {driver["id"]: driver for driver in beta["drivers"]}
+    candidate_by_id = {driver["id"]: driver for driver in candidate["drivers"]}
+    if set(candidate_by_id) != set(beta_by_id):
+        missing = sorted(set(beta_by_id) - set(candidate_by_id))
+        unexpected = sorted(set(candidate_by_id) - set(beta_by_id))
+        raise RepositoryError(
+            f"stable current driver IDs differ from beta: missing={missing}, "
+            f"unexpected={unexpected}"
+        )
+
+    for driver_id in sorted(beta_by_id):
+        beta_driver = beta_by_id[driver_id]
+        candidate_driver = candidate_by_id[driver_id]
+        beta_current = _promotion_driver(beta_driver)
+        candidate_current = _promotion_driver(candidate_driver)
+        if candidate_current != beta_current:
+            fields = sorted(
+                field
+                for field in set(beta_current) | set(candidate_current)
+                if beta_current.get(field) != candidate_current.get(field)
+            )
+            raise RepositoryError(
+                f"{driver_id}: stable current entry differs from beta in "
+                f"{', '.join(fields)}"
+            )
+        beta_artifact = beta_artifacts_dir / _artifact_filename(beta_driver)
+        candidate_artifact = candidate_artifacts_dir / _artifact_filename(
+            candidate_driver
+        )
+        try:
+            if candidate_artifact.read_bytes() != beta_artifact.read_bytes():
+                raise RepositoryError(
+                    f"{driver_id}: stable artifact bytes differ from beta"
+                )
+        except OSError as exc:
+            raise RepositoryError(
+                f"{driver_id}: cannot compare stable and beta artifacts: {exc}"
+            ) from exc
+
+    stable_delta = _driver_delta(previous_stable, candidate)
+    beta_delta = _driver_delta(previous_stable, beta)
+    if stable_delta != beta_delta:
+        raise RepositoryError("old stable to candidate delta differs from tested beta")
+    return {
+        "commit": candidate["commit"],
+        "driver_count": len(candidate["drivers"]),
+        "delta": stable_delta,
+    }
 
 
 def build_publication(
@@ -692,6 +881,17 @@ def _parser() -> argparse.ArgumentParser:
     )
     commit.add_argument("--manifest", type=Path, required=True)
     commit.add_argument("--key-id", required=True)
+
+    promotion = subparsers.add_parser(
+        "verify-stable-promotion",
+        help="verify a complete stable candidate against signed beta and old stable",
+    )
+    promotion.add_argument("--beta-manifest", type=Path, required=True)
+    promotion.add_argument("--beta-artifacts", type=Path, required=True)
+    promotion.add_argument("--previous-stable-manifest", type=Path, required=True)
+    promotion.add_argument("--candidate-manifest", type=Path, required=True)
+    promotion.add_argument("--candidate-artifacts", type=Path, required=True)
+    promotion.add_argument("--key-id", required=True)
     return parser
 
 
@@ -721,6 +921,18 @@ def main() -> int:
                     args.previous_manifest.resolve() if args.previous_manifest else None
                 ),
             )
+            return 0
+        if args.command == "verify-stable-promotion":
+            report = verify_stable_promotion(
+                beta_manifest_path=args.beta_manifest.resolve(),
+                beta_artifacts_dir=args.beta_artifacts.resolve(),
+                previous_stable_manifest_path=args.previous_stable_manifest.resolve(),
+                candidate_manifest_path=args.candidate_manifest.resolve(),
+                candidate_artifacts_dir=args.candidate_artifacts.resolve(),
+                key_id=args.key_id,
+                public_key_base64=public_key,
+            )
+            print(json.dumps(report, sort_keys=True))
             return 0
         manifest = verify_manifest(
             args.manifest.resolve(),

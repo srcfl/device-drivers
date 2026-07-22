@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import copy
+import hashlib
 import json
 import re
 import shutil
@@ -26,6 +27,7 @@ from ftw_repository import (  # noqa: E402
     canonical_json,
     verify_artifacts,
     verify_manifest,
+    verify_stable_promotion,
 )
 
 
@@ -66,6 +68,87 @@ def build(tmp_path: Path, keypair: tuple[str, str], **changes) -> tuple[dict, Pa
     }
     options.update(changes)
     return build_publication(**options), output
+
+
+def write_signed_manifest(
+    path: Path,
+    payload: dict,
+    keypair: tuple[str, str],
+    *,
+    write_payload: bool = False,
+) -> None:
+    private_key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(keypair[0]))
+    envelope = {
+        "schema_version": 1,
+        "key_id": KEY_ID,
+        "payload": payload,
+        "signature": base64.b64encode(
+            private_key.sign(canonical_json(payload))
+        ).decode(),
+    }
+    path.write_bytes(canonical_json(envelope) + b"\n")
+    if write_payload:
+        (path.parent / "manifest.payload.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+        )
+
+
+def promotion_publications(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> tuple[Path, Path, Path, Path]:
+    beta, beta_output = build(tmp_path / "beta", keypair)
+    beta_history = copy.deepcopy(beta["drivers"][0])
+    beta_history["version"] = "0.0.1"
+    beta_history["metadata"]["version"] = "0.0.1"
+    beta_history["source_commit"] = "b" * 40
+    beta_history["url"] = (
+        beta_history["url"].rsplit("/", 1)[0]
+        + f"/driver-{beta_history['id']}-v0.0.1-{beta_history['sha256'][:16]}.lua"
+    )
+    beta["history"] = [beta_history]
+    beta_manifest = beta_output / "manifest.json"
+    write_signed_manifest(beta_manifest, beta, keypair)
+
+    previous_stable = copy.deepcopy(beta)
+    previous_stable.pop("history")
+    added_driver = previous_stable["drivers"].pop()
+    previous_stable["commit"] = "b" * 40
+    previous_stable["generated_at"] = "2026-07-20T00:00:00Z"
+    for driver in previous_stable["drivers"]:
+        driver["channel"] = "stable"
+        driver["source_commit"] = previous_stable["commit"]
+        driver["url"] = driver["url"].replace("drivers-beta", "drivers-stable")
+    previous_stable_manifest = tmp_path / "previous-stable.json"
+    write_signed_manifest(previous_stable_manifest, previous_stable, keypair)
+
+    candidate, candidate_output = build(
+        tmp_path / "candidate",
+        keypair,
+        channel="stable",
+        base_url=(
+            "https://github.com/srcfl/device-drivers/releases/download/drivers-stable"
+        ),
+        previous_manifest_path=previous_stable_manifest,
+    )
+    assert candidate["drivers"][-1]["id"] == added_driver["id"]
+    return beta_manifest, beta_output, previous_stable_manifest, candidate_output
+
+
+def verify_promotion(
+    publications: tuple[Path, Path, Path, Path], keypair: tuple[str, str]
+) -> dict:
+    beta_manifest, beta_output, previous_stable_manifest, candidate_output = (
+        publications
+    )
+    return verify_stable_promotion(
+        beta_manifest_path=beta_manifest,
+        beta_artifacts_dir=beta_output,
+        previous_stable_manifest_path=previous_stable_manifest,
+        candidate_manifest_path=candidate_output / "manifest.json",
+        candidate_artifacts_dir=candidate_output,
+        key_id=KEY_ID,
+        public_key_base64=keypair[1],
+    )
 
 
 def test_publication_contains_the_full_read_only_catalog(
@@ -257,6 +340,103 @@ def test_changed_final_artifact_requires_a_higher_driver_version(
             config_path=config_path,
             previous_manifest_path=previous_path,
         )
+
+
+def test_stable_promotion_allows_added_driver_and_beta_only_history(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    publications = promotion_publications(tmp_path, keypair)
+
+    report = verify_promotion(publications, keypair)
+
+    beta = verify_manifest(
+        publications[0], key_id=KEY_ID, public_key_base64=keypair[1]
+    )
+    assert report == {
+        "commit": COMMIT,
+        "driver_count": 62,
+        "delta": {
+            "added": [beta["drivers"][-1]["id"]],
+            "removed": [],
+            "changed": [],
+        },
+    }
+
+
+def test_stable_promotion_rejects_unexpected_current_driver(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    publications = promotion_publications(tmp_path, keypair)
+    candidate_output = publications[3]
+    candidate_path = candidate_output / "manifest.json"
+    candidate = verify_manifest(
+        candidate_path, key_id=KEY_ID, public_key_base64=keypair[1]
+    )
+    removed = candidate["drivers"].pop()
+    (candidate_output / Path(removed["url"]).name).unlink()
+    write_signed_manifest(candidate_path, candidate, keypair, write_payload=True)
+
+    with pytest.raises(RepositoryError, match="current driver IDs differ"):
+        verify_promotion(publications, keypair)
+
+
+def test_stable_promotion_rejects_host_api_difference(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    publications = promotion_publications(tmp_path, keypair)
+    candidate_output = publications[3]
+    candidate_path = candidate_output / "manifest.json"
+    candidate = verify_manifest(
+        candidate_path, key_id=KEY_ID, public_key_base64=keypair[1]
+    )
+    candidate["drivers"][0]["host_api"] = {"min": 0, "max": 1}
+    write_signed_manifest(candidate_path, candidate, keypair, write_payload=True)
+
+    with pytest.raises(RepositoryError, match="differs from beta in host_api"):
+        verify_promotion(publications, keypair)
+
+
+def test_stable_promotion_rejects_artifact_difference(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    publications = promotion_publications(tmp_path, keypair)
+    candidate_output = publications[3]
+    candidate_path = candidate_output / "manifest.json"
+    candidate = verify_manifest(
+        candidate_path, key_id=KEY_ID, public_key_base64=keypair[1]
+    )
+    driver = candidate["drivers"][0]
+    old_artifact = candidate_output / Path(driver["url"]).name
+    raw = old_artifact.read_bytes() + b"\n-- unexpected change\n"
+    digest = hashlib.sha256(raw).hexdigest()
+    new_name = f"driver-{driver['id']}-v{driver['version']}-{digest[:16]}.lua"
+    old_artifact.unlink()
+    (candidate_output / new_name).write_bytes(raw)
+    driver["sha256"] = digest
+    driver["size_bytes"] = len(raw)
+    driver["url"] = driver["url"].rsplit("/", 1)[0] + f"/{new_name}"
+    write_signed_manifest(candidate_path, candidate, keypair, write_payload=True)
+
+    with pytest.raises(RepositoryError, match="differs from beta in .*sha256"):
+        verify_promotion(publications, keypair)
+
+
+def test_stable_promotion_requires_the_exact_signed_beta_commit(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    publications = promotion_publications(tmp_path, keypair)
+    candidate_output = publications[3]
+    candidate_path = candidate_output / "manifest.json"
+    candidate = verify_manifest(
+        candidate_path, key_id=KEY_ID, public_key_base64=keypair[1]
+    )
+    candidate["commit"] = "c" * 40
+    for driver in candidate["drivers"]:
+        driver["source_commit"] = candidate["commit"]
+    write_signed_manifest(candidate_path, candidate, keypair, write_payload=True)
+
+    with pytest.raises(RepositoryError, match="does not match signed beta commit"):
+        verify_promotion(publications, keypair)
 
 
 def test_control_sources_become_write_inert_ftw_artifacts(

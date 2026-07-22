@@ -68,6 +68,7 @@ jobs:
           echo "name=${REQUESTED_CHANNEL}" >> "${GITHUB_OUTPUT}"
           echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
           echo "base_url=https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}" >> "${GITHUB_OUTPUT}"
+          echo "FTW_DRIVER_CANDIDATE_DIR=${RUNNER_TEMP}/ftw-driver-candidate" >> "${GITHUB_ENV}"
 
       - name: Require exact beta before stable promotion
         if: steps.channel.outputs.name == 'stable'
@@ -79,7 +80,6 @@ jobs:
           mkdir -p "${beta_dir}"
           gh release download drivers-beta \
             --repo "${GITHUB_REPOSITORY}" \
-            --pattern manifest.json \
             --dir "${beta_dir}" \
             --clobber
           beta_commit="$(uv run --no-sync python tools/ftw_repository.py manifest-commit \
@@ -90,6 +90,8 @@ jobs:
             echo "Publish and test this exact commit on beta first." >&2
             exit 1
           fi
+          echo "FTW_DRIVER_BETA_DIR=${beta_dir}" >> "${GITHUB_ENV}"
+          echo "FTW_DRIVER_BETA_MANIFEST=${beta_dir}/manifest.json" >> "${GITHUB_ENV}"
 
       - name: Download signed channel history
         env:
@@ -116,7 +118,7 @@ jobs:
             previous=(--previous-manifest "${FTW_DRIVER_PREVIOUS_MANIFEST}")
           fi
           uv run --no-sync python tools/ftw_repository.py build \
-            --output dist/ftw-driver-repository \
+            --output "${FTW_DRIVER_CANDIDATE_DIR}" \
             --base-url "${{ steps.channel.outputs.base_url }}" \
             --repository "https://github.com/${GITHUB_REPOSITORY}" \
             --commit "${GITHUB_SHA}" \
@@ -128,9 +130,24 @@ jobs:
       - name: Verify signature and current artifacts
         run: >-
           uv run --no-sync python tools/ftw_repository.py verify
-          --manifest dist/ftw-driver-repository/manifest.json
-          --artifacts dist/ftw-driver-repository
+          --manifest "${FTW_DRIVER_CANDIDATE_DIR}/manifest.json"
+          --artifacts "${FTW_DRIVER_CANDIDATE_DIR}"
           --key-id "${FTW_DRIVER_KEY_ID}"
+
+      - name: Verify stable promotion before release writes
+        if: steps.channel.outputs.name == 'stable'
+        run: |
+          set -euo pipefail
+          test -n "${FTW_DRIVER_BETA_MANIFEST:-}"
+          test -n "${FTW_DRIVER_BETA_DIR:-}"
+          test -n "${FTW_DRIVER_PREVIOUS_MANIFEST:-}"
+          uv run --no-sync python tools/ftw_repository.py verify-stable-promotion \
+            --beta-manifest "${FTW_DRIVER_BETA_MANIFEST}" \
+            --beta-artifacts "${FTW_DRIVER_BETA_DIR}" \
+            --previous-stable-manifest "${FTW_DRIVER_PREVIOUS_MANIFEST}" \
+            --candidate-manifest "${FTW_DRIVER_CANDIDATE_DIR}/manifest.json" \
+            --candidate-artifacts "${FTW_DRIVER_CANDIDATE_DIR}" \
+            --key-id "${FTW_DRIVER_KEY_ID}"
 
       - name: Create channel release when missing
         env:
@@ -159,7 +176,7 @@ jobs:
           TAG: ${{ steps.channel.outputs.tag }}
         run: |
           set -euo pipefail
-          artifacts=(dist/ftw-driver-repository/driver-*.lua)
+          artifacts=("${FTW_DRIVER_CANDIDATE_DIR}"/driver-*.lua)
           test -e "${artifacts[0]}"
           existing="$(gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json assets --jq '.assets[].name')"
           for artifact in "${artifacts[@]}"; do
@@ -168,8 +185,8 @@ jobs:
               gh release upload "${TAG}" "${artifact}" --repo "${GITHUB_REPOSITORY}"
             fi
           done
-          gh release upload "${TAG}" dist/ftw-driver-repository/manifest.payload.json --repo "${GITHUB_REPOSITORY}" --clobber
-          gh release upload "${TAG}" dist/ftw-driver-repository/manifest.json --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release upload "${TAG}" "${FTW_DRIVER_CANDIDATE_DIR}/manifest.payload.json" --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release upload "${TAG}" "${FTW_DRIVER_CANDIDATE_DIR}/manifest.json" --repo "${GITHUB_REPOSITORY}" --clobber
 
       - name: Record the current signed source commit
         env:
