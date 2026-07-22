@@ -115,11 +115,20 @@ class TestHttpUrlSafety:
         """driver_poll should return early if HTTP request fails."""
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
-
-        # Look for early return pattern: "if not data then return NNNN end"
-        has_early_return = bool(re.search(
-            r'if\s+not\s+\w+\s+then\s+return\s+\d+',
+        poll_match = re.search(
+            r'function\s+driver_poll\s*\([^)]*\)(.*?)(?=\nfunction\s|\Z)',
             clean,
+            re.DOTALL,
+        )
+        poll_body = poll_match.group(1) if poll_match else ""
+
+        # Accept fixed intervals and stateful backoff helpers. HTTP drivers
+        # may expose the request error as a separate return value.
+        has_early_return = bool(re.search(
+            r'if\s+(?:not\s+)?\w+[^\n]*then.*?return\s+'
+            r'(?:\d+|[a-z_]\w*(?:\([^)]*\))?)',
+            poll_body,
+            re.DOTALL,
         ))
 
         assert has_early_return, (

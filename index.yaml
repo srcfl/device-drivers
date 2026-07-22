@@ -96,6 +96,14 @@ drivers:
     control: false
     size_bytes: 2038
     sha256: "e182fe7fc03547ff5afc8b5e34d8a0434591b6699b6b08aa27cad1398c2dbe16"
+  - name: "esphome-dsmr"
+    version: "1.0.1"
+    tier: community
+    protocol: http
+    ders: [meter]
+    control: false
+    size_bytes: 16776
+    sha256: "06afd1e4079b041a8fd36b0b0801e3d997b546f0f1dbd6ee8774296c7a8f8351"
   - name: "etrel"
     version: "1.0.0"
     tier: community

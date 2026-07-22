@@ -1,0 +1,25 @@
+name: "esphome-dsmr"
+version: "1.0.1"
+tier: community
+author: "FTW contributors"
+protocol: http
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "ESPHome"
+    model_family: "DSMR web_server v3 P1 reader"
+    variants: [SlimmeLezer+, Sourceful Zap P1]
+    regions: [NL, BE, SE, DK]
+    firmware_versions: "DSMR 2022.10.1 on SlimmeLezer+; Sourceful Zap open firmware"
+    notes: "Name-derived phase object_ids live-validated on SlimmeLezer+; explicit Sourceful aliases retained."
+    min_driver_version: "1.0.1"
+min_host_version: "1.10.0"
+size_bytes: 0
+dkb_id: ""
+sha256: ""
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "Read ESPHome name-derived and delivered/returned DSMR object_id aliases."

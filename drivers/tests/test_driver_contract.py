@@ -60,8 +60,8 @@ class TestDriverContract:
         )
         if poll_match:
             body = poll_match.group(1)
-            assert re.search(r'return\s+\d+', body), \
-                f"{driver_name}: driver_poll should return a numeric poll interval"
+            assert re.search(r'return\s+(?:\d+|[a-z_]\w*(?:\([^)]*\))?)', body), \
+                f"{driver_name}: driver_poll should return a poll interval"
 
     def test_calls_set_make_in_init(self, driver_name):
         """driver_init should call host.set_make()."""
