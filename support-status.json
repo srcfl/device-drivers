@@ -338,7 +338,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "esphome-dsmr",
       "package_id": "com.sourceful.driver.esphome-dsmr",
       "targets": {
@@ -353,7 +353,7 @@
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.0.1",
+          "candidate_package_version": "1.0.2",
           "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,

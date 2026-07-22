@@ -1,5 +1,5 @@
 name: "esphome-dsmr"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
 author: "FTW contributors"
 protocol: http
@@ -22,4 +22,4 @@ signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Read ESPHome name-derived and delivered/returned DSMR object_id aliases."
+changelog: "Keep the FTW host API range explicit in signed recovery artifacts."

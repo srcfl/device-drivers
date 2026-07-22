@@ -28,7 +28,7 @@ end
 
 dofile("drivers/lua/esphome-dsmr.lua")
 
-if type(DRIVER) ~= "table" or DRIVER.id ~= "esphome-dsmr" or DRIVER.version ~= "1.0.1" then
+if type(DRIVER) ~= "table" or DRIVER.id ~= "esphome-dsmr" or DRIVER.version ~= "1.0.2" then
     error("ESPHome DSMR identity metadata is wrong")
 end
 if DRIVER.host_api_min ~= 1 or DRIVER.host_api_max ~= 1 or DRIVER.read_only ~= true then

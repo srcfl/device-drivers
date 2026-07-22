@@ -1,7 +1,7 @@
 {
   "schema_version": "sourceful.driver-package-source/v1",
   "package_id": "com.sourceful.driver.esphome-dsmr",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "channel": "beta",
   "display_name": "ESPHome DSMR (P1)",
   "identity": {
