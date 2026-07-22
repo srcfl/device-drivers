@@ -97,13 +97,13 @@ drivers:
     size_bytes: 2038
     sha256: "e182fe7fc03547ff5afc8b5e34d8a0434591b6699b6b08aa27cad1398c2dbe16"
   - name: "esphome-dsmr"
-    version: "1.0.1"
+    version: "1.0.2"
     tier: community
     protocol: http
     ders: [meter]
     control: false
     size_bytes: 16772
-    sha256: "8e50693e5dcca1699eb6a8612d500cfda8a3fc13ffc2f385089b87f8b97e5ea1"
+    sha256: "0a026f97146b5136a8b7575ae0b208e28ab90e086e58f8f9391506ec3aab616f"
   - name: "etrel"
     version: "1.0.0"
     tier: community

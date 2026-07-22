@@ -19,7 +19,7 @@ def test_esphome_dsmr_source_has_ftw_read_only_contract():
         source,
         target="ftw-core",
         read_only=True,
-        package_version="1.0.1",
+        package_version="1.0.2",
         runtime_abi="gopher-lua-source-v1",
     )
 
