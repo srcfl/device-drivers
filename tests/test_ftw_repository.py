@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import copy
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -95,6 +96,18 @@ def test_publication_contains_the_full_read_only_catalog(
     if compiler:
         for artifact in output.glob("driver-*.lua"):
             subprocess.run([compiler, "-p", artifact], check=True)
+
+
+def test_esphome_dsmr_artifact_declares_one_ftw_host_api_range(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    manifest, output = build(tmp_path, keypair)
+    driver = next(driver for driver in manifest["drivers"] if driver["id"] == "esphome-dsmr")
+    artifact = output / Path(driver["url"]).name
+    source = artifact.read_text(encoding="utf-8")
+
+    assert re.findall(r"(?m)^\s*host_api_min\s*=\s*([0-9]+)", source) == ["1"]
+    assert re.findall(r"(?m)^\s*host_api_max\s*=\s*([0-9]+)", source) == ["1"]
 
 
 def test_publication_is_deterministic(

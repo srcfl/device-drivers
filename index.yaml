@@ -102,8 +102,8 @@ drivers:
     protocol: http
     ders: [meter]
     control: false
-    size_bytes: 16776
-    sha256: "06afd1e4079b041a8fd36b0b0801e3d997b546f0f1dbd6ee8774296c7a8f8351"
+    size_bytes: 16772
+    sha256: "8e50693e5dcca1699eb6a8612d500cfda8a3fc13ffc2f385089b87f8b97e5ea1"
   - name: "etrel"
     version: "1.0.0"
     tier: community
