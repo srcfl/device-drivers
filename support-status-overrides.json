@@ -7,6 +7,14 @@
       "note": "Target differs materially from the FTW legacy driver. Golden telemetry, identity, fault, default-mode parity and physical HIL are required before activation."
     }
   },
+  "goodwe": {
+    "ftw-core": {
+      "target_conformance": "contract_passed",
+      "hil": "gw8kn_et_hk3000_required",
+      "legacy_parity": "profile_selected",
+      "note": "Version 1.0.2 is an observe-only GW8KN-ET/HK3000 candidate. Stable needs the masked fixture, three hard-reboot recoveries and a 24-hour field pass."
+    }
+  },
   "sdm630": {
     "ftw-core": {
       "target_conformance": "contract_passed",

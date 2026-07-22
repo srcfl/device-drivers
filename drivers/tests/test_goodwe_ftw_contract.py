@@ -17,7 +17,7 @@ def test_goodwe_public_source_has_ftw_managed_metadata():
         source,
         target="ftw-core",
         read_only=True,
-        package_version="1.0.1",
+        package_version="1.0.2",
         runtime_abi="gopher-lua-source-v1",
     )
 

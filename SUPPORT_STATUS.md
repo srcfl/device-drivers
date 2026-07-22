@@ -50,8 +50,8 @@ Catalog source is not proof that a target can install or run a driver.
 | goe | 1.0.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | goe_http | 1.0.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | goe_http | 1.0.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| goodwe | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| goodwe | 1.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| goodwe | 1.0.2 | ftw-core | contract_passed | 1.0.2 | — | gw8kn_et_hk3000_required | — | profile_selected | no |
+| goodwe | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | growatt | 1.0.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | growatt | 1.0.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hardybarth | 1.0.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

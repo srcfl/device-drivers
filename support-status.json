@@ -646,9 +646,9 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "goodwe",
-      "package_id": null,
+      "package_id": "com.sourceful.driver.goodwe",
       "targets": {
         "blixt-l1": {
           "candidate_package_version": null,
@@ -661,14 +661,14 @@
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
+          "candidate_package_version": "1.0.2",
           "control_enabled": false,
-          "hil": "not_recorded",
+          "hil": "gw8kn_et_hk3000_required",
           "historical_signed_beta_version": null,
-          "legacy_parity": "not_assessed",
-          "note": "",
+          "legacy_parity": "profile_selected",
+          "note": "Version 1.0.2 is an observe-only GW8KN-ET/HK3000 candidate. Stable needs the masked fixture, three hard-reboot recoveries and a 24-hour field pass.",
           "stable_package_version": null,
-          "target_conformance": "not_assessed"
+          "target_conformance": "contract_passed"
         }
       }
     },

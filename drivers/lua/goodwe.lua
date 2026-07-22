@@ -1,24 +1,27 @@
--- GoodWe ET/EH/BT/BH/ES/DT Series Inverter Driver
--- Emits: PV, Battery, Meter
--- Register type: HOLDING (FC 0x03)
--- Byte order: Big-Endian for multi-register values
--- Port: 502
--- Community tier (untested)
+-- GoodWe read-only inverter driver.
+--
+-- Register type: holding registers (Modbus FC03).
+-- Multi-register values use the high word first.
+--
+-- The gw8kn-et-hk3000 profile is based on the MIT-licensed field profile in
+-- srcfl/hugin-drivers@3125960a80b5237e3a5ac609963ddb1302367938. frekes81
+-- contributed that profile from a GW8KN-ET with an HK3000 meter. FTW hardware
+-- approval still needs the pilot in packages/v1/goodwe/PILOT.md.
 
 DRIVER = {
     id = "goodwe",
-    name = "GoodWe hybrid and string inverter",
+    name = "GoodWe inverter",
     manufacturer = "GoodWe",
-    version = "1.0.1",
+    version = "1.0.2",
     host_api_min = 1,
     host_api_max = 1,
     protocols = { "modbus" },
     capabilities = { "pv", "battery", "meter" },
-    description = "GoodWe ET, EH, BT, BH, ES, EM, BP, DT, DNS, and XS inverter families.",
-    authors = { "Sourceful contributors" },
+    description = "GoodWe telemetry with explicit register-map profiles.",
+    authors = { "frekes81", "Sourceful contributors" },
     tested_models = {},
     verification_status = "experimental",
-    verification_notes = "Community driver; physical model and firmware coverage still needs verification.",
+    verification_notes = "GW8KN-ET and HK3000 need the documented FTW hardware pilot before stable use.",
     read_only = true,
     connection_defaults = {
         port = 502,
@@ -28,214 +31,203 @@ DRIVER = {
 
 PROTOCOL = "modbus"
 
-function driver_init(config)
-    host.set_make("GoodWe")
+local profile = nil
+
+local function holding(address, count)
+    local ok, registers = pcall(host.modbus_read, address, count, "holding")
+    if not ok then
+        error("GoodWe holding read failed at " .. address)
+    end
+    if type(registers) ~= "table" or #registers < count then
+        error("GoodWe holding read at " .. address .. " returned fewer than " .. count .. " registers")
+    end
+    return registers
 end
 
-function driver_poll()
-    -- ---- PV ----
-
-    -- PV total power: 35105-35106, U32 BE, 0.1W
-    local ok_pvw, pvw_regs = pcall(host.modbus_read, 35105, 2, "holding")
-    local pv_w = nil
-    if ok_pvw and pvw_regs and pvw_regs[1] and pvw_regs[2] then
-        pv_w = host.decode_u32_be(pvw_regs[1], pvw_regs[2]) * 0.1
+local function nonnegative_i16(raw, address)
+    local value = host.decode_i16(raw)
+    if value < 0 then
+        error("GoodWe holding register " .. address .. " returned an invalid negative power")
     end
+    return value
+end
 
-    -- PV1 voltage: 35103, U16 × 0.1V; PV1 current: 35104, U16 × 0.1A
-    local ok_m1, m1_regs = pcall(host.modbus_read, 35103, 2, "holding")
-    local mppt1_v, mppt1_a = nil, nil
-    if ok_m1 and m1_regs and m1_regs[1] and m1_regs[2] then
-        mppt1_v = m1_regs[1] * 0.1
-        mppt1_a = m1_regs[2] * 0.1
-    end
-
-    -- PV2 voltage: 35109, U16 × 0.1V; PV2 current: 35110, U16 × 0.1A
-    local ok_m2, m2_regs = pcall(host.modbus_read, 35109, 2, "holding")
-    local mppt2_v, mppt2_a = nil, nil
-    if ok_m2 and m2_regs and m2_regs[1] and m2_regs[2] then
-        mppt2_v = m2_regs[1] * 0.1
-        mppt2_a = m2_regs[2] * 0.1
-    end
-
-    -- Grid frequency: 35113, U16 × 0.01Hz
-    local ok_hz, hz_regs = pcall(host.modbus_read, 35113, 1, "holding")
-    local hz = nil
-    if ok_hz and hz_regs and hz_regs[1] then
-        hz = hz_regs[1] * 0.01
-    end
-
-    -- PV generation energy: 35191-35192, U32 BE × 0.1 kWh
-    local ok_pvgen, pvgen_regs = pcall(host.modbus_read, 35191, 2, "holding")
-    local pv_gen_wh = nil
-    if ok_pvgen and pvgen_regs and pvgen_regs[1] and pvgen_regs[2] then
-        pv_gen_wh = host.decode_u32_be(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
-    end
-
-    -- Emit PV telemetry (W always negative for generation)
-    if pv_w ~= nil then
-        host.emit("pv", {
-            w           = -pv_w,
-            mppt1_v     = mppt1_v,
-            mppt1_a     = mppt1_a,
-            mppt2_v     = mppt2_v,
-            mppt2_a     = mppt2_a,
-            lifetime_wh = pv_gen_wh,
-        })
-    end
-
-    -- ---- Battery ----
-
-    -- Battery voltage: 35178, U16 × 0.1V
-    local ok_bv, bv_regs = pcall(host.modbus_read, 35178, 1, "holding")
-    local bat_v = nil
-    if ok_bv and bv_regs and bv_regs[1] then
-        bat_v = bv_regs[1] * 0.1
-    end
-
-    -- Battery current: 35179, I16 × 0.1A
-    local ok_ba, ba_regs = pcall(host.modbus_read, 35179, 1, "holding")
-    local bat_a = nil
-    if ok_ba and ba_regs and ba_regs[1] then
-        bat_a = host.decode_i16(ba_regs[1]) * 0.1
-    end
-
-    -- Battery power: 35180, I16, W (positive=charge, negative=discharge)
-    local ok_bw, bw_regs = pcall(host.modbus_read, 35180, 1, "holding")
-    local bat_w = nil
-    if ok_bw and bw_regs and bw_regs[1] then
-        bat_w = host.decode_i16(bw_regs[1])
-    end
-
-    -- Battery SoC: 35182, U16, %
-    local ok_bsoc, bsoc_regs = pcall(host.modbus_read, 35182, 1, "holding")
-    local bat_soc = nil
-    if ok_bsoc and bsoc_regs and bsoc_regs[1] then
-        bat_soc = bsoc_regs[1] / 100  -- percent to fraction
-    end
-
-    -- Battery temperature: 35183, I16 × 0.1C
-    local ok_btemp, btemp_regs = pcall(host.modbus_read, 35183, 1, "holding")
-    local bat_temp = nil
-    if ok_btemp and btemp_regs and btemp_regs[1] then
-        bat_temp = host.decode_i16(btemp_regs[1]) * 0.1
-    end
-
-    -- Emit Battery telemetry
-    if bat_w ~= nil then
+local function emit_battery(w, soc, v, a, temp_c)
+    if v > 0 or soc > 0 or w ~= 0 then
         host.emit("battery", {
-            w      = bat_w,
-            v      = bat_v,
-            a      = bat_a,
-            soc    = bat_soc,
-            temp_c = bat_temp,
+            w = w,
+            soc = soc,
+            v = v,
+            a = a,
+            temp_c = temp_c,
         })
     end
+end
 
-    -- ---- Meter ----
+local function poll_community_v1()
+    -- Keep the 1.0.1 read boundaries until this profile has its own raw
+    -- fixture and hardware test. Read all 22 fields before the first emit.
+    local pv_total = holding(35105, 2)
+    local mppt1 = holding(35103, 2)
+    local mppt2 = holding(35109, 2)
+    local frequency = holding(35113, 1)
+    local pv_energy = holding(35191, 2)
+    local battery_voltage = holding(35178, 1)
+    local battery_current = holding(35179, 1)
+    local battery_power = holding(35180, 1)
+    local battery_soc = holding(35182, 1)
+    local battery_temp = holding(35183, 1)
+    local meter_total = holding(35140, 2)
+    local meter_l1_power = holding(35132, 2)
+    local meter_l2_power = holding(35134, 2)
+    local meter_l3_power = holding(35136, 2)
+    local meter_l1_voltage = holding(35121, 1)
+    local meter_l2_voltage = holding(35123, 1)
+    local meter_l3_voltage = holding(35125, 1)
+    local meter_l1_current = holding(35122, 1)
+    local meter_l2_current = holding(35124, 1)
+    local meter_l3_current = holding(35126, 1)
+    local import_energy = holding(35195, 2)
+    local export_energy = holding(35199, 2)
 
-    -- Meter total power: 35140-35141, I32 BE, W
-    -- GoodWe: positive = export from grid perspective, negate for our convention (positive=import)
-    local ok_mw, mw_regs = pcall(host.modbus_read, 35140, 2, "holding")
-    local meter_w = nil
-    if ok_mw and mw_regs and mw_regs[1] and mw_regs[2] then
-        meter_w = -host.decode_i32_be(mw_regs[1], mw_regs[2])
-    end
+    local pv_w = host.decode_u32_be(pv_total[1], pv_total[2]) * 0.1
+    host.emit("pv", {
+        w = -pv_w,
+        mppt1_v = mppt1[1] * 0.1,
+        mppt1_a = mppt1[2] * 0.1,
+        mppt2_v = mppt2[1] * 0.1,
+        mppt2_a = mppt2[2] * 0.1,
+        lifetime_wh = host.decode_u32_be(pv_energy[1], pv_energy[2]) * 100,
+    })
 
-    -- Per-phase meter power: L1=35132, L2=35134, L3=35136, I32 BE each pair
-    local ok_l1w, l1w_regs = pcall(host.modbus_read, 35132, 2, "holding")
-    local l1_w = nil
-    if ok_l1w and l1w_regs and l1w_regs[1] and l1w_regs[2] then
-        l1_w = -host.decode_i32_be(l1w_regs[1], l1w_regs[2])
-    end
+    local bat_w = host.decode_i16(battery_power[1])
+    local bat_soc = battery_soc[1] / 100
+    emit_battery(
+        bat_w,
+        bat_soc,
+        battery_voltage[1] * 0.1,
+        host.decode_i16(battery_current[1]) * 0.1,
+        host.decode_i16(battery_temp[1]) * 0.1
+    )
 
-    local ok_l2w, l2w_regs = pcall(host.modbus_read, 35134, 2, "holding")
-    local l2_w = nil
-    if ok_l2w and l2w_regs and l2w_regs[1] and l2w_regs[2] then
-        l2_w = -host.decode_i32_be(l2w_regs[1], l2w_regs[2])
-    end
-
-    local ok_l3w, l3w_regs = pcall(host.modbus_read, 35136, 2, "holding")
-    local l3_w = nil
-    if ok_l3w and l3w_regs and l3w_regs[1] and l3w_regs[2] then
-        l3_w = -host.decode_i32_be(l3w_regs[1], l3w_regs[2])
-    end
-
-    -- Grid voltages: L1=35121, L2=35123, L3=35125, U16 × 0.1V
-    local ok_lv1, lv1_regs = pcall(host.modbus_read, 35121, 1, "holding")
-    local l1_v = nil
-    if ok_lv1 and lv1_regs and lv1_regs[1] then
-        l1_v = lv1_regs[1] * 0.1
-    end
-
-    local ok_lv2, lv2_regs = pcall(host.modbus_read, 35123, 1, "holding")
-    local l2_v = nil
-    if ok_lv2 and lv2_regs and lv2_regs[1] then
-        l2_v = lv2_regs[1] * 0.1
-    end
-
-    local ok_lv3, lv3_regs = pcall(host.modbus_read, 35125, 1, "holding")
-    local l3_v = nil
-    if ok_lv3 and lv3_regs and lv3_regs[1] then
-        l3_v = lv3_regs[1] * 0.1
-    end
-
-    -- Grid currents: L1=35122, L2=35124, L3=35126, U16 × 0.1A
-    local ok_la1, la1_regs = pcall(host.modbus_read, 35122, 1, "holding")
-    local l1_a = nil
-    if ok_la1 and la1_regs and la1_regs[1] then
-        l1_a = la1_regs[1] * 0.1
-    end
-
-    local ok_la2, la2_regs = pcall(host.modbus_read, 35124, 1, "holding")
-    local l2_a = nil
-    if ok_la2 and la2_regs and la2_regs[1] then
-        l2_a = la2_regs[1] * 0.1
-    end
-
-    local ok_la3, la3_regs = pcall(host.modbus_read, 35126, 1, "holding")
-    local l3_a = nil
-    if ok_la3 and la3_regs and la3_regs[1] then
-        l3_a = la3_regs[1] * 0.1
-    end
-
-    -- Total import energy: 35195-35196, U32 BE × 0.1 kWh
-    local ok_imp, imp_regs = pcall(host.modbus_read, 35195, 2, "holding")
-    local import_wh = nil
-    if ok_imp and imp_regs and imp_regs[1] and imp_regs[2] then
-        import_wh = host.decode_u32_be(imp_regs[1], imp_regs[2]) * 0.1 * 1000
-    end
-
-    -- Total export energy: 35199-35200, U32 BE × 0.1 kWh
-    local ok_exp, exp_regs = pcall(host.modbus_read, 35199, 2, "holding")
-    local export_wh = nil
-    if ok_exp and exp_regs and exp_regs[1] and exp_regs[2] then
-        export_wh = host.decode_u32_be(exp_regs[1], exp_regs[2]) * 0.1 * 1000
-    end
-
-    -- Emit Meter telemetry
-    if meter_w ~= nil then
-        host.emit("meter", {
-            w         = meter_w,
-            l1_w      = l1_w,
-            l2_w      = l2_w,
-            l3_w      = l3_w,
-            l1_v      = l1_v,
-            l2_v      = l2_v,
-            l3_v      = l3_v,
-            l1_a      = l1_a,
-            l2_a      = l2_a,
-            l3_a      = l3_a,
-            hz        = hz,
-            import_wh = import_wh,
-            export_wh = export_wh,
-        })
-    end
+    host.emit("meter", {
+        w = -host.decode_i32_be(meter_total[1], meter_total[2]),
+        l1_w = -host.decode_i32_be(meter_l1_power[1], meter_l1_power[2]),
+        l2_w = -host.decode_i32_be(meter_l2_power[1], meter_l2_power[2]),
+        l3_w = -host.decode_i32_be(meter_l3_power[1], meter_l3_power[2]),
+        l1_v = meter_l1_voltage[1] * 0.1,
+        l2_v = meter_l2_voltage[1] * 0.1,
+        l3_v = meter_l3_voltage[1] * 0.1,
+        l1_a = meter_l1_current[1] * 0.1,
+        l2_a = meter_l2_current[1] * 0.1,
+        l3_a = meter_l3_current[1] * 0.1,
+        hz = frequency[1] * 0.01,
+        import_wh = host.decode_u32_be(import_energy[1], import_energy[2]) * 100,
+        export_wh = host.decode_u32_be(export_energy[1], export_energy[2]) * 100,
+    })
 
     return 5000
 end
 
-function driver_command(action, power_w, cmd)
+local function poll_gw8kn_et_hk3000()
+    -- 35107..35110: PV1 V, A, ignored 35109 and I16 string power.
+    local pv = holding(35107, 4)
+    if not pv then return 5000 end
+
+    -- 35123: grid frequency.
+    local frequency = holding(35123, 1)
+    if not frequency then return 5000 end
+
+    -- 35125..35135: inverter phase power at offsets 0, 5 and 10.
+    local inverter_phase = holding(35125, 11)
+    if not inverter_phase then return 5000 end
+
+    -- 35138..35140: I16 inverter total, ignored 35139 and I16 meter total.
+    local ac_total = holding(35138, 3)
+    if not ac_total then return 5000 end
+
+    -- 35145..35157: phase voltage at offsets 0, 6 and 12.
+    local meter_voltage = holding(35145, 13)
+    if not meter_voltage then return 5000 end
+
+    -- 35164..35168: phase load at offsets 0, 2 and 4.
+    local load = holding(35164, 5)
+    if not load then return 5000 end
+
+    -- 35178..35183: battery V, ignored current, W, reserved, SoC and temp.
+    local battery = holding(35178, 6)
+    if not battery then return 5000 end
+
+    -- 35195..35199: import counter, ignored 35197 and export counter.
+    local energy = holding(35195, 5)
+    if not energy then return 5000 end
+
+    local l1_v = meter_voltage[1] * 0.1
+    local l2_v = meter_voltage[7] * 0.1
+    local l3_v = meter_voltage[13] * 0.1
+    local pv_w = nonnegative_i16(ac_total[1], 35138)
+    local l1_w = load[1] - host.decode_i16(inverter_phase[1])
+    local l2_w = load[3] - host.decode_i16(inverter_phase[6])
+    local l3_w = load[5] - host.decode_i16(inverter_phase[11])
+    local l1_a = nil
+    local l2_a = nil
+    local l3_a = nil
+    if l1_v > 0 then l1_a = l1_w / l1_v end
+    if l2_v > 0 then l2_a = l2_w / l2_v end
+    if l3_v > 0 then l3_a = l3_w / l3_v end
+
+    host.emit("pv", {
+        w = -pv_w,
+        mppt1_v = pv[1] * 0.1,
+        mppt1_a = pv[2] * 0.1,
+    })
+
+    local bat_soc = battery[5] / 100
+    emit_battery(
+        host.decode_i16(battery[3]),
+        bat_soc,
+        battery[1] * 0.1,
+        nil,
+        host.decode_i16(battery[6]) * 0.1
+    )
+
+    host.emit("meter", {
+        w = -host.decode_i16(ac_total[3]),
+        l1_w = l1_w,
+        l2_w = l2_w,
+        l3_w = l3_w,
+        l1_v = l1_v,
+        l2_v = l2_v,
+        l3_v = l3_v,
+        l1_a = l1_a,
+        l2_a = l2_a,
+        l3_a = l3_a,
+        hz = frequency[1] * 0.01,
+        import_wh = host.decode_u32_be(energy[1], energy[2]) * 100,
+        export_wh = host.decode_u32_be(energy[4], energy[5]) * 100,
+    })
+
+    return 5000
+end
+
+
+function driver_init(config)
+    config = config or {}
+    profile = tostring(config.profile or "community-v1")
+    if profile ~= "community-v1" and profile ~= "gw8kn-et-hk3000" then
+        error("unsupported GoodWe register profile: " .. profile)
+    end
+    host.set_make("GoodWe")
+end
+
+function driver_poll()
+    if profile == "gw8kn-et-hk3000" then
+        return poll_gw8kn_et_hk3000()
+    end
+    return poll_community_v1()
+end
+
+function driver_command(action, power_w, command)
     return false
 end
 
@@ -243,5 +235,4 @@ function driver_default_mode()
 end
 
 function driver_cleanup()
-    -- nothing to clean up
 end

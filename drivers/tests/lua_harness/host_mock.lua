@@ -50,6 +50,7 @@ host._modbus_write_fail_at = nil
 host._modbus_write_attempts = 0
 host._modbus_read_error = nil
 host._modbus_read_fail_addresses = {}
+host._modbus_read_short_counts = {}
 
 -- Internal counters
 host._millis_counter = 0
@@ -86,6 +87,7 @@ function host.reset()
     host._modbus_write_attempts = 0
     host._modbus_read_error = nil
     host._modbus_read_fail_addresses = {}
+    host._modbus_read_short_counts = {}
     host._serial_buffer  = ""
     host._millis_counter = 0
 end
@@ -161,6 +163,11 @@ function host.modbus_read(addr, count, kind)
     local read_error = host._modbus_read_fail_addresses[addr] or host._modbus_read_error
     if read_error then
         error(tostring(read_error))
+    end
+
+    local short_count = host._modbus_read_short_counts[addr]
+    if short_count ~= nil and short_count >= 0 and short_count < count then
+        count = short_count
     end
 
     local reg_map = host._modbus_registers[kind]
