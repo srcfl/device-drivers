@@ -1,7 +1,7 @@
 name: "pixii"
-version: "1.1.0"
+version: "1.1.1"
 tier: core
-author: "Sourceful Labs AB"
+author: "Sourceful Labs AB and community contributors"
 protocol: modbus
 ders: [battery, meter]
 control: false

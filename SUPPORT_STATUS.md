@@ -84,8 +84,8 @@ Catalog source is not proof that a target can install or run a driver.
 | p1_hdlc | 2.0.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | p1_meter | 2.0.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | p1_meter | 2.0.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| pixii | 1.1.0 | ftw-core | staged | 1.2.1 | — | required | — | blocked | no |
-| pixii | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| pixii | 1.1.1 | ftw-core | staged | 1.2.2 | — | required | — | blocked | no |
+| pixii | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | saj | 1.0.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | saj | 1.0.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | schneider_meter | 1.0.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

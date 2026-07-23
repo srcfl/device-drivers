@@ -321,13 +321,13 @@ drivers:
     size_bytes: 19332
     sha256: "2e382395842fdf6f07e3a06c869f717a5ff4c2718d1ecd94a31e6975a1e95dde"
   - name: "pixii"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: core
     protocol: modbus
     ders: [battery, meter]
     control: false
-    size_bytes: 7831
-    sha256: "2e91e590397e6c2328c88fa48dc07d414baa5e56973be7a345fbcb828612cc18"
+    size_bytes: 8637
+    sha256: "e156849768cdc1b2dc5771e9f1e07b2c412d71b2b451cc9fcd9aabd7e7b82f07"
   - name: "saj"
     version: "1.0.0"
     tier: community

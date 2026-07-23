@@ -11,7 +11,7 @@ DRIVER = {
     id = "pixii",
     name = "Pixii PowerShaper",
     manufacturer = "Pixii",
-    version = "1.2.1",
+    version = "1.2.2",
     protocols = {"modbus"},
     capabilities = {"battery", "meter"},
     description = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -29,9 +29,11 @@ PROTOCOL = "modbus"
 local REG_HEARTBEAT = 39903
 local REG_SETPOINT_HI = 39905
 local REG_BATTERY_CHARGE_STATUS = 40137
+local REG_METER_ENERGY_SF = 40288 -- SunSpec model 213 offset 53; absent on some firmware
 
 local heartbeat = 0
 local serial_read = false
+local has_meter_energy_sf = true -- probed once in driver_init
 local last_calibrating = nil
 
 local function scale(value, factor)
@@ -90,6 +92,13 @@ end
 
 function driver_init(config)
     host.set_make("Pixii")
+
+    local ok, registers = pcall(host.modbus_read, REG_METER_ENERGY_SF, 1, "holding")
+    has_meter_energy_sf = ok and registers ~= nil and registers[1] ~= nil
+    if not has_meter_energy_sf then
+        host.log("info", "Pixii: meter energy scale factor @" .. REG_METER_ENERGY_SF
+            .. " not available; import/export Wh use sf=0")
+    end
 end
 
 function driver_poll()
@@ -115,7 +124,10 @@ function driver_poll()
     local meter_v_factor = read_scale_factor(40249)
     local meter_hz_factor = read_scale_factor(40251)
     local meter_w_factor = read_scale_factor(40256)
-    local meter_energy_factor = read_scale_factor(40288)
+    local meter_energy_factor = 0
+    if has_meter_energy_sf then
+        meter_energy_factor = read_scale_factor(REG_METER_ENERGY_SF)
+    end
 
     local ok_ac_w, ac_w_registers = pcall(host.modbus_read, 40083, 1, "holding")
     local ac_w = 0
