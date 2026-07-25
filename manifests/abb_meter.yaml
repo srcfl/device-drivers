@@ -1,5 +1,5 @@
 name: "abb_meter"
-version: "1.0.2"
+version: "1.0.4"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2863
+size_bytes: 2875
 dkb_id: ""
-sha256: "1c470727f37053205bdcaed123a053437b3827e1878a26c674a44c71dbed6254"
+sha256: "49bc4f790372db8130a28a347174f8f8b6bfff24cb28d1e310442c75ec667b7b"
 signature: ""
 
 bytecode_sha256: ""

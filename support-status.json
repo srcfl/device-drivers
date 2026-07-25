@@ -2,7 +2,7 @@
   "drivers": [
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.4",
       "driver_id": "abb_meter",
       "package_id": null,
       "targets": {
@@ -58,7 +58,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "acrel",
       "package_id": null,
       "targets": {
@@ -114,7 +114,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.0",
+      "catalog_version": "1.0.1",
       "driver_id": "alphaess",
       "package_id": null,
       "targets": {
@@ -170,7 +170,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "atmoce",
       "package_id": null,
       "targets": {
@@ -198,7 +198,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "carlo_gavazzi",
       "package_id": null,
       "targets": {
@@ -226,7 +226,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "chint",
       "package_id": null,
       "targets": {
@@ -254,7 +254,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "circutor",
       "package_id": null,
       "targets": {
@@ -282,7 +282,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.0",
+      "catalog_version": "1.2.1",
       "driver_id": "deye",
       "package_id": null,
       "targets": {
@@ -394,7 +394,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "ferroamp",
       "package_id": null,
       "targets": {
@@ -450,7 +450,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "ferroamp_modbus",
       "package_id": null,
       "targets": {
@@ -478,7 +478,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "foxess",
       "package_id": null,
       "targets": {
@@ -506,7 +506,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.2",
+      "catalog_version": "1.2.3",
       "driver_id": "fronius",
       "package_id": null,
       "targets": {
@@ -534,7 +534,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.0",
+      "catalog_version": "1.0.1",
       "driver_id": "fronius_api",
       "package_id": null,
       "targets": {
@@ -562,7 +562,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.2",
+      "catalog_version": "1.1.3",
       "driver_id": "fronius_smart_meter",
       "package_id": null,
       "targets": {
@@ -646,7 +646,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "goodwe",
       "package_id": "com.sourceful.driver.goodwe",
       "targets": {
@@ -661,7 +661,7 @@
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.0.2",
+          "candidate_package_version": "1.0.3",
           "control_enabled": false,
           "hil": "gw8kn_et_hk3000_required",
           "historical_signed_beta_version": null,
@@ -674,7 +674,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "growatt",
       "package_id": null,
       "targets": {
@@ -730,7 +730,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "hello",
       "package_id": null,
       "targets": {
@@ -758,7 +758,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.3.1",
+      "catalog_version": "1.3.2",
       "driver_id": "huawei",
       "package_id": null,
       "targets": {
@@ -786,7 +786,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "janitza",
       "package_id": null,
       "targets": {
@@ -842,7 +842,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "kostal",
       "package_id": null,
       "targets": {
@@ -870,7 +870,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.0",
+      "catalog_version": "1.0.1",
       "driver_id": "kstar",
       "package_id": null,
       "targets": {
@@ -926,7 +926,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.0",
+      "catalog_version": "1.0.1",
       "driver_id": "opendtu",
       "package_id": null,
       "targets": {
@@ -954,7 +954,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "opendtu_mqtt",
       "package_id": null,
       "targets": {
@@ -1010,7 +1010,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.0.0",
+      "catalog_version": "2.0.1",
       "driver_id": "p1_dsmr",
       "package_id": null,
       "targets": {
@@ -1038,7 +1038,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.0.0",
+      "catalog_version": "2.0.1",
       "driver_id": "p1_encrypted",
       "package_id": null,
       "targets": {
@@ -1066,7 +1066,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.0.0",
+      "catalog_version": "2.0.1",
       "driver_id": "p1_hdlc",
       "package_id": null,
       "targets": {
@@ -1094,7 +1094,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.0.0",
+      "catalog_version": "2.0.1",
       "driver_id": "p1_meter",
       "package_id": null,
       "targets": {
@@ -1122,7 +1122,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.3",
+      "catalog_version": "1.1.4",
       "driver_id": "pixii",
       "package_id": "com.sourceful.driver.pixii",
       "targets": {
@@ -1137,7 +1137,7 @@
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.2.2",
+          "candidate_package_version": "1.1.4",
           "control_enabled": false,
           "hil": "required",
           "historical_signed_beta_version": null,
@@ -1150,7 +1150,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "saj",
       "package_id": null,
       "targets": {
@@ -1178,7 +1178,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "schneider_meter",
       "package_id": null,
       "targets": {
@@ -1234,12 +1234,12 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.3",
+      "catalog_version": "1.1.4",
       "driver_id": "sdm630",
       "package_id": "com.sourceful.driver.sdm630",
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": "1.1.3",
+          "candidate_package_version": "1.1.4",
           "control_enabled": false,
           "hil": "required_for_public_source_candidate",
           "historical_signed_beta_version": "1.1.1",
@@ -1249,7 +1249,7 @@
           "target_conformance": "contract_passed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.1.3",
+          "candidate_package_version": "1.1.4",
           "control_enabled": false,
           "hil": "required_for_public_source_candidate",
           "historical_signed_beta_version": "1.1.1",
@@ -1290,7 +1290,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "siemens_pac",
       "package_id": null,
       "targets": {
@@ -1318,7 +1318,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "sigenergy",
       "package_id": null,
       "targets": {
@@ -1346,7 +1346,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.2",
+      "catalog_version": "1.2.3",
       "driver_id": "sma",
       "package_id": null,
       "targets": {
@@ -1374,7 +1374,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "socomec",
       "package_id": null,
       "targets": {
@@ -1402,7 +1402,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "sofar",
       "package_id": null,
       "targets": {
@@ -1430,7 +1430,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.2",
+      "catalog_version": "1.2.3",
       "driver_id": "solaredge",
       "package_id": null,
       "targets": {
@@ -1458,7 +1458,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "solax",
       "package_id": null,
       "targets": {
@@ -1486,7 +1486,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "solinteg",
       "package_id": null,
       "targets": {
@@ -1514,7 +1514,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.1",
+      "catalog_version": "1.2.2",
       "driver_id": "solis",
       "package_id": null,
       "targets": {
@@ -1542,7 +1542,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.0",
+      "catalog_version": "1.0.1",
       "driver_id": "sonnen",
       "package_id": null,
       "targets": {
@@ -1570,7 +1570,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.1",
+      "catalog_version": "1.2.3",
       "driver_id": "sungrow",
       "package_id": "com.sourceful.driver.sungrow",
       "targets": {
@@ -1598,7 +1598,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.0",
+      "catalog_version": "1.0.1",
       "driver_id": "varta",
       "package_id": null,
       "targets": {
@@ -1626,7 +1626,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.0",
+      "catalog_version": "1.0.1",
       "driver_id": "victron",
       "package_id": null,
       "targets": {
@@ -1654,7 +1654,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.0.2",
       "driver_id": "victron_mqtt",
       "package_id": null,
       "targets": {

@@ -1,5 +1,5 @@
 name: "varta"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -28,9 +28,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 1869
+size_bytes: 1879
 dkb_id: ""
-sha256: "b36df6bc5c8f5a06745b332c55c06364451e5197e096f8deca56693b3c121c33"
+sha256: "4f240545fac86e2b88195195f59bbabbef0f54019fd762b5e822334afade5aa2"
 signature: ""
 
 bytecode_sha256: ""

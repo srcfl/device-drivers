@@ -9,7 +9,7 @@ local function write_u32(addr, val)
     val = math.floor(math.abs(val))
     local hi = math.floor(val / 65536)
     local lo = val % 65536
-    host.modbus_write_multiple(addr, {hi, lo})
+    host.write_registers(addr, {hi, lo})
 end
 
 function driver_init(config)
@@ -58,13 +58,13 @@ function driver_poll()
 
     -- Emit PV telemetry (W always negative for generation)
     host.emit("pv", {
-        w           = -pv_w,
+        W           = -pv_w,
         mppt1_v     = pv1_v,
         mppt1_a     = pv1_a,
         mppt2_v     = pv2_v,
         mppt2_a     = pv2_a,
-        lifetime_wh = pv_gen_wh,
-        temp_c      = inv_temp,
+        total_generation_Wh = pv_gen_wh,
+        temperature_C      = inv_temp,
     })
 
     -- ---- Battery ----
@@ -114,13 +114,13 @@ function driver_poll()
 
     -- Emit Battery telemetry
     host.emit("battery", {
-        w            = bat_w,
-        v            = bat_v,
-        a            = bat_a,
-        soc          = bat_soc,
-        temp_c       = bat_temp,
-        charge_wh    = bat_charge_wh,
-        discharge_wh = bat_discharge_wh,
+        W            = bat_w,
+        V            = bat_v,
+        A            = bat_a,
+        SoC_nom_fract          = bat_soc,
+        temperature_C       = bat_temp,
+        total_charge_Wh    = bat_charge_wh,
+        total_discharge_Wh = bat_discharge_wh,
     })
 
     -- ---- Meter ----
@@ -176,19 +176,19 @@ function driver_poll()
 
     -- Emit Meter telemetry (negate current and power for our convention)
     host.emit("meter", {
-        w         = -meter_w,
-        l1_w      = -l1_w,
-        l2_w      = -l2_w,
-        l3_w      = -l3_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = -l1_a,
-        l2_a      = -l2_a,
-        l3_a      = -l3_a,
-        hz        = hz,
-        import_wh = import_wh,
-        export_wh = export_wh,
+        W         = -meter_w,
+        L1_W      = -l1_w,
+        L2_W      = -l2_w,
+        L3_W      = -l3_w,
+        L1_V      = l1_v,
+        L2_V      = l2_v,
+        L3_V      = l3_v,
+        L1_A      = -l1_a,
+        L2_A      = -l2_a,
+        L3_A      = -l3_a,
+        Hz        = hz,
+        total_import_Wh = import_wh,
+        total_export_Wh = export_wh,
     })
 
     return 5000
@@ -197,47 +197,47 @@ end
 function driver_command(action, power_w, cmd)
     if action == "init" then
         -- Set forcible mode to duration-based, 24h period
-        host.modbus_write(47246, 0)   -- duration mode
-        host.modbus_write(47083, 1440) -- 24h period (not stored, must re-send)
+        host.write(47246, 0)   -- duration mode
+        host.write(47083, 1440) -- 24h period (not stored, must re-send)
         return true
     elseif action == "battery" then
         if power_w > 0 then
             -- Forcible charge: set power then trigger
             -- 47247-47248: U32, kW, gain 1000 (raw = watts)
             write_u32(47247, power_w)
-            host.modbus_write(47083, 1440)
-            host.modbus_write(47100, 1)  -- trigger charge
+            host.write(47083, 1440)
+            host.write(47100, 1)  -- trigger charge
         elseif power_w < 0 then
             -- Forcible discharge: set power then trigger
             -- 47249-47250: U32, kW, gain 1000 (raw = watts)
             write_u32(47249, math.abs(power_w))
-            host.modbus_write(47083, 1440)
-            host.modbus_write(47100, 2)  -- trigger discharge
+            host.write(47083, 1440)
+            host.write(47100, 2)  -- trigger discharge
         else
-            host.modbus_write(47100, 0)  -- stop
+            host.write(47100, 0)  -- stop
         end
         return true
     elseif action == "curtail" then
         -- Force charge to absorb excess PV
         write_u32(47247, math.abs(power_w))
-        host.modbus_write(47083, 1440)
-        host.modbus_write(47100, 1)
+        host.write(47083, 1440)
+        host.write(47100, 1)
         return true
     elseif action == "curtail_disable" then
-        host.modbus_write(47100, 0)
+        host.write(47100, 0)
         return true
     elseif action == "deinit" then
         -- Stop forcible mode, return to max self-consumption
-        host.modbus_write(47100, 0)
-        host.modbus_write(47086, 2)  -- maximise self consumption
+        host.write(47100, 0)
+        host.write(47086, 2)  -- maximise self consumption
         return true
     end
     return false
 end
 
 function driver_default_mode()
-    host.modbus_write(47100, 0)
-    host.modbus_write(47086, 2)  -- maximise self consumption
+    host.write(47100, 0)
+    host.write(47086, 2)  -- maximise self consumption
 end
 
 function driver_cleanup()

@@ -1,6 +1,7 @@
 """Pin the GoodWe field candidate to the FTW read-only package contract."""
 
 import json
+import re
 from pathlib import Path
 import sys
 
@@ -17,7 +18,12 @@ def test_goodwe_package_is_ftw_only_and_read_only():
     )
     validate_document(package)
 
-    assert package["version"] == "1.0.2"
+    # The package builds straight from drivers/lua/goodwe.lua, so its version
+    # tracks the manifest. Pinning a literal here made every driver bump fail
+    # a test that has nothing to do with what changed.
+    manifest = (ROOT / "manifests/goodwe.yaml").read_text(encoding="utf-8")
+    manifest_version = re.search(r'^version:\s*"([^"]+)"', manifest, re.M).group(1)
+    assert package["version"] == manifest_version
     assert package["permissions"] == ["modbus.read"]
     assert package["read_only"] is True
     assert package["commands"] == []

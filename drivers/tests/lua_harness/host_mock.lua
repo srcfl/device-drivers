@@ -124,6 +124,25 @@ function host.set_device_fault(faulted, reason)
     host._fault_reason = reason or ""
 end
 
+-- FTW normalises emit keys at the host boundary (see
+-- go/internal/drivers/telemetry_keys.go), so a driver may use either the
+-- canonical @srcful/data-models spelling or the older short one. Mirror that
+-- here: tests and sign checks then read one shape whichever the driver emits.
+local EMIT_KEY_ALIASES = {
+    W = "w", V = "v", A = "a", Hz = "hz",
+    SoC_nom_fract = "soc",
+    temperature_C = "temp_c",
+    total_import_Wh = "import_wh",
+    total_export_Wh = "export_wh",
+    total_charge_Wh = "charge_wh",
+    total_discharge_Wh = "discharge_wh",
+    total_generation_Wh = "lifetime_wh",
+    rated_W = "rated_w",
+    L1_V = "l1_v", L2_V = "l2_v", L3_V = "l3_v",
+    L1_A = "l1_a", L2_A = "l2_a", L3_A = "l3_a",
+    L1_W = "l1_w", L2_W = "l2_w", L3_W = "l3_w",
+}
+
 function host.emit(der_type, data)
     record_call("emit", der_type, data)
     if not host._emitted[der_type] then
@@ -134,6 +153,12 @@ function host.emit(der_type, data)
     if type(data) == "table" then
         for k, v in pairs(data) do
             copy[k] = v
+        end
+        -- An alias never overwrites a key the driver set itself.
+        for canonical, short in pairs(EMIT_KEY_ALIASES) do
+            if copy[canonical] ~= nil and copy[short] == nil then
+                copy[short] = copy[canonical]
+            end
         end
     end
     table.insert(host._emitted[der_type], copy)

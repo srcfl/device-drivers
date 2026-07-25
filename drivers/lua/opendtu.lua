@@ -100,16 +100,16 @@ function driver_poll()
 
     -- Emit PV telemetry (negative for generation)
     host.emit("pv", {
-        w           = -total_dc_w,
-        lifetime_wh = total_yield_wh,
+        W           = -total_dc_w,
+        total_generation_Wh = total_yield_wh,
     })
 
     -- Emit Meter telemetry (AC output)
     host.emit("meter", {
-        w    = total_ac_w,
-        l1_v = ac_voltage,
-        l1_a = ac_current,
-        hz   = ac_frequency,
+        W    = total_ac_w,
+        L1_V = ac_voltage,
+        L1_A = ac_current,
+        Hz   = ac_frequency,
     })
 
     return 5000

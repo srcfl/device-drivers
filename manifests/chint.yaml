@@ -1,5 +1,5 @@
 name: "chint"
-version: "1.0.2"
+version: "1.0.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3095
+size_bytes: 3107
 dkb_id: ""
-sha256: "a0c1c854cfb28cf15d8bbbd5c1a062b9daf77b057b2f136c5ee254759e7f669c"
+sha256: "8c05c2a182d39c4428ac234140103fe78af0b00cef50064d5838400a107a65ba"
 signature: ""
 
 bytecode_sha256: ""

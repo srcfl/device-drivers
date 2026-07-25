@@ -18,7 +18,10 @@ Field definitions from spec/host-api.md:
                capacity_wh, rated_power_w
 """
 
+import json
 import re
+from pathlib import Path
+
 import pytest
 from conftest import (
     read_driver,
@@ -77,6 +80,26 @@ VALID_FIELDS = {
         "plug_connected",
     },
 }
+
+
+def _canonical_field_names() -> set:
+    """Canonical emit keys from spec/host-api-profile.json, lowercased.
+
+    This test compares field names case-insensitively, so the canonical
+    spelling of a key is added to every DER type's allowed set rather than
+    being listed by hand a third time. The contract is the source; a name
+    added there must not fail here.
+    """
+    profile_path = (Path(__file__).resolve().parents[2]
+                    / "spec" / "host-api-profile.json")
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    canonical = profile["emit_keys"]["canonical"]
+    return {key.lower() for keys in canonical.values() for key in keys}
+
+
+CANONICAL_FIELDS = _canonical_field_names()
+for _der_type in VALID_FIELDS:
+    VALID_FIELDS[_der_type] |= CANONICAL_FIELDS
 
 
 def _extract_inline_emit_fields(code, der_type):

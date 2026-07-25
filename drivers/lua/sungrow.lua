@@ -9,7 +9,7 @@ DRIVER = {
     id = "sungrow",
     name = "Sungrow hybrid and string inverter",
     manufacturer = "Sungrow",
-    version = "1.2.1",
+    version = "1.2.3",
     protocols = { "modbus" },
     capabilities = { "pv", "battery", "meter" },
     description = "Sungrow hybrid and string inverters via Modbus.",
@@ -179,14 +179,14 @@ function driver_poll()
 
     -- Emit PV telemetry (W always negative for generation)
     host.emit("pv", {
-        w           = -pv_w,
+        W           = -pv_w,
         mppt1_v     = mppt1_v,
         mppt1_a     = mppt1_a,
         mppt2_v     = mppt2_v,
         mppt2_a     = mppt2_a,
-        lifetime_wh = pv_gen_wh,
-        rated_w     = rated_w,
-        temp_c      = heatsink_c,
+        total_generation_Wh = pv_gen_wh,
+        rated_W     = rated_w,
+        temperature_C      = heatsink_c,
     })
 
     -- Battery registers: 13019-13022. An SG string inverter has no battery and
@@ -223,12 +223,12 @@ function driver_poll()
 
         -- Emit Battery telemetry
         host.emit("battery", {
-            w            = bat_w,
-            v            = bat_v,
-            a            = bat_a,
-            soc          = bat_soc,
-            charge_wh    = bat_charge_wh,
-            discharge_wh = bat_discharge_wh,
+            W            = bat_w,
+            V            = bat_v,
+            A            = bat_a,
+            SoC_nom_fract          = bat_soc,
+            total_charge_Wh    = bat_charge_wh,
+            total_discharge_Wh = bat_discharge_wh,
         })
     end
 
@@ -293,19 +293,19 @@ function driver_poll()
     -- Emit Meter telemetry
     if meter_present then
         host.emit("meter", {
-            w         = meter_w,
-            l1_w      = l1_w,
-            l2_w      = l2_w,
-            l3_w      = l3_w,
-            l1_v      = l1_v,
-            l2_v      = l2_v,
-            l3_v      = l3_v,
-            l1_a      = l1_a,
-            l2_a      = l2_a,
-            l3_a      = l3_a,
-            hz        = hz,
-            import_wh = import_wh,
-            export_wh = export_wh,
+            W         = meter_w,
+            L1_W      = l1_w,
+            L2_W      = l2_w,
+            L3_W      = l3_w,
+            L1_V      = l1_v,
+            L2_V      = l2_v,
+            L3_V      = l3_v,
+            L1_A      = l1_a,
+            L2_A      = l2_a,
+            L3_A      = l3_a,
+            Hz        = hz,
+            total_import_Wh = import_wh,
+            total_export_Wh = export_wh,
         })
     end
 
@@ -327,30 +327,30 @@ function driver_command(action, power_w, cmd)
         end
         if power_w > 0 then
             -- Charge: set limit then mode=1
-            host.modbus_write(13050, power_w)
-            host.modbus_write(13049, 1)
+            host.write(13050, power_w)
+            host.write(13049, 1)
         elseif power_w < 0 then
             -- Discharge: set limit then mode=2
-            host.modbus_write(13051, math.abs(power_w))
-            host.modbus_write(13049, 2)
+            host.write(13051, math.abs(power_w))
+            host.write(13049, 2)
         else
             -- Auto mode
-            host.modbus_write(13049, 0)
+            host.write(13049, 0)
         end
         return true
     elseif action == "curtail" then
-        host.modbus_write(13050, math.abs(power_w))
-        host.modbus_write(13049, 1)
+        host.write(13050, math.abs(power_w))
+        host.write(13049, 1)
         return true
     elseif action == "curtail_disable" or action == "deinit" then
-        host.modbus_write(13049, 0)
+        host.write(13049, 0)
         return true
     end
     return false
 end
 
 function driver_default_mode()
-    host.modbus_write(13049, 0)  -- auto mode
+    host.write(13049, 0)  -- auto mode
 end
 
 function driver_cleanup()

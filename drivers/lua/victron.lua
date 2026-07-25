@@ -36,7 +36,7 @@ function driver_poll()
 
     -- Emit PV telemetry
     host.emit("pv", {
-        w = -pv_total,
+        W = -pv_total,
     })
 
     -- ---- Grid / Meter Values ----
@@ -72,16 +72,16 @@ function driver_poll()
 
     -- Emit Meter telemetry (Victron: positive = import, matches convention)
     host.emit("meter", {
-        w    = grid_total_w,
-        l1_w = grid_l1_w,
-        l2_w = grid_l2_w,
-        l3_w = grid_l3_w,
-        l1_v = grid_l1_v,
-        l2_v = grid_l2_v,
-        l3_v = grid_l3_v,
-        l1_a = grid_l1_a,
-        l2_a = grid_l2_a,
-        l3_a = grid_l3_a,
+        W    = grid_total_w,
+        L1_W = grid_l1_w,
+        L2_W = grid_l2_w,
+        L3_W = grid_l3_w,
+        L1_V = grid_l1_v,
+        L2_V = grid_l2_v,
+        L3_V = grid_l3_v,
+        L1_A = grid_l1_a,
+        L2_A = grid_l2_a,
+        L3_A = grid_l3_a,
     })
 
     -- ---- Battery Values ----
@@ -124,11 +124,11 @@ function driver_poll()
     -- Emit Battery telemetry
     -- Victron Modbus: positive power = discharging, negate for convention
     host.emit("battery", {
-        w      = -bat_w,
-        v      = bat_v,
-        a      = bat_a,
-        soc    = bat_soc,
-        temp_c = bat_temp,
+        W      = -bat_w,
+        V      = bat_v,
+        A      = bat_a,
+        SoC_nom_fract    = bat_soc,
+        temperature_C = bat_temp,
     })
 
     return 5000

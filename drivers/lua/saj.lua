@@ -48,7 +48,7 @@ function driver_poll()
 
     -- Emit PV telemetry (W always negative for generation)
     host.emit("pv", {
-        w       = -pv_w,
+        W       = -pv_w,
         mppt1_v = mppt1_v,
         mppt1_a = mppt1_a,
         mppt2_v = mppt2_v,
@@ -73,8 +73,8 @@ function driver_poll()
 
     -- Emit Battery telemetry
     host.emit("battery", {
-        w   = bat_w,
-        soc = bat_soc,
+        W   = bat_w,
+        SoC_nom_fract = bat_soc,
     })
 
     -- ---- Meter ----
@@ -126,14 +126,14 @@ function driver_poll()
 
     -- Emit Meter telemetry
     host.emit("meter", {
-        w    = meter_w,
-        l1_v = l1_v,
-        l2_v = l2_v,
-        l3_v = l3_v,
-        l1_a = l1_a,
-        l2_a = l2_a,
-        l3_a = l3_a,
-        hz   = hz,
+        W    = meter_w,
+        L1_V = l1_v,
+        L2_V = l2_v,
+        L3_V = l3_v,
+        L1_A = l1_a,
+        L2_A = l2_a,
+        L3_A = l3_a,
+        Hz   = hz,
     })
 
     return 5000

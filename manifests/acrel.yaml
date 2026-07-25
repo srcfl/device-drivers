@@ -1,5 +1,5 @@
 name: "acrel"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2391
+size_bytes: 2403
 dkb_id: ""
-sha256: "6ab17acfb7a4c4c98b20037e19f06ce77518880a84cf1122e7555ee11e9dba46"
+sha256: "6b73d99232f21a577e00b16feabfb8b9315c770f8c6d5c2483d9ea74c277243a"
 signature: ""
 
 bytecode_sha256: ""

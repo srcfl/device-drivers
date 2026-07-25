@@ -1,5 +1,5 @@
 name: "ferroamp"
-version: "1.1.1"
+version: "1.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -19,7 +19,7 @@ connection_defaults:
 min_host_version: "2.0.0"
 size_bytes: 9233
 dkb_id: "ferroamp"
-sha256: "452ceabbaab41c8e989ebc7a0b8fc99fead00f33252c7586658b7effefa6f68d"
+sha256: "1b238f195ff8d748535925c01f3c0c8eb174c33715b7db495b005947c1955aea"
 signature: ""
 
 bytecode_sha256: ""

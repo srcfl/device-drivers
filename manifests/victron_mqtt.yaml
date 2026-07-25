@@ -1,5 +1,5 @@
 name: "victron_mqtt"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -42,9 +42,9 @@ tested_devices:
     notes: "Requires Venus OS with MQTT enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 5762
+size_bytes: 5779
 dkb_id: ""
-sha256: "b10764e026e43278ac15f015aae2eb1f6c6c1f7f96248f32814f94e206fe6d14"
+sha256: "deb4dba9ef525a59c023939d95686f4b533ee5a9d39a34598e499323afb6535f"
 signature: ""
 
 bytecode_sha256: ""

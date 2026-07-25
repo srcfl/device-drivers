@@ -1,5 +1,5 @@
 name: "solax"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -35,9 +35,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 4194
+size_bytes: 4231
 dkb_id: ""
-sha256: "174cd3e7eb33120891de41bbedb04675534a8c79f10088d36473ab780b6334c1"
+sha256: "cd0cfab218ca407e8a5379e757a90982577127d4529950c9ee10a66cf73a91c4"
 signature: ""
 
 bytecode_sha256: ""

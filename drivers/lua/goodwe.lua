@@ -12,7 +12,7 @@ DRIVER = {
     id = "goodwe",
     name = "GoodWe inverter",
     manufacturer = "GoodWe",
-    version = "1.0.2",
+    version = "1.0.3",
     host_api_min = 1,
     host_api_max = 1,
     protocols = { "modbus" },
@@ -55,11 +55,11 @@ end
 local function emit_battery(w, soc, v, a, temp_c)
     if v > 0 or soc > 0 or w ~= 0 then
         host.emit("battery", {
-            w = w,
-            soc = soc,
-            v = v,
-            a = a,
-            temp_c = temp_c,
+            W = w,
+            SoC_nom_fract = soc,
+            V = v,
+            A = a,
+            temperature_C = temp_c,
         })
     end
 end
@@ -92,12 +92,12 @@ local function poll_community_v1()
 
     local pv_w = host.decode_u32_be(pv_total[1], pv_total[2]) * 0.1
     host.emit("pv", {
-        w = -pv_w,
+        W = -pv_w,
         mppt1_v = mppt1[1] * 0.1,
         mppt1_a = mppt1[2] * 0.1,
         mppt2_v = mppt2[1] * 0.1,
         mppt2_a = mppt2[2] * 0.1,
-        lifetime_wh = host.decode_u32_be(pv_energy[1], pv_energy[2]) * 100,
+        total_generation_Wh = host.decode_u32_be(pv_energy[1], pv_energy[2]) * 100,
     })
 
     local bat_w = host.decode_i16(battery_power[1])
@@ -111,19 +111,19 @@ local function poll_community_v1()
     )
 
     host.emit("meter", {
-        w = -host.decode_i32_be(meter_total[1], meter_total[2]),
-        l1_w = -host.decode_i32_be(meter_l1_power[1], meter_l1_power[2]),
-        l2_w = -host.decode_i32_be(meter_l2_power[1], meter_l2_power[2]),
-        l3_w = -host.decode_i32_be(meter_l3_power[1], meter_l3_power[2]),
-        l1_v = meter_l1_voltage[1] * 0.1,
-        l2_v = meter_l2_voltage[1] * 0.1,
-        l3_v = meter_l3_voltage[1] * 0.1,
-        l1_a = meter_l1_current[1] * 0.1,
-        l2_a = meter_l2_current[1] * 0.1,
-        l3_a = meter_l3_current[1] * 0.1,
-        hz = frequency[1] * 0.01,
-        import_wh = host.decode_u32_be(import_energy[1], import_energy[2]) * 100,
-        export_wh = host.decode_u32_be(export_energy[1], export_energy[2]) * 100,
+        W = -host.decode_i32_be(meter_total[1], meter_total[2]),
+        L1_W = -host.decode_i32_be(meter_l1_power[1], meter_l1_power[2]),
+        L2_W = -host.decode_i32_be(meter_l2_power[1], meter_l2_power[2]),
+        L3_W = -host.decode_i32_be(meter_l3_power[1], meter_l3_power[2]),
+        L1_V = meter_l1_voltage[1] * 0.1,
+        L2_V = meter_l2_voltage[1] * 0.1,
+        L3_V = meter_l3_voltage[1] * 0.1,
+        L1_A = meter_l1_current[1] * 0.1,
+        L2_A = meter_l2_current[1] * 0.1,
+        L3_A = meter_l3_current[1] * 0.1,
+        Hz = frequency[1] * 0.01,
+        total_import_Wh = host.decode_u32_be(import_energy[1], import_energy[2]) * 100,
+        total_export_Wh = host.decode_u32_be(export_energy[1], export_energy[2]) * 100,
     })
 
     return 5000
@@ -177,7 +177,7 @@ local function poll_gw8kn_et_hk3000()
     if l3_v > 0 then l3_a = l3_w / l3_v end
 
     host.emit("pv", {
-        w = -pv_w,
+        W = -pv_w,
         mppt1_v = pv[1] * 0.1,
         mppt1_a = pv[2] * 0.1,
     })
@@ -192,19 +192,19 @@ local function poll_gw8kn_et_hk3000()
     )
 
     host.emit("meter", {
-        w = -host.decode_i16(ac_total[3]),
-        l1_w = l1_w,
-        l2_w = l2_w,
-        l3_w = l3_w,
-        l1_v = l1_v,
-        l2_v = l2_v,
-        l3_v = l3_v,
-        l1_a = l1_a,
-        l2_a = l2_a,
-        l3_a = l3_a,
-        hz = frequency[1] * 0.01,
-        import_wh = host.decode_u32_be(energy[1], energy[2]) * 100,
-        export_wh = host.decode_u32_be(energy[4], energy[5]) * 100,
+        W = -host.decode_i16(ac_total[3]),
+        L1_W = l1_w,
+        L2_W = l2_w,
+        L3_W = l3_w,
+        L1_V = l1_v,
+        L2_V = l2_v,
+        L3_V = l3_v,
+        L1_A = l1_a,
+        L2_A = l2_a,
+        L3_A = l3_a,
+        Hz = frequency[1] * 0.01,
+        total_import_Wh = host.decode_u32_be(energy[1], energy[2]) * 100,
+        total_export_Wh = host.decode_u32_be(energy[4], energy[5]) * 100,
     })
 
     return 5000

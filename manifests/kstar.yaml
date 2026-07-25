@@ -1,5 +1,5 @@
 name: "kstar"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -21,9 +21,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2646
+size_bytes: 2656
 dkb_id: ""
-sha256: "f2db67976dc10ebd2a328ba2e378fff34e956d9d4996f70511f04c3ed4caf56e"
+sha256: "0ec37325fa0e1a502f2e53b2a08bcda2e98af88120660b92e23e9b05b9abdd5f"
 signature: ""
 
 bytecode_sha256: ""

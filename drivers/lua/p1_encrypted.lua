@@ -240,19 +240,19 @@ local function emit_meter(values)
     local ew = n(values.export_w)
 
     host.emit("meter", {
-        w         = iw - ew,
-        l1_w      = n(values.l1_import_w) - n(values.l1_export_w),
-        l2_w      = n(values.l2_import_w) - n(values.l2_export_w),
-        l3_w      = n(values.l3_import_w) - n(values.l3_export_w),
-        l1_v      = n(values.l1_v),
-        l2_v      = n(values.l2_v),
-        l3_v      = n(values.l3_v),
-        l1_a      = n(values.l1_a),
-        l2_a      = n(values.l2_a),
-        l3_a      = n(values.l3_a),
-        hz        = n(values.hz),
-        import_wh = n(values.total_import_wh),
-        export_wh = n(values.total_export_wh),
+        W         = iw - ew,
+        L1_W      = n(values.l1_import_w) - n(values.l1_export_w),
+        L2_W      = n(values.l2_import_w) - n(values.l2_export_w),
+        L3_W      = n(values.l3_import_w) - n(values.l3_export_w),
+        L1_V      = n(values.l1_v),
+        L2_V      = n(values.l2_v),
+        L3_V      = n(values.l3_v),
+        L1_A      = n(values.l1_a),
+        L2_A      = n(values.l2_a),
+        L3_A      = n(values.l3_a),
+        Hz        = n(values.hz),
+        total_import_Wh = n(values.total_import_wh),
+        total_export_Wh = n(values.total_export_wh),
     })
 end
 

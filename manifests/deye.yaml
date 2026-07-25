@@ -1,5 +1,5 @@
 name: "deye"
-version: "1.2.0"
+version: "1.2.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -35,9 +35,9 @@ tested_devices:
     notes: "Three-phase grid-tie string inverter (PV + meter only)"
     min_driver_version: "1.2.0"
 min_host_version: "2.0.0"
-size_bytes: 7131
+size_bytes: 7187
 dkb_id: "deye"
-sha256: "15035312b5424f3221580fb68e067a911f5997b5a85ff482e1d17480a6220702"
+sha256: "f2635f7e8dea29b9851d0cecc41c9b94e6d50afacdbd718edfc3445a4dd103eb"
 signature: ""
 
 bytecode_sha256: ""

@@ -1,5 +1,5 @@
 name: "opendtu_mqtt"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -28,9 +28,9 @@ tested_devices:
     notes: "MQTT alternative, requires OpenDTU MQTT configured"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3995
+size_bytes: 4009
 dkb_id: ""
-sha256: "79c1676e49c088ccca0e72db139338792d88536a6badb62bcc9a737422af59b1"
+sha256: "a5f0416653e14676f27bddc989cee1d89e948c1e6e61cfe9ee8d5e10cef222be"
 signature: ""
 
 bytecode_sha256: ""

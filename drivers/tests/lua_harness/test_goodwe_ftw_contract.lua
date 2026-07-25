@@ -21,7 +21,7 @@ end
 
 dofile("drivers/lua/goodwe.lua")
 
-if type(DRIVER) ~= "table" or DRIVER.id ~= "goodwe" or DRIVER.version ~= "1.0.2" then
+if type(DRIVER) ~= "table" or DRIVER.id ~= "goodwe" or DRIVER.version ~= "1.0.3" then
     error("GoodWe FTW identity metadata is wrong")
 end
 if DRIVER.host_api_min ~= 1 or DRIVER.host_api_max ~= 1 or DRIVER.read_only ~= true then

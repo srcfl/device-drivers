@@ -1,5 +1,5 @@
 name: "p1_meter"
-version: "2.0.0"
+version: "2.0.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: serial
@@ -140,9 +140,9 @@ tested_devices:
     notes: "HDLC/DLMS/COSEM, often AES-GCM encrypted"
     min_driver_version: "2.0.0"
 min_host_version: "2.0.0"
-size_bytes: 19332
+size_bytes: 19344
 dkb_id: "p1_meter"
-sha256: "2e382395842fdf6f07e3a06c869f717a5ff4c2718d1ecd94a31e6975a1e95dde"
+sha256: "29f2bd2f73c0d39d809839ca60b40c3e4281f1dda267ba2b26e66bd9ab80c27b"
 signature: ""
 
 bytecode_sha256: ""

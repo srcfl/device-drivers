@@ -1,7 +1,7 @@
 {
   "schema_version": "sourceful.driver-package-source/v1",
   "package_id": "com.sourceful.driver.goodwe",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "channel": "beta",
   "display_name": "GoodWe GW8KN-ET observe-only pilot",
   "identity": {

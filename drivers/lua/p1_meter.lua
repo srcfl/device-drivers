@@ -514,19 +514,19 @@ local function emit_meter(values)
     end
 
     host.emit("meter", {
-        w         = iw - ew,
-        l1_w      = l1w,
-        l2_w      = l2w,
-        l3_w      = l3w,
-        l1_v      = n(values.l1_v),
-        l2_v      = n(values.l2_v),
-        l3_v      = n(values.l3_v),
-        l1_a      = n(values.l1_a),
-        l2_a      = n(values.l2_a),
-        l3_a      = n(values.l3_a),
-        hz        = n(values.hz),
-        import_wh = imp_wh,
-        export_wh = exp_wh,
+        W         = iw - ew,
+        L1_W      = l1w,
+        L2_W      = l2w,
+        L3_W      = l3w,
+        L1_V      = n(values.l1_v),
+        L2_V      = n(values.l2_v),
+        L3_V      = n(values.l3_v),
+        L1_A      = n(values.l1_a),
+        L2_A      = n(values.l2_a),
+        L3_A      = n(values.l3_a),
+        Hz        = n(values.hz),
+        total_import_Wh = imp_wh,
+        total_export_Wh = exp_wh,
     })
 end
 

@@ -1,5 +1,5 @@
 name: "solinteg"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -44,7 +44,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 7966
 dkb_id: "solinteg"
-sha256: "c3785a032ec9b6c16d6630f6a8c9324199b4ab357e34702b5f07c5c03e186aa4"
+sha256: "522d603368b8cfd2c5b111e9f59bba4dd190f08e6cac28c709409fc25a94c66e"
 signature: ""
 
 bytecode_sha256: ""

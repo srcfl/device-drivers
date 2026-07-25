@@ -18,7 +18,7 @@ function driver_init(cfg)
     host.log("Hello driver initialized!")
     host.log("  SN: " .. tostring(config.sn or "unknown"))
     host.log("  Gateway: " .. tostring(config.gateway_serial or "unknown"))
-    host.log("  Uptime: " .. tostring(host.millis()) .. " ms")
+    host.log("  Uptime: " .. tostring(host.now_ms()) .. " ms")
 end
 
 function driver_poll()
