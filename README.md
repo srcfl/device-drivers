@@ -31,6 +31,25 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) and
 [spec/driver-package-v1.md](spec/driver-package-v1.md) before changing a
 package contract.
 
+## Scope
+
+One canonical driver per device, with this repository as its single source.
+The drivers here target linux-edge hosts: FTW (gopher-lua) and Blixt L1
+(luajit). Both run on Linux-class hardware, so a driver is not written to a
+memory budget.
+
+Zap is built on a separate track that compiles from this source. Its
+constraints do not shape the drivers here, and it is not a target in these
+package recipes.
+
+What a driver may call is defined in [spec/host-api-profile.json](spec/host-api-profile.json)
+and enforced by `make check`. A function outside the profile is not available,
+whichever host it was tested against.
+
+Drivers here are community-supported. The tier in each manifest states the test
+and support evidence behind that driver; a channel signature proves artifact
+integrity, never hardware coverage.
+
 ## Repository boundary
 
 This repository contains only public source and validation code:

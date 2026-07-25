@@ -75,7 +75,7 @@
           },
           {
             "if": {"properties": {"transform": {"const": "lua55-strip"}}},
-            "then": {"properties": {"media_type": {"const": "application/vnd.sourceful.lua.bytecode"}, "extension": {"const": "luac"}, "target": {"const": "zap-firmware"}}}
+            "then": {"properties": {"media_type": {"const": "application/vnd.sourceful.lua.bytecode"}, "extension": {"const": "luac"}}}
           }
         ]
       }

@@ -7,6 +7,15 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Added
+- `spec/host-api-profile.json` defines what a canonical driver may call on a linux-edge host, enforced by `make check`. Blixt L1 is the naming reference: endianness belongs in the name (`decode_u32_be`, not `decode_u32`), identification has its own setters (`set_model`, `set_rated_w`, `set_warmup_s`), and `decode_string` replaces the register loop every driver writes by hand
+- `tools/canonical_debt.py` and `canonical-debt.json` count how far the catalog still is from that shape — 370 items across all 62 drivers. `make check` fails if the count grows, so a new driver cannot add to it and a converted driver ratchets it down
+
+### Changed
+- This repository targets linux-edge hosts only: FTW and Blixt L1. `zap-firmware` is no longer a package target and `zap` is no longer a host product; Zap is built on a separate track that compiles from this source
+- `drivers/lua/GUIDELINES.md` no longer sets a bytecode ceiling. It described Zap's 48 KB shared Lua pool, which does not apply to a linux-edge host
+- `spec/host-api.md` documents `set_sn`, `set_poll_interval`, `set_device_fault` and `emit_metric`. All four were already called by shipped drivers without appearing in the spec
+
 ### Fixed
 - **sungrow** 1.2.1 and FTW target 1.3.3 — Read the device type code and skip the SH hybrid block on string inverters. SG models such as the SG12RT have no battery and no 13xxx block, so the unconditional hybrid reads failed the whole poll and took the device offline instead of reporting the PV it does have. The battery and meter streams are emitted only when their registers answered, so a string inverter no longer reports a battery at 0% that does not exist. Battery commands are refused on a string model. Registers are written off as absent only after three failed reads in a row, so a timeout cannot silence a healthy inverter.
 - Manifest `sha256` and `size_bytes` now describe the Lua file each manifest names. They were maintained by hand and had drifted on 60 of 62 drivers; `validate_manifest.py` only checked that the size was a non-negative number. `make check` regenerates them and fails on any difference

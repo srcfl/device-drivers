@@ -1,0 +1,125 @@
+{
+  "schema_version": "sourceful.host-api-profile/v1",
+  "description": "What a canonical driver in this repository may call. One driver per device, one source of truth, running on linux-edge hosts.",
+  "canonical_reference": {
+    "source": "srcfl/blixt-gateway l1/drivers/skeleton.lua",
+    "note": "Blixt L1 is the naming and structure reference. Its host API states endianness in the name, gives identification its own setters, and provides string decoding instead of leaving every driver to loop over registers itself. FTW is the more malleable host, so where the two disagree the Blixt spelling is the target and FTW adapts. A driver compiled for another target later, including Zap, must not need rewriting to get there."
+  },
+  "targets": {
+    "ftw-core": "linux-edge",
+    "blixt-l1": "linux-edge"
+  },
+  "profiles": {
+    "linux-edge": {
+      "description": "FTW (gopher-lua) and Blixt L1 (luajit). Both run on Linux-class hardware, so a driver here is not written to a memory budget.",
+      "functions": {
+        "identify": [
+          "set_make",
+          "set_model",
+          "set_sn",
+          "set_rated_w",
+          "set_warmup_s"
+        ],
+        "core": [
+          "emit",
+          "emit_metric",
+          "log",
+          "now_ms",
+          "sleep",
+          "set_device_fault",
+          "set_poll_interval"
+        ],
+        "decode": [
+          "decode_i16",
+          "decode_u16",
+          "decode_i32_be",
+          "decode_i32_le",
+          "decode_u32_be",
+          "decode_u32_le",
+          "decode_f32_be",
+          "decode_u64",
+          "decode_string",
+          "scale"
+        ],
+        "modbus": [
+          "modbus_read",
+          "write",
+          "write_registers"
+        ],
+        "mqtt": [
+          "mqtt_messages",
+          "mqtt_publish",
+          "mqtt_subscribe"
+        ],
+        "http": [
+          "http_get",
+          "http_post",
+          "https_get",
+          "https_post",
+          "json_decode"
+        ],
+        "serial": [
+          "serial_available",
+          "serial_read"
+        ],
+        "net": [
+          "udp_recv",
+          "udp_send"
+        ],
+        "ble": [
+          "ble_connect",
+          "ble_disconnect",
+          "ble_notifications",
+          "ble_read",
+          "ble_scan",
+          "ble_subscribe",
+          "ble_write"
+        ],
+        "crypto": [
+          "aes_gcm_decrypt"
+        ]
+      }
+    }
+  },
+  "deprecated": {
+    "description": "Spellings this catalog grew on its own. Each is still accepted so existing drivers keep working, and each should disappear as a driver is made canonical. tools/canonical_debt.py counts them and make check fails if the count grows.",
+    "functions": {
+      "modbus_write": "write",
+      "modbus_write_multiple": "write_registers",
+      "modbus_write_multi": "write_registers",
+      "decode_u32": "decode_u32_be",
+      "decode_i32": "decode_i32_be",
+      "decode_f32": "decode_f32_be",
+      "millis": "now_ms"
+    }
+  },
+  "pending": {
+    "description": "Called by FTW's bundled drivers and not part of the contract. Importing a bundled driver that needs one requires deciding first: define it for every linux-edge host, or rewrite the driver without it.",
+    "functions": [
+      "json_encode",
+      "mqtt_pub",
+      "persist_secret",
+      "serial_write",
+      "set_watchdog_timeout_s",
+      "tcp_close",
+      "tcp_is_open",
+      "tcp_open",
+      "tcp_recv",
+      "ws_close",
+      "ws_is_open",
+      "ws_messages",
+      "ws_open",
+      "ws_send"
+    ]
+  },
+  "emit_keys": {
+    "description": "Blixt reads each emit table by exact key name and silently drops a key whose case is wrong, so these are a contract rather than a convention. They match @srcful/data-models verbatim. The catalog grew lowercase names instead; both are counted as debt until drivers are converted.",
+    "canonical": {
+      "battery": ["W", "V", "A", "SoC_nom_fract", "temperature_C", "total_charge_Wh", "total_discharge_Wh", "available_charge_Wh", "available_discharge_Wh"],
+      "inverter": ["W", "VA", "Hz", "L1_V", "L1_A", "L1_W", "L2_V", "L2_A", "L2_W", "L3_V", "L3_A", "L3_W", "rated_W"],
+      "pv": ["W", "total_generation_Wh", "mppts"],
+      "meter": ["W", "Hz", "L1_V", "L1_A", "L1_W", "L2_V", "L2_A", "L2_W", "L3_V", "L3_A", "L3_W", "total_import_Wh", "total_export_Wh"]
+    },
+    "repeating_structures": "A repeating structure is a plural-named array, not numbered keys. pv.mppts is a list of {V, A, W} whose length is what the device physically has. The catalog's mppt1_v/mppt2_v cannot represent a four-MPPT inverter at all."
+  }
+}

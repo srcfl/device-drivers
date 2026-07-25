@@ -1,33 +1,29 @@
 # Lua Driver Development Guidelines
 
-Rules for writing drivers that run well on the Zap ESP32-C3 (400KB SRAM, 48KB shared Lua pool).
+Rules for writing a canonical driver: one driver per device, one source, running
+on the linux-edge hosts this repository targets — FTW (gopher-lua) and Blixt L1
+(luajit).
 
-## Memory Budget
+Both run on Linux-class hardware, so a driver here is not written to a memory
+budget. Write the driver the device needs. Zap builds are a separate track that
+compiles from this source; its constraints do not shape the code here.
 
-```
-Lua pool:        48KB total
-VM overhead:    ~14KB (state, stdlib, host table)
-Usable:         ~34KB for ALL drivers combined
-Per driver:     ~8KB target (allows 4 drivers)
-```
-
-**The pool is shared.** Your driver's garbage is every other driver's problem. A memory hog doesn't just crash itself — it can cause transient errors in ALL running drivers.
+What a driver may call is set by `spec/host-api-profile.json` and checked by
+`tests/test_host_api_profile.py`. A function that is not in the profile is not
+available, whichever host you tested against.
 
 ## Rules
 
-### 1. Keep bytecode small
+### 1. Write one driver per device, not one per host
 
-Target: **under 6KB** compiled bytecode (~200 lines of Lua).
+The reason this repository exists is that the same device ended up with several
+drivers that drifted apart. If a host needs something the others do not, that
+belongs in the host API, not in a second copy of the driver.
 
-The `p1_meter.lua` universal driver compiles to 11.8KB and uses ~20KB of pool. The focused `p1_dsmr.lua` compiles to 3.6KB and uses ~8KB. Same functionality for the target meter, half the memory.
-
-Don't write universal drivers. Write focused drivers for specific devices.
-
-Check your bytecode size:
-```bash
-luac -o driver.luac driver.lua
-wc -c driver.luac
-```
+Two names for one function is the same failure in miniature. `decode_u32_be` and
+`decode_u32` decode identical bytes; `modbus_write_multi` and
+`modbus_write_multiple` write identical registers. Which spelling a driver
+happens to call then decides which host it runs on. Use the name in the profile.
 
 ### 2. Don't accumulate state
 
@@ -135,18 +131,16 @@ function driver_poll()
 end
 ```
 
-### 7. Check available memory
+### 7. Don't emit a value you didn't read
 
-```lua
-function driver_poll()
-    local free = host.pool_free()
-    if free < 2048 then
-        -- Pool is critically low — skip heavy processing
-        return 5000
-    end
-    -- normal processing...
-end
-```
+A failed read is not a zero. Emitting a fabricated zero tells the site that PV
+stopped or the battery is empty, and every sum downstream inherits the lie.
+Leave the field out, or skip the whole stream when its registers did not answer.
+
+The same goes for a device that is reachable but faulted: it can answer every
+read with fresh values while its hardware is unavailable. Say so with
+`host.set_device_fault(true, reason)` rather than letting the telemetry look
+healthy.
 
 ### 8. Clean up on unload
 
@@ -159,16 +153,17 @@ function driver_cleanup()
 end
 ```
 
-## Size Limits
+## Limits
 
 | Resource | Limit | Why |
 |----------|-------|-----|
-| Bytecode | 8KB max, 6KB target | Bytecode lives in pool permanently |
-| Persistent state | 4KB max | Stays allocated between ticks |
-| Tick peak memory | 8KB target | Temp tables during one tick |
-| Serial buffer | 4KB max | Cap with `if #buf > 4096 then buf = "" end` |
-| Poll interval | 200ms min | Shorter wastes CPU on serial polling |
-| Instructions per tick | 10M max | Enforced by firmware (infinite loop protection) |
+| Serial buffer | 4KB max | Cap with `if #buf > 4096 then buf = "" end`; an uncapped buffer grows without end on a noisy line |
+| Poll interval | 200ms min | Shorter wastes CPU without giving fresher data |
+| Instructions per tick | 10M max | Host-enforced, catches an infinite loop |
+
+There is no bytecode ceiling on a linux-edge host. The habits above still pay —
+fewer allocations mean less GC in the poll path, and edge control has a 200ms
+budget to hold — but size is not what decides whether a driver may ship.
 
 ## Patterns
 
@@ -248,8 +243,16 @@ end
 
 ## Testing Your Driver
 
-1. **Compile:** `luac -o driver.luac driver.lua` — check size < 6KB
-2. **Upload:** `curl --globoff -X POST 'http://ZAP_IP/api/drivers/0/upload?config={...}' --data-binary @driver.luac`
-3. **Check:** `curl http://ZAP_IP/api/drivers/0` — running, no errors
-4. **Memory:** Check `pool_free_bytes` in `/api/drivers` — should stay stable
-5. **Peak:** Check `memory_peak_bytes` in driver detail — should be < 8KB
+```bash
+make test-driver ID=<id>      # syntax, sandbox, manifest and driver tests
+make package-driver ID=<id> TARGET=ftw-core
+make check                    # the whole suite, including the host API profile
+```
+
+`make test-driver` compiles the driver, checks it against the sandbox rules and
+runs the Lua harness. `make check` additionally verifies that every function the
+driver calls exists in `spec/host-api-profile.json`, which is what stops a
+driver from working on the host you tested and failing on the other one.
+
+Hardware evidence is separate from all of this. A green suite says the driver is
+well formed, not that it read the right register on a real device.

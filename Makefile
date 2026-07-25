@@ -7,7 +7,16 @@ ARTIFACT_DIR ?= .artifacts/$(ID)
 LEVEL ?= patch
 
 .PHONY: bootstrap new-driver test-driver package-driver check boundary \
-	sync-manifests bump-driver history ftw-baseline ftw-baseline-report
+	sync-manifests bump-driver history ftw-baseline ftw-baseline-report \
+	canonical-debt canonical-debt-record
+
+# How far the catalog still is from the canonical driver shape.
+canonical-debt:
+	uv run --frozen --extra package --extra dev python tools/canonical_debt.py
+
+# Accept the current debt after converting a driver. Never raise it by hand.
+canonical-debt-record:
+	uv run --frozen --extra package --extra dev python tools/canonical_debt.py --record
 
 # Re-import FTW's bundled drivers into baselines/ftw. Needs the GitHub API.
 ftw-baseline:
@@ -69,5 +78,6 @@ check: boundary
 	git diff --exit-code -- support-status.json SUPPORT_STATUS.md
 	uv run --frozen --extra package --extra dev python tools/generate_history.py --check
 	uv run --frozen --extra package --extra dev python tools/import_ftw_baseline.py --check
+	uv run --frozen --extra package --extra dev python tools/canonical_debt.py --check
 	bash tools/check_sandbox.sh
 	uv run --frozen --extra package --extra dev pytest -q drivers/tests tests
