@@ -1137,7 +1137,7 @@
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.1.4",
+          "candidate_package_version": "1.2.3",
           "control_enabled": false,
           "hil": "required",
           "historical_signed_beta_version": null,
