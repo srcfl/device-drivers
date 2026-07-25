@@ -28,9 +28,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 1869
 dkb_id: ""
-sha256: ""
+sha256: "b36df6bc5c8f5a06745b332c55c06364451e5197e096f8deca56693b3c121c33"
 signature: ""
 
 bytecode_sha256: ""

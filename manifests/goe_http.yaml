@@ -14,9 +14,9 @@ tested_devices:
     notes: "HTTP alternative to Modbus driver"
     min_driver_version: "1.0.0"
 min_host_version: "2.1.0"
-size_bytes: 0
+size_bytes: 3340
 dkb_id: ""
-sha256: ""
+sha256: "48b6d9ded6043e9b42a09bf03bd8edbab6363b18781e2279e957eee237556d25"
 signature: ""
 
 bytecode_sha256: ""

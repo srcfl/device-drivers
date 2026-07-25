@@ -35,9 +35,9 @@ tested_devices:
     notes: "Three-phase hybrid inverter with ESS, includes TPLV series"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 3945
 dkb_id: "sigenergy"
-sha256: ""
+sha256: "d0afb4d0895d318da57b6d8bccd20941b3251381a15d4f147e988610381f8955"
 signature: ""
 
 bytecode_sha256: ""

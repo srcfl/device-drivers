@@ -28,9 +28,9 @@ tested_devices:
     notes: "Requires OpenDTU or Ahoy DTU hardware (ESP32)"
     min_driver_version: "1.0.0"
 min_host_version: "2.1.0"
-size_bytes: 0
+size_bytes: 3758
 dkb_id: ""
-sha256: ""
+sha256: "952ed411581591817a1ebfc0eacad0e211f55d4ce0d05ad218d780d1bdefba5e"
 signature: ""
 
 bytecode_sha256: ""

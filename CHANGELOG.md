@@ -9,6 +9,12 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Fixed
 - **sungrow** 1.2.1 and FTW target 1.3.3 — Read the device type code and skip the SH hybrid block on string inverters. SG models such as the SG12RT have no battery and no 13xxx block, so the unconditional hybrid reads failed the whole poll and took the device offline instead of reporting the PV it does have. The battery and meter streams are emitted only when their registers answered, so a string inverter no longer reports a battery at 0% that does not exist. Battery commands are refused on a string model. Registers are written off as absent only after three failed reads in a row, so a timeout cannot silence a healthy inverter.
+- Manifest `sha256` and `size_bytes` now describe the Lua file each manifest names. They were maintained by hand and had drifted on 60 of 62 drivers; `validate_manifest.py` only checked that the size was a non-negative number. `make check` regenerates them and fails on any difference
+
+### Added
+- `make bump-driver ID=<id> LEVEL=patch` raises a driver version in the manifest and the `DRIVER` table together, then refreshes the generated catalog
+- `make sync-manifests` derives manifest `sha256` and `size_bytes` from the source
+- `driver-history.json` and `make history` record every published driver version with its source hash, size, first commit and date, so an operator can recover the exact bytes of an older driver. The record is append-only and `make check` fails if a published version is rewritten or dropped
 
 ### Changed
 - **pixii** 1.2.1 — First public-source package version; control remains disabled

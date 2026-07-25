@@ -21,9 +21,9 @@ tested_devices:
     notes: "HDLC/DLMS/COSEM, AES-GCM encrypted"
     min_driver_version: "2.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 11059
 dkb_id: "p1_encrypted"
-sha256: ""
+sha256: "7ca97f0e232daa529e627f7887106c63ccb0ff6693812d6b36ad464f7651bc1d"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""

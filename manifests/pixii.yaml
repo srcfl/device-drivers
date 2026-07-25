@@ -14,9 +14,9 @@ tested_devices:
     notes: ""
     min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
-size_bytes: 7831
+size_bytes: 8637
 dkb_id: "pixii"
-sha256: "2e91e590397e6c2328c88fa48dc07d414baa5e56973be7a345fbcb828612cc18"
+sha256: "e156849768cdc1b2dc5771e9f1e07b2c412d71b2b451cc9fcd9aabd7e7b82f07"
 signature: ""
 
 bytecode_sha256: ""

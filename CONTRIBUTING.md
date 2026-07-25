@@ -43,6 +43,54 @@ Power uses one convention above the driver boundary:
 - PV generation is negative;
 - battery and vehicle charge are positive and discharge is negative.
 
+## Change an existing driver
+
+Raise the version whenever the Lua source changes. A version names a set of
+bytes that runs on hardware, so shipping two different drivers under one
+version leaves a site with no way to say which one it has.
+
+```bash
+make bump-driver ID=example LEVEL=patch
+```
+
+That moves the version in `manifests/example.yaml` and, when the driver
+declares one, in its `DRIVER` table. It then refreshes `index.yaml`,
+`devices.yaml` and the support status. Use `LEVEL=patch` for a fix that keeps
+the same registers and fields, `LEVEL=minor` for new telemetry, and
+`LEVEL=major` when a host or an operator has to do something differently.
+
+Add a `CHANGELOG.md` entry under `[Unreleased]` in the same pull request.
+
+`sha256` and `size_bytes` in a manifest are derived, never typed:
+
+```bash
+make sync-manifests
+```
+
+`make check` runs the same command and fails on any difference, so a manifest
+cannot claim bytes the driver does not have.
+
+## Go back to an older driver
+
+`driver-history.json` records every version this repository has published:
+the source SHA-256, the size, the commit that first carried it and the date.
+To recover an exact past driver, look up the version and read that commit:
+
+```bash
+python3 -c "import json;print([e for e in json.load(open('driver-history.json'))['drivers']['sungrow']])"
+git show <commit>:drivers/lua/sungrow.lua > sungrow-1.2.0.lua
+```
+
+The file is append-only. A recorded version describes bytes already running
+somewhere, so `make check` fails if an entry is rewritten or dropped. Publish
+a new version instead of changing an old one.
+
+Maintainers record newly published versions at release:
+
+```bash
+make history
+```
+
 ## Validate locally
 
 ```bash

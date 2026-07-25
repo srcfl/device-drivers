@@ -7,9 +7,9 @@ ders: [meter]
 control: false
 tested_devices: []
 min_host_version: "2.0.0"
-size_bytes: 1337
+size_bytes: 1362
 dkb_id: ""
-sha256: "da7d2e6512086f0268a5fdd66610dbdc41877c98ea49484e8036146e821eeaee"
+sha256: "6e4bb97258f27ff940366454bd7600f801f5f24a332ec792f80dc0c332fd56e0"
 signature: ""
 
 bytecode_sha256: ""

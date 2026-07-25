@@ -21,9 +21,9 @@ tested_devices:
     notes: "2400 baud, 8E1, HDLC/DLMS/COSEM"
     min_driver_version: "2.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 9191
 dkb_id: "p1_hdlc"
-sha256: ""
+sha256: "e22e12bdb8f2f89616e9dc279630b8b94863fc3e485b491a6763bd8638baa0f4"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""

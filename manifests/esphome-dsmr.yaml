@@ -14,9 +14,9 @@ tested_devices:
     notes: "Name-derived phase object_ids live-validated on SlimmeLezer+; explicit Sourceful aliases retained."
     min_driver_version: "1.0.1"
 min_host_version: "1.10.0"
-size_bytes: 0
+size_bytes: 16772
 dkb_id: ""
-sha256: ""
+sha256: "0a026f97146b5136a8b7575ae0b208e28ab90e086e58f8f9391506ec3aab616f"
 signature: ""
 
 bytecode_sha256: ""

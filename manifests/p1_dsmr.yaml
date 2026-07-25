@@ -14,9 +14,9 @@ tested_devices:
     notes: "IEC 62056-21 ASCII telegrams, 115200 8N1 (v5) or 9600 7E1 (v2.2)"
     min_driver_version: "2.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 7189
 dkb_id: "p1_dsmr"
-sha256: ""
+sha256: "090f7b48f95212783167acdb0ad64b931d15b8279c6f35caf3edcaa9f8bf3d35"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""

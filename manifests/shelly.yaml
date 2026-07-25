@@ -91,9 +91,9 @@ tested_devices:
     notes: "Smart plug with energy metering"
     min_driver_version: "1.1.0"
 min_host_version: "2.1.0"
-size_bytes: 0
+size_bytes: 11878
 dkb_id: ""
-sha256: ""
+sha256: "ca209373857d72f26e75a2c215a85279b6cc905647b947e1bb05ded9c76c61fd"
 signature: ""
 
 bytecode_sha256: ""

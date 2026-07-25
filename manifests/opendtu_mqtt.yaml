@@ -28,9 +28,9 @@ tested_devices:
     notes: "MQTT alternative, requires OpenDTU MQTT configured"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 3995
 dkb_id: ""
-sha256: ""
+sha256: "79c1676e49c088ccca0e72db139338792d88536a6badb62bcc9a737422af59b1"
 signature: ""
 
 bytecode_sha256: ""

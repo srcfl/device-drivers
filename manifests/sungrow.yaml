@@ -42,9 +42,9 @@ tested_devices:
     notes: "Commercial/industrial three-phase string inverter. Needs 1.2.1, which stops polling the SH battery registers this family does not answer."
     min_driver_version: "1.2.1"
 min_host_version: "2.0.0"
-size_bytes: 8456
+size_bytes: 12164
 dkb_id: "sungrow_sh_rt"
-sha256: "a477befccf24bd83f75581cbe3aa05c64273affff99152e7968381937a0db0d7"
+sha256: "e8e044b7ab5bbf9e01201aba5f6cf48813108b72b12201938d247eb7ac1d3664"
 signature: ""
 
 bytecode_sha256: ""
