@@ -7,7 +7,15 @@ ARTIFACT_DIR ?= .artifacts/$(ID)
 LEVEL ?= patch
 
 .PHONY: bootstrap new-driver test-driver package-driver check boundary \
-	sync-manifests bump-driver history
+	sync-manifests bump-driver history ftw-baseline ftw-baseline-report
+
+# Re-import FTW's bundled drivers into baselines/ftw. Needs the GitHub API.
+ftw-baseline:
+	uv run --frozen --extra package --extra dev python tools/import_ftw_baseline.py
+
+# Show what stands between each FTW baseline and a catalog driver.
+ftw-baseline-report:
+	uv run --frozen --extra package --extra dev python tools/import_ftw_baseline.py --report
 
 bootstrap:
 	uv sync --frozen --extra package --extra dev
@@ -60,5 +68,6 @@ check: boundary
 	uv run --frozen --extra package --extra dev python tools/generate_support_status.py
 	git diff --exit-code -- support-status.json SUPPORT_STATUS.md
 	uv run --frozen --extra package --extra dev python tools/generate_history.py --check
+	uv run --frozen --extra package --extra dev python tools/import_ftw_baseline.py --check
 	bash tools/check_sandbox.sh
 	uv run --frozen --extra package --extra dev pytest -q drivers/tests tests

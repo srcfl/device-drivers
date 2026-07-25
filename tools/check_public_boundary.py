@@ -32,6 +32,12 @@ TEXT_SUFFIXES = {
     ".c", ".h", ".json", ".lua", ".md", ".py", ".sh", ".txt", ".yaml", ".yml"
 }
 PROVENANCE_EXCEPTIONS = {Path("SOURCE_IMPORT.md"), Path("source-import-delta.json")}
+# baselines/ftw holds byte-exact copies of FTW's bundled drivers. Some of them
+# carry a comment pointing at the private repository the canonical drivers came
+# from. We must not edit a baseline to remove it, and naming that repository is
+# already allowed in the provenance files above for the same reason. Only the
+# name check is relaxed here; secret material is still rejected everywhere.
+PROVENANCE_TREES = (Path("baselines"),)
 SECRET_PATTERN_EXCEPTIONS = {
     Path("tools/check_public_boundary.py"),
     Path("tools/driver_package.py"),
@@ -55,7 +61,9 @@ def main() -> int:
                     errors.append(f"{relative}: possible secret material")
         if path.suffix in TEXT_SUFFIXES or path.name in {"Makefile", "LICENSE"}:
             text = raw.decode("utf-8", errors="replace")
-            if relative not in PROVENANCE_EXCEPTIONS:
+            quotes_external_source = any(
+                tree in relative.parents for tree in PROVENANCE_TREES)
+            if relative not in PROVENANCE_EXCEPTIONS and not quotes_external_source:
                 for value in FORBIDDEN_TEXT:
                     if value in text:
                         errors.append(f"{relative}: forbidden private reference {value}")
