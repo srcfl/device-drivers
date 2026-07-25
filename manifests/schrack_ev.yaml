@@ -1,5 +1,5 @@
 name: "schrack_ev"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2371
+size_bytes: 2377
 dkb_id: ""
-sha256: "0cbd680246cc45f8cd4bde2ca82a2bdbb39a903791ae4b4e80e170a97d8eb87a"
+sha256: "8185d8730050018b27d09f738c9a978d7d126f045eed09339a355a918ce32dfd"
 signature: ""
 
 bytecode_sha256: ""

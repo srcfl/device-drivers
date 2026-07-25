@@ -26,7 +26,7 @@ function driver_poll()
     local ok_pvw, pvw_regs = pcall(host.modbus_read, 60069, 2, "holding")
     local pv_w = 0
     if ok_pvw then
-        pv_w = host.decode_u32(pvw_regs[1], pvw_regs[2])
+        pv_w = host.decode_u32_be(pvw_regs[1], pvw_regs[2])
     end
 
     -- Cumulative PV Generation: 60100-60103, U64, kWh, gain 100
@@ -49,7 +49,7 @@ function driver_poll()
     local ok_bat, bat_regs = pcall(host.modbus_read, 60071, 2, "holding")
     local bat_w = 0
     if ok_bat then
-        bat_w = math.abs(host.decode_i32(bat_regs[1], bat_regs[2]))
+        bat_w = math.abs(host.decode_i32_be(bat_regs[1], bat_regs[2]))
     end
 
     -- ESS Status: 60067, U16 (1=Charging, 2=Discharging, 99=idle)
@@ -87,7 +87,7 @@ function driver_poll()
     local ok_gw, gw_regs = pcall(host.modbus_read, 60073, 2, "holding")
     local meter_w = 0
     if ok_gw then
-        meter_w = host.decode_i32(gw_regs[1], gw_regs[2])
+        meter_w = host.decode_i32_be(gw_regs[1], gw_regs[2])
     end
 
     -- Phase V/A: 60089-60094

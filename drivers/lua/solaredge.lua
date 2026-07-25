@@ -110,7 +110,7 @@ function driver_poll()
     local ok_le, le_regs = pcall(host.modbus_read, 40093, 2, "input")
     local lifetime_wh = 0
     if ok_le then
-        lifetime_wh = host.scale(host.decode_u32(le_regs[1], le_regs[2]), energy_sf)
+        lifetime_wh = host.scale(host.decode_u32_be(le_regs[1], le_regs[2]), energy_sf)
     end
 
     -- Temperature: 40103, I16
@@ -187,14 +187,14 @@ function driver_poll()
     local ok_exp, exp_regs = pcall(host.modbus_read, 40226, 2, "input")
     local export_wh = 0
     if ok_exp then
-        export_wh = host.scale(host.decode_u32(exp_regs[1], exp_regs[2]), meter_energy_sf)
+        export_wh = host.scale(host.decode_u32_be(exp_regs[1], exp_regs[2]), meter_energy_sf)
     end
 
     -- Import energy: 40234-40235, U32 BE
     local ok_imp, imp_regs = pcall(host.modbus_read, 40234, 2, "input")
     local import_wh = 0
     if ok_imp then
-        import_wh = host.scale(host.decode_u32(imp_regs[1], imp_regs[2]), meter_energy_sf)
+        import_wh = host.scale(host.decode_u32_be(imp_regs[1], imp_regs[2]), meter_energy_sf)
     end
 
     -- Emit Meter telemetry (negate W and A for our convention)

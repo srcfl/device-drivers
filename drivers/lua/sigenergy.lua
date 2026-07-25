@@ -27,7 +27,7 @@ function driver_poll()
     local ok_pvw, pvw_regs = pcall(host.modbus_read, 30035, 2, "input")
     local pv_w = 0
     if ok_pvw then
-        pv_w = math.abs(host.decode_i32(pvw_regs[1], pvw_regs[2]))
+        pv_w = math.abs(host.decode_i32_be(pvw_regs[1], pvw_regs[2]))
     end
 
     host.emit("pv", {
@@ -43,7 +43,7 @@ function driver_poll()
     local ok_bat, bat_regs = pcall(host.modbus_read, 30037, 2, "input")
     local bat_w = 0
     if ok_bat then
-        bat_w = host.decode_i32(bat_regs[1], bat_regs[2])
+        bat_w = host.decode_i32_be(bat_regs[1], bat_regs[2])
     end
 
     -- ESS SOC: 30014, U16, %, gain 10
@@ -71,16 +71,16 @@ function driver_poll()
     local ok_gw, gw_regs = pcall(host.modbus_read, 30005, 2, "input")
     local meter_w = 0
     if ok_gw then
-        meter_w = host.decode_i32(gw_regs[1], gw_regs[2])
+        meter_w = host.decode_i32_be(gw_regs[1], gw_regs[2])
     end
 
     -- Grid per-phase active power: 30052-30057 (3 x S32, kW, gain 1000)
     local ok_gp, gp_regs = pcall(host.modbus_read, 30052, 6, "input")
     local l1_w, l2_w, l3_w = 0, 0, 0
     if ok_gp then
-        l1_w = host.decode_i32(gp_regs[1], gp_regs[2])
-        l2_w = host.decode_i32(gp_regs[3], gp_regs[4])
-        l3_w = host.decode_i32(gp_regs[5], gp_regs[6])
+        l1_w = host.decode_i32_be(gp_regs[1], gp_regs[2])
+        l2_w = host.decode_i32_be(gp_regs[3], gp_regs[4])
+        l3_w = host.decode_i32_be(gp_regs[5], gp_regs[6])
     end
 
     host.emit("meter", {

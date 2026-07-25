@@ -15,22 +15,22 @@ function driver_poll()
     local ok_a, a_regs = pcall(host.modbus_read, 0, 4, "holding")
     local l1_a, l2_a = 0, 0
     if ok_a then
-        l1_a = host.decode_f32(a_regs[1], a_regs[2])
-        l2_a = host.decode_f32(a_regs[3], a_regs[4])
+        l1_a = host.decode_f32_be(a_regs[1], a_regs[2])
+        l2_a = host.decode_f32_be(a_regs[3], a_regs[4])
     end
 
     -- Active power: 4 (F32, W)
     local ok_w, w_regs = pcall(host.modbus_read, 4, 2, "holding")
     local power_w = 0
     if ok_w then
-        power_w = host.decode_f32(w_regs[1], w_regs[2])
+        power_w = host.decode_f32_be(w_regs[1], w_regs[2])
     end
 
     -- Session energy: 8 (F32, Wh)
     local ok_se, se_regs = pcall(host.modbus_read, 8, 2, "holding")
     local session_wh = 0
     if ok_se then
-        session_wh = host.decode_f32(se_regs[1], se_regs[2])
+        session_wh = host.decode_f32_be(se_regs[1], se_regs[2])
     end
 
     -- Charger state: 10 (U16: 1=disconnected, 2=awaiting, 3=charging, 4=completed, 5=error)

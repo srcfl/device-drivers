@@ -1,5 +1,5 @@
 name: "easee"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, may require specific firmware for Modbus TCP"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2038
+size_bytes: 2050
 dkb_id: ""
-sha256: "e182fe7fc03547ff5afc8b5e34d8a0434591b6699b6b08aa27cad1398c2dbe16"
+sha256: "2aeae08dd925f85e4d3d7609e3296b68262f8611f3488791a7c470fe62754b1f"
 signature: ""
 
 bytecode_sha256: ""

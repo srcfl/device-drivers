@@ -67,35 +67,35 @@ function driver_poll()
     local ok_acw, acw_regs = pcall(host.modbus_read, 40091, 2, "holding")
     local ac_w = 0
     if ok_acw then
-        ac_w = host.decode_f32(acw_regs[1], acw_regs[2])
+        ac_w = host.decode_f32_be(acw_regs[1], acw_regs[2])
     end
 
     -- Frequency: 40093-40094, F32 BE, Hz
     local ok_hz, hz_regs = pcall(host.modbus_read, 40093, 2, "holding")
     local hz = 0
     if ok_hz then
-        hz = host.decode_f32(hz_regs[1], hz_regs[2])
+        hz = host.decode_f32_be(hz_regs[1], hz_regs[2])
     end
 
     -- Lifetime energy: 40101-40102, F32 BE, Wh
     local ok_le, le_regs = pcall(host.modbus_read, 40101, 2, "holding")
     local lifetime_wh = 0
     if ok_le then
-        lifetime_wh = host.decode_f32(le_regs[1], le_regs[2])
+        lifetime_wh = host.decode_f32_be(le_regs[1], le_regs[2])
     end
 
     -- DC power (PV): 40107-40108, F32 BE, watts
     local ok_dcw, dcw_regs = pcall(host.modbus_read, 40107, 2, "holding")
     local dc_w = 0
     if ok_dcw then
-        dc_w = host.decode_f32(dcw_regs[1], dcw_regs[2])
+        dc_w = host.decode_f32_be(dcw_regs[1], dcw_regs[2])
     end
 
     -- Heatsink temperature: 40111-40112, F32 BE, C
     local ok_temp, temp_regs = pcall(host.modbus_read, 40111, 2, "holding")
     local heatsink_c = 0
     if ok_temp then
-        heatsink_c = host.decode_f32(temp_regs[1], temp_regs[2])
+        heatsink_c = host.decode_f32_be(temp_regs[1], temp_regs[2])
     end
 
     -- Rated W: 40134, U16 raw
@@ -124,28 +124,28 @@ function driver_poll()
     -- Per-phase AC current: 40073, 40075, 40077 (F32 BE pairs)
     local ok_l1a, l1a_regs = pcall(host.modbus_read, 40073, 2, "holding")
     local l1_a = 0
-    if ok_l1a then l1_a = host.decode_f32(l1a_regs[1], l1a_regs[2]) end
+    if ok_l1a then l1_a = host.decode_f32_be(l1a_regs[1], l1a_regs[2]) end
 
     local ok_l2a, l2a_regs = pcall(host.modbus_read, 40075, 2, "holding")
     local l2_a = 0
-    if ok_l2a then l2_a = host.decode_f32(l2a_regs[1], l2a_regs[2]) end
+    if ok_l2a then l2_a = host.decode_f32_be(l2a_regs[1], l2a_regs[2]) end
 
     local ok_l3a, l3a_regs = pcall(host.modbus_read, 40077, 2, "holding")
     local l3_a = 0
-    if ok_l3a then l3_a = host.decode_f32(l3a_regs[1], l3a_regs[2]) end
+    if ok_l3a then l3_a = host.decode_f32_be(l3a_regs[1], l3a_regs[2]) end
 
     -- Per-phase AC voltage: 40085, 40087, 40089 (F32 BE pairs)
     local ok_l1v, l1v_regs = pcall(host.modbus_read, 40085, 2, "holding")
     local l1_v = 0
-    if ok_l1v then l1_v = host.decode_f32(l1v_regs[1], l1v_regs[2]) end
+    if ok_l1v then l1_v = host.decode_f32_be(l1v_regs[1], l1v_regs[2]) end
 
     local ok_l2v, l2v_regs = pcall(host.modbus_read, 40087, 2, "holding")
     local l2_v = 0
-    if ok_l2v then l2_v = host.decode_f32(l2v_regs[1], l2v_regs[2]) end
+    if ok_l2v then l2_v = host.decode_f32_be(l2v_regs[1], l2v_regs[2]) end
 
     local ok_l3v, l3v_regs = pcall(host.modbus_read, 40089, 2, "holding")
     local l3_v = 0
-    if ok_l3v then l3_v = host.decode_f32(l3v_regs[1], l3v_regs[2]) end
+    if ok_l3v then l3_v = host.decode_f32_be(l3v_regs[1], l3v_regs[2]) end
 
     -- Emit PV telemetry (PV = -DC_W, always negative for generation)
     host.emit("pv", {

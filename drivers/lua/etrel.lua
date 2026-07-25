@@ -15,14 +15,14 @@ function driver_poll()
     local ok_w, w_regs = pcall(host.modbus_read, 300, 2, "holding")
     local power_w = 0
     if ok_w then
-        power_w = host.decode_u32(w_regs[1], w_regs[2])
+        power_w = host.decode_u32_be(w_regs[1], w_regs[2])
     end
 
     -- Session energy: 304 (U32, Wh)
     local ok_se, se_regs = pcall(host.modbus_read, 304, 2, "holding")
     local session_wh = 0
     if ok_se then
-        session_wh = host.decode_u32(se_regs[1], se_regs[2])
+        session_wh = host.decode_u32_be(se_regs[1], se_regs[2])
     end
 
     -- L1 current: 306 (U16, 0.1A), L2: 307, L3: 308

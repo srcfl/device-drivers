@@ -133,8 +133,8 @@ function driver_poll()
     local ok_cab, cab_regs = pcall(host.modbus_read, 39958, 4, "holding")
     local bat_charge_wh, bat_discharge_wh = 0, 0
     if ok_cab then
-        bat_charge_wh    = host.decode_i32(cab_regs[1], cab_regs[2]) * 1000
-        bat_discharge_wh = host.decode_i32(cab_regs[3], cab_regs[4]) * 1000
+        bat_charge_wh    = host.decode_i32_be(cab_regs[1], cab_regs[2]) * 1000
+        bat_discharge_wh = host.decode_i32_be(cab_regs[3], cab_regs[4]) * 1000
     end
 
     -- Emit Battery telemetry
@@ -191,14 +191,14 @@ function driver_poll()
     local ok_exp, exp_regs = pcall(host.modbus_read, 40272, 4, "holding")
     local export_wh = 0
     if ok_exp then
-        export_wh = host.scale(host.decode_u32(exp_regs[1], exp_regs[2]), meter_energy_sf)
+        export_wh = host.scale(host.decode_u32_be(exp_regs[1], exp_regs[2]), meter_energy_sf)
     end
 
     -- Import energy: 40280-40283, two U32 BE
     local ok_imp, imp_regs = pcall(host.modbus_read, 40280, 4, "holding")
     local import_wh = 0
     if ok_imp then
-        import_wh = host.scale(host.decode_u32(imp_regs[1], imp_regs[2]), meter_energy_sf)
+        import_wh = host.scale(host.decode_u32_be(imp_regs[1], imp_regs[2]), meter_energy_sf)
     end
 
     -- Emit Meter telemetry (Pixii: negative=import, so negate for our convention)

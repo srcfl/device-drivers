@@ -64,7 +64,7 @@ function driver_poll()
     local ok_se, se_regs = pcall(host.modbus_read, 1036, 2, "holding")
     local session_wh = 0
     if ok_se then
-        session_wh = host.decode_u32(se_regs[1], se_regs[2])
+        session_wh = host.decode_u32_be(se_regs[1], se_regs[2])
     end
 
     -- Emit V2X charger telemetry

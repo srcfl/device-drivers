@@ -1,5 +1,5 @@
 name: "wallbox"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 1788
+size_bytes: 1794
 dkb_id: ""
-sha256: "51a78a9b660e51ee14bf52cafa862c8497e8593c63bac8463803989c390ca3de"
+sha256: "ee0fe799b503923edd19cce5f26846e392cc56115f24626e7fe525d277b0374c"
 signature: ""
 
 bytecode_sha256: ""

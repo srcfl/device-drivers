@@ -36,7 +36,7 @@ function driver_poll()
     local ok_pvw, pvw_regs = pcall(host.modbus_read, 4194, 2, "input")
     local pv_w = 0
     if ok_pvw then
-        pv_w = host.decode_u32(pvw_regs[1], pvw_regs[2])
+        pv_w = host.decode_u32_be(pvw_regs[1], pvw_regs[2])
     end
 
     -- Grid frequency: 0x104F=4175, U16 × 0.01Hz
@@ -83,7 +83,7 @@ function driver_poll()
     local ok_mw, mw_regs = pcall(host.modbus_read, 4210, 2, "input")
     local meter_w = 0
     if ok_mw then
-        meter_w = host.decode_i32(mw_regs[1], mw_regs[2])
+        meter_w = host.decode_i32_be(mw_regs[1], mw_regs[2])
     end
 
     -- Phase voltages: 0x1048=4168 (L1), 0x104A=4170 (L2), 0x104C=4172 (L3), U16 × 0.1V

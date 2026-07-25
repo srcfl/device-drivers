@@ -1,5 +1,5 @@
 name: "alfen"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2678
+size_bytes: 2705
 dkb_id: ""
-sha256: "0bd4da93f87fb90ff0b8cf5773241acac5baef7de14609998cf074e9970f909c"
+sha256: "bd69ba074c360a9872113551cc964ece72e3f4e7fcc278d4683872a546c200b9"
 signature: ""
 
 bytecode_sha256: ""

@@ -18,9 +18,9 @@ PROTOCOL = "modbus"
 ----------------------------------------------------------------------------
 
 -- Decode word-swapped float32: Ferroamp stores low word first, high word second.
--- host.decode_f32 expects big-endian (hi, lo), so we swap.
+-- host.decode_f32_be expects big-endian (hi, lo), so we swap.
 local function decode_f32_ws(regs)
-    return host.decode_f32(regs[2], regs[1])
+    return host.decode_f32_be(regs[2], regs[1])
 end
 
 -- Encode float32 to word-swapped uint16 pair for Modbus holding register writes.

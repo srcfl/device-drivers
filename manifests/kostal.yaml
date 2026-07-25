@@ -1,5 +1,5 @@
 name: "kostal"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -35,9 +35,9 @@ tested_devices:
     notes: "SunSpec compliant, port 1502"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 8225
+size_bytes: 8234
 dkb_id: ""
-sha256: "f771f38c6db888f3cb9f85ba64a39a3e26b12dd16052b0c3db9c27a6cedd131f"
+sha256: "b60b6241538ec1b9225f259b49e253bb77deeae70801fdc4c756471ff295d976"
 signature: ""
 
 bytecode_sha256: ""

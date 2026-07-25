@@ -39,7 +39,7 @@ function driver_poll()
     local ok_pvw, pvw_regs = pcall(host.modbus_read, 32064, 2, "holding")
     local pv_w = 0
     if ok_pvw then
-        pv_w = host.decode_i32(pvw_regs[1], pvw_regs[2]) * 0.001 * 1000  -- kW to W
+        pv_w = host.decode_i32_be(pvw_regs[1], pvw_regs[2]) * 0.001 * 1000  -- kW to W
     end
 
     -- Inverter temperature: 32087, I16 × 0.1 C
@@ -53,7 +53,7 @@ function driver_poll()
     local ok_yield, yield_regs = pcall(host.modbus_read, 32106, 2, "holding")
     local pv_gen_wh = 0
     if ok_yield then
-        pv_gen_wh = host.decode_u32(yield_regs[1], yield_regs[2]) * 0.01 * 1000
+        pv_gen_wh = host.decode_u32_be(yield_regs[1], yield_regs[2]) * 0.01 * 1000
     end
 
     -- Emit PV telemetry (W always negative for generation)
@@ -73,7 +73,7 @@ function driver_poll()
     local ok_bw, bw_regs = pcall(host.modbus_read, 37001, 2, "holding")
     local bat_w = 0
     if ok_bw then
-        bat_w = host.decode_i32(bw_regs[1], bw_regs[2])
+        bat_w = host.decode_i32_be(bw_regs[1], bw_regs[2])
     end
 
     -- Battery bus voltage: 37003, U16 × 0.1 V
@@ -108,8 +108,8 @@ function driver_poll()
     local ok_benergy, benergy_regs = pcall(host.modbus_read, 37066, 4, "holding")
     local bat_charge_wh, bat_discharge_wh = 0, 0
     if ok_benergy then
-        bat_charge_wh    = host.decode_u32(benergy_regs[1], benergy_regs[2]) * 0.01 * 1000
-        bat_discharge_wh = host.decode_u32(benergy_regs[3], benergy_regs[4]) * 0.01 * 1000
+        bat_charge_wh    = host.decode_u32_be(benergy_regs[1], benergy_regs[2]) * 0.01 * 1000
+        bat_discharge_wh = host.decode_u32_be(benergy_regs[3], benergy_regs[4]) * 0.01 * 1000
     end
 
     -- Emit Battery telemetry
@@ -129,25 +129,25 @@ function driver_poll()
     local ok_lv, lv_regs = pcall(host.modbus_read, 37101, 6, "holding")
     local l1_v, l2_v, l3_v = 0, 0, 0
     if ok_lv then
-        l1_v = host.decode_i32(lv_regs[1], lv_regs[2]) * 0.1
-        l2_v = host.decode_i32(lv_regs[3], lv_regs[4]) * 0.1
-        l3_v = host.decode_i32(lv_regs[5], lv_regs[6]) * 0.1
+        l1_v = host.decode_i32_be(lv_regs[1], lv_regs[2]) * 0.1
+        l2_v = host.decode_i32_be(lv_regs[3], lv_regs[4]) * 0.1
+        l3_v = host.decode_i32_be(lv_regs[5], lv_regs[6]) * 0.1
     end
 
     -- Per-phase current: 37107-37112, I32 BE × 0.01 pairs (L1 A, L2 A, L3 A)
     local ok_la, la_regs = pcall(host.modbus_read, 37107, 6, "holding")
     local l1_a, l2_a, l3_a = 0, 0, 0
     if ok_la then
-        l1_a = host.decode_i32(la_regs[1], la_regs[2]) * 0.01
-        l2_a = host.decode_i32(la_regs[3], la_regs[4]) * 0.01
-        l3_a = host.decode_i32(la_regs[5], la_regs[6]) * 0.01
+        l1_a = host.decode_i32_be(la_regs[1], la_regs[2]) * 0.01
+        l2_a = host.decode_i32_be(la_regs[3], la_regs[4]) * 0.01
+        l3_a = host.decode_i32_be(la_regs[5], la_regs[6]) * 0.01
     end
 
     -- Meter total power: 37113-37114, I32 BE, watts
     local ok_mw, mw_regs = pcall(host.modbus_read, 37113, 2, "holding")
     local meter_w = 0
     if ok_mw then
-        meter_w = host.decode_i32(mw_regs[1], mw_regs[2])
+        meter_w = host.decode_i32_be(mw_regs[1], mw_regs[2])
     end
 
     -- Frequency: 37118, I16 × 0.01 Hz
@@ -161,17 +161,17 @@ function driver_poll()
     local ok_energy, energy_regs = pcall(host.modbus_read, 37119, 4, "holding")
     local export_wh, import_wh = 0, 0
     if ok_energy then
-        export_wh = host.decode_i32(energy_regs[1], energy_regs[2]) * 0.01 * 1000
-        import_wh = host.decode_i32(energy_regs[3], energy_regs[4]) * 0.01 * 1000
+        export_wh = host.decode_i32_be(energy_regs[1], energy_regs[2]) * 0.01 * 1000
+        import_wh = host.decode_i32_be(energy_regs[3], energy_regs[4]) * 0.01 * 1000
     end
 
     -- Per-phase power: 37132-37137, I32 BE pairs, watts
     local ok_lpw, lpw_regs = pcall(host.modbus_read, 37132, 6, "holding")
     local l1_w, l2_w, l3_w = 0, 0, 0
     if ok_lpw then
-        l1_w = host.decode_i32(lpw_regs[1], lpw_regs[2])
-        l2_w = host.decode_i32(lpw_regs[3], lpw_regs[4])
-        l3_w = host.decode_i32(lpw_regs[5], lpw_regs[6])
+        l1_w = host.decode_i32_be(lpw_regs[1], lpw_regs[2])
+        l2_w = host.decode_i32_be(lpw_regs[3], lpw_regs[4])
+        l3_w = host.decode_i32_be(lpw_regs[5], lpw_regs[6])
     end
 
     -- Emit Meter telemetry (negate current and power for our convention)

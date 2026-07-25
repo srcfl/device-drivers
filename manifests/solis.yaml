@@ -1,5 +1,5 @@
 name: "solis"
-version: "1.2.0"
+version: "1.2.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -42,9 +42,9 @@ tested_devices:
     notes: "Commercial/industrial inverter"
     min_driver_version: "1.2.0"
 min_host_version: "2.0.0"
-size_bytes: 7179
+size_bytes: 7209
 dkb_id: "solis"
-sha256: "5cb3696c86682dab05ed1ea111290b653adf204e64149247f6e5e6dd591f6714"
+sha256: "103d3406a9819182738d67e41ae74e7b6e2b3f4ff3bd8b25281f054d4af96d12"
 signature: ""
 
 bytecode_sha256: ""

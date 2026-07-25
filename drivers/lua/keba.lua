@@ -16,7 +16,7 @@ function driver_poll()
     local raw_state = 0
     local state = 0
     if ok_st then
-        raw_state = host.decode_u32(st_regs[1], st_regs[2])
+        raw_state = host.decode_u32_be(st_regs[1], st_regs[2])
         -- Map Keba states to standard: 0=idle, 1=connected, 2=charging, 3=error
         if raw_state == 0 then
             state = 0      -- startup -> idle
@@ -37,52 +37,52 @@ function driver_poll()
     local ok_a1, a1_regs = pcall(host.modbus_read, 1006, 2, "holding")
     local l1_a = 0
     if ok_a1 then
-        l1_a = host.decode_u32(a1_regs[1], a1_regs[2]) * 0.001
+        l1_a = host.decode_u32_be(a1_regs[1], a1_regs[2]) * 0.001
     end
 
     local ok_a2, a2_regs = pcall(host.modbus_read, 1008, 2, "holding")
     local l2_a = 0
     if ok_a2 then
-        l2_a = host.decode_u32(a2_regs[1], a2_regs[2]) * 0.001
+        l2_a = host.decode_u32_be(a2_regs[1], a2_regs[2]) * 0.001
     end
 
     local ok_a3, a3_regs = pcall(host.modbus_read, 1010, 2, "holding")
     local l3_a = 0
     if ok_a3 then
-        l3_a = host.decode_u32(a3_regs[1], a3_regs[2]) * 0.001
+        l3_a = host.decode_u32_be(a3_regs[1], a3_regs[2]) * 0.001
     end
 
     -- L1 voltage: 1012 (U32, mV), L2: 1014, L3: 1016
     local ok_v1, v1_regs = pcall(host.modbus_read, 1012, 2, "holding")
     local l1_v = 0
     if ok_v1 then
-        l1_v = host.decode_u32(v1_regs[1], v1_regs[2]) * 0.001
+        l1_v = host.decode_u32_be(v1_regs[1], v1_regs[2]) * 0.001
     end
 
     local ok_v2, v2_regs = pcall(host.modbus_read, 1014, 2, "holding")
     local l2_v = 0
     if ok_v2 then
-        l2_v = host.decode_u32(v2_regs[1], v2_regs[2]) * 0.001
+        l2_v = host.decode_u32_be(v2_regs[1], v2_regs[2]) * 0.001
     end
 
     local ok_v3, v3_regs = pcall(host.modbus_read, 1016, 2, "holding")
     local l3_v = 0
     if ok_v3 then
-        l3_v = host.decode_u32(v3_regs[1], v3_regs[2]) * 0.001
+        l3_v = host.decode_u32_be(v3_regs[1], v3_regs[2]) * 0.001
     end
 
     -- Active power: 1020 (U32, mW)
     local ok_w, w_regs = pcall(host.modbus_read, 1020, 2, "holding")
     local power_w = 0
     if ok_w then
-        power_w = host.decode_u32(w_regs[1], w_regs[2]) * 0.001
+        power_w = host.decode_u32_be(w_regs[1], w_regs[2]) * 0.001
     end
 
     -- Session energy: 1036 (U32, 0.1Wh)
     local ok_se, se_regs = pcall(host.modbus_read, 1036, 2, "holding")
     local session_wh = 0
     if ok_se then
-        session_wh = host.decode_u32(se_regs[1], se_regs[2]) * 0.1
+        session_wh = host.decode_u32_be(se_regs[1], se_regs[2]) * 0.1
     end
 
     -- Max current: 5004 (U16, mA) -- read/write register

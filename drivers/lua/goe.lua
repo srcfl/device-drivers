@@ -57,14 +57,14 @@ function driver_poll()
     local ok_se, se_regs = pcall(host.modbus_read, 12, 2, "holding")
     local session_wh = 0
     if ok_se then
-        session_wh = host.decode_u32(se_regs[1], se_regs[2])
+        session_wh = host.decode_u32_be(se_regs[1], se_regs[2])
     end
 
     -- Active power: 14-15 (U32, 0.01W)
     local ok_w, w_regs = pcall(host.modbus_read, 14, 2, "holding")
     local power_w = 0
     if ok_w then
-        power_w = host.decode_u32(w_regs[1], w_regs[2]) * 0.01
+        power_w = host.decode_u32_be(w_regs[1], w_regs[2]) * 0.01
     end
 
     -- Emit V2X charger telemetry

@@ -1,5 +1,5 @@
 name: "circutor"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2629
+size_bytes: 2668
 dkb_id: ""
-sha256: "f52f729b1f3d50bbbb336fa16887a17941bf210285c80102c52eb18f6f099717"
+sha256: "fc86b8e2d827dbd4195ccd15eb14790eff9a3c729fdde5fff60c604cd1cd797e"
 signature: ""
 
 bytecode_sha256: ""

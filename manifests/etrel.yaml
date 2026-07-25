@@ -1,5 +1,5 @@
 name: "etrel"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2361
+size_bytes: 2367
 dkb_id: ""
-sha256: "35924a3e5ef994362a8738d652f1e0c59ec78c3537c1f01abdf90ff97ee362d1"
+sha256: "ff7f01535576798ac85865cfa845cd0ca6c9d0959241b16fbada89f1464b6554"
 signature: ""
 
 bytecode_sha256: ""

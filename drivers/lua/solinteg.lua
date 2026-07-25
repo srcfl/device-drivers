@@ -39,7 +39,7 @@ function driver_poll()
     local ok_pvw, pvw_regs = pcall(host.modbus_read, 11028, 2, "holding")
     local pv_w = 0
     if ok_pvw then
-        pv_w = host.decode_u32(pvw_regs[1], pvw_regs[2])
+        pv_w = host.decode_u32_be(pvw_regs[1], pvw_regs[2])
     end
 
     -- PV1+PV2 Voltage/Current: 11038-11041, U16, gain 10
@@ -63,7 +63,7 @@ function driver_poll()
     local ok_pvgen, pvgen_regs = pcall(host.modbus_read, 31112, 2, "holding")
     local pv_gen_wh = 0
     if ok_pvgen then
-        pv_gen_wh = host.decode_u32(pvgen_regs[1], pvgen_regs[2]) * 100
+        pv_gen_wh = host.decode_u32_be(pvgen_regs[1], pvgen_regs[2]) * 100
     end
 
     host.emit("pv", {
@@ -91,7 +91,7 @@ function driver_poll()
         bat_v    = bat_regs[1] * 0.1
         bat_a    = host.decode_i16(bat_regs[2]) * 0.1
         bat_mode = bat_regs[3]
-        bat_w    = math.abs(host.decode_i32(bat_regs[5], bat_regs[6]))
+        bat_w    = math.abs(host.decode_i32_be(bat_regs[5], bat_regs[6]))
     end
 
     -- Enforce our sign convention using Battery_Mode
@@ -118,14 +118,14 @@ function driver_poll()
     local ok_bchg, bchg_regs = pcall(host.modbus_read, 31108, 2, "holding")
     local bat_charge_wh = 0
     if ok_bchg then
-        bat_charge_wh = host.decode_u32(bchg_regs[1], bchg_regs[2]) * 100
+        bat_charge_wh = host.decode_u32_be(bchg_regs[1], bchg_regs[2]) * 100
     end
 
     -- Battery discharge energy: 31110-31111, U32, kWh, gain 10
     local ok_bdis, bdis_regs = pcall(host.modbus_read, 31110, 2, "holding")
     local bat_discharge_wh = 0
     if ok_bdis then
-        bat_discharge_wh = host.decode_u32(bdis_regs[1], bdis_regs[2]) * 100
+        bat_discharge_wh = host.decode_u32_be(bdis_regs[1], bdis_regs[2]) * 100
     end
 
     host.emit("battery", {
@@ -155,10 +155,10 @@ function driver_poll()
     local ok_mp, mp_regs = pcall(host.modbus_read, 10994, 8, "holding")
     local l1_w, l2_w, l3_w, meter_w = 0, 0, 0, 0
     if ok_mp then
-        l1_w    = host.decode_i32(mp_regs[1], mp_regs[2])
-        l2_w    = host.decode_i32(mp_regs[3], mp_regs[4])
-        l3_w    = host.decode_i32(mp_regs[5], mp_regs[6])
-        meter_w = host.decode_i32(mp_regs[7], mp_regs[8])
+        l1_w    = host.decode_i32_be(mp_regs[1], mp_regs[2])
+        l2_w    = host.decode_i32_be(mp_regs[3], mp_regs[4])
+        l3_w    = host.decode_i32_be(mp_regs[5], mp_regs[6])
+        meter_w = host.decode_i32_be(mp_regs[7], mp_regs[8])
     end
 
     -- AC side voltages + frequency: 11009-11015
@@ -178,8 +178,8 @@ function driver_poll()
     local ok_me, me_regs = pcall(host.modbus_read, 11002, 4, "holding")
     local export_wh, import_wh = 0, 0
     if ok_me then
-        export_wh = host.decode_u32(me_regs[1], me_regs[2]) * 10
-        import_wh = host.decode_u32(me_regs[3], me_regs[4]) * 10
+        export_wh = host.decode_u32_be(me_regs[1], me_regs[2]) * 10
+        import_wh = host.decode_u32_be(me_regs[3], me_regs[4]) * 10
     end
 
     -- Solinteg Pmeter: positive=export, negative=import

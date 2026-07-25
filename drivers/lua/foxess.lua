@@ -57,7 +57,7 @@ function driver_poll()
     local ok_pvgen, pvgen_regs = pcall(host.modbus_read, 11070, 2, "holding")
     local pv_gen_wh = 0
     if ok_pvgen then
-        pv_gen_wh = host.decode_u32(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
+        pv_gen_wh = host.decode_u32_be(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
     end
 
     -- Emit PV telemetry (W always negative for generation)
@@ -171,14 +171,14 @@ function driver_poll()
     local ok_imp, imp_regs = pcall(host.modbus_read, 11072, 2, "holding")
     local import_wh = 0
     if ok_imp then
-        import_wh = host.decode_u32(imp_regs[1], imp_regs[2]) * 0.1 * 1000
+        import_wh = host.decode_u32_be(imp_regs[1], imp_regs[2]) * 0.1 * 1000
     end
 
     -- Export energy: 11074-11075, U32 BE × 0.1 kWh
     local ok_exp, exp_regs = pcall(host.modbus_read, 11074, 2, "holding")
     local export_wh = 0
     if ok_exp then
-        export_wh = host.decode_u32(exp_regs[1], exp_regs[2]) * 0.1 * 1000
+        export_wh = host.decode_u32_be(exp_regs[1], exp_regs[2]) * 0.1 * 1000
     end
 
     -- Emit Meter telemetry

@@ -45,7 +45,7 @@ function driver_poll()
     local ok_pvgen, pvgen_regs = pcall(host.modbus_read, 68, 2, "input")
     local pv_gen_wh = 0
     if ok_pvgen then
-        pv_gen_wh = host.decode_u32(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
+        pv_gen_wh = host.decode_u32_be(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
     end
 
     -- Emit PV telemetry (W always negative for generation)
@@ -110,21 +110,21 @@ function driver_poll()
     local ok_mw, mw_regs = pcall(host.modbus_read, 70, 2, "input")
     local meter_w = 0
     if ok_mw then
-        meter_w = host.decode_i32(mw_regs[1], mw_regs[2])
+        meter_w = host.decode_i32_be(mw_regs[1], mw_regs[2])
     end
 
     -- Feed-in (export) energy: 72-73, U32 BE × 0.01 kWh
     local ok_exp, exp_regs = pcall(host.modbus_read, 72, 2, "input")
     local export_wh = 0
     if ok_exp then
-        export_wh = host.decode_u32(exp_regs[1], exp_regs[2]) * 0.01 * 1000
+        export_wh = host.decode_u32_be(exp_regs[1], exp_regs[2]) * 0.01 * 1000
     end
 
     -- Consumed (import) energy: 74-75, U32 BE × 0.01 kWh
     local ok_imp, imp_regs = pcall(host.modbus_read, 74, 2, "input")
     local import_wh = 0
     if ok_imp then
-        import_wh = host.decode_u32(imp_regs[1], imp_regs[2]) * 0.01 * 1000
+        import_wh = host.decode_u32_be(imp_regs[1], imp_regs[2]) * 0.01 * 1000
     end
 
     -- Emit Meter telemetry
