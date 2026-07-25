@@ -19,16 +19,47 @@ def extract(source: str, start: str, end: str) -> str:
     return source[start_at:end_at].rstrip()
 
 
+# packages/v1/sungrow/targets/ftw-observe.lua is generated from this exact
+# file, and tools/derive_sungrow_ftw_observe.py refuses to run against any
+# other bytes. That hash is the contract, not FTW's commit sha: the sha moves
+# whenever any other bundled driver changes, while these bytes must not.
+SUNGROW_BASELINE_SHA256 = (
+    "466a5f8637e6756fc2e1af4197d4edc1845474231413c0016f0e5900acb7b7ac")
+
+
+def sungrow_entry(source_map: dict) -> dict:
+    for entry in source_map["drivers"]:
+        if entry["source_path"] == "drivers/sungrow.lua":
+            return entry
+    raise AssertionError("the FTW source map no longer records sungrow.lua")
+
+
 def test_sungrow_ftw_baseline_keeps_exact_identity_and_hash() -> None:
     source_map = json.loads(SOURCE_MAP.read_text(encoding="utf-8"))
-    entry = source_map["drivers"][0]
+    entry = sungrow_entry(source_map)
 
-    assert source_map["commit"] == "699873db3e7abe81f76e8110d1cefa4a38ba6efb"
-    assert entry["source_path"] == "drivers/sungrow.lua"
     assert entry["original_id"] == "sungrow-shx"
     assert entry["original_version"] == "1.1.0"
     assert entry["canonical_id"] == "sungrow"
-    assert hashlib.sha256(BASELINE.read_bytes()).hexdigest() == entry["source_sha256"]
+    assert entry["source_sha256"] == SUNGROW_BASELINE_SHA256
+    assert hashlib.sha256(BASELINE.read_bytes()).hexdigest() == SUNGROW_BASELINE_SHA256
+
+
+def test_every_ftw_baseline_matches_its_recorded_hash() -> None:
+    """A baseline is a record of FTW's bytes, so it must never be hand-edited."""
+    source_map = json.loads(SOURCE_MAP.read_text(encoding="utf-8"))
+    assert source_map["drivers"], "the FTW source map records no drivers"
+
+    for entry in source_map["drivers"]:
+        path = ROOT / entry["baseline_path"]
+        assert path.exists(), f"{entry['baseline_path']} is missing"
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        assert digest == entry["source_sha256"], (
+            f"{entry['baseline_path']} was edited after import. Re-import it "
+            "with tools/import_ftw_baseline.py instead of editing it.")
+        assert entry["import_status"] == "byte_exact"
+        # A baseline is a record, never something the channel can activate.
+        assert entry["live_activation"] == "blocked"
 
 
 def test_sungrow_observe_target_keeps_ftw_fingerprint_and_poll() -> None:

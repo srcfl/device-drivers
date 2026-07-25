@@ -16,3 +16,36 @@ remains required before any signed Ferroamp artifact.
 
 From this import onward, this public repository is the editable source. The
 private service consumes a locked commit and must reject local source drift.
+
+## FTW bundled drivers
+
+FTW still ships its own bundled copies. `baselines/ftw` now holds all 37 of
+them byte for byte, recorded in `source-map.json` with each file's hash, FTW
+driver id and version. `make check` verifies those hashes, so a baseline
+cannot be edited by hand and FTW's source cannot drift away unnoticed.
+
+A baseline is a record, not a driver. Nothing under `baselines` reaches the
+catalog, a package recipe or the signed channel, and every entry stays
+`live_activation: blocked`.
+
+Re-import after a change in FTW:
+
+```bash
+make ftw-baseline          # re-import from FTW master
+make ftw-baseline-report   # what blocks each baseline from the catalog
+```
+
+The bundled drivers cannot simply replace their catalog namesakes:
+
+- of the 20 that map onto a catalog driver, none is byte-identical;
+- 14 compile to more than the 8 KB of bytecode `drivers/lua/GUIDELINES.md`
+  allows a driver on Zap. They are correct on FTW, which runs gopher-lua on
+  much larger hardware, and too big for a shared catalog driver;
+- 17 have no catalog driver at all;
+- they call 14 host functions that `spec/host-api.md` does not define, among
+  them `set_device_fault`, `persist_secret`, `sleep` and the `tcp_*` and `ws_*`
+  families;
+- `ferroamp_dc2_v2x` calls `os.time()`, which the driver sandbox forbids.
+
+Each of those is a decision per driver, not a bulk move. Take them one at a
+time and record the outcome in the source map.
