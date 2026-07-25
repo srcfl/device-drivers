@@ -6,6 +6,11 @@
 
 PROTOCOL = "modbus"
 
+-- uint64 from four big-endian registers. Kept in Lua: arithmetic, not I/O.
+local function decode_u64(w1, w2, w3, w4)
+    return ((w1 * 65536 + w2) * 65536 + w3) * 65536 + w4
+end
+
 local function write_u32(addr, val)
     val = math.floor(math.abs(val))
     local hi = math.floor(val / 65536)
@@ -33,7 +38,7 @@ function driver_poll()
     local ok_pvgen, pvgen_regs = pcall(host.modbus_read, 60100, 4, "holding")
     local pv_gen_wh = 0
     if ok_pvgen then
-        pv_gen_wh = host.decode_u64(pvgen_regs[1], pvgen_regs[2], pvgen_regs[3], pvgen_regs[4]) * 10
+        pv_gen_wh = decode_u64(pvgen_regs[1], pvgen_regs[2], pvgen_regs[3], pvgen_regs[4]) * 10
     end
 
     host.emit("pv", {
@@ -107,14 +112,14 @@ function driver_poll()
     local ok_exp, exp_regs = pcall(host.modbus_read, 60178, 4, "holding")
     local export_wh = 0
     if ok_exp then
-        export_wh = host.decode_u64(exp_regs[1], exp_regs[2], exp_regs[3], exp_regs[4]) * 10
+        export_wh = decode_u64(exp_regs[1], exp_regs[2], exp_regs[3], exp_regs[4]) * 10
     end
 
     -- Cumulative Purchase (import): 60184-60187, U64, kWh, gain 100
     local ok_imp, imp_regs = pcall(host.modbus_read, 60184, 4, "holding")
     local import_wh = 0
     if ok_imp then
-        import_wh = host.decode_u64(imp_regs[1], imp_regs[2], imp_regs[3], imp_regs[4]) * 10
+        import_wh = decode_u64(imp_regs[1], imp_regs[2], imp_regs[3], imp_regs[4]) * 10
     end
 
     host.emit("meter", {

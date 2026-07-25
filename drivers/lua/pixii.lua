@@ -5,6 +5,14 @@
 
 PROTOCOL = "modbus"
 
+-- SunSpec scale factor: value x 10^sf. Kept in Lua: arithmetic, not I/O.
+-- The exponent is clamped the way the host helper clamped it.
+local function scale(value, sf)
+    if sf == nil or value == nil then return value end
+    if sf > 10 then sf = 10 elseif sf < -10 then sf = -10 end
+    return value * 10 ^ sf
+end
+
 local REG_METER_ENERGY_SF = 40288 -- SunSpec model 213 offset 53; absent on some firmware
 local has_meter_energy_sf = true -- probed once in driver_init
 
@@ -97,37 +105,37 @@ function driver_poll()
     -- AC power: 40083, I16
     local ok_acw, acw_regs = pcall(host.modbus_read, 40083, 1, "holding")
     local ac_w = 0
-    if ok_acw then ac_w = host.scale(host.decode_i16(acw_regs[1]), ac_w_sf) end
+    if ok_acw then ac_w = scale(host.decode_i16(acw_regs[1]), ac_w_sf) end
 
     -- Frequency (inverter): 40085, U16
     local ok_hz, hz_regs = pcall(host.modbus_read, 40085, 1, "holding")
     local inv_hz = 0
-    if ok_hz then inv_hz = host.scale(hz_regs[1], hz_sf) end
+    if ok_hz then inv_hz = scale(hz_regs[1], hz_sf) end
 
     -- Temperature: 40102, I16
     local ok_temp, temp_regs = pcall(host.modbus_read, 40102, 1, "holding")
     local temp_c = 0
-    if ok_temp then temp_c = host.scale(host.decode_i16(temp_regs[1]), temp_sf) end
+    if ok_temp then temp_c = scale(host.decode_i16(temp_regs[1]), temp_sf) end
 
     -- Battery SoC: 40132, U16
     local ok_soc, soc_regs = pcall(host.modbus_read, 40132, 1, "holding")
     local bat_soc = 0
-    if ok_soc then bat_soc = host.scale(soc_regs[1], soc_sf) / 100 end  -- percent to fraction
+    if ok_soc then bat_soc = scale(soc_regs[1], soc_sf) / 100 end  -- percent to fraction
 
     -- Battery voltage: 40155, I16
     local ok_bv, bv_regs = pcall(host.modbus_read, 40155, 1, "holding")
     local bat_v = 0
-    if ok_bv then bat_v = host.scale(host.decode_i16(bv_regs[1]), bat_v_sf) end
+    if ok_bv then bat_v = scale(host.decode_i16(bv_regs[1]), bat_v_sf) end
 
     -- Battery current: 40165, I16
     local ok_ba, ba_regs = pcall(host.modbus_read, 40165, 1, "holding")
     local bat_a = 0
-    if ok_ba then bat_a = host.scale(host.decode_i16(ba_regs[1]), bat_a_sf) end
+    if ok_ba then bat_a = scale(host.decode_i16(ba_regs[1]), bat_a_sf) end
 
     -- Battery DC power: 40168, I16
     local ok_bw, bw_regs = pcall(host.modbus_read, 40168, 1, "holding")
     local bat_w = 0
-    if ok_bw then bat_w = host.scale(host.decode_i16(bw_regs[1]), bat_w_sf) end
+    if ok_bw then bat_w = scale(host.decode_i16(bw_regs[1]), bat_w_sf) end
 
     -- Cabinet charge/discharge energy: 39958-39961, two I32 BE pairs, kWh
     local ok_cab, cab_regs = pcall(host.modbus_read, 39958, 4, "holding")
@@ -154,51 +162,51 @@ function driver_poll()
     local ok_la, la_regs = pcall(host.modbus_read, 40237, 3, "holding")
     local l1_a, l2_a, l3_a = 0, 0, 0
     if ok_la then
-        l1_a = host.scale(host.decode_i16(la_regs[1]), meter_a_sf)
-        l2_a = host.scale(host.decode_i16(la_regs[2]), meter_a_sf)
-        l3_a = host.scale(host.decode_i16(la_regs[3]), meter_a_sf)
+        l1_a = scale(host.decode_i16(la_regs[1]), meter_a_sf)
+        l2_a = scale(host.decode_i16(la_regs[2]), meter_a_sf)
+        l3_a = scale(host.decode_i16(la_regs[3]), meter_a_sf)
     end
 
     -- Per-phase voltage: 40242-40244, I16 each
     local ok_lv, lv_regs = pcall(host.modbus_read, 40242, 3, "holding")
     local l1_v, l2_v, l3_v = 0, 0, 0
     if ok_lv then
-        l1_v = host.scale(host.decode_i16(lv_regs[1]), meter_v_sf)
-        l2_v = host.scale(host.decode_i16(lv_regs[2]), meter_v_sf)
-        l3_v = host.scale(host.decode_i16(lv_regs[3]), meter_v_sf)
+        l1_v = scale(host.decode_i16(lv_regs[1]), meter_v_sf)
+        l2_v = scale(host.decode_i16(lv_regs[2]), meter_v_sf)
+        l3_v = scale(host.decode_i16(lv_regs[3]), meter_v_sf)
     end
 
     -- Meter frequency: 40250, U16
     local ok_mhz, mhz_regs = pcall(host.modbus_read, 40250, 1, "holding")
     local meter_hz = 0
-    if ok_mhz then meter_hz = host.scale(mhz_regs[1], meter_hz_sf) end
+    if ok_mhz then meter_hz = scale(mhz_regs[1], meter_hz_sf) end
 
     -- Total meter power: 40252, I16
     local ok_mw, mw_regs = pcall(host.modbus_read, 40252, 1, "holding")
     local meter_w = 0
-    if ok_mw then meter_w = host.scale(host.decode_i16(mw_regs[1]), meter_w_sf) end
+    if ok_mw then meter_w = scale(host.decode_i16(mw_regs[1]), meter_w_sf) end
 
     -- Per-phase meter power: 40253-40255, I16 each
     local ok_lpw, lpw_regs = pcall(host.modbus_read, 40253, 3, "holding")
     local l1_w, l2_w, l3_w = 0, 0, 0
     if ok_lpw then
-        l1_w = host.scale(host.decode_i16(lpw_regs[1]), meter_w_sf)
-        l2_w = host.scale(host.decode_i16(lpw_regs[2]), meter_w_sf)
-        l3_w = host.scale(host.decode_i16(lpw_regs[3]), meter_w_sf)
+        l1_w = scale(host.decode_i16(lpw_regs[1]), meter_w_sf)
+        l2_w = scale(host.decode_i16(lpw_regs[2]), meter_w_sf)
+        l3_w = scale(host.decode_i16(lpw_regs[3]), meter_w_sf)
     end
 
     -- Export energy: 40272-40275, two U32 BE
     local ok_exp, exp_regs = pcall(host.modbus_read, 40272, 4, "holding")
     local export_wh = 0
     if ok_exp then
-        export_wh = host.scale(host.decode_u32_be(exp_regs[1], exp_regs[2]), meter_energy_sf)
+        export_wh = scale(host.decode_u32_be(exp_regs[1], exp_regs[2]), meter_energy_sf)
     end
 
     -- Import energy: 40280-40283, two U32 BE
     local ok_imp, imp_regs = pcall(host.modbus_read, 40280, 4, "holding")
     local import_wh = 0
     if ok_imp then
-        import_wh = host.scale(host.decode_u32_be(imp_regs[1], imp_regs[2]), meter_energy_sf)
+        import_wh = scale(host.decode_u32_be(imp_regs[1], imp_regs[2]), meter_energy_sf)
     end
 
     -- Emit Meter telemetry (Pixii: negative=import, so negate for our convention)

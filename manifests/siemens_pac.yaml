@@ -1,5 +1,5 @@
 name: "siemens_pac"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2659
+size_bytes: 3423
 dkb_id: ""
-sha256: "7b801d5e3ec5915f94b2f2d57fa2e0ac737e373b985813b7af9020ef7b6de4f9"
+sha256: "f7857dd2b19bfcda748111b4728b3136025ba2a119003ade18248aa2c4e4fbf3"
 signature: ""
 
 bytecode_sha256: ""

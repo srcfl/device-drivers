@@ -5,6 +5,11 @@
 
 PROTOCOL = "modbus"
 
+-- uint64 from four big-endian registers. Kept in Lua: arithmetic, not I/O.
+local function decode_u64(w1, w2, w3, w4)
+    return ((w1 * 65536 + w2) * 65536 + w3) * 65536 + w4
+end
+
 function driver_init(config)
     host.set_make("SMA")
 end
@@ -51,7 +56,7 @@ function driver_poll()
     local ok_pvgen, pvgen_regs = pcall(host.modbus_read, 30513, 4, "input")
     local pv_gen_wh = 0
     if ok_pvgen then
-        pv_gen_wh = host.decode_u64(pvgen_regs[1], pvgen_regs[2], pvgen_regs[3], pvgen_regs[4])
+        pv_gen_wh = decode_u64(pvgen_regs[1], pvgen_regs[2], pvgen_regs[3], pvgen_regs[4])
     end
 
     -- Inverter temperature: 30953-30954, I32 BE × 0.1 C
@@ -117,14 +122,14 @@ function driver_poll()
     local ok_bchg, bchg_regs = pcall(host.modbus_read, 31397, 4, "input")
     local bat_charge_wh = 0
     if ok_bchg then
-        bat_charge_wh = host.decode_u64(bchg_regs[1], bchg_regs[2], bchg_regs[3], bchg_regs[4])
+        bat_charge_wh = decode_u64(bchg_regs[1], bchg_regs[2], bchg_regs[3], bchg_regs[4])
     end
 
     -- Battery discharge energy: 31401-31404, U64 BE, Wh
     local ok_bdis, bdis_regs = pcall(host.modbus_read, 31401, 4, "input")
     local bat_discharge_wh = 0
     if ok_bdis then
-        bat_discharge_wh = host.decode_u64(bdis_regs[1], bdis_regs[2], bdis_regs[3], bdis_regs[4])
+        bat_discharge_wh = decode_u64(bdis_regs[1], bdis_regs[2], bdis_regs[3], bdis_regs[4])
     end
 
     -- Emit Battery telemetry

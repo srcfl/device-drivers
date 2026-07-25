@@ -5,6 +5,33 @@
 
 PROTOCOL = "modbus"
 
+-- SunSpec scale factor: value x 10^sf. Kept in Lua: arithmetic, not I/O.
+-- The exponent is clamped the way the host helper clamped it.
+local function scale(value, sf)
+    if sf == nil or value == nil then return value end
+    if sf > 10 then sf = 10 elseif sf < -10 then sf = -10 end
+    return value * 10 ^ sf
+end
+
+-- IEEE-754 float32 from two big-endian registers. Kept in Lua so the driver
+-- does not depend on a host helper: this is arithmetic, not I/O.
+local function decode_f32_be(hi, lo)
+    -- Work on the 16-bit halves. Combining them first overflows a 32-bit
+    -- integer build, where 0x80000000 is negative and every value then
+    -- decodes with a flipped sign.
+    local sign = 1
+    if hi >= 0x8000 then sign = -1; hi = hi - 0x8000 end
+    local exponent = math.floor(hi / 128)
+    local mantissa = (hi % 128) * 65536 + lo
+    if exponent == 0 then
+        if mantissa == 0 then return 0 end
+        return sign * mantissa * 2^-149
+    end
+    -- Infinity and NaN would poison every downstream sum; report nothing.
+    if exponent == 0xFF then return 0 end
+    return sign * (1 + mantissa / 0x800000) * 2^(exponent - 127)
+end
+
 function driver_init(config)
     host.set_make("Fronius")
 end
@@ -67,85 +94,85 @@ function driver_poll()
     local ok_acw, acw_regs = pcall(host.modbus_read, 40091, 2, "holding")
     local ac_w = 0
     if ok_acw then
-        ac_w = host.decode_f32_be(acw_regs[1], acw_regs[2])
+        ac_w = decode_f32_be(acw_regs[1], acw_regs[2])
     end
 
     -- Frequency: 40093-40094, F32 BE, Hz
     local ok_hz, hz_regs = pcall(host.modbus_read, 40093, 2, "holding")
     local hz = 0
     if ok_hz then
-        hz = host.decode_f32_be(hz_regs[1], hz_regs[2])
+        hz = decode_f32_be(hz_regs[1], hz_regs[2])
     end
 
     -- Lifetime energy: 40101-40102, F32 BE, Wh
     local ok_le, le_regs = pcall(host.modbus_read, 40101, 2, "holding")
     local lifetime_wh = 0
     if ok_le then
-        lifetime_wh = host.decode_f32_be(le_regs[1], le_regs[2])
+        lifetime_wh = decode_f32_be(le_regs[1], le_regs[2])
     end
 
     -- DC power (PV): 40107-40108, F32 BE, watts
     local ok_dcw, dcw_regs = pcall(host.modbus_read, 40107, 2, "holding")
     local dc_w = 0
     if ok_dcw then
-        dc_w = host.decode_f32_be(dcw_regs[1], dcw_regs[2])
+        dc_w = decode_f32_be(dcw_regs[1], dcw_regs[2])
     end
 
     -- Heatsink temperature: 40111-40112, F32 BE, C
     local ok_temp, temp_regs = pcall(host.modbus_read, 40111, 2, "holding")
     local heatsink_c = 0
     if ok_temp then
-        heatsink_c = host.decode_f32_be(temp_regs[1], temp_regs[2])
+        heatsink_c = decode_f32_be(temp_regs[1], temp_regs[2])
     end
 
     -- Rated W: 40134, U16 raw
     local ok_rw, rw_regs = pcall(host.modbus_read, 40134, 1, "holding")
     local rated_w = 0
     if ok_rw then
-        rated_w = host.scale(rw_regs[1], rated_w_sf)
+        rated_w = scale(rw_regs[1], rated_w_sf)
     end
 
     -- MPPT1 A/V: 40282-40283, U16 each
     local ok_m1, m1_regs = pcall(host.modbus_read, 40282, 2, "holding")
     local mppt1_a, mppt1_v = 0, 0
     if ok_m1 then
-        mppt1_a = host.scale(m1_regs[1], mppt_a_sf)
-        mppt1_v = host.scale(m1_regs[2], mppt_v_sf)
+        mppt1_a = scale(m1_regs[1], mppt_a_sf)
+        mppt1_v = scale(m1_regs[2], mppt_v_sf)
     end
 
     -- MPPT2 A/V: 40302-40303, U16 each
     local ok_m2, m2_regs = pcall(host.modbus_read, 40302, 2, "holding")
     local mppt2_a, mppt2_v = 0, 0
     if ok_m2 then
-        mppt2_a = host.scale(m2_regs[1], mppt_a_sf)
-        mppt2_v = host.scale(m2_regs[2], mppt_v_sf)
+        mppt2_a = scale(m2_regs[1], mppt_a_sf)
+        mppt2_v = scale(m2_regs[2], mppt_v_sf)
     end
 
     -- Per-phase AC current: 40073, 40075, 40077 (F32 BE pairs)
     local ok_l1a, l1a_regs = pcall(host.modbus_read, 40073, 2, "holding")
     local l1_a = 0
-    if ok_l1a then l1_a = host.decode_f32_be(l1a_regs[1], l1a_regs[2]) end
+    if ok_l1a then l1_a = decode_f32_be(l1a_regs[1], l1a_regs[2]) end
 
     local ok_l2a, l2a_regs = pcall(host.modbus_read, 40075, 2, "holding")
     local l2_a = 0
-    if ok_l2a then l2_a = host.decode_f32_be(l2a_regs[1], l2a_regs[2]) end
+    if ok_l2a then l2_a = decode_f32_be(l2a_regs[1], l2a_regs[2]) end
 
     local ok_l3a, l3a_regs = pcall(host.modbus_read, 40077, 2, "holding")
     local l3_a = 0
-    if ok_l3a then l3_a = host.decode_f32_be(l3a_regs[1], l3a_regs[2]) end
+    if ok_l3a then l3_a = decode_f32_be(l3a_regs[1], l3a_regs[2]) end
 
     -- Per-phase AC voltage: 40085, 40087, 40089 (F32 BE pairs)
     local ok_l1v, l1v_regs = pcall(host.modbus_read, 40085, 2, "holding")
     local l1_v = 0
-    if ok_l1v then l1_v = host.decode_f32_be(l1v_regs[1], l1v_regs[2]) end
+    if ok_l1v then l1_v = decode_f32_be(l1v_regs[1], l1v_regs[2]) end
 
     local ok_l2v, l2v_regs = pcall(host.modbus_read, 40087, 2, "holding")
     local l2_v = 0
-    if ok_l2v then l2_v = host.decode_f32_be(l2v_regs[1], l2v_regs[2]) end
+    if ok_l2v then l2_v = decode_f32_be(l2v_regs[1], l2v_regs[2]) end
 
     local ok_l3v, l3v_regs = pcall(host.modbus_read, 40089, 2, "holding")
     local l3_v = 0
-    if ok_l3v then l3_v = host.decode_f32_be(l3v_regs[1], l3v_regs[2]) end
+    if ok_l3v then l3_v = decode_f32_be(l3v_regs[1], l3v_regs[2]) end
 
     -- Emit PV telemetry (PV = -DC_W, always negative for generation)
     host.emit("pv", {
@@ -165,35 +192,35 @@ function driver_poll()
     local ok_maxchg, maxchg_regs = pcall(host.modbus_read, 40315, 1, "holding")
     local max_charge_w = 0
     if ok_maxchg then
-        max_charge_w = host.scale(maxchg_regs[1], max_charge_sf)
+        max_charge_w = scale(maxchg_regs[1], max_charge_sf)
     end
 
     -- Battery SoC: 40321, U16 raw
     local ok_bsoc, bsoc_regs = pcall(host.modbus_read, 40321, 1, "holding")
     local bat_soc = 0
     if ok_bsoc then
-        bat_soc = host.scale(bsoc_regs[1], soc_sf) / 100  -- percent to fraction
+        bat_soc = scale(bsoc_regs[1], soc_sf) / 100  -- percent to fraction
     end
 
     -- Battery voltage: 40323, U16 raw
     local ok_batv, batv_regs = pcall(host.modbus_read, 40323, 1, "holding")
     local bat_v = 0
     if ok_batv then
-        bat_v = host.scale(batv_regs[1], bat_v_sf)
+        bat_v = scale(batv_regs[1], bat_v_sf)
     end
 
     -- Discharge rate %: 40325, I16 raw
     local ok_dis, dis_regs = pcall(host.modbus_read, 40325, 1, "holding")
     local discharge_rate = 0
     if ok_dis then
-        discharge_rate = host.scale(host.decode_i16(dis_regs[1]), charge_rate_sf)
+        discharge_rate = scale(host.decode_i16(dis_regs[1]), charge_rate_sf)
     end
 
     -- Charge rate %: 40326, I16 raw
     local ok_chg, chg_regs = pcall(host.modbus_read, 40326, 1, "holding")
     local charge_rate = 0
     if ok_chg then
-        charge_rate = host.scale(host.decode_i16(chg_regs[1]), charge_rate_sf)
+        charge_rate = scale(host.decode_i16(chg_regs[1]), charge_rate_sf)
     end
 
     -- Calculate battery power from rates and max power

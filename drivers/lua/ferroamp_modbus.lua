@@ -13,14 +13,33 @@
 
 PROTOCOL = "modbus"
 
+-- IEEE-754 float32 from two big-endian registers. Kept in Lua so the driver
+-- does not depend on a host helper: this is arithmetic, not I/O.
+local function decode_f32_be(hi, lo)
+    -- Work on the 16-bit halves. Combining them first overflows a 32-bit
+    -- integer build, where 0x80000000 is negative and every value then
+    -- decodes with a flipped sign.
+    local sign = 1
+    if hi >= 0x8000 then sign = -1; hi = hi - 0x8000 end
+    local exponent = math.floor(hi / 128)
+    local mantissa = (hi % 128) * 65536 + lo
+    if exponent == 0 then
+        if mantissa == 0 then return 0 end
+        return sign * mantissa * 2^-149
+    end
+    -- Infinity and NaN would poison every downstream sum; report nothing.
+    if exponent == 0xFF then return 0 end
+    return sign * (1 + mantissa / 0x800000) * 2^(exponent - 127)
+end
+
 ----------------------------------------------------------------------------
 -- Helpers
 ----------------------------------------------------------------------------
 
 -- Decode word-swapped float32: Ferroamp stores low word first, high word second.
--- host.decode_f32_be expects big-endian (hi, lo), so we swap.
+-- decode_f32_be expects big-endian (hi, lo), so we swap.
 local function decode_f32_ws(regs)
-    return host.decode_f32_be(regs[2], regs[1])
+    return decode_f32_be(regs[2], regs[1])
 end
 
 -- Encode float32 to word-swapped uint16 pair for Modbus holding register writes.
@@ -28,9 +47,11 @@ end
 local function encode_f32_ws(value)
     if value == 0 then return {0, 0} end
 
-    local sign = 0
+    -- Build the two 16-bit halves separately. Assembling a full 32-bit word
+    -- overflows a 32-bit integer build and flips the sign of every setpoint.
+    local sign_hi = 0
     if value < 0 then
-        sign = 0x80000000
+        sign_hi = 0x8000
         value = -value
     end
 
@@ -48,9 +69,8 @@ local function encode_f32_ws(value)
     end
 
     local mantissa = math.floor((value - 1) * 0x800000 + 0.5)
-    local bits = sign + exp * 0x800000 + mantissa
-    local hi = math.floor(bits / 0x10000)
-    local lo = bits % 0x10000
+    local hi = sign_hi + exp * 128 + math.floor(mantissa / 65536)
+    local lo = mantissa % 65536
 
     return {lo, hi}
 end

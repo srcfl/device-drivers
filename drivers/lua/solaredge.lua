@@ -6,6 +6,14 @@
 
 PROTOCOL = "modbus"
 
+-- SunSpec scale factor: value x 10^sf. Kept in Lua: arithmetic, not I/O.
+-- The exponent is clamped the way the host helper clamped it.
+local function scale(value, sf)
+    if sf == nil or value == nil then return value end
+    if sf > 10 then sf = 10 elseif sf < -10 then sf = -10 end
+    return value * 10 ^ sf
+end
+
 function driver_init(config)
     host.set_make("SolarEdge")
 end
@@ -96,44 +104,44 @@ function driver_poll()
     local ok_acw, acw_regs = pcall(host.modbus_read, 40083, 1, "input")
     local ac_w = 0
     if ok_acw then
-        ac_w = host.scale(host.decode_i16(acw_regs[1]), ac_power_sf)
+        ac_w = scale(host.decode_i16(acw_regs[1]), ac_power_sf)
     end
 
     -- Frequency: 40085, U16
     local ok_hz, hz_regs = pcall(host.modbus_read, 40085, 1, "input")
     local hz = 0
     if ok_hz then
-        hz = host.scale(hz_regs[1], hz_sf)
+        hz = scale(hz_regs[1], hz_sf)
     end
 
     -- Lifetime energy: 40093-40094, U32 BE
     local ok_le, le_regs = pcall(host.modbus_read, 40093, 2, "input")
     local lifetime_wh = 0
     if ok_le then
-        lifetime_wh = host.scale(host.decode_u32_be(le_regs[1], le_regs[2]), energy_sf)
+        lifetime_wh = scale(host.decode_u32_be(le_regs[1], le_regs[2]), energy_sf)
     end
 
     -- Temperature: 40103, I16
     local ok_temp, temp_regs = pcall(host.modbus_read, 40103, 1, "input")
     local temp_c = 0
     if ok_temp then
-        temp_c = host.scale(host.decode_i16(temp_regs[1]), temp_sf)
+        temp_c = scale(host.decode_i16(temp_regs[1]), temp_sf)
     end
 
     -- MPPT1 A/V: 40140-40141, U16 each
     local ok_m1, m1_regs = pcall(host.modbus_read, 40140, 2, "input")
     local mppt1_a, mppt1_v = 0, 0
     if ok_m1 then
-        mppt1_a = host.scale(m1_regs[1], mppt_a_sf)
-        mppt1_v = host.scale(m1_regs[2], mppt_v_sf)
+        mppt1_a = scale(m1_regs[1], mppt_a_sf)
+        mppt1_v = scale(m1_regs[2], mppt_v_sf)
     end
 
     -- MPPT2 A/V: 40160-40161, U16 each
     local ok_m2, m2_regs = pcall(host.modbus_read, 40160, 2, "input")
     local mppt2_a, mppt2_v = 0, 0
     if ok_m2 then
-        mppt2_a = host.scale(m2_regs[1], mppt_a_sf)
-        mppt2_v = host.scale(m2_regs[2], mppt_v_sf)
+        mppt2_a = scale(m2_regs[1], mppt_a_sf)
+        mppt2_v = scale(m2_regs[2], mppt_v_sf)
     end
 
     -- Emit PV telemetry (W always negative for generation)
@@ -153,48 +161,48 @@ function driver_poll()
     local ok_mw, mw_regs = pcall(host.modbus_read, 40100, 1, "input")
     local meter_w = 0
     if ok_mw then
-        meter_w = host.scale(host.decode_i16(mw_regs[1]), meter_w_sf)
+        meter_w = scale(host.decode_i16(mw_regs[1]), meter_w_sf)
     end
 
     -- Per-phase current: 40191-40193, I16 each
     local ok_la, la_regs = pcall(host.modbus_read, 40191, 3, "input")
     local l1_a, l2_a, l3_a = 0, 0, 0
     if ok_la then
-        l1_a = host.scale(host.decode_i16(la_regs[1]), meter_a_sf)
-        l2_a = host.scale(host.decode_i16(la_regs[2]), meter_a_sf)
-        l3_a = host.scale(host.decode_i16(la_regs[3]), meter_a_sf)
+        l1_a = scale(host.decode_i16(la_regs[1]), meter_a_sf)
+        l2_a = scale(host.decode_i16(la_regs[2]), meter_a_sf)
+        l3_a = scale(host.decode_i16(la_regs[3]), meter_a_sf)
     end
 
     -- Per-phase voltage: 40196-40198, I16 each
     local ok_lv, lv_regs = pcall(host.modbus_read, 40196, 3, "input")
     local l1_v, l2_v, l3_v = 0, 0, 0
     if ok_lv then
-        l1_v = host.scale(host.decode_i16(lv_regs[1]), meter_v_sf)
-        l2_v = host.scale(host.decode_i16(lv_regs[2]), meter_v_sf)
-        l3_v = host.scale(host.decode_i16(lv_regs[3]), meter_v_sf)
+        l1_v = scale(host.decode_i16(lv_regs[1]), meter_v_sf)
+        l2_v = scale(host.decode_i16(lv_regs[2]), meter_v_sf)
+        l3_v = scale(host.decode_i16(lv_regs[3]), meter_v_sf)
     end
 
     -- Per-phase power: 40207-40209, I16 each
     local ok_lw, lw_regs = pcall(host.modbus_read, 40207, 3, "input")
     local l1_w, l2_w, l3_w = 0, 0, 0
     if ok_lw then
-        l1_w = host.scale(host.decode_i16(lw_regs[1]), phase_w_sf)
-        l2_w = host.scale(host.decode_i16(lw_regs[2]), phase_w_sf)
-        l3_w = host.scale(host.decode_i16(lw_regs[3]), phase_w_sf)
+        l1_w = scale(host.decode_i16(lw_regs[1]), phase_w_sf)
+        l2_w = scale(host.decode_i16(lw_regs[2]), phase_w_sf)
+        l3_w = scale(host.decode_i16(lw_regs[3]), phase_w_sf)
     end
 
     -- Export energy: 40226-40227, U32 BE
     local ok_exp, exp_regs = pcall(host.modbus_read, 40226, 2, "input")
     local export_wh = 0
     if ok_exp then
-        export_wh = host.scale(host.decode_u32_be(exp_regs[1], exp_regs[2]), meter_energy_sf)
+        export_wh = scale(host.decode_u32_be(exp_regs[1], exp_regs[2]), meter_energy_sf)
     end
 
     -- Import energy: 40234-40235, U32 BE
     local ok_imp, imp_regs = pcall(host.modbus_read, 40234, 2, "input")
     local import_wh = 0
     if ok_imp then
-        import_wh = host.scale(host.decode_u32_be(imp_regs[1], imp_regs[2]), meter_energy_sf)
+        import_wh = scale(host.decode_u32_be(imp_regs[1], imp_regs[2]), meter_energy_sf)
     end
 
     -- Emit Meter telemetry (negate W and A for our convention)

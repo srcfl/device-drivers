@@ -66,19 +66,44 @@ def write_lua_version(path: Path, version: str) -> bool:
     Returns whether the file was changed.
     """
     text = path.read_text(encoding="utf-8")
-    start = text.find("DRIVER")
-    if start == -1:
-        return False
-    end = text.find("\n}", start)
-    if end == -1:
-        raise SystemExit(f"{path.name} has an unterminated DRIVER table")
+    changed = False
 
-    block = text[start:end]
-    new_block, count = re.subn(r'(version\s*=\s*)"[^"]+"', rf'\1"{version}"',
-                               block, count=1)
-    if count != 1:
+    # A driver may state its version in DRIVER, in DRIVER_MANIFEST, or in both.
+    # sdm630 carries both, and leaving one behind fails the package build with
+    # "Lua metadata version must equal package version".
+    for table in ("DRIVER_MANIFEST", "DRIVER"):
+        for match in re.finditer(rf'^{table}\s*=\s*\{{', text, re.M):
+            start = match.start()
+            end = text.find("\n}", start)
+            if end == -1:
+                raise SystemExit(f"{path.name} has an unterminated {table} table")
+            block = text[start:end]
+            new_block, count = re.subn(r'(version\s*=\s*)"[^"]+"',
+                                       rf'\1"{version}"', block, count=1)
+            if count == 1 and new_block != block:
+                text = text[:start] + new_block + text[end:]
+                changed = True
+
+    if changed:
+        path.write_text(text, encoding="utf-8")
+    return changed
+
+
+def write_package_version(driver_id: str, version: str) -> bool:
+    """Keep packages/v1/<id>/package-source.json in step.
+
+    The package build refuses an artifact whose Lua metadata version differs
+    from the package version, so a driver with a recipe must move both.
+    """
+    path = ROOT / "packages" / "v1" / driver_id / "package-source.json"
+    if not path.exists():
         return False
-    path.write_text(text[:start] + new_block + text[end:], encoding="utf-8")
+    text = path.read_text(encoding="utf-8")
+    new_text, count = re.subn(r'^(  "version":\s*)"[^"]+"', rf'\1"{version}"',
+                              text, count=1, flags=re.M)
+    if count != 1 or new_text == text:
+        return False
+    path.write_text(new_text, encoding="utf-8")
     return True
 
 
@@ -112,12 +137,16 @@ def main() -> int:
 
     write_manifest_version(manifest_path, target)
     lua_changed = write_lua_version(lua_path, target)
+    package_changed = write_package_version(args.id, target)
+
+    updated = ["manifest"]
+    if lua_changed:
+        updated.append("Lua metadata")
+    if package_changed:
+        updated.append("package recipe")
 
     print(f"{args.id}: {current} -> {target}")
-    if lua_changed:
-        print("manifest and DRIVER table updated. Now run:")
-    else:
-        print(f"manifest updated ({args.id} states no version in Lua). Now run:")
+    print(f"updated {', '.join(updated)}. Now run:")
     print(f"  make test-driver ID={args.id}")
     print("  make check")
     print(f"Add a CHANGELOG.md entry for {args.id} {target} before opening the PR.")

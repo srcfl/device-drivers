@@ -1,5 +1,5 @@
 name: "fronius_smart_meter"
-version: "1.1.1"
+version: "1.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: ""
     min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
-size_bytes: 3334
+size_bytes: 4098
 dkb_id: "fronius_smart_meter"
-sha256: "538c12a28ad704a9c50b2634038cee5ac71b22585ed613a85b3b0e90e91573a8"
+sha256: "fc39292f344a9062c33984a9638ff223154314a8acb183fc82b2d5a4772e263b"
 signature: ""
 
 bytecode_sha256: ""
