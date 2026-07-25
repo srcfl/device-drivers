@@ -146,6 +146,10 @@ local function setup_modbus_data(driver_name)
     -- bat_regs[4] * 0.1 / 100 -> set to 500 => 0.50
     holding[13022] = 500
     input[13022]   = 500
+    -- Sungrow device type code 4999: 0x0E0E is the SH8.0RT hybrid family, so
+    -- the driver reads the full hybrid map. String models report another code.
+    input[4999]   = 0x0E0E
+    holding[4999] = 0x0E0E
     -- Sungrow status reg 13000 = 0 (not discharging)
     input[13000] = 0
     holding[13000] = 0
@@ -885,6 +889,10 @@ end
 -- every poll on the host and takes the whole device offline.
 local SG_STRING_ABSENT = {13000, 13002, 13019, 13026, 13036, 13040, 13045}
 
+-- 0x0A01 is outside the 0x0D/0x0E hybrid families, so the driver should read
+-- this device as a string inverter without touching the hybrid block at all.
+local SG_DEVICE_TYPE_CODE = 0x0A01
+
 local function fail_sg_string_registers()
     for _, address in ipairs(SG_STRING_ABSENT) do
         host._modbus_read_fail_addresses[address] = "Illegal Data Address"
@@ -914,8 +922,9 @@ local function check_sg_string_poll(label, errors)
         table.insert(errors, label .. " emitted a battery stream the inverter does not have")
     end
     for _, address in ipairs(SG_STRING_ABSENT) do
-        if count_reads(address) > 1 then
-            table.insert(errors, label .. " kept polling absent register " .. address)
+        if count_reads(address) > 0 then
+            table.insert(errors, label .. " read hybrid register " .. address
+                .. " on an inverter that identified itself as a string model")
         end
     end
 end
@@ -924,6 +933,7 @@ local function test_sungrow_sg_string()
     host.reset()
     clear_driver_globals()
     setup_modbus_data("sungrow")
+    host._modbus_registers.input[4999] = SG_DEVICE_TYPE_CODE
     fail_sg_string_registers()
 
     local errors = {}
@@ -953,6 +963,7 @@ local function test_sungrow_ftw_v2_sg_string()
     host.reset()
     clear_driver_globals()
     setup_modbus_data("sungrow")
+    host._modbus_registers.input[4999] = SG_DEVICE_TYPE_CODE
     fail_sg_string_registers()
 
     local errors = {}
@@ -984,6 +995,78 @@ local function test_sungrow_ftw_v2_sg_string()
     end
     if host._modbus_write_attempts ~= 0 then
         table.insert(errors, "Sungrow FTW v2 wrote EMS registers on a string inverter")
+    end
+
+    return #errors == 0, errors
+end
+
+-- When the device type code cannot be read the driver knows nothing about the
+-- model, so it must fall back on probing rather than assume a hybrid.
+local function test_sungrow_unknown_model_probes()
+    host.reset()
+    clear_driver_globals()
+    setup_modbus_data("sungrow")
+    host._modbus_read_fail_addresses[4999] = "Illegal Data Address"
+    fail_sg_string_registers()
+
+    local errors = {}
+    local load_ok, load_err = pcall(dofile, drivers_dir .. "/sungrow.lua")
+    if not load_ok then
+        return false, {"Failed to load: " .. tostring(load_err)}
+    end
+
+    driver_init({host = "127.0.0.1", port = 502, unit_id = 1})
+    for _ = 1, 6 do
+        local poll_ok, poll_err = pcall(driver_poll)
+        if not poll_ok then
+            table.insert(errors, "Sungrow poll failed on an unidentified model: "
+                .. tostring(poll_err))
+        end
+    end
+
+    if not host._emitted.pv or #host._emitted.pv == 0 then
+        table.insert(errors, "Sungrow stopped PV telemetry on an unidentified model")
+    end
+    if host._emitted.battery and #host._emitted.battery > 0 then
+        table.insert(errors, "Sungrow emitted a battery stream from failed reads")
+    end
+    -- Three strikes before a register is written off, then it stays quiet.
+    local battery_reads = count_reads(13019)
+    if battery_reads ~= 3 then
+        table.insert(errors, "Sungrow probed 13019 " .. battery_reads
+            .. " times; expected exactly 3 before treating it as absent")
+    end
+
+    return #errors == 0, errors
+end
+
+-- A timeout or a busy bus must not silence a register that the inverter really
+-- has. Absence is only concluded after a run of failures.
+local function test_sungrow_transient_read_recovers()
+    host.reset()
+    clear_driver_globals()
+    setup_modbus_data("sungrow")
+
+    local errors = {}
+    local load_ok, load_err = pcall(dofile, drivers_dir .. "/sungrow.lua")
+    if not load_ok then
+        return false, {"Failed to load: " .. tostring(load_err)}
+    end
+
+    driver_init({host = "127.0.0.1", port = 502, unit_id = 1})
+    driver_poll()
+
+    -- Two failed polls in a row, one short of the write-off threshold.
+    host._modbus_read_fail_addresses[13019] = "Gateway Target Device Failed To Respond"
+    driver_poll()
+    driver_poll()
+    host._modbus_read_fail_addresses[13019] = nil
+
+    local before = host._emitted.battery and #host._emitted.battery or 0
+    driver_poll()
+    local after = host._emitted.battery and #host._emitted.battery or 0
+    if after <= before then
+        table.insert(errors, "Sungrow did not recover the battery stream after a transient failure")
     end
 
     return #errors == 0, errors
@@ -1041,6 +1124,8 @@ max_name_len = math.max(max_name_len, #"sungrow-ftw-v2" + 2)
 max_name_len = math.max(max_name_len, #"sungrow-ftw-observe" + 2)
 max_name_len = math.max(max_name_len, #"sungrow-sg-string" + 2)
 max_name_len = math.max(max_name_len, #"sungrow-ftw-v2-sg-string" + 2)
+max_name_len = math.max(max_name_len, #"sungrow-unknown-model" + 2)
+max_name_len = math.max(max_name_len, #"sungrow-transient-read" + 2)
 max_name_len = math.max(max_name_len, #"pixii-ftw-v2" + 2)
 
 -- Run tests
@@ -1199,6 +1284,40 @@ else
     io.write(string.format("  %s%s%s[FAIL]%s  string inverter skips the hybrid block\n",
         sg_ftw_name, sg_ftw_padding, RED, RESET))
     for _, err in ipairs(sg_ftw_errors) do
+        io.write(string.format("          %s- %s%s\n", RED, err, RESET))
+    end
+end
+
+total = total + 1
+local sg_unknown_name = "sungrow-unknown-model"
+local sg_unknown_ok, sg_unknown_errors = test_sungrow_unknown_model_probes()
+local sg_unknown_padding = string.rep(" ", max_name_len - #sg_unknown_name)
+if sg_unknown_ok then
+    passed = passed + 1
+    io.write(string.format("  %s%s%s[PASS]%s  falls back to probing\n",
+        sg_unknown_name, sg_unknown_padding, GREEN, RESET))
+else
+    failed = failed + 1
+    io.write(string.format("  %s%s%s[FAIL]%s  falls back to probing\n",
+        sg_unknown_name, sg_unknown_padding, RED, RESET))
+    for _, err in ipairs(sg_unknown_errors) do
+        io.write(string.format("          %s- %s%s\n", RED, err, RESET))
+    end
+end
+
+total = total + 1
+local sg_transient_name = "sungrow-transient-read"
+local sg_transient_ok, sg_transient_errors = test_sungrow_transient_read_recovers()
+local sg_transient_padding = string.rep(" ", max_name_len - #sg_transient_name)
+if sg_transient_ok then
+    passed = passed + 1
+    io.write(string.format("  %s%s%s[PASS]%s  survives a transient read failure\n",
+        sg_transient_name, sg_transient_padding, GREEN, RESET))
+else
+    failed = failed + 1
+    io.write(string.format("  %s%s%s[FAIL]%s  survives a transient read failure\n",
+        sg_transient_name, sg_transient_padding, RED, RESET))
+    for _, err in ipairs(sg_transient_errors) do
         io.write(string.format("          %s- %s%s\n", RED, err, RESET))
     end
 end

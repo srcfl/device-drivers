@@ -454,8 +454,8 @@ drivers:
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 10231
-    sha256: "709fa20a4059a2a7c45f97cb0bc4cac7d3b11635f9fc13fbe5db009b84755bb8"
+    size_bytes: 12164
+    sha256: "e8e044b7ab5bbf9e01201aba5f6cf48813108b72b12201938d247eb7ac1d3664"
   - name: "varta"
     version: "1.0.0"
     tier: community

@@ -34,24 +34,60 @@ local sn_read = false
 -- site without a Sungrow meter answers none of the 56xx/57xx meter registers.
 -- The host counts every failed Modbus read against the poll, so an SG inverter
 -- read with the hybrid map failed the whole poll and went offline instead of
--- reporting the PV it does have. Read every model-specific register through
--- optional_read: it probes once and then skips the addresses this inverter
--- does not answer.
-local absent_registers = {}
-local has_battery = nil -- nil until probed, then true or false
+-- reporting the PV it does have.
+--
+-- The device type code says which family this is, so ask the inverter rather
+-- than discovering it through failed reads. Only when that register is
+-- unreadable do we fall back on probing.
+local REG_DEVICE_TYPE = 4999
+local model_family = nil -- "hybrid", "string", or nil while still unknown
+
+-- A register that answers on one model and not on another. Absence has to be
+-- proved, not guessed: a single timeout or a busy bus must not silence a
+-- register for the rest of the session, so only a run of failures counts.
+local MISSES_BEFORE_SKIP = 3
+local miss_counts = {}
 
 local function optional_read(address, count, kind)
-    if absent_registers[address] then
+    if (miss_counts[address] or 0) >= MISSES_BEFORE_SKIP then
         return nil
     end
     local ok, registers = pcall(host.modbus_read, address, count, kind)
     if ok and registers ~= nil and registers[1] ~= nil then
+        miss_counts[address] = nil
         return registers
     end
-    absent_registers[address] = true
-    host.log("info", "Sungrow: register " .. address
-        .. " is not available on this model; skipping it from now on")
+    local misses = (miss_counts[address] or 0) + 1
+    miss_counts[address] = misses
+    if misses >= MISSES_BEFORE_SKIP then
+        host.log("info", "Sungrow: register " .. address
+            .. " failed " .. misses .. " reads in a row; treating it as absent")
+    end
     return nil
+end
+
+-- 0x0D and 0x0E are the SH hybrid device-type families. Any other clean code
+-- is a string inverter: PV, an optional meter, and no battery.
+local function detect_model_family()
+    local ok, regs = pcall(host.modbus_read, REG_DEVICE_TYPE, 1, "input")
+    if not ok or regs == nil or regs[1] == nil then
+        return nil
+    end
+    local code = regs[1]
+    if code == 0 or code == 0xFFFF then
+        return nil -- empty / sentinel read, inconclusive
+    end
+    local hi = math.floor(code / 256)
+    if hi == 0x0D or hi == 0x0E then
+        return "hybrid"
+    end
+    return "string"
+end
+
+-- True while the hybrid block is worth reading: on a known string inverter it
+-- never is, and on an unknown model we let optional_read decide.
+local function hybrid_block_worth_reading()
+    return model_family ~= "string"
 end
 
 function driver_init(config)
@@ -77,11 +113,22 @@ function driver_poll()
         end
     end
 
+    -- Ask the inverter which family it belongs to before reading a map that
+    -- may not apply. Retried while unknown; the code register is cheap.
+    if model_family == nil then
+        model_family = detect_model_family()
+        if model_family then
+            host.log("info", "Sungrow: detected a " .. model_family .. " inverter")
+        end
+    end
+
     -- Read status flags to determine battery direction. Hybrid only.
-    local status_regs = optional_read(13000, 1, "input")
     local status = 0
-    if status_regs then
-        status = status_regs[1]
+    if hybrid_block_worth_reading() then
+        local status_regs = optional_read(13000, 1, "input")
+        if status_regs then
+            status = status_regs[1]
+        end
     end
     -- Lua 5.1 compatible bit check: bit 2 (0x0004) set means discharging
     local is_discharging = (math.floor(status / 4) % 2) == 1
@@ -104,10 +151,12 @@ function driver_poll()
     end
 
     -- PV generation energy: 13002-13003, U32 LE × 0.1 kWh. Hybrid only.
-    local pvgen_regs = optional_read(13002, 2, "input")
     local pv_gen_wh = 0
-    if pvgen_regs then
-        pv_gen_wh = host.decode_u32_le(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
+    if hybrid_block_worth_reading() then
+        local pvgen_regs = optional_read(13002, 2, "input")
+        if pvgen_regs then
+            pv_gen_wh = host.decode_u32_le(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
+        end
     end
 
     -- Rated power: 5000, U16 × 0.1 kW
@@ -146,9 +195,11 @@ function driver_poll()
     -- Battery registers: 13019-13022. An SG string inverter has no battery and
     -- answers none of these, so probe here and emit the stream only when the
     -- inverter really has one.
-    local bat_regs = optional_read(13019, 4, "input")
-    has_battery = bat_regs ~= nil
-    if has_battery then
+    local bat_regs = nil
+    if hybrid_block_worth_reading() then
+        bat_regs = optional_read(13019, 4, "input")
+    end
+    if bat_regs then
         local bat_v   = bat_regs[1] * 0.1
         local bat_a   = bat_regs[2] * 0.1
         local bat_w   = bat_regs[3]
@@ -227,18 +278,19 @@ function driver_poll()
         meter_present = true
     end
 
-    -- Import energy: 13036-13037, U32 LE × 0.1 kWh. Hybrid only.
-    local imp_regs = optional_read(13036, 2, "input")
-    local import_wh = 0
-    if imp_regs then
-        import_wh = host.decode_u32_le(imp_regs[1], imp_regs[2]) * 0.1 * 1000
-    end
+    -- Import and export energy: 13036-13037 and 13045-13046, U32 LE × 0.1 kWh.
+    -- Hybrid only.
+    local import_wh, export_wh = 0, 0
+    if hybrid_block_worth_reading() then
+        local imp_regs = optional_read(13036, 2, "input")
+        if imp_regs then
+            import_wh = host.decode_u32_le(imp_regs[1], imp_regs[2]) * 0.1 * 1000
+        end
 
-    -- Export energy: 13045-13046, U32 LE × 0.1 kWh. Hybrid only.
-    local exp_regs = optional_read(13045, 2, "input")
-    local export_wh = 0
-    if exp_regs then
-        export_wh = host.decode_u32_le(exp_regs[1], exp_regs[2]) * 0.1 * 1000
+        local exp_regs = optional_read(13045, 2, "input")
+        if exp_regs then
+            export_wh = host.decode_u32_le(exp_regs[1], exp_regs[2]) * 0.1 * 1000
+        end
     end
 
     -- Emit Meter telemetry
@@ -349,9 +401,10 @@ function driver_command_v2(command)
     local inputs = command.inputs or {}
 
     if action == "battery" then
-        -- A poll has proved this model has no battery block. Refuse rather
-        -- than write EMS registers the inverter does not implement.
-        if has_battery == false then
+        -- The inverter identified itself as a string model, so it has no
+        -- battery. Refuse rather than write EMS registers it does not
+        -- implement.
+        if model_family == "string" then
             return {
                 status = "rejected",
                 code = "no_battery",
