@@ -14,7 +14,7 @@ function driver_poll()
     local ok_pvw, pvw_regs = pcall(host.modbus_read, 33057, 2, "input")
     local pv_w = 0
     if ok_pvw then
-        pv_w = host.decode_u32(pvw_regs[1], pvw_regs[2])
+        pv_w = host.decode_u32_be(pvw_regs[1], pvw_regs[2])
     end
 
     -- MPPT1 V/A: 33049-33050, U16 × 0.1 each
@@ -37,7 +37,7 @@ function driver_poll()
     local ok_pvgen, pvgen_regs = pcall(host.modbus_read, 33029, 2, "input")
     local pv_gen_wh = 0
     if ok_pvgen then
-        pv_gen_wh = host.decode_u32(pvgen_regs[1], pvgen_regs[2]) * 1000
+        pv_gen_wh = host.decode_u32_be(pvgen_regs[1], pvgen_regs[2]) * 1000
     end
 
     -- Inverter temperature: 33093, I16 × 0.1 C
@@ -90,7 +90,7 @@ function driver_poll()
     local ok_bw, bw_regs = pcall(host.modbus_read, 33149, 2, "input")
     local bat_w = 0
     if ok_bw then
-        bat_w = host.decode_i32(bw_regs[1], bw_regs[2])
+        bat_w = host.decode_i32_be(bw_regs[1], bw_regs[2])
     end
 
     -- Negate battery W if discharging
@@ -102,14 +102,14 @@ function driver_poll()
     local ok_bchg, bchg_regs = pcall(host.modbus_read, 33161, 2, "input")
     local bat_charge_wh = 0
     if ok_bchg then
-        bat_charge_wh = host.decode_u32(bchg_regs[1], bchg_regs[2]) * 1000
+        bat_charge_wh = host.decode_u32_be(bchg_regs[1], bchg_regs[2]) * 1000
     end
 
     -- Battery discharge energy: 33165-33166, U32 BE, kWh
     local ok_bdis, bdis_regs = pcall(host.modbus_read, 33165, 2, "input")
     local bat_discharge_wh = 0
     if ok_bdis then
-        bat_discharge_wh = host.decode_u32(bdis_regs[1], bdis_regs[2]) * 1000
+        bat_discharge_wh = host.decode_u32_be(bdis_regs[1], bdis_regs[2]) * 1000
     end
 
     -- Battery temperature: 33096, I16 × 0.1 C
@@ -146,9 +146,9 @@ function driver_poll()
     local ok_mpw, mpw_regs = pcall(host.modbus_read, 33257, 6, "input")
     local l1_w, l2_w, l3_w = 0, 0, 0
     if ok_mpw then
-        l1_w = host.decode_i32(mpw_regs[1], mpw_regs[2])
-        l2_w = host.decode_i32(mpw_regs[3], mpw_regs[4])
-        l3_w = host.decode_i32(mpw_regs[5], mpw_regs[6])
+        l1_w = host.decode_i32_be(mpw_regs[1], mpw_regs[2])
+        l2_w = host.decode_i32_be(mpw_regs[3], mpw_regs[4])
+        l3_w = host.decode_i32_be(mpw_regs[5], mpw_regs[6])
     end
 
     -- Meter total W = sum of phases, negated (Solis grid convention)
@@ -165,14 +165,14 @@ function driver_poll()
     local ok_imp, imp_regs = pcall(host.modbus_read, 33283, 2, "input")
     local import_wh = 0
     if ok_imp then
-        import_wh = host.decode_u32(imp_regs[1], imp_regs[2]) * 0.01 * 1000
+        import_wh = host.decode_u32_be(imp_regs[1], imp_regs[2]) * 0.01 * 1000
     end
 
     -- Export energy: 33285-33286, U32 BE × 0.01 kWh
     local ok_exp, exp_regs = pcall(host.modbus_read, 33285, 2, "input")
     local export_wh = 0
     if ok_exp then
-        export_wh = host.decode_u32(exp_regs[1], exp_regs[2]) * 0.01 * 1000
+        export_wh = host.decode_u32_be(exp_regs[1], exp_regs[2]) * 0.01 * 1000
     end
 
     -- Emit Meter telemetry (negate per-phase to match our convention)

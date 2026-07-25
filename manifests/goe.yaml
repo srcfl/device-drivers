@@ -1,5 +1,5 @@
 name: "goe"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2463
+size_bytes: 2469
 dkb_id: ""
-sha256: "05f941173816f669e260aac6d657c38714e30937066fdbabaa53f12f86380acc"
+sha256: "663bc628a768b37dcc59125f5906be338edfb94f16509d6ba59d0f897688235c"
 signature: ""
 
 bytecode_sha256: ""

@@ -14,7 +14,7 @@ DRIVER = {
     id = "sdm630",
     name = "Eastron SDM630 meter",
     manufacturer = "Eastron",
-    version = "1.1.2",
+    version = "1.1.3",
     protocols = { "modbus" },
     capabilities = { "meter" },
     read_only = true,
@@ -32,7 +32,7 @@ DRIVER = {
 
 DRIVER_MANIFEST = {
     name = "sdm630",
-    version = "1.1.2",
+    version = "1.1.3",
     role = "meter",
     requires = {},
     options = {},
@@ -51,12 +51,18 @@ DRIVER_MANIFEST = {
 -- Decode IEEE-754 float32 from two big-endian 16-bit registers. Keeping this
 -- in Lua avoids depending on a helper that currently exists only in Blixt.
 local function decode_f32_be(hi, lo)
-    local combined = hi * 65536 + lo
-    if combined == 0 then return 0 end
-    local sign = (combined >= 0x80000000) and -1 or 1
-    local exponent = math.floor(combined / 0x800000) % 0x100
-    local mantissa = combined % 0x800000
-    if exponent == 0 then return sign * mantissa * 2^-149 end
+    -- Work on the 16-bit halves. Combining them first overflows a 32-bit
+    -- integer build, where 0x80000000 is negative and every value then
+    -- decodes with a flipped sign.
+    local sign = 1
+    if hi >= 0x8000 then sign = -1; hi = hi - 0x8000 end
+    local exponent = math.floor(hi / 128)
+    local mantissa = (hi % 128) * 65536 + lo
+    if exponent == 0 then
+        if mantissa == 0 then return 0 end
+        return sign * mantissa * 2^-149
+    end
+    -- Infinity and NaN would poison every downstream sum; report nothing.
     if exponent == 0xFF then return 0 end
     return sign * (1 + mantissa / 0x800000) * 2^(exponent - 127)
 end

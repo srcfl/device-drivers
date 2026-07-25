@@ -17,6 +17,13 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 - `spec/host-api.md` documents `set_sn`, `set_poll_interval`, `set_device_fault` and `emit_metric`. All four were already called by shipped drivers without appearing in the spec
 
 ### Fixed
+- **sdm630** and 11 other drivers decoded every positive float as negative on a 32-bit integer Lua build. The float helper combined both registers into one 32-bit word and tested the sign with `combined >= 0x80000000`, which is always true where that literal is itself negative. `ferroamp_modbus` had the same fault in its encode path, so a battery setpoint could be written with a flipped sign. Both now work on the 16-bit halves, verified by an encode/decode round trip
+- Decode helpers that no host provides — `decode_f32_be`, `decode_u64`, `scale` — now live in the driver's own Lua rather than being called on `host`. They are arithmetic, not I/O, so 16 drivers stop depending on a host function that has to be added first
+- `make bump-driver` now moves `DRIVER_MANIFEST` and the package recipe alongside the manifest. sdm630 carries all three, and leaving one behind failed the package build
+- 35 drivers called `host.decode_u32`, `host.decode_i32` or `host.decode_f32`, which FTW does not implement — it registers `decode_u32_be` and `decode_i32_be`, and no float helper at all. Those drivers would have failed on the host they were built for. All are converted to the canonical `_be` spellings, which fixes 37 call sites outright and leaves the 11 float ones waiting only on FTW gaining `decode_f32_be`
+- The Lua test mock implemented decode helpers no host provides, so the suite passed while the drivers could not have run. `test_modbus_drivers` now reads the allowed decode set from `spec/host-api-profile.json` instead of a hand-maintained list
+
+### Fixed
 - **sungrow** 1.2.1 and FTW target 1.3.3 — Read the device type code and skip the SH hybrid block on string inverters. SG models such as the SG12RT have no battery and no 13xxx block, so the unconditional hybrid reads failed the whole poll and took the device offline instead of reporting the PV it does have. The battery and meter streams are emitted only when their registers answered, so a string inverter no longer reports a battery at 0% that does not exist. Battery commands are refused on a string model. Registers are written off as absent only after three failed reads in a row, so a timeout cannot silence a healthy inverter.
 - Manifest `sha256` and `size_bytes` now describe the Lua file each manifest names. They were maintained by hand and had drifted on 60 of 62 drivers; `validate_manifest.py` only checked that the size was a non-negative number. `make check` regenerates them and fails on any difference
 

@@ -5,6 +5,9 @@ protocol compliance for Modbus TCP/RTU drivers.
 """
 
 import re
+import json
+from pathlib import Path
+
 import pytest
 from conftest import (
     read_driver,
@@ -36,6 +39,16 @@ def _extract_modbus_reads(code):
         })
 
     return reads
+
+
+def _profile_decoders() -> set:
+    """Decode helpers the linux-edge profile defines, plus retired spellings."""
+    profile_path = (Path(__file__).resolve().parents[2]
+                    / "spec" / "host-api-profile.json")
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    allowed = set(profile["profiles"]["linux-edge"]["functions"]["decode"])
+    allowed |= set(profile["deprecated"]["functions"])
+    return {name for name in allowed if name.startswith("decode_")}
 
 
 def _extract_decode_calls(code):
@@ -159,14 +172,10 @@ class TestModbusDecoding:
         code = read_driver(driver_name)
         calls = _extract_decode_calls(code)
 
-        valid_decoders = {
-            'decode_i16', 'decode_u16',
-            'decode_u32', 'decode_i32',
-            'decode_u32_be', 'decode_i32_be',
-            'decode_u32_le', 'decode_i32_le',
-            'decode_f32',
-            'decode_u64',
-        }
+        # Read the allowed set from the host API contract rather than
+        # repeating it here, so a name added to the profile cannot be
+        # rejected by a list nobody remembered to update.
+        valid_decoders = _profile_decoders()
 
         for func_name, _ in calls:
             assert func_name in valid_decoders, (

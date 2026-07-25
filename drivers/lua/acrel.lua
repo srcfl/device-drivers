@@ -33,7 +33,7 @@ function driver_poll()
     local ok_tw, tw_regs = pcall(host.modbus_read, 102, 2, "holding")
     local total_w = 0
     if ok_tw then
-        total_w = host.decode_i32(tw_regs[1], tw_regs[2])
+        total_w = host.decode_i32_be(tw_regs[1], tw_regs[2])
     end
 
     -- Frequency: 110(0x6E) (U16, 0.01Hz)
@@ -47,14 +47,14 @@ function driver_poll()
     local ok_imp, imp_regs = pcall(host.modbus_read, 0, 2, "holding")
     local import_wh = 0
     if ok_imp then
-        import_wh = host.decode_u32(imp_regs[1], imp_regs[2]) * 10
+        import_wh = host.decode_u32_be(imp_regs[1], imp_regs[2]) * 10
     end
 
     -- Export energy: 8(0x08) (U32, 0.01kWh -> Wh)
     local ok_exp, exp_regs = pcall(host.modbus_read, 8, 2, "holding")
     local export_wh = 0
     if ok_exp then
-        export_wh = host.decode_u32(exp_regs[1], exp_regs[2]) * 10
+        export_wh = host.decode_u32_be(exp_regs[1], exp_regs[2]) * 10
     end
 
     -- Derive per-phase power from voltage * current (no per-phase power registers)

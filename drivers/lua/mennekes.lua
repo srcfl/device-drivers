@@ -68,14 +68,14 @@ function driver_poll()
     local ok_w, w_regs = pcall(host.modbus_read, 212, 2, "holding")
     local power_w = 0
     if ok_w then
-        power_w = host.decode_u32(w_regs[1], w_regs[2])
+        power_w = host.decode_u32_be(w_regs[1], w_regs[2])
     end
 
     -- Session energy: 216 (U32, Wh)
     local ok_se, se_regs = pcall(host.modbus_read, 216, 2, "holding")
     local session_wh = 0
     if ok_se then
-        session_wh = host.decode_u32(se_regs[1], se_regs[2])
+        session_wh = host.decode_u32_be(se_regs[1], se_regs[2])
     end
 
     -- Max current: 300 (U16, 0.1A) -- writable

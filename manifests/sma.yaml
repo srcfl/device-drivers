@@ -1,5 +1,5 @@
 name: "sma"
-version: "1.2.0"
+version: "1.2.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -56,9 +56,9 @@ tested_devices:
     notes: "Energy meter / system manager"
     min_driver_version: "1.2.0"
 min_host_version: "2.0.0"
-size_bytes: 7317
+size_bytes: 7554
 dkb_id: "sma"
-sha256: "38984625515709b78166e7a4f3a8316266ca6a46c1820ad7ed88141724c003ca"
+sha256: "89a6aa7c1a160e1b946d68ae174269adac33c52f7e54640280bb84ba2e855124"
 signature: ""
 
 bytecode_sha256: ""

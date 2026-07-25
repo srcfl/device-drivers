@@ -6,6 +6,25 @@
 
 PROTOCOL = "modbus"
 
+-- IEEE-754 float32 from two big-endian registers. Kept in Lua so the driver
+-- does not depend on a host helper: this is arithmetic, not I/O.
+local function decode_f32_be(hi, lo)
+    -- Work on the 16-bit halves. Combining them first overflows a 32-bit
+    -- integer build, where 0x80000000 is negative and every value then
+    -- decodes with a flipped sign.
+    local sign = 1
+    if hi >= 0x8000 then sign = -1; hi = hi - 0x8000 end
+    local exponent = math.floor(hi / 128)
+    local mantissa = (hi % 128) * 65536 + lo
+    if exponent == 0 then
+        if mantissa == 0 then return 0 end
+        return sign * mantissa * 2^-149
+    end
+    -- Infinity and NaN would poison every downstream sum; report nothing.
+    if exponent == 0xFF then return 0 end
+    return sign * (1 + mantissa / 0x800000) * 2^(exponent - 127)
+end
+
 function driver_init(config)
     host.set_make("Easee")
 end
@@ -15,22 +34,22 @@ function driver_poll()
     local ok_a, a_regs = pcall(host.modbus_read, 0, 4, "holding")
     local l1_a, l2_a = 0, 0
     if ok_a then
-        l1_a = host.decode_f32(a_regs[1], a_regs[2])
-        l2_a = host.decode_f32(a_regs[3], a_regs[4])
+        l1_a = decode_f32_be(a_regs[1], a_regs[2])
+        l2_a = decode_f32_be(a_regs[3], a_regs[4])
     end
 
     -- Active power: 4 (F32, W)
     local ok_w, w_regs = pcall(host.modbus_read, 4, 2, "holding")
     local power_w = 0
     if ok_w then
-        power_w = host.decode_f32(w_regs[1], w_regs[2])
+        power_w = decode_f32_be(w_regs[1], w_regs[2])
     end
 
     -- Session energy: 8 (F32, Wh)
     local ok_se, se_regs = pcall(host.modbus_read, 8, 2, "holding")
     local session_wh = 0
     if ok_se then
-        session_wh = host.decode_f32(se_regs[1], se_regs[2])
+        session_wh = decode_f32_be(se_regs[1], se_regs[2])
     end
 
     -- Charger state: 10 (U16: 1=disconnected, 2=awaiting, 3=charging, 4=completed, 5=error)

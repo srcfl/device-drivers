@@ -404,6 +404,12 @@ function host.decode_f32(hi, lo)
     return sign * ldexp(frac, exponent - 127)
 end
 
+-- Canonical spelling. Blixt provides decode_f32_be; the bare name is the
+-- catalog's own and is being retired.
+function host.decode_f32_be(hi, lo)
+    return host.decode_f32(hi, lo)
+end
+
 -- Decode four U16 registers as unsigned U64
 function host.decode_u64(w1, w2, w3, w4)
     record_call("decode_u64", w1, w2, w3, w4)

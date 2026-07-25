@@ -1,5 +1,5 @@
 name: "saj"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -28,9 +28,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3979
+size_bytes: 3985
 dkb_id: ""
-sha256: "20a2c193ef1db988a99794ecbc68896894891a285a234cf01ff4f669e1a97734"
+sha256: "804891730437fa698e51f54c3df8102f85153edc7da73394856253021d509368"
 signature: ""
 
 bytecode_sha256: ""
