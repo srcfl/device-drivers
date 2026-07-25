@@ -652,7 +652,7 @@ local function test_sungrow_ftw_v2()
     if not load_ok then
         return false, {"Failed to load: " .. tostring(load_err)}
     end
-    if not DRIVER or DRIVER.version ~= "1.3.1" or
+    if not DRIVER or DRIVER.version ~= "1.3.3" or
        DRIVER.host_api_min ~= 2 or DRIVER.host_api_max ~= 2 then
         table.insert(errors, "Sungrow FTW v2 metadata is wrong")
     end
@@ -880,6 +880,115 @@ local function test_pixii_ftw_v2_missing_meter_energy_sf()
     return #errors == 0, errors
 end
 
+-- An SG string inverter answers the 5xxx PV registers but none of the SH
+-- hybrid block, so a driver that polls the hybrid map unconditionally fails
+-- every poll on the host and takes the whole device offline.
+local SG_STRING_ABSENT = {13000, 13002, 13019, 13026, 13036, 13040, 13045}
+
+local function fail_sg_string_registers()
+    for _, address in ipairs(SG_STRING_ABSENT) do
+        host._modbus_read_fail_addresses[address] = "Illegal Data Address"
+    end
+end
+
+local function count_reads(address)
+    local reads = 0
+    for _, call in ipairs(host._calls) do
+        if call.func == "modbus_read" and call.args[1] == address then
+            reads = reads + 1
+        end
+    end
+    return reads
+end
+
+-- Shared assertions for a string inverter: PV and meter keep flowing, the
+-- battery stream stays silent, and no absent register is polled twice.
+local function check_sg_string_poll(label, errors)
+    if not host._emitted.pv or #host._emitted.pv == 0 then
+        table.insert(errors, label .. " stopped PV telemetry on a string inverter")
+    end
+    if not host._emitted.meter or #host._emitted.meter == 0 then
+        table.insert(errors, label .. " stopped meter telemetry on a string inverter")
+    end
+    if host._emitted.battery and #host._emitted.battery > 0 then
+        table.insert(errors, label .. " emitted a battery stream the inverter does not have")
+    end
+    for _, address in ipairs(SG_STRING_ABSENT) do
+        if count_reads(address) > 1 then
+            table.insert(errors, label .. " kept polling absent register " .. address)
+        end
+    end
+end
+
+local function test_sungrow_sg_string()
+    host.reset()
+    clear_driver_globals()
+    setup_modbus_data("sungrow")
+    fail_sg_string_registers()
+
+    local errors = {}
+    local load_ok, load_err = pcall(dofile, drivers_dir .. "/sungrow.lua")
+    if not load_ok then
+        return false, {"Failed to load: " .. tostring(load_err)}
+    end
+
+    driver_init({host = "127.0.0.1", port = 502, unit_id = 1})
+    for poll = 1, 3 do
+        local poll_ok, poll_err = pcall(driver_poll)
+        if not poll_ok then
+            table.insert(errors, "Sungrow poll " .. poll .. " failed on a string inverter: "
+                .. tostring(poll_err))
+        end
+    end
+    check_sg_string_poll("Sungrow", errors)
+
+    if driver_command("battery", 1000, {}) ~= false then
+        table.insert(errors, "Sungrow accepted a battery command on a string inverter")
+    end
+
+    return #errors == 0, errors
+end
+
+local function test_sungrow_ftw_v2_sg_string()
+    host.reset()
+    clear_driver_globals()
+    setup_modbus_data("sungrow")
+    fail_sg_string_registers()
+
+    local errors = {}
+    local driver_path = script_dir .. "../../../packages/v1/sungrow/targets/ftw.lua"
+    local load_ok, load_err = pcall(dofile, driver_path)
+    if not load_ok then
+        return false, {"Failed to load: " .. tostring(load_err)}
+    end
+
+    driver_init({host = "127.0.0.1", port = 502, unit_id = 1})
+    for poll = 1, 3 do
+        local poll_ok, poll_err = pcall(driver_poll)
+        if not poll_ok then
+            table.insert(errors, "Sungrow FTW v2 poll " .. poll
+                .. " failed on a string inverter: " .. tostring(poll_err))
+        end
+    end
+    check_sg_string_poll("Sungrow FTW v2", errors)
+
+    host._modbus_write_attempts = 0
+    local rejected = driver_command_v2({
+        command = "battery.set_power",
+        runtime_action = "battery",
+        inputs = {power_w = 1250},
+    })
+    if rejected.status ~= "rejected" or rejected.code ~= "no_battery" or
+       rejected.device_state ~= "unchanged" then
+        table.insert(errors, "Sungrow FTW v2 did not reject a battery command without a battery")
+    end
+    if host._modbus_write_attempts ~= 0 then
+        table.insert(errors, "Sungrow FTW v2 wrote EMS registers on a string inverter")
+    end
+
+    return #errors == 0, errors
+end
+
 ---------------------------------------------------------------------------
 -- Main execution
 ---------------------------------------------------------------------------
@@ -930,6 +1039,8 @@ end
 max_name_len = max_name_len + 2
 max_name_len = math.max(max_name_len, #"sungrow-ftw-v2" + 2)
 max_name_len = math.max(max_name_len, #"sungrow-ftw-observe" + 2)
+max_name_len = math.max(max_name_len, #"sungrow-sg-string" + 2)
+max_name_len = math.max(max_name_len, #"sungrow-ftw-v2-sg-string" + 2)
 max_name_len = math.max(max_name_len, #"pixii-ftw-v2" + 2)
 
 -- Run tests
@@ -1054,6 +1165,40 @@ else
     io.write(string.format("  %s%s%s[FAIL]%s  optional meter energy scale factor\n",
         pixii_missing_sf_name, pixii_missing_sf_padding, RED, RESET))
     for _, err in ipairs(pixii_missing_sf_errors) do
+        io.write(string.format("          %s- %s%s\n", RED, err, RESET))
+    end
+end
+
+total = total + 1
+local sg_string_name = "sungrow-sg-string"
+local sg_string_ok, sg_string_errors = test_sungrow_sg_string()
+local sg_string_padding = string.rep(" ", max_name_len - #sg_string_name)
+if sg_string_ok then
+    passed = passed + 1
+    io.write(string.format("  %s%s%s[PASS]%s  string inverter skips the hybrid block\n",
+        sg_string_name, sg_string_padding, GREEN, RESET))
+else
+    failed = failed + 1
+    io.write(string.format("  %s%s%s[FAIL]%s  string inverter skips the hybrid block\n",
+        sg_string_name, sg_string_padding, RED, RESET))
+    for _, err in ipairs(sg_string_errors) do
+        io.write(string.format("          %s- %s%s\n", RED, err, RESET))
+    end
+end
+
+total = total + 1
+local sg_ftw_name = "sungrow-ftw-v2-sg-string"
+local sg_ftw_ok, sg_ftw_errors = test_sungrow_ftw_v2_sg_string()
+local sg_ftw_padding = string.rep(" ", max_name_len - #sg_ftw_name)
+if sg_ftw_ok then
+    passed = passed + 1
+    io.write(string.format("  %s%s%s[PASS]%s  string inverter skips the hybrid block\n",
+        sg_ftw_name, sg_ftw_padding, GREEN, RESET))
+else
+    failed = failed + 1
+    io.write(string.format("  %s%s%s[FAIL]%s  string inverter skips the hybrid block\n",
+        sg_ftw_name, sg_ftw_padding, RED, RESET))
+    for _, err in ipairs(sg_ftw_errors) do
         io.write(string.format("          %s- %s%s\n", RED, err, RESET))
     end
 end

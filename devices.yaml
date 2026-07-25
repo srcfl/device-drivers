@@ -1545,29 +1545,29 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Commercial/industrial three-phase string inverter"
+        notes: "Commercial/industrial three-phase string inverter. Needs 1.2.1, which stops polling the SH battery registers this family does not answer."
       - name: "SG-RT (Three-Phase String)"
         variants: [SG10RT, SG12RT, SG15RT, SG17RT, SG20RT, SG25RT, SG5.0RT, SG6.0RT, SG7.0RT, SG8.0RT]
         regions: [EU]
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Three-phase string inverter, PV + meter only (no battery)"
+        notes: "Three-phase string inverter, PV + meter only (no battery). Needs 1.2.1, which stops polling the SH battery registers this family does not answer."
       - name: "SH-RS (Single-Phase Hybrid)"
         variants: [SH3.0RS, SH3.6RS, SH4.0RS, SH5.0RS, SH6.0RS]
         regions: [EU]
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1578,7 +1578,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1589,7 +1589,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""

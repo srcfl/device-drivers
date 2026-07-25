@@ -7,6 +7,9 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Fixed
+- **sungrow** 1.2.1 and FTW target 1.3.3 — Probe the SH hybrid battery block and the Sungrow meter registers once, then stop polling the ones a model does not answer. SG string inverters such as the SG12RT have no battery, so the unconditional hybrid reads failed the whole poll and took the device offline instead of reporting the PV it does have. Battery commands are now refused on a model with no battery block.
+
 ### Changed
 - **pixii** 1.2.1 — First public-source package version; control remains disabled
 - **sdm630** 1.1.2 — First public-source package version for FTW and Blixt

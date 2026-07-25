@@ -12,7 +12,7 @@ DRIVER = {
     id = "sungrow",
     name = "Sungrow hybrid and string inverter",
     manufacturer = "Sungrow",
-    version = "1.3.1",
+    version = "1.3.3",
     protocols = { "modbus" },
     capabilities = { "pv", "battery", "meter" },
     description = "Sungrow hybrid and string inverters via Modbus.",
@@ -28,6 +28,31 @@ DRIVER = {
 PROTOCOL = "modbus"
 
 local sn_read = false
+
+-- Sungrow model families do not share one register map. SH hybrids answer the
+-- 13xxx block; SG string inverters have no battery and no such block, and a
+-- site without a Sungrow meter answers none of the 56xx/57xx meter registers.
+-- The host counts every failed Modbus read against the poll, so an SG inverter
+-- read with the hybrid map failed the whole poll and went offline instead of
+-- reporting the PV it does have. Read every model-specific register through
+-- optional_read: it probes once and then skips the addresses this inverter
+-- does not answer.
+local absent_registers = {}
+local has_battery = nil -- nil until probed, then true or false
+
+local function optional_read(address, count, kind)
+    if absent_registers[address] then
+        return nil
+    end
+    local ok, registers = pcall(host.modbus_read, address, count, kind)
+    if ok and registers ~= nil and registers[1] ~= nil then
+        return registers
+    end
+    absent_registers[address] = true
+    host.log("info", "Sungrow: register " .. address
+        .. " is not available on this model; skipping it from now on")
+    return nil
+end
 
 function driver_init(config)
     host.set_make("Sungrow")
@@ -52,10 +77,10 @@ function driver_poll()
         end
     end
 
-    -- Read status flags to determine battery direction
-    local ok_status, status_regs = pcall(host.modbus_read, 13000, 1, "input")
+    -- Read status flags to determine battery direction. Hybrid only.
+    local status_regs = optional_read(13000, 1, "input")
     local status = 0
-    if ok_status and status_regs then
+    if status_regs then
         status = status_regs[1]
     end
     -- Lua 5.1 compatible bit check: bit 2 (0x0004) set means discharging
@@ -78,10 +103,10 @@ function driver_poll()
         mppt2_a = mppt_regs[4] * 0.1
     end
 
-    -- PV generation energy: 13002-13003, U32 LE × 0.1 kWh
-    local ok_pvgen, pvgen_regs = pcall(host.modbus_read, 13002, 2, "input")
+    -- PV generation energy: 13002-13003, U32 LE × 0.1 kWh. Hybrid only.
+    local pvgen_regs = optional_read(13002, 2, "input")
     local pv_gen_wh = 0
-    if ok_pvgen and pvgen_regs then
+    if pvgen_regs then
         pv_gen_wh = host.decode_u32_le(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
     end
 
@@ -118,109 +143,122 @@ function driver_poll()
         temp_c      = heatsink_c,
     })
 
-    -- Battery registers: 13019-13022
-    local ok_bat, bat_regs = pcall(host.modbus_read, 13019, 4, "input")
-    local bat_v, bat_a, bat_w, bat_soc = 0, 0, 0, 0
-    if ok_bat and bat_regs then
-        bat_v   = bat_regs[1] * 0.1
-        bat_a   = bat_regs[2] * 0.1
-        bat_w   = bat_regs[3]
-        bat_soc = bat_regs[4] * 0.1 / 100  -- percent to fraction
+    -- Battery registers: 13019-13022. An SG string inverter has no battery and
+    -- answers none of these, so probe here and emit the stream only when the
+    -- inverter really has one.
+    local bat_regs = optional_read(13019, 4, "input")
+    has_battery = bat_regs ~= nil
+    if has_battery then
+        local bat_v   = bat_regs[1] * 0.1
+        local bat_a   = bat_regs[2] * 0.1
+        local bat_w   = bat_regs[3]
+        local bat_soc = bat_regs[4] * 0.1 / 100  -- percent to fraction
+
+        -- Negate battery W if discharging
+        if is_discharging then
+            bat_w = -bat_w
+        end
+
+        -- Battery charge energy: 13040-13041, U32 LE × 0.1 kWh
+        local bchg_regs = optional_read(13040, 2, "input")
+        local bat_charge_wh = 0
+        if bchg_regs then
+            bat_charge_wh = host.decode_u32_le(bchg_regs[1], bchg_regs[2]) * 0.1 * 1000
+        end
+
+        -- Battery discharge energy: 13026-13027, U32 LE × 0.1 kWh
+        local bdis_regs = optional_read(13026, 2, "input")
+        local bat_discharge_wh = 0
+        if bdis_regs then
+            bat_discharge_wh = host.decode_u32_le(bdis_regs[1], bdis_regs[2]) * 0.1 * 1000
+        end
+
+        -- Emit Battery telemetry
+        host.emit("battery", {
+            w            = bat_w,
+            v            = bat_v,
+            a            = bat_a,
+            soc          = bat_soc,
+            charge_wh    = bat_charge_wh,
+            discharge_wh = bat_discharge_wh,
+        })
     end
 
-    -- Negate battery W if discharging
-    if is_discharging then
-        bat_w = -bat_w
-    end
-
-    -- Battery charge energy: 13040-13041, U32 LE × 0.1 kWh
-    local ok_bchg, bchg_regs = pcall(host.modbus_read, 13040, 2, "input")
-    local bat_charge_wh = 0
-    if ok_bchg and bchg_regs then
-        bat_charge_wh = host.decode_u32_le(bchg_regs[1], bchg_regs[2]) * 0.1 * 1000
-    end
-
-    -- Battery discharge energy: 13026-13027, U32 LE × 0.1 kWh
-    local ok_bdis, bdis_regs = pcall(host.modbus_read, 13026, 2, "input")
-    local bat_discharge_wh = 0
-    if ok_bdis and bdis_regs then
-        bat_discharge_wh = host.decode_u32_le(bdis_regs[1], bdis_regs[2]) * 0.1 * 1000
-    end
-
-    -- Emit Battery telemetry
-    host.emit("battery", {
-        w            = bat_w,
-        v            = bat_v,
-        a            = bat_a,
-        soc          = bat_soc,
-        charge_wh    = bat_charge_wh,
-        discharge_wh = bat_discharge_wh,
-    })
+    -- Meter registers. They exist only when a Sungrow meter is wired to the
+    -- inverter, so every read below is optional and the stream is emitted only
+    -- when at least one of them answered.
+    local meter_present = false
 
     -- Meter power: 5600-5601, I32 LE, watts
-    local ok_mw, mw_regs = pcall(host.modbus_read, 5600, 2, "input")
+    local mw_regs = optional_read(5600, 2, "input")
     local meter_w = 0
-    if ok_mw and mw_regs then
+    if mw_regs then
         meter_w = host.decode_i32_le(mw_regs[1], mw_regs[2])
+        meter_present = true
     end
 
     -- Per-phase meter power: 5602-5607, I32 LE each pair
-    local ok_mp, mp_regs = pcall(host.modbus_read, 5602, 6, "input")
+    local mp_regs = optional_read(5602, 6, "input")
     local l1_w, l2_w, l3_w = 0, 0, 0
-    if ok_mp and mp_regs then
+    if mp_regs then
         l1_w = host.decode_i32_le(mp_regs[1], mp_regs[2])
         l2_w = host.decode_i32_le(mp_regs[3], mp_regs[4])
         l3_w = host.decode_i32_le(mp_regs[5], mp_regs[6])
+        meter_present = true
     end
 
     -- Per-phase voltage: 5740-5742, U16 × 0.1 each
-    local ok_mv, mv_regs = pcall(host.modbus_read, 5740, 3, "input")
+    local mv_regs = optional_read(5740, 3, "input")
     local l1_v, l2_v, l3_v = 0, 0, 0
-    if ok_mv and mv_regs then
+    if mv_regs then
         l1_v = mv_regs[1] * 0.1
         l2_v = mv_regs[2] * 0.1
         l3_v = mv_regs[3] * 0.1
+        meter_present = true
     end
 
     -- Per-phase current: 5743-5745, U16 × 0.01 each
-    local ok_ma, ma_regs = pcall(host.modbus_read, 5743, 3, "input")
+    local ma_regs = optional_read(5743, 3, "input")
     local l1_a, l2_a, l3_a = 0, 0, 0
-    if ok_ma and ma_regs then
+    if ma_regs then
         l1_a = ma_regs[1] * 0.01
         l2_a = ma_regs[2] * 0.01
         l3_a = ma_regs[3] * 0.01
+        meter_present = true
     end
 
-    -- Import energy: 13036-13037, U32 LE × 0.1 kWh
-    local ok_imp, imp_regs = pcall(host.modbus_read, 13036, 2, "input")
+    -- Import energy: 13036-13037, U32 LE × 0.1 kWh. Hybrid only.
+    local imp_regs = optional_read(13036, 2, "input")
     local import_wh = 0
-    if ok_imp and imp_regs then
+    if imp_regs then
         import_wh = host.decode_u32_le(imp_regs[1], imp_regs[2]) * 0.1 * 1000
     end
 
-    -- Export energy: 13045-13046, U32 LE × 0.1 kWh
-    local ok_exp, exp_regs = pcall(host.modbus_read, 13045, 2, "input")
+    -- Export energy: 13045-13046, U32 LE × 0.1 kWh. Hybrid only.
+    local exp_regs = optional_read(13045, 2, "input")
     local export_wh = 0
-    if ok_exp and exp_regs then
+    if exp_regs then
         export_wh = host.decode_u32_le(exp_regs[1], exp_regs[2]) * 0.1 * 1000
     end
 
     -- Emit Meter telemetry
-    host.emit("meter", {
-        w         = meter_w,
-        l1_w      = l1_w,
-        l2_w      = l2_w,
-        l3_w      = l3_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = l1_a,
-        l2_a      = l2_a,
-        l3_a      = l3_a,
-        hz        = hz,
-        import_wh = import_wh,
-        export_wh = export_wh,
-    })
+    if meter_present then
+        host.emit("meter", {
+            w         = meter_w,
+            l1_w      = l1_w,
+            l2_w      = l2_w,
+            l3_w      = l3_w,
+            l1_v      = l1_v,
+            l2_v      = l2_v,
+            l3_v      = l3_v,
+            l1_a      = l1_a,
+            l2_a      = l2_a,
+            l3_a      = l3_a,
+            hz        = hz,
+            import_wh = import_wh,
+            export_wh = export_wh,
+        })
+    end
 
     return 5000
 end
@@ -311,6 +349,16 @@ function driver_command_v2(command)
     local inputs = command.inputs or {}
 
     if action == "battery" then
+        -- A poll has proved this model has no battery block. Refuse rather
+        -- than write EMS registers the inverter does not implement.
+        if has_battery == false then
+            return {
+                status = "rejected",
+                code = "no_battery",
+                message = "this Sungrow model has no battery registers",
+                device_state = "unchanged",
+            }
+        end
         local limit, err = v2_power_limit(inputs.power_w)
         if not limit then
             return {status = "rejected", code = "invalid_power", message = err, device_state = "unchanged"}

@@ -1,5 +1,5 @@
 name: "sungrow"
-version: "1.2.0"
+version: "1.2.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -32,15 +32,15 @@ tested_devices:
     variants: [SG5.0RT, SG6.0RT, SG7.0RT, SG8.0RT, SG10RT, SG12RT, SG15RT, SG17RT, SG20RT, SG25RT]
     regions: [EU]
     firmware_versions: ""
-    notes: "Three-phase string inverter, PV + meter only (no battery)"
-    min_driver_version: "1.2.0"
+    notes: "Three-phase string inverter, PV + meter only (no battery). Needs 1.2.1, which stops polling the SH battery registers this family does not answer."
+    min_driver_version: "1.2.1"
   - manufacturer: "Sungrow"
     model_family: "SG-CX (Three-Phase Commercial)"
     variants: [SG25CX, SG30CX, SG33CX, SG36CX, SG40CX, SG50CX]
     regions: [EU, INT]
     firmware_versions: ""
-    notes: "Commercial/industrial three-phase string inverter"
-    min_driver_version: "1.2.0"
+    notes: "Commercial/industrial three-phase string inverter. Needs 1.2.1, which stops polling the SH battery registers this family does not answer."
+    min_driver_version: "1.2.1"
 min_host_version: "2.0.0"
 size_bytes: 8456
 dkb_id: "sungrow_sh_rt"
