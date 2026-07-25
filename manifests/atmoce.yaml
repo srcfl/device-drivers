@@ -28,9 +28,9 @@ tested_devices:
     notes: "Standalone gateway module"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 5358
 dkb_id: "atmoce"
-sha256: ""
+sha256: "e83a40430eef69f5c6cc518034f5b629f321516339bb159b0e766b217476887e"
 signature: ""
 
 bytecode_sha256: ""

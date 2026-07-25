@@ -4,7 +4,10 @@ KIND ?= meter
 TARGET ?= ftw-core
 ARTIFACT_DIR ?= .artifacts/$(ID)
 
-.PHONY: bootstrap new-driver test-driver package-driver check boundary
+LEVEL ?= patch
+
+.PHONY: bootstrap new-driver test-driver package-driver check boundary \
+	sync-manifests bump-driver history
 
 bootstrap:
 	uv sync --frozen --extra package --extra dev
@@ -27,8 +30,28 @@ package-driver:
 boundary:
 	uv run --frozen --extra package --extra dev python tools/check_public_boundary.py
 
+# Rewrite sha256 and size_bytes in every manifest from the Lua source.
+sync-manifests:
+	uv run --frozen --extra package --extra dev python tools/sync_manifests.py
+
+# Raise a driver version in the manifest and the DRIVER table together.
+# Example: make bump-driver ID=sungrow LEVEL=patch
+bump-driver:
+	test -n "$(ID)"
+	uv run --frozen --extra package --extra dev python tools/bump_driver.py --id "$(ID)" --level "$(LEVEL)"
+	uv run --frozen --extra package --extra dev python tools/sync_manifests.py --id "$(ID)"
+	uv run --frozen --extra package --extra dev python tools/generate_index.py
+	uv run --frozen --extra package --extra dev python tools/generate_devices.py
+	uv run --frozen --extra package --extra dev python tools/generate_support_status.py
+
+# Record newly published driver versions in driver-history.json.
+history:
+	uv run --frozen --extra package --extra dev python tools/generate_history.py
+
 check: boundary
 	bash tools/build_luac.sh --with-interpreter ./luac55
+	uv run --frozen --extra package --extra dev python tools/sync_manifests.py
+	git diff --exit-code -- manifests
 	uv run --frozen --extra package --extra dev python tools/validate_manifest.py
 	uv run --frozen --extra package --extra dev python tools/generate_index.py
 	git diff --exit-code -- index.yaml
@@ -36,5 +59,6 @@ check: boundary
 	git diff --exit-code -- devices.yaml
 	uv run --frozen --extra package --extra dev python tools/generate_support_status.py
 	git diff --exit-code -- support-status.json SUPPORT_STATUS.md
+	uv run --frozen --extra package --extra dev python tools/generate_history.py --check
 	bash tools/check_sandbox.sh
 	uv run --frozen --extra package --extra dev pytest -q drivers/tests tests

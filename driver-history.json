@@ -1,0 +1,713 @@
+{
+  "schema_version": "sourceful.driver-history/v1",
+  "drivers": {
+    "abb_meter": [
+      {
+        "version": "1.0.0",
+        "sha256": "d20f85751ccebe4e662ae6647216b4b78cbd2ea0e8390d5b5affe177f2045619",
+        "size_bytes": 2827,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/abb_meter.lua"
+      }
+    ],
+    "abb_terra": [
+      {
+        "version": "1.0.0",
+        "sha256": "cd46da329dd613b588793f3db08b9fa292a462c7105470046a922a878e1c27a2",
+        "size_bytes": 2540,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/abb_terra.lua"
+      }
+    ],
+    "acrel": [
+      {
+        "version": "1.0.0",
+        "sha256": "8455d5489bca68cc59b00304425968b8b57c166512dec65bcbf2eb34a2beaa90",
+        "size_bytes": 2382,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/acrel.lua"
+      }
+    ],
+    "alfen": [
+      {
+        "version": "1.0.0",
+        "sha256": "0bd4da93f87fb90ff0b8cf5773241acac5baef7de14609998cf074e9970f909c",
+        "size_bytes": 2678,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/alfen.lua"
+      }
+    ],
+    "alphaess": [
+      {
+        "version": "1.0.0",
+        "sha256": "b9e1e4ba52c07f04157152f423b489d9a750d7bdd7ef59d3b8b36bf2867b701e",
+        "size_bytes": 3039,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/alphaess.lua"
+      }
+    ],
+    "ambibox": [
+      {
+        "version": "1.1.0",
+        "sha256": "d7e8b9b74fbff52fd9230100e0ce407ff738502bfb4720873d2f54cc7ab78ec1",
+        "size_bytes": 6853,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/ambibox.lua"
+      },
+      {
+        "version": "1.1.1",
+        "sha256": "12de1c99cfed144f35c2e2a7f372186ef09e2a43120918a54e3622c572e5cd2e",
+        "size_bytes": 7203,
+        "commit": "64911d87dd581c10982e43b95187739a20550535",
+        "date": "2026-07-21T20:12:39+02:00",
+        "source_path": "drivers/lua/ambibox.lua"
+      }
+    ],
+    "atmoce": [
+      {
+        "version": "1.0.0",
+        "sha256": "e83a40430eef69f5c6cc518034f5b629f321516339bb159b0e766b217476887e",
+        "size_bytes": 5358,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/atmoce.lua"
+      }
+    ],
+    "carlo_gavazzi": [
+      {
+        "version": "1.0.0",
+        "sha256": "fba76a052830befff94709b06e30f5cb51eae6a3a70f86df07f6a25a0a1dbe23",
+        "size_bytes": 2651,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/carlo_gavazzi.lua"
+      }
+    ],
+    "chint": [
+      {
+        "version": "1.0.0",
+        "sha256": "05d95193ad7392afeb61e117d9c4fc3a6f3430e9d62867a6cb1eb89b19cc730f",
+        "size_bytes": 2280,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/chint.lua"
+      }
+    ],
+    "circutor": [
+      {
+        "version": "1.0.0",
+        "sha256": "f52f729b1f3d50bbbb336fa16887a17941bf210285c80102c52eb18f6f099717",
+        "size_bytes": 2629,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/circutor.lua"
+      }
+    ],
+    "deye": [
+      {
+        "version": "1.2.0",
+        "sha256": "15035312b5424f3221580fb68e067a911f5997b5a85ff482e1d17480a6220702",
+        "size_bytes": 7131,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/deye.lua"
+      }
+    ],
+    "easee": [
+      {
+        "version": "1.0.0",
+        "sha256": "e182fe7fc03547ff5afc8b5e34d8a0434591b6699b6b08aa27cad1398c2dbe16",
+        "size_bytes": 2038,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/easee.lua"
+      }
+    ],
+    "esphome-dsmr": [
+      {
+        "version": "1.0.1",
+        "sha256": "06afd1e4079b041a8fd36b0b0801e3d997b546f0f1dbd6ee8774296c7a8f8351",
+        "size_bytes": 16776,
+        "commit": "be9c9eeaf9000068d949bb1e62760755ad4ef380",
+        "date": "2026-07-22T07:11:44+02:00",
+        "source_path": "drivers/lua/esphome-dsmr.lua"
+      },
+      {
+        "version": "1.0.2",
+        "sha256": "0a026f97146b5136a8b7575ae0b208e28ab90e086e58f8f9391506ec3aab616f",
+        "size_bytes": 16772,
+        "commit": "0cced0eaa45baffda1207b2a87f04fe8b4b65959",
+        "date": "2026-07-22T07:34:33+02:00",
+        "source_path": "drivers/lua/esphome-dsmr.lua"
+      }
+    ],
+    "etrel": [
+      {
+        "version": "1.0.0",
+        "sha256": "35924a3e5ef994362a8738d652f1e0c59ec78c3537c1f01abdf90ff97ee362d1",
+        "size_bytes": 2361,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/etrel.lua"
+      }
+    ],
+    "ferroamp": [
+      {
+        "version": "1.1.0",
+        "sha256": "c65b52c203d21b6807e4499a3258894055d1d02d20fb681dc2cdf437a3713595",
+        "size_bytes": 9106,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/ferroamp.lua"
+      },
+      {
+        "version": "1.1.1",
+        "sha256": "452ceabbaab41c8e989ebc7a0b8fc99fead00f33252c7586658b7effefa6f68d",
+        "size_bytes": 9233,
+        "commit": "64911d87dd581c10982e43b95187739a20550535",
+        "date": "2026-07-21T20:12:39+02:00",
+        "source_path": "drivers/lua/ferroamp.lua"
+      }
+    ],
+    "ferroamp_dc2_v2x": [
+      {
+        "version": "1.0.1",
+        "sha256": "8a48f999e3d593d70ccfa1558c270798beb05435c9b73584438dc5fa334f151a",
+        "size_bytes": 5628,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/ferroamp_dc2_v2x.lua"
+      },
+      {
+        "version": "1.0.2",
+        "sha256": "1bb07ec76653b096c7fee4f72200d8dd2be480c03d8eb5478254da2c608a947f",
+        "size_bytes": 5830,
+        "commit": "64911d87dd581c10982e43b95187739a20550535",
+        "date": "2026-07-21T20:12:39+02:00",
+        "source_path": "drivers/lua/ferroamp_dc2_v2x.lua"
+      }
+    ],
+    "ferroamp_modbus": [
+      {
+        "version": "1.0.0",
+        "sha256": "351db3e686a5953cddee94c91bba4547a38f82e60a79196f6e50e2f4fe698a20",
+        "size_bytes": 7372,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/ferroamp_modbus.lua"
+      }
+    ],
+    "foxess": [
+      {
+        "version": "1.0.0",
+        "sha256": "94e17d8f9d98061a2068f77aea8ede60aad32e168d18d3a087d2d07bbc3e0075",
+        "size_bytes": 6029,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/foxess.lua"
+      }
+    ],
+    "fronius": [
+      {
+        "version": "1.2.0",
+        "sha256": "5fe473f0a51f6ad9b8daf81a840f83492986bca3e338c4d4128100f337757174",
+        "size_bytes": 7662,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/fronius.lua"
+      }
+    ],
+    "fronius_api": [
+      {
+        "version": "1.0.0",
+        "sha256": "cedaf36dc3f5aca8b75c624fd66f868d9566bc23464b6034528327e875b7db9c",
+        "size_bytes": 2072,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/fronius_api.lua"
+      }
+    ],
+    "fronius_smart_meter": [
+      {
+        "version": "1.1.0",
+        "sha256": "2955fa26fba3e753e88a98b7f21bcb1afb0b9e17fb1b52edc3170afc5065476d",
+        "size_bytes": 3295,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/fronius_smart_meter.lua"
+      }
+    ],
+    "goe": [
+      {
+        "version": "1.0.0",
+        "sha256": "05f941173816f669e260aac6d657c38714e30937066fdbabaa53f12f86380acc",
+        "size_bytes": 2463,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/goe.lua"
+      }
+    ],
+    "goe_http": [
+      {
+        "version": "1.0.0",
+        "sha256": "48b6d9ded6043e9b42a09bf03bd8edbab6363b18781e2279e957eee237556d25",
+        "size_bytes": 3340,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/goe_http.lua"
+      }
+    ],
+    "goodwe": [
+      {
+        "version": "1.0.0",
+        "sha256": "39ab6d08a87a69488f1c24d4d0bba6a3ad973dd4975691646b70c09a63ecbcb6",
+        "size_bytes": 6369,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/goodwe.lua"
+      },
+      {
+        "version": "1.0.1",
+        "sha256": "be88e2cee62989558551ff0516211981323c6c76946f604495eb3f478f3f61e8",
+        "size_bytes": 8055,
+        "commit": "64911d87dd581c10982e43b95187739a20550535",
+        "date": "2026-07-21T20:12:39+02:00",
+        "source_path": "drivers/lua/goodwe.lua"
+      },
+      {
+        "version": "1.0.2",
+        "sha256": "117f7cb0273b2be6d7b4f2d01b798272e41817626a8b9e4365ae9517a5dbcc92",
+        "size_bytes": 7634,
+        "commit": "cbf14503a7a4ef22596d68172d430188bdcfacaa",
+        "date": "2026-07-22T14:26:05+02:00",
+        "source_path": "drivers/lua/goodwe.lua"
+      }
+    ],
+    "growatt": [
+      {
+        "version": "1.0.0",
+        "sha256": "c423e3fc4c1453082bdfe776fb9b2698d92e29f11f009b003c2ff8a29aed58f5",
+        "size_bytes": 5616,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/growatt.lua"
+      }
+    ],
+    "hardybarth": [
+      {
+        "version": "1.0.0",
+        "sha256": "517e086af899dc511c86b00460cd8ce052a8d4973edee8b018e5824d4b550d6e",
+        "size_bytes": 2193,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/hardybarth.lua"
+      }
+    ],
+    "hello": [
+      {
+        "version": "1.1.0",
+        "sha256": "6e4bb97258f27ff940366454bd7600f801f5f24a332ec792f80dc0c332fd56e0",
+        "size_bytes": 1362,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/hello.lua"
+      }
+    ],
+    "huawei": [
+      {
+        "version": "1.3.0",
+        "sha256": "164552d5c7791623476c3f762ce323fad7122fdb3b491d52e3458290299f6fbd",
+        "size_bytes": 8285,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/huawei.lua"
+      }
+    ],
+    "janitza": [
+      {
+        "version": "1.0.0",
+        "sha256": "c806db6ee57c27dc4735b45249ec77f349e624f096f7704cfdc605757e90bfe0",
+        "size_bytes": 2715,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/janitza.lua"
+      }
+    ],
+    "keba": [
+      {
+        "version": "1.0.0",
+        "sha256": "705cbba8e86f8bd87c5823fabf107e2d6a5eb628e9f5bbb82123b2914fffc37d",
+        "size_bytes": 3436,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/keba.lua"
+      }
+    ],
+    "kostal": [
+      {
+        "version": "1.0.0",
+        "sha256": "f771f38c6db888f3cb9f85ba64a39a3e26b12dd16052b0c3db9c27a6cedd131f",
+        "size_bytes": 8225,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/kostal.lua"
+      }
+    ],
+    "kstar": [
+      {
+        "version": "1.0.0",
+        "sha256": "f2db67976dc10ebd2a328ba2e378fff34e956d9d4996f70511f04c3ed4caf56e",
+        "size_bytes": 2646,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/kstar.lua"
+      }
+    ],
+    "mennekes": [
+      {
+        "version": "1.0.0",
+        "sha256": "bf2eefb7361c65ea1262e9393e3479430cf296c088dab01e1afd13cca8333bb0",
+        "size_bytes": 2874,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/mennekes.lua"
+      }
+    ],
+    "opendtu": [
+      {
+        "version": "1.0.0",
+        "sha256": "952ed411581591817a1ebfc0eacad0e211f55d4ce0d05ad218d780d1bdefba5e",
+        "size_bytes": 3758,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/opendtu.lua"
+      }
+    ],
+    "opendtu_mqtt": [
+      {
+        "version": "1.0.0",
+        "sha256": "a5054a2f4f63d296baab413c6fdd9af7dd6168e41f4c40bfdf18990be321d63b",
+        "size_bytes": 3896,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/opendtu_mqtt.lua"
+      },
+      {
+        "version": "1.0.1",
+        "sha256": "79c1676e49c088ccca0e72db139338792d88536a6badb62bcc9a737422af59b1",
+        "size_bytes": 3995,
+        "commit": "64911d87dd581c10982e43b95187739a20550535",
+        "date": "2026-07-21T20:12:39+02:00",
+        "source_path": "drivers/lua/opendtu_mqtt.lua"
+      }
+    ],
+    "openevse": [
+      {
+        "version": "1.0.0",
+        "sha256": "1ca0bd1577f5dedd93ea6b613ad85193ba9a3e43b917f56c7f639f355b95f095",
+        "size_bytes": 2446,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/openevse.lua"
+      }
+    ],
+    "p1_dsmr": [
+      {
+        "version": "2.0.0",
+        "sha256": "090f7b48f95212783167acdb0ad64b931d15b8279c6f35caf3edcaa9f8bf3d35",
+        "size_bytes": 7189,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/p1_dsmr.lua"
+      }
+    ],
+    "p1_encrypted": [
+      {
+        "version": "2.0.0",
+        "sha256": "7ca97f0e232daa529e627f7887106c63ccb0ff6693812d6b36ad464f7651bc1d",
+        "size_bytes": 11059,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/p1_encrypted.lua"
+      }
+    ],
+    "p1_hdlc": [
+      {
+        "version": "2.0.0",
+        "sha256": "e22e12bdb8f2f89616e9dc279630b8b94863fc3e485b491a6763bd8638baa0f4",
+        "size_bytes": 9191,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/p1_hdlc.lua"
+      }
+    ],
+    "p1_meter": [
+      {
+        "version": "2.0.0",
+        "sha256": "2e382395842fdf6f07e3a06c869f717a5ff4c2718d1ecd94a31e6975a1e95dde",
+        "size_bytes": 19332,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/p1_meter.lua"
+      }
+    ],
+    "pixii": [
+      {
+        "version": "1.1.0",
+        "sha256": "2e91e590397e6c2328c88fa48dc07d414baa5e56973be7a345fbcb828612cc18",
+        "size_bytes": 7831,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/pixii.lua"
+      },
+      {
+        "version": "1.1.1",
+        "sha256": "e156849768cdc1b2dc5771e9f1e07b2c412d71b2b451cc9fcd9aabd7e7b82f07",
+        "size_bytes": 8637,
+        "commit": "af0a229de17843d320b13499a2e0c7b02f11451f",
+        "date": "2026-07-23T06:45:59+02:00",
+        "source_path": "drivers/lua/pixii.lua"
+      }
+    ],
+    "saj": [
+      {
+        "version": "1.0.0",
+        "sha256": "20a2c193ef1db988a99794ecbc68896894891a285a234cf01ff4f669e1a97734",
+        "size_bytes": 3979,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/saj.lua"
+      }
+    ],
+    "schneider_meter": [
+      {
+        "version": "1.0.0",
+        "sha256": "e99ee91da91730c8a21ed81c508e078f108c152984ff93910e8371a5c51e3839",
+        "size_bytes": 2795,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/schneider_meter.lua"
+      }
+    ],
+    "schrack_ev": [
+      {
+        "version": "1.0.0",
+        "sha256": "0cbd680246cc45f8cd4bde2ca82a2bdbb39a903791ae4b4e80e170a97d8eb87a",
+        "size_bytes": 2371,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/schrack_ev.lua"
+      }
+    ],
+    "sdm630": [
+      {
+        "version": "1.1.1",
+        "sha256": "27d5612b891b01c98b054304a16295bd3e78982d166f731fd99372e3871eea54",
+        "size_bytes": 5488,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/sdm630.lua"
+      },
+      {
+        "version": "1.1.2",
+        "sha256": "a84cbf69301719c9c4b0fa96aa597618c4a39f594d07c2835c039bbeaef0146e",
+        "size_bytes": 5488,
+        "commit": "b058e0be18da65bd4c8c67c70149e8b8fa2589eb",
+        "date": "2026-07-20T20:14:30+02:00",
+        "source_path": "drivers/lua/sdm630.lua"
+      }
+    ],
+    "shelly": [
+      {
+        "version": "1.1.0",
+        "sha256": "88545a4bc5f9e78f8c68419b7fff9b840444d85fe8de9125c8e1c52d1a373943",
+        "size_bytes": 11305,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/shelly.lua"
+      },
+      {
+        "version": "1.1.1",
+        "sha256": "ca209373857d72f26e75a2c215a85279b6cc905647b947e1bb05ded9c76c61fd",
+        "size_bytes": 11878,
+        "commit": "64911d87dd581c10982e43b95187739a20550535",
+        "date": "2026-07-21T20:12:39+02:00",
+        "source_path": "drivers/lua/shelly.lua"
+      }
+    ],
+    "siemens_pac": [
+      {
+        "version": "1.0.0",
+        "sha256": "ab70a4827dfeb3b8855f0f10eadafb4c59d1abe8ab7afd27bfe18489b8bbc430",
+        "size_bytes": 2620,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/siemens_pac.lua"
+      }
+    ],
+    "sigenergy": [
+      {
+        "version": "1.0.0",
+        "sha256": "d0afb4d0895d318da57b6d8bccd20941b3251381a15d4f147e988610381f8955",
+        "size_bytes": 3945,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/sigenergy.lua"
+      }
+    ],
+    "sma": [
+      {
+        "version": "1.2.0",
+        "sha256": "38984625515709b78166e7a4f3a8316266ca6a46c1820ad7ed88141724c003ca",
+        "size_bytes": 7317,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/sma.lua"
+      }
+    ],
+    "socomec": [
+      {
+        "version": "1.0.0",
+        "sha256": "d8c1eb81f04c4685bc9584c2b9e2f2d94c4792c0741cf4983c3a2560ae7cc0a2",
+        "size_bytes": 2748,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/socomec.lua"
+      }
+    ],
+    "sofar": [
+      {
+        "version": "1.0.0",
+        "sha256": "8d8fdf6abb244a3cdc986a1283300597ea05ec7c69d1850cfbf4fc680ccc42d9",
+        "size_bytes": 5708,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/sofar.lua"
+      }
+    ],
+    "solaredge": [
+      {
+        "version": "1.2.0",
+        "sha256": "50c87a5e153c6c04b098a591da89bd4f33cdca8e32cff545a637074d9e85dab0",
+        "size_bytes": 6996,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/solaredge.lua"
+      }
+    ],
+    "solax": [
+      {
+        "version": "1.0.0",
+        "sha256": "7cc1c15aa709b79b83ef20a383775ce389d745f17f3db105b6e0cdde3f6ae43c",
+        "size_bytes": 4182,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/solax.lua"
+      }
+    ],
+    "solinteg": [
+      {
+        "version": "1.0.0",
+        "sha256": "91176427a7128114afca9d29f595221cac3dde8bebbb7744f5799e837ee97570",
+        "size_bytes": 7933,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/solinteg.lua"
+      }
+    ],
+    "solis": [
+      {
+        "version": "1.2.0",
+        "sha256": "5cb3696c86682dab05ed1ea111290b653adf204e64149247f6e5e6dd591f6714",
+        "size_bytes": 7179,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/solis.lua"
+      }
+    ],
+    "sonnen": [
+      {
+        "version": "1.0.0",
+        "sha256": "39a4d936e6a8009fa8652d6253cb65b1b63c5c75cc3c83698371b4120e59ce9a",
+        "size_bytes": 2091,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/sonnen.lua"
+      }
+    ],
+    "sungrow": [
+      {
+        "version": "1.2.0",
+        "sha256": "a477befccf24bd83f75581cbe3aa05c64273affff99152e7968381937a0db0d7",
+        "size_bytes": 8456,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/sungrow.lua"
+      }
+    ],
+    "varta": [
+      {
+        "version": "1.0.0",
+        "sha256": "b36df6bc5c8f5a06745b332c55c06364451e5197e096f8deca56693b3c121c33",
+        "size_bytes": 1869,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/varta.lua"
+      }
+    ],
+    "victron": [
+      {
+        "version": "1.0.0",
+        "sha256": "037b43796c5df8ee0f9410b5c3819b630b090ae2a844269236df6c6668b93881",
+        "size_bytes": 3943,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/victron.lua"
+      }
+    ],
+    "victron_mqtt": [
+      {
+        "version": "1.0.0",
+        "sha256": "647f5ebd717a88d137498e59d94a75e4e3a9209f44ca52dad3cb328f7e468350",
+        "size_bytes": 5225,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/victron_mqtt.lua"
+      },
+      {
+        "version": "1.0.1",
+        "sha256": "b10764e026e43278ac15f015aae2eb1f6c6c1f7f96248f32814f94e206fe6d14",
+        "size_bytes": 5762,
+        "commit": "64911d87dd581c10982e43b95187739a20550535",
+        "date": "2026-07-21T20:12:39+02:00",
+        "source_path": "drivers/lua/victron_mqtt.lua"
+      }
+    ],
+    "wallbox": [
+      {
+        "version": "1.0.0",
+        "sha256": "51a78a9b660e51ee14bf52cafa862c8497e8593c63bac8463803989c390ca3de",
+        "size_bytes": 1788,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/wallbox.lua"
+      }
+    ],
+    "zaptec": [
+      {
+        "version": "1.0.0",
+        "sha256": "78d66d1af8f8169a7fa3adaa914f27475907930dc733ea58757d7b394e5a9802",
+        "size_bytes": 2281,
+        "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
+        "date": "2026-07-20T19:45:07+02:00",
+        "source_path": "drivers/lua/zaptec.lua"
+      }
+    ]
+  }
+}

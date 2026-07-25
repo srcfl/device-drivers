@@ -49,9 +49,9 @@ tested_devices:
     notes: "Classic single-phase string inverter"
     min_driver_version: "1.2.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 7662
 dkb_id: "fronius_symo_gen24"
-sha256: ""
+sha256: "5fe473f0a51f6ad9b8daf81a840f83492986bca3e338c4d4128100f337757174"
 signature: ""
 
 bytecode_sha256: ""

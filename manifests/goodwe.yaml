@@ -7,9 +7,9 @@ ders: [pv, battery, meter]
 control: false
 tested_devices: []
 min_host_version: "1.10.0-beta.1"
-size_bytes: 0
+size_bytes: 7634
 dkb_id: ""
-sha256: ""
+sha256: "117f7cb0273b2be6d7b4f2d01b798272e41817626a8b9e4365ae9517a5dbcc92"
 signature: ""
 
 bytecode_sha256: ""

@@ -42,9 +42,9 @@ tested_devices:
     notes: "Requires Venus OS with Modbus TCP enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 3943
 dkb_id: ""
-sha256: ""
+sha256: "037b43796c5df8ee0f9410b5c3819b630b090ae2a844269236df6c6668b93881"
 signature: ""
 
 bytecode_sha256: ""

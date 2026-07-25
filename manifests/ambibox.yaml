@@ -14,9 +14,9 @@ tested_devices:
     notes: ""
     min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
-size_bytes: 6853
+size_bytes: 7203
 dkb_id: "ambibox"
-sha256: "d7e8b9b74fbff52fd9230100e0ce407ff738502bfb4720873d2f54cc7ab78ec1"
+sha256: "12de1c99cfed144f35c2e2a7f372186ef09e2a43120918a54e3622c572e5cd2e"
 signature: ""
 
 bytecode_sha256: ""

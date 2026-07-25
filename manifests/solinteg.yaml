@@ -42,9 +42,9 @@ tested_devices:
     notes: "Gen2 single-phase hybrid inverter"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 7933
 dkb_id: "solinteg"
-sha256: ""
+sha256: "91176427a7128114afca9d29f595221cac3dde8bebbb7744f5799e837ee97570"
 signature: ""
 
 bytecode_sha256: ""

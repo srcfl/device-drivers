@@ -140,9 +140,9 @@ tested_devices:
     notes: "HDLC/DLMS/COSEM, often AES-GCM encrypted"
     min_driver_version: "2.0.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 19332
 dkb_id: "p1_meter"
-sha256: ""
+sha256: "2e382395842fdf6f07e3a06c869f717a5ff4c2718d1ecd94a31e6975a1e95dde"
 signature: ""
 
 bytecode_sha256: ""

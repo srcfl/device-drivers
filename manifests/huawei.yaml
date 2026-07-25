@@ -42,9 +42,9 @@ tested_devices:
     notes: "C&I aggregator gateway, Modbus TCP server"
     min_driver_version: "1.3.0"
 min_host_version: "2.0.0"
-size_bytes: 0
+size_bytes: 8285
 dkb_id: "huawei_sun2000"
-sha256: ""
+sha256: "164552d5c7791623476c3f762ce323fad7122fdb3b491d52e3458290299f6fbd"
 signature: ""
 
 bytecode_sha256: ""
