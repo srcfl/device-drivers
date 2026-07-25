@@ -332,7 +332,7 @@
             "required": ["product", "min_version"],
             "properties": {
               "product": {
-                "enum": ["ftw", "blixt-gateway", "zap"]
+                "enum": ["ftw", "blixt-gateway"]
               },
               "min_version": {"$ref": "#/$defs/semver"},
               "max_version_exclusive": {"$ref": "#/$defs/semver"}
@@ -416,21 +416,6 @@
                     "name": {"const": "luajit"},
                     "semantics": {"const": "lua-5.1"},
                     "host_api": {"properties": {"profile": {"enum": ["sourceful.host/blixt-l1/v1", "sourceful.host/blixt-l1/v2"]}}}
-                  }
-                }
-              }
-            }
-          },
-          {
-            "if": {"properties": {"target": {"const": "zap-firmware"}}},
-            "then": {
-              "properties": {
-                "host": {"properties": {"product": {"const": "zap"}}},
-                "runtime": {
-                  "properties": {
-                    "name": {"const": "lua"},
-                    "semantics": {"const": "lua-5.5"},
-                    "host_api": {"properties": {"profile": {"const": "sourceful.host/zap-firmware/v1"}}}
                   }
                 }
               }
@@ -545,7 +530,7 @@
       "enum": ["battery", "evse", "meter", "pv", "v2x_charger"]
     },
     "target": {
-      "enum": ["ftw-core", "blixt-l1", "zap-firmware"]
+      "enum": ["ftw-core", "blixt-l1"]
     }
   }
 }

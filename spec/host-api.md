@@ -13,6 +13,25 @@ Returns current uptime in milliseconds (integer).
 ### `host.set_make(brand_name)`
 Set the device brand name used in telemetry payloads. Call in `driver_init()`.
 
+### `host.set_sn(serial)`
+Set the device serial number. Call as soon as a stable identity is known, which
+for most Modbus devices is the first successful poll rather than `driver_init()`.
+
+### `host.set_poll_interval(milliseconds)`
+Change the interval before the next poll. `driver_poll()`'s return value already
+does this; use the call when the interval changes outside a poll.
+
+### `host.set_device_fault(faulted, reason)`
+Report that the device itself is in a fault state. A device can answer every
+read with fresh values while its hardware is unavailable, so a driver that knows
+the difference must say so; the host cannot infer it from telemetry. Clear it
+with `false` once a later read shows the fault is gone.
+
+### `host.emit_metric(name, value, unit)`
+Emit one diagnostic value outside the DER telemetry schema. `unit` is optional.
+Use it for evidence an operator needs when a device misbehaves, not for
+telemetry that belongs in `host.emit()`.
+
 ### `host.emit(der_type, data)`
 Emit telemetry for a DER type. `der_type` is one of `"pv"`, `"battery"`, `"meter"`, `"v2x_charger"`.
 
