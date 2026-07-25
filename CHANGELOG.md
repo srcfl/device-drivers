@@ -8,7 +8,8 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 ## [Unreleased]
 
 ### Added
-- `spec/host-api-profile.json` defines what a canonical driver may call on a linux-edge host, enforced by `make check`. It also records two functions that exist under two names — `decode_u32_be`/`decode_u32` and `modbus_write_multi`/`modbus_write_multiple` — because which spelling a driver calls currently decides which host it runs on
+- `spec/host-api-profile.json` defines what a canonical driver may call on a linux-edge host, enforced by `make check`. Blixt L1 is the naming reference: endianness belongs in the name (`decode_u32_be`, not `decode_u32`), identification has its own setters (`set_model`, `set_rated_w`, `set_warmup_s`), and `decode_string` replaces the register loop every driver writes by hand
+- `tools/canonical_debt.py` and `canonical-debt.json` count how far the catalog still is from that shape — 370 items across all 62 drivers. `make check` fails if the count grows, so a new driver cannot add to it and a converted driver ratchets it down
 
 ### Changed
 - This repository targets linux-edge hosts only: FTW and Blixt L1. `zap-firmware` is no longer a package target and `zap` is no longer a host product; Zap is built on a separate track that compiles from this source

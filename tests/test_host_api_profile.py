@@ -31,7 +31,9 @@ def allowed_functions(profile_name: str) -> set[str]:
 
 
 LINUX_EDGE = allowed_functions("linux-edge")
-ALIASES = PROFILE["aliases"]
+# Spellings the catalog grew on its own. Still accepted so existing drivers
+# keep working; tools/canonical_debt.py is what stops them from spreading.
+DEPRECATED = PROFILE["deprecated"]["functions"]
 PENDING = set(PROFILE["pending"]["functions"])
 
 CATALOG = sorted((ROOT / "drivers" / "lua").glob("*.lua"))
@@ -45,7 +47,7 @@ def called_functions(path: Path) -> set[str]:
 @pytest.mark.parametrize("path", CATALOG + TARGETS, ids=lambda p: p.stem)
 def test_driver_stays_inside_the_linux_edge_contract(path: Path) -> None:
     called = called_functions(path)
-    unknown = called - LINUX_EDGE - set(ALIASES)
+    unknown = called - LINUX_EDGE - set(DEPRECATED)
 
     assert not unknown, (
         f"{path.relative_to(ROOT)} calls host functions the linux-edge profile "
@@ -58,13 +60,25 @@ def test_driver_stays_inside_the_linux_edge_contract(path: Path) -> None:
 
 
 @pytest.mark.parametrize("path", CATALOG + TARGETS, ids=lambda p: p.stem)
-def test_driver_does_not_mix_both_spellings_of_an_aliased_function(path: Path) -> None:
+def test_driver_does_not_mix_both_spellings_of_one_function(path: Path) -> None:
     """Calling both names of the same function means one of them is wrong."""
     called = called_functions(path)
-    for alias, canonical in ALIASES.items():
-        assert not (alias in called and canonical in called), (
-            f"{path.relative_to(ROOT)} calls both {alias} and {canonical}. "
-            "They are the same host function under two names; pick one.")
+    for old, canonical in DEPRECATED.items():
+        assert not (old in called and canonical in called), (
+            f"{path.relative_to(ROOT)} calls both {old} and {canonical}. "
+            f"They are the same host function under two names; use {canonical}.")
+
+
+def test_deprecated_spellings_are_not_also_canonical() -> None:
+    """A name cannot be both the target and the thing being replaced."""
+    overlap = set(DEPRECATED) & LINUX_EDGE
+    assert not overlap, (
+        f"{sorted(overlap)} appear as both canonical and deprecated.")
+
+    unknown_targets = set(DEPRECATED.values()) - LINUX_EDGE
+    assert not unknown_targets, (
+        f"deprecated spellings point at {sorted(unknown_targets)}, which the "
+        "profile does not define.")
 
 
 def test_profile_and_spec_agree() -> None:
