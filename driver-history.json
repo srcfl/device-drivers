@@ -649,6 +649,14 @@
         "commit": "1585763d5c5312044ac21842bc037a8b5c69f185",
         "date": "2026-07-20T19:45:07+02:00",
         "source_path": "drivers/lua/sungrow.lua"
+      },
+      {
+        "version": "1.2.1",
+        "sha256": "e8e044b7ab5bbf9e01201aba5f6cf48813108b72b12201938d247eb7ac1d3664",
+        "size_bytes": 12164,
+        "commit": "b1d55751c94efead85e7905cfcfc2cca61cf24fb",
+        "date": "2026-07-25T09:10:34+02:00",
+        "source_path": "drivers/lua/sungrow.lua"
       }
     ],
     "varta": [
