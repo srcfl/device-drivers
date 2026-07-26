@@ -134,8 +134,8 @@ drivers:
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 10473
-    sha256: "0a62386361a142669816a0b82aee1ec82c6efd10c4d918880932b319de4e0a80"
+    size_bytes: 10983
+    sha256: "51aa29aeb04d4ff0f4358deb813092871a96d7cbb1b0090ffe5bfcd2d6827392"
   - name: "foxess"
     version: "1.0.2"
     tier: community

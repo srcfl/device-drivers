@@ -225,7 +225,11 @@ function driver_command(action, power_w, cmd)
     elseif action == "battery" then
         -- Our convention: positive power_w = charge
         -- Ferroamp: negative kW = charge -> negate and convert W to kW
-        local ref_kw = -power_w / 1000
+        -- Divide before negating. On a 32-bit integer build, negating the
+        -- smallest integer wraps to itself, so `-power_w` leaves the sign
+        -- alone and the driver asks a battery to charge when the caller said
+        -- discharge. Dividing first makes it a float, where negation works.
+        local ref_kw = -(power_w / 1000)
         local words = encode_f32_ws(ref_kw)
         if words == nil then
             host.log("warn", "Ferroamp: refusing a battery setpoint of "
@@ -239,7 +243,10 @@ function driver_command(action, power_w, cmd)
         -- Limit export to |power_w| watts. Encode before enabling the limit:
         -- enabling it and then failing to write the value would curtail the
         -- site at whatever figure happened to be in the register already.
-        local words = encode_f32_ws(math.abs(power_w))
+        -- `* 1.0` for the same reason as the battery case: math.abs on the
+        -- smallest integer returns it unchanged, still negative, which would
+        -- encode a negative export limit.
+        local words = encode_f32_ws(math.abs(power_w * 1.0))
         if words == nil then
             host.log("warn", "Ferroamp: refusing an export limit of "
                 .. tostring(power_w) .. " W, which float32 cannot hold")
