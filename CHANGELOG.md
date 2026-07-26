@@ -7,6 +7,19 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Changed
+- **FTW's 37 field-proven drivers are now the source.** They had run on customer sites for months while this repository treated its own 62 drivers of unknown provenance as the truth. Every serious defect found here was in the catalog, never in FTW's drivers — a sign bug flipping every float in 12 of them, 35 calling host functions that do not exist, 60 of 62 manifest hashes lying, a Sungrow control path that charges when told to discharge. The wrong set was being repaired. All 37 are promoted verbatim and kept byte-identical to `baselines/ftw`, which is what makes provenance checkable and any later edit visible
+- The DER vocabulary knew only `pv`, `battery`, `meter` and `v2x_charger`. FTW also emits `ev`, `heatpump` and `vehicle`, so eight shipped drivers had no honest way to describe themselves. `myuplink` emits only metrics and now declares none rather than claiming telemetry it never sends
+- `spec/host-api-profile.json` called `modbus_write` and `millis` "spellings this catalog grew on its own". They are FTW's real API names. It also omitted the entire transport layer — `ws_open`, `tcp_open`, `mqtt_pub`, `persist_secret`. The function list now comes from FTW's Go binding rather than from assumption
+
+### Added
+- **`blueprint/BLUEPRINT.lua`** — a complete, working driver for an imaginary inverter, written for people and agents alike. Every rule this repository enforces appears beside the code that follows it: bounded probing, never fabricating a zero, decoding on 16-bit halves, negating at the sign boundary. `tests/test_blueprint.py` holds it to every rule a shipped driver must meet and runs it against the harness, including the test that matters most — that failed reads per poll settle to zero, because a driver that never gives up takes the site offline
+- **`docs/WRITING-A-DRIVER.md`** — the reasoning behind each rule, with the blueprint as the specification
+
+### Removed
+- `tools/canonical_debt.py` measured distance from an ideal that never existed. In its place `tools/host_api_check.py` asks the only question that predicts a crash: does a driver call a function no host provides? That is what 35 drivers were doing while passing every test here
+- Tests pinning the behaviour of catalog drivers that have been replaced. They tested code that no longer exists; FTW tests the promoted drivers in Go
+
 ### Added
 - `spec/host-api-profile.json` defines what a canonical driver may call on a linux-edge host, enforced by `make check`. Blixt L1 is the naming reference: endianness belongs in the name (`decode_u32_be`, not `decode_u32`), identification has its own setters (`set_model`, `set_rated_w`, `set_warmup_s`), and `decode_string` replaces the register loop every driver writes by hand
 - `tools/canonical_debt.py` and `canonical-debt.json` count how far the catalog still is from that shape — 370 items across all 62 drivers. `make check` fails if the count grows, so a new driver cannot add to it and a converted driver ratchets it down

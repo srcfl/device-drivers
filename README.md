@@ -11,13 +11,22 @@ copy of the source and is not FTW's normal driver source.
 
 ## Contribute a driver
 
-Fork this repository, create a branch and start a read-only driver:
+Start from **[`blueprint/BLUEPRINT.lua`](blueprint/BLUEPRINT.lua)**. It is a
+complete, working driver for an imaginary inverter, written so that every rule
+this repository enforces appears beside the code that follows it. It is
+verified like a shipped driver: it compiles, passes the sandbox, and is run
+against the harness by `tests/test_blueprint.py`.
 
 ```bash
-make new-driver ID=example PROTOCOL=modbus KIND=meter
+cp blueprint/BLUEPRINT.lua drivers/lua/example.lua
 make test-driver ID=example
-make package-driver ID=example TARGET=ftw-core
+make check
 ```
+
+[docs/WRITING-A-DRIVER.md](docs/WRITING-A-DRIVER.md) explains the reasoning
+behind each rule — why a failed read can take a whole site offline, why a
+fabricated zero is worse than a missing field, and why arithmetic never belongs
+in the host API.
 
 Then open a pull request using the template. Include the tested device models,
 the protocol source, sign checks against vendor data and a test fixture when
@@ -33,10 +42,21 @@ package contract.
 
 ## Scope
 
-One canonical driver per device, with this repository as its single source.
 The drivers here target linux-edge hosts: FTW (gopher-lua) and Blixt L1
 (luajit). Both run on Linux-class hardware, so a driver is not written to a
 memory budget.
+
+37 of them came from FTW, where they have run on customer sites for months.
+They are kept byte-identical to `baselines/ftw/drivers/` so their provenance
+stays checkable, and FTW continues to test them in Go.
+
+**One driver per device, not one dialect per repository.** FTW and Blixt spell
+some host functions differently, and both spellings are correct — each is the
+real API of a shipping host, and a host that wants the other's drivers adds
+aliases in a few lines. What matters is that a driver never calls a name no
+host provides, which `tools/host_api_check.py` enforces. Converting drivers to
+a single spelling was tried and abandoned: it changed 196 lines across 36
+field-proven drivers without changing what any of them does.
 
 Zap is built on a separate track that compiles from this source. Its
 constraints do not shape the drivers here, and it is not a target in these
