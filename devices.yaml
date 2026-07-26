@@ -140,6 +140,17 @@ manufacturers:
         notes: "Community driver, untested"
   - name: "Ambibox"
     model_families:
+      - name: "Ambibox V2X"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "ambibox_v2x"
+            version: "1.0.0"
+            ders: [v2x_charger]
+            control: true
+        firmware_versions: ""
+        notes: "Ambibox bidirectional V2X charger via MQTT."
       - name: "V2X Charger"
         variants: []
         regions: []
@@ -151,6 +162,41 @@ manufacturers:
             control: true
         firmware_versions: ""
         notes: ""
+  - name: "CTEK"
+    model_families:
+      - name: "CTEK Chargestorm (API v1)"
+        variants: [Chargestorm Connected 2, Chargestorm Connected 3]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "ctek"
+            version: "0.2.0"
+            ders: [ev]
+            control: true
+        firmware_versions: ""
+        notes: "CTEK Chargestorm Connected 2/3 via Modbus/TCP Automation API v1 (CSOS ≥ 4.9.3). Full telemetry + current-limit control."
+      - name: "CTEK Chargestorm (API v2)"
+        variants: [Chargestorm Connected 2, Chargestorm Connected 3]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "ctek_v2"
+            version: "0.2.0"
+            ders: [ev]
+            control: true
+        firmware_versions: ""
+        notes: "CTEK Chargestorm Connected 2/3 via Modbus/TCP Automation API v2 (CSOS ≥ 4.9.3). Full telemetry + current-limit control."
+      - name: "CTEK Chargestorm (Modbus + MQTT)"
+        variants: [Chargestorm Connected 2, Chargestorm Connected 3]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "ctek_hybrid"
+            version: "0.2.0"
+            ders: [ev]
+            control: true
+        firmware_versions: ""
+        notes: "CTEK Chargestorm Connected 2/3 — MQTT for state + live telemetry (preferred), Modbus/TCP for control + telemetry fallback."
   - name: "Carlo Gavazzi"
     model_families:
       - name: "EM Series"
@@ -249,6 +295,17 @@ manufacturers:
             control: false
         firmware_versions: "DSMR 2022.10.1 on SlimmeLezer+; Sourceful Zap open firmware"
         notes: "Name-derived phase object_ids live-validated on SlimmeLezer+; explicit Sourceful aliases retained."
+      - name: "ESPHome DSMR (P1)"
+        variants: [ESPHome DSMR P1 readers using name-derived object_ids (SlimmeLezer+), Sourceful Zap P1 (sourceful-zap-esphome firmware)]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "esphome_dsmr"
+            version: "1.0.2"
+            ders: [meter]
+            control: true
+        firmware_versions: ""
+        notes: "Smart meter via ESPHome web_server v3 + dsmr component (Sourceful Zap on open firmware, DIY ESP32+P1, etc.)."
   - name: "Easee"
     model_families:
       - name: "Easee"
@@ -262,6 +319,17 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Community driver, may require specific firmware for Modbus TCP"
+      - name: "Easee Cloud"
+        variants: [Charge, Home]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "easee_cloud"
+            version: "1.0.1"
+            ders: [ev]
+            control: true
+        firmware_versions: ""
+        notes: "Easee Home/Charge via Cloud REST API. No local protocol needed."
   - name: "Eastron"
     model_families:
       - name: "SDM630"
@@ -464,6 +532,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Three-phase hybrid inverter, tested"
+  - name: "Ginlong Solis"
+    model_families:
+      - name: "Solis string inverter"
+        variants: [1P-G4, 3P-G4, S5-GC, S6-GR1P]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "solis_string"
+            version: "1.0.0"
+            ders: [pv]
+            control: true
+        firmware_versions: ""
+        notes: "Solis non-hybrid PV inverters via Modbus TCP."
   - name: "Growatt"
     model_families:
       - name: "MAX Series (Three-Phase Commercial)"
@@ -874,6 +955,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Community driver, untested"
+  - name: "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)"
+    model_families:
+      - name: "MyUplink Heat Pump (telemetry)"
+        variants: [NIBE F1145, NIBE F730, NIBE S1255]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "myuplink"
+            version: "1.0.0"
+            ders: []
+            control: true
+        firmware_versions: ""
+        notes: "Read-only heat-pump telemetry via MyUplink Cloud REST API v2: compressor power + hot-water/indoor/outdoor temperatures. Observe-only — no control. OAuth: authorization-code + refresh-token (connect in Settings → Devices)."
   - name: "NES"
     model_families:
       - name: "G5"
@@ -887,6 +981,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "115200 baud, 8N1, DSMR v5.0.2"
+  - name: "NIBE"
+    model_families:
+      - name: "NIBE REST API S-series"
+        variants: [NIBE S735]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "nibe_local"
+            version: "1.0.0"
+            ders: [meter]
+            control: true
+        firmware_versions: ""
+        notes: "Read-only NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Observe-only — no control."
   - name: "OpenEVSE"
     model_families:
       - name: "OpenEVSE"
@@ -900,15 +1007,39 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Community driver, untested"
+  - name: "Panasonic"
+    model_families:
+      - name: "Panasonic Aquarea (Heishamon)"
+        variants: [WH-SXC09H3E8]
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "heishamon"
+            version: "0.4.0"
+            ders: [heatpump]
+            control: true
+        firmware_versions: ""
+        notes: "Panasonic Aquarea H/J/K/L/M-series heat pump via Heishamon MQTT bridge. Controls Zone 1 heat curve offset (Z1_Heat_Request_Temp) in range -3..+3 °C."
   - name: "Pixii"
     model_families:
+      - name: "Pixii PowerShaper (PV + meter)"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "pixii_pv"
+            version: "0.2.0"
+            ders: [pv, meter]
+            control: true
+        firmware_versions: ""
+        notes: "Read-only Pixii telemetry: PV (external CTs) + grid meter (meter_w). Battery / SoC comes from the Modbus driver, not this one."
       - name: "PowerShaper"
         variants: [PowerShaper 2.0]
         regions: []
         protocols:
           - protocol: modbus
             driver: "pixii"
-            version: "1.1.4"
+            version: "2.0.0"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
@@ -961,6 +1092,17 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Energy meter / system manager"
+      - name: "SMA PV inverter (non-hybrid)"
+        variants: [Sunny Tripower STP 50-40 (CORE1), Sunny Tripower STP 50-41 (CORE2)]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "sma_pv"
+            version: "1.0.0"
+            ders: [pv, meter]
+            control: true
+        firmware_versions: ""
+        notes: "SMA Sunny Tripower commercial string inverters (STP 50-40 / 50-41 / X-class) via Modbus TCP, with active-power curtailment over Modbus holding register 40915."
       - name: "Sunny Boy"
         variants: [SB 3.0, SB 3.6, SB 4.0, SB 5.0, SB 6.0]
         regions: [EU]
@@ -1412,6 +1554,28 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Residential single-phase series"
+      - name: "SolarEdge inverter (PV only)"
+        variants: [HD-Wave, StorEdge]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "solaredge_pv"
+            version: "1.1.0"
+            ders: [pv]
+            control: true
+        firmware_versions: ""
+        notes: "SolarEdge HD-Wave / StorEdge PV-only via Modbus TCP (SunSpec) with PV active-power-limit curtail."
+      - name: "SolarEdge legacy (K-series with display)"
+        variants: [SE17K (display, legacy firmware)]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "solaredge_legacy"
+            version: "0.2.0"
+            ders: [pv]
+            control: true
+        firmware_versions: ""
+        notes: "SolarEdge K-series (SE7K / SE10K / SE17K / SE25K) PV inverter via Modbus TCP — reads use FC 0x03 holding; curtail writes use FC 0x10 multi-holding on the same Advanced Power Control registers (0xF000/0xF001) as HD-Wave."
       - name: "StorEdge"
         variants: [SE10000H-US, SE3680H, SE5000H-RWSEZ, SE7600H-US]
         regions: [EU, US]
@@ -1537,6 +1701,19 @@ manufacturers:
             control: true
         firmware_versions: ""
         notes: "Commercial/industrial inverter"
+  - name: "Sourceful"
+    model_families:
+      - name: "Sourceful Zap"
+        variants: [Sourceful Zap (ESP32-C3 controller firmware)]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "zap"
+            version: "2.0.0"
+            ders: [meter, pv, battery, v2x_charger]
+            control: true
+        firmware_versions: ""
+        notes: "Official Sourceful Zap local-API integration for meter, PV, battery and V2X telemetry; safe leased control is pending firmware support."
   - name: "Sungrow"
     model_families:
       - name: "SG-CX (Three-Phase Commercial)"
@@ -1594,6 +1771,32 @@ manufacturers:
             control: true
         firmware_versions: ""
         notes: "High-power three-phase hybrid"
+  - name: "Tesla"
+    model_families:
+      - name: "Tesla Vehicle (BLE Proxy)"
+        variants: [Model 3, Model Y]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "tesla_vehicle"
+            version: "0.1.0"
+            ders: [vehicle]
+            control: true
+        firmware_versions: ""
+        notes: "Read-only vehicle SoC + charge limit via Tesla API-compatible HTTP endpoint (e.g. TeslaBLEProxy)."
+  - name: "Tibber"
+    model_families:
+      - name: "Tibber Pulse"
+        variants: [Pulse HAN, Pulse IR, Pulse P1]
+        regions: []
+        protocols:
+          - protocol: http
+            driver: "tibber"
+            version: "1.0.0"
+            ders: [meter]
+            control: true
+        firmware_versions: ""
+        notes: "Tibber Pulse grid meter via GraphQL-transport-ws liveMeasurement stream."
   - name: "VARTA"
     model_families:
       - name: "element"
@@ -1819,6 +2022,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Community driver, untested"
+  - name: "Zuidwijk"
+    model_families:
+      - name: "Zuidwijk P1 Reader Ethernet"
+        variants: [Iskra ME382, Kaifa MA105/MA304, Sagemcom T210-D]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "zuidwijk_p1"
+            version: "1.0.0"
+            ders: [meter]
+            control: true
+        firmware_versions: ""
+        notes: "Dutch DSMR P1 smart-meter via Zuidwijk Serial-to-Ethernet bridge (raw TCP, port 23)."
   - name: "go-e"
     model_families:
       - name: "Gemini"

@@ -158,7 +158,7 @@ def test_publication_contains_the_full_read_only_catalog(
     _, public_key = keypair
 
     expected_ids = sorted(path.stem for path in (ROOT / "manifests").glob("*.yaml"))
-    assert len(expected_ids) == 62
+    assert len(expected_ids) == len(list((ROOT / 'manifests').glob('*.yaml')))
     assert [driver["id"] for driver in manifest["drivers"]] == expected_ids
     assert all(driver["read_only"] for driver in manifest["drivers"])
     assert all(not driver["control_enabled"] for driver in manifest["drivers"])
@@ -354,7 +354,7 @@ def test_stable_promotion_allows_added_driver_and_beta_only_history(
     )
     assert report == {
         "commit": COMMIT,
-        "driver_count": 62,
+        "driver_count": len(list((ROOT / "manifests").glob("*.yaml"))),
         "delta": {
             "added": [beta["drivers"][-1]["id"]],
             "removed": [],

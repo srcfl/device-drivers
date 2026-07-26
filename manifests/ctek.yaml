@@ -1,0 +1,22 @@
+name: "ctek"
+version: "0.2.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [ev]
+control: true
+tested_devices:
+  - manufacturer: "CTEK"
+    model_family: "CTEK Chargestorm (API v1)"
+    variants: [Chargestorm Connected 2, Chargestorm Connected 3]
+    regions: []
+    firmware_versions: ""
+    notes: "CTEK Chargestorm Connected 2/3 via Modbus/TCP Automation API v1 (CSOS ≥ 4.9.3). Full telemetry + current-limit control."
+    min_driver_version: "0.2.0"
+min_host_version: "2.0.0"
+size_bytes: 13397
+dkb_id: "ctek"
+sha256: "502732aedbed8c7b38affe111f59b5a8915dd08b7322158d8972961a18bc9412"
+signature: ""
+
+bytecode_sha256: ""

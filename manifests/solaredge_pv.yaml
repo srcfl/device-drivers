@@ -1,0 +1,22 @@
+name: "solaredge_pv"
+version: "1.1.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [pv]
+control: true
+tested_devices:
+  - manufacturer: "SolarEdge"
+    model_family: "SolarEdge inverter (PV only)"
+    variants: [HD-Wave, StorEdge]
+    regions: []
+    firmware_versions: ""
+    notes: "SolarEdge HD-Wave / StorEdge PV-only via Modbus TCP (SunSpec) with PV active-power-limit curtail."
+    min_driver_version: "1.1.0"
+min_host_version: "2.0.0"
+size_bytes: 10451
+dkb_id: "solaredge_pv"
+sha256: "d956b2473c27e52f63504862a85b36f803414327a583464fca087679c428de47"
+signature: ""
+
+bytecode_sha256: ""

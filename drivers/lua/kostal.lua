@@ -1,274 +1,266 @@
--- Kostal Plenticore Inverter Driver (SunSpec)
+-- Kostal Plenticore / Piko IQ hybrid inverter driver (SunSpec)
 -- Emits: PV, Battery, Meter
--- Register type: HOLDING (FC 0x03) — SunSpec compliant
--- SunSpec base address: 40000+
--- Port: 1502
--- Community tier (untested)
+-- Protocol: Modbus TCP, port 1502 (Kostal default), holding registers (FC 0x03)
+-- Reference: Kostal SunSpec map. SunSpec is big-endian for u32 values.
+-- READ-ONLY: no battery / curtail control.
+
+DRIVER = {
+  host_api_min = 1,
+  host_api_max = 1,
+  id           = "kostal",
+  name         = "Kostal Plenticore",
+  manufacturer = "Kostal",
+  version      = "1.0.0",
+  protocols    = { "modbus" },
+  capabilities = { "meter", "pv", "battery" },
+  description  = "Kostal Plenticore Plus and Piko IQ via Modbus TCP (SunSpec plus Kostal custom map).",
+  homepage     = "https://www.kostal-solar-electric.com",
+  authors      = { "FTW contributors" },
+  tested_models = { "Plenticore Plus", "Piko IQ" },
+  verification_status = "experimental",
+  verification_notes = "Ported from a reference implementation. Not yet verified against live hardware on a FTW site.",
+  connection_defaults = {
+    port    = 502,
+    unit_id = 1,
+  },
+}
 
 PROTOCOL = "modbus"
 
--- SunSpec scale factor: value x 10^sf. Kept in Lua: arithmetic, not I/O.
--- The exponent is clamped the way the host helper clamped it.
-local function scale(value, sf)
-    if sf == nil or value == nil then return value end
-    if sf > 10 then sf = 10 elseif sf < -10 then sf = -10 end
-    return value * 10 ^ sf
+----------------------------------------------------------------------------
+-- SunSpec helpers (inline — the FTW host has no host.scale / host.decode_f32)
+----------------------------------------------------------------------------
+
+-- Apply a SunSpec signed scale factor: result = value * 10^sf.
+-- sf is a small int16 (typical range -4..+4). Negative sf divides.
+local function apply_sf(v, sf)
+    if sf >= 0 then return v * (10 ^ sf) end
+    return v / (10 ^ -sf)
 end
+
+-- Read a single holding register as signed i16 (e.g. scale factors).
+-- Returns the decoded value, or the default if the read fails.
+local function read_i16(addr, default)
+    local ok, regs = pcall(host.modbus_read, addr, 1, "holding")
+    if ok and regs and regs[1] then
+        return host.decode_i16(regs[1])
+    end
+    return default
+end
+
+-- Read a single holding register as unsigned u16.
+local function read_u16(addr, default)
+    local ok, regs = pcall(host.modbus_read, addr, 1, "holding")
+    if ok and regs and regs[1] then
+        return regs[1]
+    end
+    return default
+end
+
+-- Read a u32 big-endian pair (SunSpec standard word order).
+local function read_u32_be(addr, default)
+    local ok, regs = pcall(host.modbus_read, addr, 2, "holding")
+    if ok and regs and regs[1] and regs[2] then
+        return host.decode_u32_be(regs[1], regs[2])
+    end
+    return default
+end
+
+----------------------------------------------------------------------------
+-- Lifecycle
+----------------------------------------------------------------------------
+
+local sn_read = false
 
 function driver_init(config)
     host.set_make("Kostal")
+    host.log("info", "Kostal: initialised, SunSpec Modbus TCP (holding registers)")
 end
 
 function driver_poll()
-    -- ---- Scale Factors ----
-
-    -- AC power SF: 40084, I16
-    local ok_acsf, acsf_regs = pcall(host.modbus_read, 40084, 1, "holding")
-    local ac_power_sf = 0
-    if ok_acsf then
-        ac_power_sf = host.decode_i16(acsf_regs[1])
+    -- -----------------------------------------------------------------
+    -- Serial number (SunSpec Common Model 1: SN at regs 40052-40067,
+    -- 16 regs = 32 chars ASCII. NOTE: 40004-40019 is Md (manufacturer),
+    -- 40020-40035 is Opt (model string) — NOT serial number.)
+    -- -----------------------------------------------------------------
+    if not sn_read then
+        local ok_sn, sn_regs = pcall(host.modbus_read, 40052, 16, "holding")
+        if ok_sn and sn_regs then
+            local sn = ""
+            for i = 1, 16 do
+                local hi = math.floor(sn_regs[i] / 256)
+                local lo = sn_regs[i] % 256
+                if hi > 32 and hi < 127 then sn = sn .. string.char(hi) end
+                if lo > 32 and lo < 127 then sn = sn .. string.char(lo) end
+            end
+            if string.len(sn) > 0 then
+                host.set_sn(sn)
+                sn_read = true
+            end
+        end
     end
 
-    -- Hz SF: 40086, I16
-    local ok_hzsf, hzsf_regs = pcall(host.modbus_read, 40086, 1, "holding")
-    local hz_sf = 0
-    if ok_hzsf then
-        hz_sf = host.decode_i16(hzsf_regs[1])
-    end
+    -- -----------------------------------------------------------------
+    -- Scale factors (SunSpec inverter model 103)
+    -- -----------------------------------------------------------------
+    local ac_power_sf = read_i16(40084, 0)  -- AC power SF
+    local hz_sf       = read_i16(40086, 0)  -- Hz SF
+    local energy_sf   = read_i16(40095, 0)  -- Lifetime energy SF
+    local temp_sf     = read_i16(40106, 0)  -- Heatsink temp SF
 
-    -- Energy SF (inverter): 40095, I16
-    local ok_esf, esf_regs = pcall(host.modbus_read, 40095, 1, "holding")
-    local energy_sf = 0
-    if ok_esf then
-        energy_sf = host.decode_i16(esf_regs[1])
-    end
+    -- MPPT scale factors (SunSpec model 160, base 40253)
+    local mppt_a_sf   = read_i16(40255, 0)  -- DCA_SF (+2 from base)
+    local mppt_v_sf   = read_i16(40256, 0)  -- DCV_SF (+3 from base)
 
-    -- Temp SF: 40106, I16
-    local ok_tsf, tsf_regs = pcall(host.modbus_read, 40106, 1, "holding")
-    local temp_sf = 0
-    if ok_tsf then
-        temp_sf = host.decode_i16(tsf_regs[1])
-    end
+    -- -----------------------------------------------------------------
+    -- PV (SunSpec inverter model 103)
+    -- -----------------------------------------------------------------
+    local ac_w_raw = read_i16(40083, 0)
+    local ac_w     = apply_sf(ac_w_raw, ac_power_sf)
 
-    -- MPPT current SF: 40255, I16 (Model 160 at 40253, DCA_SF offset +2)
-    local ok_masf, masf_regs = pcall(host.modbus_read, 40255, 1, "holding")
-    local mppt_a_sf = 0
-    if ok_masf then
-        mppt_a_sf = host.decode_i16(masf_regs[1])
-    end
+    local hz_raw = read_u16(40085, 0)
+    local hz     = apply_sf(hz_raw, hz_sf)
 
-    -- MPPT voltage SF: 40256, I16 (DCV_SF offset +3)
-    local ok_mvsf, mvsf_regs = pcall(host.modbus_read, 40256, 1, "holding")
-    local mppt_v_sf = 0
-    if ok_mvsf then
-        mppt_v_sf = host.decode_i16(mvsf_regs[1])
-    end
+    local lifetime_raw = read_u32_be(40093, 0)
+    local lifetime_wh  = apply_sf(lifetime_raw, energy_sf)
 
-    -- ---- PV Values ----
+    local temp_raw = read_i16(40103, 0)
+    local temp_c   = apply_sf(temp_raw, temp_sf)
 
-    -- AC power: 40083, I16
-    local ok_acw, acw_regs = pcall(host.modbus_read, 40083, 1, "holding")
-    local ac_w = 0
-    if ok_acw then
-        ac_w = scale(host.decode_i16(acw_regs[1]), ac_power_sf)
-    end
+    -- MPPT1: module 1 current @ 40260, voltage @ 40261
+    local mppt1_a = apply_sf(read_u16(40260, 0), mppt_a_sf)
+    local mppt1_v = apply_sf(read_u16(40261, 0), mppt_v_sf)
 
-    -- Frequency: 40085, U16
-    local ok_hz, hz_regs = pcall(host.modbus_read, 40085, 1, "holding")
-    local hz = 0
-    if ok_hz then
-        hz = scale(hz_regs[1], hz_sf)
-    end
+    -- MPPT2: module 2 current @ 40280, voltage @ 40281
+    local mppt2_a = apply_sf(read_u16(40280, 0), mppt_a_sf)
+    local mppt2_v = apply_sf(read_u16(40281, 0), mppt_v_sf)
 
-    -- Lifetime energy: 40093-40094, U32 BE
-    local ok_le, le_regs = pcall(host.modbus_read, 40093, 2, "holding")
-    local lifetime_wh = 0
-    if ok_le then
-        lifetime_wh = scale(host.decode_u32_be(le_regs[1], le_regs[2]), energy_sf)
-    end
-
-    -- Temperature: 40103, I16
-    local ok_temp, temp_regs = pcall(host.modbus_read, 40103, 1, "holding")
-    local temp_c = 0
-    if ok_temp then
-        temp_c = scale(host.decode_i16(temp_regs[1]), temp_sf)
-    end
-
-    -- MPPT1: Model 160 module 1 (offset from 40253 base)
-    -- Module 1 current at 40260, voltage at 40261
-    local ok_m1a, m1a_regs = pcall(host.modbus_read, 40260, 1, "holding")
-    local mppt1_a = 0
-    if ok_m1a then
-        mppt1_a = scale(m1a_regs[1], mppt_a_sf)
-    end
-
-    local ok_m1v, m1v_regs = pcall(host.modbus_read, 40261, 1, "holding")
-    local mppt1_v = 0
-    if ok_m1v then
-        mppt1_v = scale(m1v_regs[1], mppt_v_sf)
-    end
-
-    -- MPPT2: Module 2 current at 40280, voltage at 40281
-    local ok_m2a, m2a_regs = pcall(host.modbus_read, 40280, 1, "holding")
-    local mppt2_a = 0
-    if ok_m2a then
-        mppt2_a = scale(m2a_regs[1], mppt_a_sf)
-    end
-
-    local ok_m2v, m2v_regs = pcall(host.modbus_read, 40281, 1, "holding")
-    local mppt2_v = 0
-    if ok_m2v then
-        mppt2_v = scale(m2v_regs[1], mppt_v_sf)
-    end
-
-    -- Emit PV telemetry (W always negative for generation)
+    -- PV emit: w is always negative (generation leaves the array)
     host.emit("pv", {
-        W           = -ac_w,
+        w           = -ac_w,
         mppt1_v     = mppt1_v,
         mppt1_a     = mppt1_a,
         mppt2_v     = mppt2_v,
         mppt2_a     = mppt2_a,
-        total_generation_Wh = lifetime_wh,
-        temperature_C      = temp_c,
+        lifetime_wh = lifetime_wh,
+        temp_c      = temp_c,
     })
+    host.emit_metric("pv_mppt1_v",      mppt1_v)
+    host.emit_metric("pv_mppt1_a",      mppt1_a)
+    host.emit_metric("pv_mppt2_v",      mppt2_v)
+    host.emit_metric("pv_mppt2_a",      mppt2_a)
+    host.emit_metric("inverter_temp_c", temp_c)
+    host.emit_metric("grid_hz",         hz)
 
-    -- ---- Battery ----
-    -- Kostal SunSpec Model 124 (storage) — typical base around 40133
-    -- Battery SoC: 40137, U16, %
-    local ok_bsoc, bsoc_regs = pcall(host.modbus_read, 40137, 1, "holding")
-    local bat_soc = 0
-    if ok_bsoc then
-        bat_soc = bsoc_regs[1] / 100  -- percent to fraction
-    end
+    -- -----------------------------------------------------------------
+    -- Battery (SunSpec storage model 124 — Kostal custom offsets)
+    -- -----------------------------------------------------------------
+    -- SoC @ 40137, %; battery power @ 40138, i16 W (+ = charge, - = discharge)
+    local bat_soc_raw = read_u16(40137, 0)
+    local bat_soc     = bat_soc_raw / 100.0    -- percent → 0-1 fraction
 
-    -- Battery power: 40138, I16, W (positive=charge, negative=discharge)
-    local ok_bw, bw_regs = pcall(host.modbus_read, 40138, 1, "holding")
     local bat_w = 0
-    if ok_bw then
+    local ok_bw, bw_regs = pcall(host.modbus_read, 40138, 1, "holding")
+    if ok_bw and bw_regs and bw_regs[1] then
+        -- Kostal reports battery power with EMS-compatible sign already:
+        -- positive = charging, negative = discharging.
         bat_w = host.decode_i16(bw_regs[1])
     end
 
-    -- Emit Battery telemetry
     host.emit("battery", {
-        W   = bat_w,
-        SoC_nom_fract = bat_soc,
+        w   = bat_w,
+        soc = bat_soc,
     })
 
-    -- ---- Meter ----
-    -- SunSpec meter model typically at a separate offset
-    -- Kostal meter registers (Model 200+) — approximate SunSpec layout
+    -- -----------------------------------------------------------------
+    -- Meter (SunSpec meter model 203 — Kostal custom offsets)
+    -- -----------------------------------------------------------------
+    local meter_w_sf      = read_i16(40210, 0)  -- total W SF (also phase W SF)
+    local meter_a_sf      = read_i16(40194, 0)  -- per-phase A SF
+    local meter_v_sf      = read_i16(40203, 0)  -- per-phase V SF
+    local meter_energy_sf = read_i16(40242, 0)  -- meter energy SF
 
-    -- Meter W SF: 40210, I16
-    local ok_mwsf, mwsf_regs = pcall(host.modbus_read, 40210, 1, "holding")
-    local meter_w_sf = 0
-    if ok_mwsf then
-        meter_w_sf = host.decode_i16(mwsf_regs[1])
-    end
+    -- Total grid power: 40100, I16 (Kostal reports meter W at inverter 40100)
+    local meter_w_raw = read_i16(40100, 0)
+    -- SunSpec convention at this map negates vs site convention (+ = export).
+    -- Flip to site convention: + = import, - = export.
+    local meter_w = -apply_sf(meter_w_raw, meter_w_sf)
 
-    -- Meter A SF: 40194, I16
-    local ok_asf, asf_regs = pcall(host.modbus_read, 40194, 1, "holding")
-    local meter_a_sf = 0
-    if ok_asf then
-        meter_a_sf = host.decode_i16(asf_regs[1])
-    end
-
-    -- Meter V SF: 40203, I16
-    local ok_vsf, vsf_regs = pcall(host.modbus_read, 40203, 1, "holding")
-    local meter_v_sf = 0
-    if ok_vsf then
-        meter_v_sf = host.decode_i16(vsf_regs[1])
-    end
-
-    -- Phase W SF: 40210, I16
-    local ok_pwsf, pwsf_regs = pcall(host.modbus_read, 40210, 1, "holding")
-    local phase_w_sf = 0
-    if ok_pwsf then
-        phase_w_sf = host.decode_i16(pwsf_regs[1])
-    end
-
-    -- Meter energy SF: 40242, I16
-    local ok_mesf, mesf_regs = pcall(host.modbus_read, 40242, 1, "holding")
-    local meter_energy_sf = 0
-    if ok_mesf then
-        meter_energy_sf = host.decode_i16(mesf_regs[1])
-    end
-
-    -- Meter total W: 40100, I16
-    local ok_mw, mw_regs = pcall(host.modbus_read, 40100, 1, "holding")
-    local meter_w = 0
-    if ok_mw then
-        meter_w = scale(host.decode_i16(mw_regs[1]), meter_w_sf)
-    end
-
-    -- Per-phase current: 40191-40193, I16 each
-    local ok_la, la_regs = pcall(host.modbus_read, 40191, 3, "holding")
+    -- Per-phase current: 40191-40193, I16
     local l1_a, l2_a, l3_a = 0, 0, 0
-    if ok_la then
-        l1_a = scale(host.decode_i16(la_regs[1]), meter_a_sf)
-        l2_a = scale(host.decode_i16(la_regs[2]), meter_a_sf)
-        l3_a = scale(host.decode_i16(la_regs[3]), meter_a_sf)
+    local ok_la, la_regs = pcall(host.modbus_read, 40191, 3, "holding")
+    if ok_la and la_regs then
+        l1_a = -apply_sf(host.decode_i16(la_regs[1]), meter_a_sf)
+        l2_a = -apply_sf(host.decode_i16(la_regs[2]), meter_a_sf)
+        l3_a = -apply_sf(host.decode_i16(la_regs[3]), meter_a_sf)
     end
 
-    -- Per-phase voltage: 40196-40198, I16 each
-    local ok_lv, lv_regs = pcall(host.modbus_read, 40196, 3, "holding")
+    -- Per-phase voltage: 40196-40198, I16
     local l1_v, l2_v, l3_v = 0, 0, 0
-    if ok_lv then
-        l1_v = scale(host.decode_i16(lv_regs[1]), meter_v_sf)
-        l2_v = scale(host.decode_i16(lv_regs[2]), meter_v_sf)
-        l3_v = scale(host.decode_i16(lv_regs[3]), meter_v_sf)
+    local ok_lv, lv_regs = pcall(host.modbus_read, 40196, 3, "holding")
+    if ok_lv and lv_regs then
+        l1_v = apply_sf(host.decode_i16(lv_regs[1]), meter_v_sf)
+        l2_v = apply_sf(host.decode_i16(lv_regs[2]), meter_v_sf)
+        l3_v = apply_sf(host.decode_i16(lv_regs[3]), meter_v_sf)
     end
 
-    -- Per-phase power: 40207-40209, I16 each
-    local ok_lw, lw_regs = pcall(host.modbus_read, 40207, 3, "holding")
+    -- Per-phase power: 40207-40209, I16
     local l1_w, l2_w, l3_w = 0, 0, 0
-    if ok_lw then
-        l1_w = scale(host.decode_i16(lw_regs[1]), phase_w_sf)
-        l2_w = scale(host.decode_i16(lw_regs[2]), phase_w_sf)
-        l3_w = scale(host.decode_i16(lw_regs[3]), phase_w_sf)
+    local ok_lw, lw_regs = pcall(host.modbus_read, 40207, 3, "holding")
+    if ok_lw and lw_regs then
+        l1_w = -apply_sf(host.decode_i16(lw_regs[1]), meter_w_sf)
+        l2_w = -apply_sf(host.decode_i16(lw_regs[2]), meter_w_sf)
+        l3_w = -apply_sf(host.decode_i16(lw_regs[3]), meter_w_sf)
     end
 
-    -- Export energy: 40226-40227, U32 BE
-    local ok_exp, exp_regs = pcall(host.modbus_read, 40226, 2, "holding")
-    local export_wh = 0
-    if ok_exp then
-        export_wh = scale(host.decode_u32_be(exp_regs[1], exp_regs[2]), meter_energy_sf)
-    end
+    -- Energy counters: 40226-40227 export, 40234-40235 import, U32 BE
+    local export_wh = apply_sf(read_u32_be(40226, 0), meter_energy_sf)
+    local import_wh = apply_sf(read_u32_be(40234, 0), meter_energy_sf)
 
-    -- Import energy: 40234-40235, U32 BE
-    local ok_imp, imp_regs = pcall(host.modbus_read, 40234, 2, "holding")
-    local import_wh = 0
-    if ok_imp then
-        import_wh = scale(host.decode_u32_be(imp_regs[1], imp_regs[2]), meter_energy_sf)
-    end
-
-    -- Emit Meter telemetry (negate for SunSpec convention)
     host.emit("meter", {
-        W         = -meter_w,
-        L1_W      = -l1_w,
-        L2_W      = -l2_w,
-        L3_W      = -l3_w,
-        L1_V      = l1_v,
-        L2_V      = l2_v,
-        L3_V      = l3_v,
-        L1_A      = -l1_a,
-        L2_A      = -l2_a,
-        L3_A      = -l3_a,
-        Hz        = hz,
-        total_import_Wh = import_wh,
-        total_export_Wh = export_wh,
+        w         = meter_w,
+        l1_w      = l1_w,
+        l2_w      = l2_w,
+        l3_w      = l3_w,
+        l1_v      = l1_v,
+        l2_v      = l2_v,
+        l3_v      = l3_v,
+        l1_a      = l1_a,
+        l2_a      = l2_a,
+        l3_a      = l3_a,
+        hz        = hz,
+        import_wh = import_wh,
+        export_wh = export_wh,
     })
+    host.emit_metric("meter_l1_w", l1_w)
+    host.emit_metric("meter_l2_w", l2_w)
+    host.emit_metric("meter_l3_w", l3_w)
+    host.emit_metric("meter_l1_v", l1_v)
+    host.emit_metric("meter_l2_v", l2_v)
+    host.emit_metric("meter_l3_v", l3_v)
+    host.emit_metric("meter_l1_a", l1_a)
+    host.emit_metric("meter_l2_a", l2_a)
+    host.emit_metric("meter_l3_a", l3_a)
 
     return 5000
 end
 
+----------------------------------------------------------------------------
+-- Control (READ-ONLY for this driver — Kostal write map is tier-locked)
+----------------------------------------------------------------------------
+
 function driver_command(action, power_w, cmd)
-    host.log("Kostal control not yet implemented: " .. action)
+    -- Read-only driver: accept "init" (EMS handshake) and ignore the rest.
+    if action == "init" then
+        return true
+    end
     return false
 end
 
 function driver_default_mode()
+    -- Read-only driver — device stays in its own autonomous mode.
 end
 
 function driver_cleanup()
-    -- nothing to clean up
+    -- Nothing to clean up.
 end

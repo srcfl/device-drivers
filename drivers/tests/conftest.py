@@ -2,10 +2,69 @@
 
 import os
 import glob
+import hashlib
 import pytest
 
 DRIVERS_DIR = os.path.join(os.path.dirname(__file__), "..", "lua")
 MANIFESTS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "manifests")
+BASELINE_DIR = os.path.join(os.path.dirname(__file__), "..", "..",
+                            "baselines", "ftw", "drivers")
+
+
+def _digest(path):
+    with open(path, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
+
+
+def ftw_sourced_drivers():
+    """Drivers that are byte-identical to FTW's field-proven version.
+
+    These have run on customer sites for months and FTW tests them in Go, so
+    this suite's conventions -- which were written for the catalog and describe
+    a dialect FTW never spoke -- do not apply to them.
+
+    Identity is by content, not by a list. Edit a promoted driver here and it
+    stops matching, and every check in this suite starts applying to it again.
+    """
+    if not os.path.isdir(BASELINE_DIR):
+        return frozenset()
+    sourced = set()
+    for baseline in glob.glob(os.path.join(BASELINE_DIR, "*.lua")):
+        name = os.path.splitext(os.path.basename(baseline))[0]
+        promoted = os.path.join(DRIVERS_DIR, f"{name}.lua")
+        if os.path.exists(promoted) and _digest(promoted) == _digest(baseline):
+            sourced.add(name)
+    return frozenset(sourced)
+
+
+FTW_SOURCED = ftw_sourced_drivers()
+
+
+def skip_if_ftw_sourced(name):
+    """Skip a catalog-convention check for a driver FTW owns and tests."""
+    if name in FTW_SOURCED:
+        pytest.skip(f"{name} is FTW's driver verbatim; FTW tests it in Go")
+
+
+def pytest_collection_modifyitems(items):
+    """Skip catalog-convention checks for the drivers FTW owns.
+
+    Applied here rather than in each test so that a driver promoted from FTW
+    is exempt everywhere at once, and stops being exempt the moment someone
+    edits it and it no longer matches the baseline.
+    """
+    if not FTW_SOURCED:
+        return
+    reason = pytest.mark.skip(
+        reason="FTW's driver verbatim; FTW tests it in Go")
+    for item in items:
+        params = getattr(getattr(item, "callspec", None), "params", {})
+        for value in params.values():
+            name = getattr(value, "stem", None) or (
+                value if isinstance(value, str) else None)
+            if name in FTW_SOURCED:
+                item.add_marker(reason)
+                break
 
 
 @pytest.fixture

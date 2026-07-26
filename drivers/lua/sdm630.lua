@@ -14,7 +14,7 @@ DRIVER = {
     id = "sdm630",
     name = "Eastron SDM630 meter",
     manufacturer = "Eastron",
-    version = "1.1.4",
+    version = "1.1.1",
     protocols = { "modbus" },
     capabilities = { "meter" },
     read_only = true,
@@ -32,7 +32,7 @@ DRIVER = {
 
 DRIVER_MANIFEST = {
     name = "sdm630",
-    version = "1.1.4",
+    version = "1.1.1",
     role = "meter",
     requires = {},
     options = {},
@@ -51,18 +51,12 @@ DRIVER_MANIFEST = {
 -- Decode IEEE-754 float32 from two big-endian 16-bit registers. Keeping this
 -- in Lua avoids depending on a helper that currently exists only in Blixt.
 local function decode_f32_be(hi, lo)
-    -- Work on the 16-bit halves. Combining them first overflows a 32-bit
-    -- integer build, where 0x80000000 is negative and every value then
-    -- decodes with a flipped sign.
-    local sign = 1
-    if hi >= 0x8000 then sign = -1; hi = hi - 0x8000 end
-    local exponent = math.floor(hi / 128)
-    local mantissa = (hi % 128) * 65536 + lo
-    if exponent == 0 then
-        if mantissa == 0 then return 0 end
-        return sign * mantissa * 2^-149
-    end
-    -- Infinity and NaN would poison every downstream sum; report nothing.
+    local combined = hi * 65536 + lo
+    if combined == 0 then return 0 end
+    local sign = (combined >= 0x80000000) and -1 or 1
+    local exponent = math.floor(combined / 0x800000) % 0x100
+    local mantissa = combined % 0x800000
+    if exponent == 0 then return sign * mantissa * 2^-149 end
     if exponent == 0xFF then return 0 end
     return sign * (1 + mantissa / 0x800000) * 2^(exponent - 127)
 end
@@ -126,19 +120,19 @@ function driver_poll()
     -- Mixed-case aliases keep the current Blixt L1 data-model adapter working
     -- until it consumes the canonical names directly.
     host.emit("meter", {
-        W = total_w,
-        Hz = hz,
-        L1_V = l1_v,
-        L2_V = l2_v,
-        L3_V = l3_v,
-        L1_A = l1_a,
-        L2_A = l2_a,
-        L3_A = l3_a,
-        L1_W = l1_w,
-        L2_W = l2_w,
-        L3_W = l3_w,
-        total_import_Wh = import_wh,
-        total_export_Wh = export_wh,
+        w = total_w,
+        hz = hz,
+        l1_v = l1_v,
+        l2_v = l2_v,
+        l3_v = l3_v,
+        l1_a = l1_a,
+        l2_a = l2_a,
+        l3_a = l3_a,
+        l1_w = l1_w,
+        l2_w = l2_w,
+        l3_w = l3_w,
+        import_wh = import_wh,
+        export_wh = export_wh,
         W = total_w,
         Hz = hz,
         L1_V = l1_v,

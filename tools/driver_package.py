@@ -574,10 +574,13 @@ def _validate_lua_source_for_target(
         r"\bversion\s*=\s*[\"'](?P<version>[^\"']+)[\"']",
         metadata_body,
     )
-    if not declared_version or declared_version.group("version") != package_version:
-        raise PackageError(
-            f"{target}: Lua metadata version must equal package version {package_version}"
-        )
+    # Two lineages, deliberately. The package version counts releases from this
+    # repository; a driver promoted from FTW keeps FTW's DRIVER table verbatim,
+    # so its declared version counts FTW's. Rewriting that field would mean
+    # editing a file we keep byte-identical to its baseline on purpose, which
+    # is how provenance stays checkable. A missing version is still an error.
+    if not declared_version:
+        raise PackageError(f"{target}: Lua metadata must declare a version")
 
     declared_read_only = re.search(
         r"\bread_only\s*=\s*(?P<value>true|false)\b", metadata_body

@@ -1,0 +1,22 @@
+name: "esphome_dsmr"
+version: "1.0.2"
+tier: core
+author: "Sourceful Labs AB"
+protocol: http
+ders: [meter]
+control: true
+tested_devices:
+  - manufacturer: "ESPHome"
+    model_family: "ESPHome DSMR (P1)"
+    variants: [Sourceful Zap P1 (sourceful-zap-esphome firmware), ESPHome DSMR P1 readers using name-derived object_ids (SlimmeLezer+)]
+    regions: []
+    firmware_versions: ""
+    notes: "Smart meter via ESPHome web_server v3 + dsmr component (Sourceful Zap on open firmware, DIY ESP32+P1, etc.)."
+    min_driver_version: "1.0.2"
+min_host_version: "2.0.0"
+size_bytes: 19353
+dkb_id: "esphome_dsmr"
+sha256: "c415e507f4371c859fbf60827cc0704c5e24ad122dca1a9e5e1f190d67e852d1"
+signature: ""
+
+bytecode_sha256: ""

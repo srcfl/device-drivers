@@ -35,9 +35,9 @@ tested_devices:
     notes: "Residential single-phase series"
     min_driver_version: "1.2.0"
 min_host_version: "2.0.0"
-size_bytes: 7250
+size_bytes: 20326
 dkb_id: "solaredge"
-sha256: "5802dc0b9874ac28fddc802ec7bfc1259292a68021d8f96889c58cb835963fff"
+sha256: "38e8b39254e3171d758cd27fa7a07bd87d62f94e62b74d2d87ad81eb19b53823"
 signature: ""
 
 bytecode_sha256: ""

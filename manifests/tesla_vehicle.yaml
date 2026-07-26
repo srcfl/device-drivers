@@ -1,0 +1,22 @@
+name: "tesla_vehicle"
+version: "0.1.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: http
+ders: [vehicle]
+control: true
+tested_devices:
+  - manufacturer: "Tesla"
+    model_family: "Tesla Vehicle (BLE Proxy)"
+    variants: [Model Y, Model 3]
+    regions: []
+    firmware_versions: ""
+    notes: "Read-only vehicle SoC + charge limit via Tesla API-compatible HTTP endpoint (e.g. TeslaBLEProxy)."
+    min_driver_version: "0.1.0"
+min_host_version: "2.0.0"
+size_bytes: 23154
+dkb_id: "tesla_vehicle"
+sha256: "a708681364facbd09fb94a813050f6889d952a0178b392e51a64eddcc43fbf0d"
+signature: ""
+
+bytecode_sha256: ""

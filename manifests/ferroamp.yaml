@@ -17,9 +17,9 @@ connection_defaults:
   mqtt_username: "extapi"
   mqtt_password: "ferroampExtApi"
 min_host_version: "2.0.0"
-size_bytes: 9233
+size_bytes: 55058
 dkb_id: "ferroamp"
-sha256: "1b238f195ff8d748535925c01f3c0c8eb174c33715b7db495b005947c1955aea"
+sha256: "c04d137d595ba50b8c6178c82d917b115dbe9a7cbd2cf671ef2660e871f96de3"
 signature: ""
 
 bytecode_sha256: ""

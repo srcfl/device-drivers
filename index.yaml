@@ -48,6 +48,14 @@ drivers:
     control: true
     size_bytes: 7203
     sha256: "12de1c99cfed144f35c2e2a7f372186ef09e2a43120918a54e3622c572e5cd2e"
+  - name: "ambibox_v2x"
+    version: "1.0.0"
+    tier: core
+    protocol: mqtt
+    ders: [v2x_charger]
+    control: true
+    size_bytes: 7506
+    sha256: "90a572b0f74511d42e4b55047a6e1e52f266af5f595ce31dbcf2ffd74ce4253f"
   - name: "atmoce"
     version: "1.0.3"
     tier: community
@@ -80,14 +88,38 @@ drivers:
     control: false
     size_bytes: 3444
     sha256: "4a788619bac31c0a339d56e9014eac17e9e71c07ce43105dea9a8d105b809d04"
+  - name: "ctek"
+    version: "0.2.0"
+    tier: core
+    protocol: modbus
+    ders: [ev]
+    control: true
+    size_bytes: 13397
+    sha256: "502732aedbed8c7b38affe111f59b5a8915dd08b7322158d8972961a18bc9412"
+  - name: "ctek_hybrid"
+    version: "0.2.0"
+    tier: core
+    protocol: modbus
+    ders: [ev]
+    control: true
+    size_bytes: 25711
+    sha256: "d7c94d47576cb7d10bfcc0133f592be5991c9dc69c49450de85b2d60e2c6fa1b"
+  - name: "ctek_v2"
+    version: "0.2.0"
+    tier: core
+    protocol: modbus
+    ders: [ev]
+    control: true
+    size_bytes: 10865
+    sha256: "bfbbf150290a962552fb67144751e0a1bd65210dd13eef16c4012ff7f99fecbd"
   - name: "deye"
     version: "1.2.2"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 7187
-    sha256: "a6cf9865dfb46aff166d294c0ffa8fe26a877318df90df88ee6fc7f7fd18ef31"
+    size_bytes: 22941
+    sha256: "a563b0ce0f06f853d84d481708612bb620fadc0389c1f3fbc2e08195cfc68adc"
   - name: "easee"
     version: "1.0.2"
     tier: community
@@ -96,6 +128,14 @@ drivers:
     control: false
     size_bytes: 2859
     sha256: "479671d9747d5e0231b37f5f5ab777b72a888f2d2a0c3bfb4142299d1b1b42b8"
+  - name: "easee_cloud"
+    version: "1.0.1"
+    tier: core
+    protocol: http
+    ders: [ev]
+    control: true
+    size_bytes: 31312
+    sha256: "dfe3107d6d99e03204184602fd2be973efb53b7f122d4ad1dd3cbe1d0be5ebd4"
   - name: "esphome-dsmr"
     version: "1.0.2"
     tier: community
@@ -104,6 +144,14 @@ drivers:
     control: false
     size_bytes: 16772
     sha256: "0a026f97146b5136a8b7575ae0b208e28ab90e086e58f8f9391506ec3aab616f"
+  - name: "esphome_dsmr"
+    version: "1.0.2"
+    tier: core
+    protocol: http
+    ders: [meter]
+    control: true
+    size_bytes: 19353
+    sha256: "c415e507f4371c859fbf60827cc0704c5e24ad122dca1a9e5e1f190d67e852d1"
   - name: "etrel"
     version: "1.0.1"
     tier: community
@@ -118,24 +166,24 @@ drivers:
     protocol: mqtt
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 9233
-    sha256: "1b238f195ff8d748535925c01f3c0c8eb174c33715b7db495b005947c1955aea"
+    size_bytes: 55058
+    sha256: "c04d137d595ba50b8c6178c82d917b115dbe9a7cbd2cf671ef2660e871f96de3"
   - name: "ferroamp_dc2_v2x"
     version: "1.0.2"
     tier: core
     protocol: mqtt
     ders: [v2x_charger]
     control: true
-    size_bytes: 5830
-    sha256: "1bb07ec76653b096c7fee4f72200d8dd2be480c03d8eb5478254da2c608a947f"
+    size_bytes: 13321
+    sha256: "c9f4fa0fd78c0c28fbd730a66178d993f91d6d1c6557c1b8ecb8612ef4129262"
   - name: "ferroamp_modbus"
     version: "1.0.4"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 10983
-    sha256: "51aa29aeb04d4ff0f4358deb813092871a96d7cbb1b0090ffe5bfcd2d6827392"
+    size_bytes: 13112
+    sha256: "b71b1ec55442d8f8c96e22490da3e4331750335acdc0af72fbd9267455eb1230"
   - name: "foxess"
     version: "1.0.2"
     tier: community
@@ -150,8 +198,8 @@ drivers:
     protocol: modbus
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 8762
-    sha256: "f5b557ee938833ccdad5a04e4fc5754ffe5f461df71801aaf11bb0b589c978fc"
+    size_bytes: 12360
+    sha256: "45d0793cd9cf1d19a96af2a4df544d897a1dc0f8a3e5972dc63c730b231562c6"
   - name: "fronius_api"
     version: "1.0.1"
     tier: community
@@ -166,8 +214,8 @@ drivers:
     protocol: modbus
     ders: [meter]
     control: false
-    size_bytes: 4110
-    sha256: "82ad8a35f7131a1f3ae138e7a40944acdf2fb06a92aec9222f20fd417927b202"
+    size_bytes: 6172
+    sha256: "b093fd1900589f98ba548cfc2b991f327457c2bc747cf8c6e1de687c2392dfc6"
   - name: "goe"
     version: "1.0.1"
     tier: community
@@ -190,16 +238,16 @@ drivers:
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 7683
-    sha256: "46d90fd9c3461b853b02a2dbec172185644c73efb4388de3ca466f921264b510"
+    size_bytes: 8600
+    sha256: "a63e529c056dbd066f5cab0fd192d24205ee707e975dda9830f37eb50f896043"
   - name: "growatt"
     version: "1.0.2"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 5674
-    sha256: "49b910f7974ed64fff697e9d60523d49a49366168c7b4f9ce762054c50d59183"
+    size_bytes: 8553
+    sha256: "6b2eebacab317b28d0931c27b766fb1aae279eef7da8a60b2caad6b6c89c5d70"
   - name: "hardybarth"
     version: "1.0.0"
     tier: community
@@ -208,6 +256,14 @@ drivers:
     control: false
     size_bytes: 2193
     sha256: "517e086af899dc511c86b00460cd8ce052a8d4973edee8b018e5824d4b550d6e"
+  - name: "heishamon"
+    version: "0.4.0"
+    tier: core
+    protocol: mqtt
+    ders: [heatpump]
+    control: true
+    size_bytes: 6973
+    sha256: "01a8bc73689715531cfc0f21963c045b2144fa54715690949b44a578ee821a88"
   - name: "hello"
     version: "1.1.1"
     tier: community
@@ -222,8 +278,8 @@ drivers:
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 8288
-    sha256: "65e7d6b3d4a8d356c915700e08e6517011d09d1bb9652e229e47d221fbce7de3"
+    size_bytes: 14218
+    sha256: "5531e6f5d66114aab093d58188f5083feb388ad3608efa93f3b373362d75e517"
   - name: "janitza"
     version: "1.0.3"
     tier: community
@@ -246,8 +302,8 @@ drivers:
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 8489
-    sha256: "8f87261817e308430545896ebdbcf55da80672c24a0e68fdb84ba76c8a19057b"
+    size_bytes: 10232
+    sha256: "a3d7ad7facf1483f3efac1604ded22dd55b2de88199caf5c33fe1fc468378784"
   - name: "kstar"
     version: "1.0.1"
     tier: community
@@ -264,6 +320,22 @@ drivers:
     control: false
     size_bytes: 2880
     sha256: "def38432cf919ddb79afa0df315064157f4785eada4f90d7a4ca851ad34f1654"
+  - name: "myuplink"
+    version: "1.0.0"
+    tier: core
+    protocol: http
+    ders: []
+    control: true
+    size_bytes: 15278
+    sha256: "d754fd4af96c2047f9d9e458a776ad8f10510569836618f4631dd70e2510f404"
+  - name: "nibe_local"
+    version: "1.0.0"
+    tier: core
+    protocol: http
+    ders: [meter]
+    control: true
+    size_bytes: 18227
+    sha256: "b89177004a2eff5a5b60e2f275f584f079acf02876c049b231ba3170bb35ac50"
   - name: "opendtu"
     version: "1.0.1"
     tier: community
@@ -321,13 +393,21 @@ drivers:
     size_bytes: 19344
     sha256: "29f2bd2f73c0d39d809839ca60b40c3e4281f1dda267ba2b26e66bd9ab80c27b"
   - name: "pixii"
-    version: "1.1.4"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [battery, meter]
     control: false
-    size_bytes: 8908
-    sha256: "920ba0773b73a5d854cfe0d85a2ebc242415dbd55575186a4e1feeb0bb7ff59f"
+    size_bytes: 26945
+    sha256: "34a930da94ceda60e7b693ebf29f2e666a208ba783241125e97078fd466850ef"
+  - name: "pixii_pv"
+    version: "0.2.0"
+    tier: core
+    protocol: mqtt
+    ders: [pv, meter]
+    control: true
+    size_bytes: 6692
+    sha256: "d0901b6478e05b5cdf46fc2a9675700ba6008be2feb370be0ff7e87d2f1de883"
   - name: "saj"
     version: "1.0.2"
     tier: community
@@ -358,8 +438,8 @@ drivers:
     protocol: modbus
     ders: [meter]
     control: false
-    size_bytes: 5743
-    sha256: "961951511e0800d0380bb4d5272013f4e282b2c5b2d34f0e29b410ead03f06b7"
+    size_bytes: 5488
+    sha256: "27d5612b891b01c98b054304a16295bd3e78982d166f731fd99372e3871eea54"
   - name: "shelly"
     version: "1.1.1"
     tier: community
@@ -390,8 +470,16 @@ drivers:
     protocol: modbus
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 7610
-    sha256: "817e9a29badc0e5c922a2111f0be26ef1b39305e08e2e7eaf39dac3e9bd6dbed"
+    size_bytes: 13444
+    sha256: "a6b3acc819c198318018fcd99b0a834d00f98916ae38c530ab27406e0264423f"
+  - name: "sma_pv"
+    version: "1.0.0"
+    tier: core
+    protocol: modbus
+    ders: [pv, meter]
+    control: true
+    size_bytes: 18375
+    sha256: "ad589ee1c62c214a2efaee95ccc55cc9b33067b60bc996d27a4bc5114c363767"
   - name: "socomec"
     version: "1.0.2"
     tier: community
@@ -406,16 +494,32 @@ drivers:
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 5754
-    sha256: "9ec136834e3446528877056bb21a2c23abcc4cfce07f8785f3b9f2c71282c527"
+    size_bytes: 8199
+    sha256: "1a901ee8e50e8d3a7dca0f1412d61f2837fdbe70e5d550f84662275350fd4ba8"
   - name: "solaredge"
     version: "1.2.3"
     tier: core
     protocol: modbus
     ders: [meter, pv]
     control: false
-    size_bytes: 7250
-    sha256: "5802dc0b9874ac28fddc802ec7bfc1259292a68021d8f96889c58cb835963fff"
+    size_bytes: 20326
+    sha256: "38e8b39254e3171d758cd27fa7a07bd87d62f94e62b74d2d87ad81eb19b53823"
+  - name: "solaredge_legacy"
+    version: "0.2.0"
+    tier: core
+    protocol: modbus
+    ders: [pv]
+    control: true
+    size_bytes: 14730
+    sha256: "669aa969467e81c337269ab0f5a2d01d01a0f270deb55491c6a5adc6df848a6f"
+  - name: "solaredge_pv"
+    version: "1.1.0"
+    tier: core
+    protocol: modbus
+    ders: [pv]
+    control: true
+    size_bytes: 10451
+    sha256: "d956b2473c27e52f63504862a85b36f803414327a583464fca087679c428de47"
   - name: "solax"
     version: "1.0.2"
     tier: community
@@ -438,24 +542,48 @@ drivers:
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 7202
-    sha256: "79c9f2cbc4e57e4f904ab8eeb89008f2f11df4791fa072296466b3ecec710874"
+    size_bytes: 16671
+    sha256: "d44a018d2a4d1d08d9bc65a7441ee62a81b05852f19aa8df6115b9d360ebc5b3"
+  - name: "solis_string"
+    version: "1.0.0"
+    tier: core
+    protocol: modbus
+    ders: [pv]
+    control: true
+    size_bytes: 4752
+    sha256: "f9d1e29e5209c6870a690b7bcf00f153b15a0c61bcc491f6183cb8a8cdacb5a2"
   - name: "sonnen"
     version: "1.0.1"
     tier: community
     protocol: http
     ders: [battery, meter]
     control: false
-    size_bytes: 2101
-    sha256: "2adae2aca26c547d224f87f486c74231165035ed5cb61a12227fe689663f27f9"
+    size_bytes: 6158
+    sha256: "92163e4356b895e16b0205e849aa42a2dcea0d799f8cc6bcbce60b5e2cd92285"
   - name: "sungrow"
     version: "1.3.1"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 14397
-    sha256: "592941b552e15d2117411a394b04f537aa8f68db094e1193f922ef44ccf89c90"
+    size_bytes: 35038
+    sha256: "466a5f8637e6756fc2e1af4197d4edc1845474231413c0016f0e5900acb7b7ac"
+  - name: "tesla_vehicle"
+    version: "0.1.0"
+    tier: core
+    protocol: http
+    ders: [vehicle]
+    control: true
+    size_bytes: 23154
+    sha256: "a708681364facbd09fb94a813050f6889d952a0178b392e51a64eddcc43fbf0d"
+  - name: "tibber"
+    version: "1.0.0"
+    tier: core
+    protocol: http
+    ders: [meter]
+    control: true
+    size_bytes: 12410
+    sha256: "845ca59a775a3a4a4c27962454f14ba654fba0d1b905f24647c80db5c26a62ae"
   - name: "varta"
     version: "1.0.1"
     tier: community
@@ -470,8 +598,8 @@ drivers:
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 3960
-    sha256: "de83daf840c7e3390bef4e864182aa4a4f9c91f5cb886640da9bd18716f85770"
+    size_bytes: 6662
+    sha256: "07a06e7f9051be097e95c247d3fbdcbe30e9a9c64db2a9d3e3bb2a882a928f5d"
   - name: "victron_mqtt"
     version: "1.0.2"
     tier: community
@@ -488,6 +616,14 @@ drivers:
     control: false
     size_bytes: 1794
     sha256: "ee0fe799b503923edd19cce5f26846e392cc56115f24626e7fe525d277b0374c"
+  - name: "zap"
+    version: "2.0.0"
+    tier: core
+    protocol: http
+    ders: [meter, pv, battery, v2x_charger]
+    control: true
+    size_bytes: 30514
+    sha256: "735c50fa54e678e7a75c04e4e284a43b3cd9a8e9656e994785c6776789a777a4"
   - name: "zaptec"
     version: "1.0.0"
     tier: community
@@ -496,3 +632,11 @@ drivers:
     control: false
     size_bytes: 2281
     sha256: "78d66d1af8f8169a7fa3adaa914f27475907930dc733ea58757d7b394e5a9802"
+  - name: "zuidwijk_p1"
+    version: "1.0.0"
+    tier: core
+    protocol: modbus
+    ders: [meter]
+    control: true
+    size_bytes: 16217
+    sha256: "61f1d6522823b6054172d9f9fd17cc6f84088be515077043e1123b6dfb509f3a"
