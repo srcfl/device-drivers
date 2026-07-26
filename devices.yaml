@@ -312,7 +312,7 @@ manufacturers:
             control: true
           - protocol: modbus
             driver: "ferroamp_modbus"
-            version: "1.0.3"
+            version: "1.0.4"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
