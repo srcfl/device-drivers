@@ -449,13 +449,13 @@ drivers:
     size_bytes: 2101
     sha256: "2adae2aca26c547d224f87f486c74231165035ed5cb61a12227fe689663f27f9"
   - name: "sungrow"
-    version: "1.2.3"
+    version: "1.3.0"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 12150
-    sha256: "37e217e612aeebb4e1c454ee056e16bc77d8f288d18a33e17a062157cf6855c4"
+    size_bytes: 14397
+    sha256: "d3169fa4ae35b50c7deb9ce9ee4a88729a7d5bb05ffc284ab7374147a606e6fe"
   - name: "varta"
     version: "1.0.1"
     tier: community

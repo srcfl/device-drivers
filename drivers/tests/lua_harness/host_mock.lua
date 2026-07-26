@@ -31,6 +31,7 @@ end
 
 host._calls   = {}          -- ordered list of {func, args}
 host._emitted = {}          -- map: der_type -> list of data tables
+host._metrics = {}          -- map: metric name -> {value, unit}
 host._make    = nil         -- brand name set via set_make
 host._logs    = {}          -- list of logged messages
 host._errors  = {}          -- list of error messages for test reporting
@@ -72,6 +73,7 @@ end
 function host.reset()
     host._calls   = {}
     host._emitted = {}
+    host._metrics = {}
     host._make    = nil
     host._sn      = nil
     host._logs    = {}
@@ -122,6 +124,14 @@ function host.set_device_fault(faulted, reason)
     record_call("set_device_fault", faulted, reason)
     host._faulted = faulted == true
     host._fault_reason = reason or ""
+end
+
+-- One diagnostic value outside the DER schema. Both hosts provide this and
+-- spec/host-api-profile.json allows it; the mock lacked it, so a driver using
+-- it failed here while working on hardware.
+function host.emit_metric(name, value, unit)
+    record_call("emit_metric", name, value, unit)
+    host._metrics[name] = {value = value, unit = unit}
 end
 
 -- FTW normalises emit keys at the host boundary (see
@@ -254,6 +264,20 @@ function host.modbus_write_multiple(addr, values)
         host._modbus_registers.holding[addr + i - 1] = value
     end
     return nil
+end
+
+-- Canonical Blixt L1 spellings. FTW registers these as aliases too
+-- (go/internal/drivers/lua.go), so a driver may call either name.
+function host.write(addr, value)
+    return host.modbus_write(addr, value)
+end
+
+function host.write_registers(addr, values)
+    return host.modbus_write_multiple(addr, values)
+end
+
+function host.now_ms()
+    return host.millis()
 end
 
 

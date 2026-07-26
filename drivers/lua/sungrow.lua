@@ -9,7 +9,7 @@ DRIVER = {
     id = "sungrow",
     name = "Sungrow hybrid and string inverter",
     manufacturer = "Sungrow",
-    version = "1.2.3",
+    version = "1.3.0",
     protocols = { "modbus" },
     capabilities = { "pv", "battery", "meter" },
     description = "Sungrow hybrid and string inverters via Modbus.",
@@ -119,22 +119,27 @@ function driver_poll()
         end
     end
 
-    -- Read status flags to determine battery direction. Hybrid only.
+    -- Running state is documented register 13000 (host address 12999) and
+    -- power-flow status is documented 13001 (host address 13000). A faulted
+    -- inverter keeps answering Modbus with fresh values, so without the
+    -- running state a stopped machine reads as merely 0 W. Hybrid only.
+    local running_state = 0
     local status = 0
     if hybrid_block_worth_reading() then
+        local running_regs = optional_read(12999, 1, "input")
+        if running_regs then running_state = running_regs[1] end
+
         local status_regs = optional_read(13000, 1, "input")
-        if status_regs then
-            status = status_regs[1]
-        end
+        if status_regs then status = status_regs[1] end
     end
     -- Lua 5.1 compatible bit check: bit 2 (0x0004) set means discharging
     local is_discharging = (math.floor(status / 4) % 2) == 1
 
     -- PV power: 5016-5017, U32 LE, watts
     local ok_pv, pv_regs = pcall(host.modbus_read, 5016, 2, "input")
-    local pv_w = 0
+    local pv_w_primary = 0
     if ok_pv and pv_regs then
-        pv_w = host.decode_u32_le(pv_regs[1], pv_regs[2])
+        pv_w_primary = host.decode_u32_le(pv_regs[1], pv_regs[2])
     end
 
     -- PV MPPT voltages and currents: 5010-5013
@@ -145,6 +150,22 @@ function driver_poll()
         mppt1_a = mppt_regs[2] * 0.1
         mppt2_v = mppt_regs[3] * 0.1
         mppt2_a = mppt_regs[4] * 0.1
+    end
+    local mppt1_w = mppt1_v * mppt1_a
+    local mppt2_w = mppt2_v * mppt2_a
+    local pv_w_mppt = mppt1_w + mppt2_w
+
+    -- Some SH firmware leaves 5016-5017 at zero while the MPPT pairs clearly
+    -- show generation, so fall back to their product. The 50 W floor filters
+    -- noise without swallowing genuine low-light output.
+    local pv_w = 0
+    local pv_source = "zero"
+    if pv_w_primary > 50 then
+        pv_w = pv_w_primary
+        pv_source = "primary_reg"
+    elseif pv_w_mppt > 50 then
+        pv_w = pv_w_mppt
+        pv_source = "mppt_sum"
     end
 
     -- PV generation energy: 13002-13003, U32 LE × 0.1 kWh. Hybrid only.
@@ -188,6 +209,33 @@ function driver_poll()
         rated_W     = rated_w,
         temperature_C      = heatsink_c,
     })
+
+    -- Diagnostics an operator needs when the inverter misbehaves. Surfacing
+    -- both PV readings makes a stuck 5016 visible instead of looking like
+    -- night-time.
+    host.emit_metric("pv_w_primary", pv_w_primary, "W")
+    host.emit_metric("pv_w_mppt_sum", pv_w_mppt, "W")
+    host.emit_metric("pv_mppt1_w", mppt1_w, "W")
+    host.emit_metric("pv_mppt2_w", mppt2_w, "W")
+    host.emit_metric("inverter_temp_c", heatsink_c, "C")
+    host.emit_metric("grid_hz", hz, "Hz")
+    host.emit_metric("sungrow_pv_source", pv_source == "mppt_sum" and 2
+        or (pv_source == "primary_reg" and 1 or 0))
+
+    -- A faulted inverter answers every read with fresh values, so telemetry
+    -- alone reads as healthy while PV and battery are physically unavailable.
+    -- Report the running state through the host's fault channel instead.
+    if hybrid_block_worth_reading() then
+        host.emit_metric("sungrow_running_state", running_state)
+        host.emit_metric("sungrow_power_flow_status", status)
+
+        if running_state == 0x5500 or running_state == 0x0100 then
+            host.set_device_fault(true, string.format(
+                "Sungrow fault (running state 0x%04X)", running_state))
+        elseif running_state ~= 0 then
+            host.set_device_fault(false, "")
+        end
+    end
 
     -- Battery registers: 13019-13022. An SG string inverter has no battery and
     -- answers none of these, so probe here and emit the stream only when the
