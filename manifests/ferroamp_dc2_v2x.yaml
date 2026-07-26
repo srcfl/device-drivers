@@ -1,5 +1,5 @@
 name: "ferroamp_dc2_v2x"
-version: "1.0.2"
+version: "2.0.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt

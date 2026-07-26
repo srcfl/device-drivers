@@ -58,6 +58,21 @@ def write_manifest_version(path: Path, version: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def is_ftw_baseline(path: Path) -> bool:
+    """Whether this driver is FTW's, byte for byte.
+
+    A promoted driver is kept identical to baselines/ftw so its provenance
+    stays checkable and any real edit is visible. Rewriting a version inside
+    it would spend that guarantee on a field the tooling already accepts as
+    differing: the manifest counts this repository's releases, the DRIVER table
+    counts FTW's.
+    """
+    baseline = ROOT / "baselines" / "ftw" / "drivers" / path.name
+    if not baseline.exists():
+        return False
+    return baseline.read_bytes() == path.read_bytes()
+
+
 def write_lua_version(path: Path, version: str) -> bool:
     """Rewrite the version inside the DRIVER table, not anywhere else.
 
@@ -65,6 +80,9 @@ def write_lua_version(path: Path, version: str) -> bool:
     manifest alone. That is fine; there is simply nothing to keep in step.
     Returns whether the file was changed.
     """
+    if is_ftw_baseline(path):
+        return False
+
     text = path.read_text(encoding="utf-8")
     changed = False
 

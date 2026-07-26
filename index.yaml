@@ -113,7 +113,7 @@ drivers:
     size_bytes: 10865
     sha256: "bfbbf150290a962552fb67144751e0a1bd65210dd13eef16c4012ff7f99fecbd"
   - name: "deye"
-    version: "1.2.2"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
@@ -161,7 +161,7 @@ drivers:
     size_bytes: 2367
     sha256: "ff7f01535576798ac85865cfa845cd0ca6c9d0959241b16fbada89f1464b6554"
   - name: "ferroamp"
-    version: "1.1.2"
+    version: "2.0.0"
     tier: core
     protocol: mqtt
     ders: [battery, meter, pv]
@@ -169,7 +169,7 @@ drivers:
     size_bytes: 55058
     sha256: "c04d137d595ba50b8c6178c82d917b115dbe9a7cbd2cf671ef2660e871f96de3"
   - name: "ferroamp_dc2_v2x"
-    version: "1.0.2"
+    version: "2.0.0"
     tier: core
     protocol: mqtt
     ders: [v2x_charger]
@@ -177,7 +177,7 @@ drivers:
     size_bytes: 13321
     sha256: "c9f4fa0fd78c0c28fbd730a66178d993f91d6d1c6557c1b8ecb8612ef4129262"
   - name: "ferroamp_modbus"
-    version: "1.0.4"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
@@ -193,7 +193,7 @@ drivers:
     size_bytes: 6075
     sha256: "aa3aedd8172431fe1a3295ca6259a36c7bf845113d68c099a0cf3381dce7a992"
   - name: "fronius"
-    version: "1.2.4"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
@@ -209,7 +209,7 @@ drivers:
     size_bytes: 2080
     sha256: "3094603577fc51aa45bb4c757a471d24e8cb77ee4f0c596bb2fd4112b22a6578"
   - name: "fronius_smart_meter"
-    version: "1.1.3"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [meter]
@@ -233,7 +233,7 @@ drivers:
     size_bytes: 3340
     sha256: "48b6d9ded6043e9b42a09bf03bd8edbab6363b18781e2279e957eee237556d25"
   - name: "goodwe"
-    version: "1.0.3"
+    version: "2.0.0"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
@@ -241,7 +241,7 @@ drivers:
     size_bytes: 8600
     sha256: "a63e529c056dbd066f5cab0fd192d24205ee707e975dda9830f37eb50f896043"
   - name: "growatt"
-    version: "1.0.2"
+    version: "2.0.0"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
@@ -273,7 +273,7 @@ drivers:
     size_bytes: 1362
     sha256: "4f273fa6aaff3bb462c3ac141f1773a2b6985421633d002578ce647726aa0ba9"
   - name: "huawei"
-    version: "1.3.2"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
@@ -297,7 +297,7 @@ drivers:
     size_bytes: 3463
     sha256: "a590749729442ab3f9c5dae31b0de02e8a367ca47ddd9dec3574045e95421ff3"
   - name: "kostal"
-    version: "1.0.3"
+    version: "2.0.0"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
@@ -433,7 +433,7 @@ drivers:
     size_bytes: 2377
     sha256: "8185d8730050018b27d09f738c9a978d7d126f045eed09339a355a918ce32dfd"
   - name: "sdm630"
-    version: "1.1.4"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [meter]
@@ -465,7 +465,7 @@ drivers:
     size_bytes: 3925
     sha256: "133d960e034793011b4c503f778dd7dba000ab2ea0288fd108b4c42f34d95c16"
   - name: "sma"
-    version: "1.2.4"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
@@ -489,7 +489,7 @@ drivers:
     size_bytes: 2799
     sha256: "547ec63deb7b05717d63c44dfc3f544aad2d80f62b9924d6522a1bb6734024c6"
   - name: "sofar"
-    version: "1.0.2"
+    version: "2.0.0"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
@@ -497,7 +497,7 @@ drivers:
     size_bytes: 8199
     sha256: "1a901ee8e50e8d3a7dca0f1412d61f2837fdbe70e5d550f84662275350fd4ba8"
   - name: "solaredge"
-    version: "1.2.3"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [meter, pv]
@@ -537,7 +537,7 @@ drivers:
     size_bytes: 7966
     sha256: "522d603368b8cfd2c5b111e9f59bba4dd190f08e6cac28c709409fc25a94c66e"
   - name: "solis"
-    version: "1.2.2"
+    version: "2.0.0"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
@@ -553,7 +553,7 @@ drivers:
     size_bytes: 4752
     sha256: "f9d1e29e5209c6870a690b7bcf00f153b15a0c61bcc491f6183cb8a8cdacb5a2"
   - name: "sonnen"
-    version: "1.0.1"
+    version: "2.0.0"
     tier: community
     protocol: http
     ders: [battery, meter]
@@ -593,7 +593,7 @@ drivers:
     size_bytes: 1879
     sha256: "4f240545fac86e2b88195195f59bbabbef0f54019fd762b5e822334afade5aa2"
   - name: "victron"
-    version: "1.0.1"
+    version: "2.0.0"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
