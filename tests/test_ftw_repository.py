@@ -160,8 +160,21 @@ def test_publication_contains_the_full_read_only_catalog(
     expected_ids = sorted(path.stem for path in (ROOT / "manifests").glob("*.yaml"))
     assert len(expected_ids) == len(list((ROOT / 'manifests').glob('*.yaml')))
     assert [driver["id"] for driver in manifest["drivers"]] == expected_ids
-    assert all(driver["read_only"] for driver in manifest["drivers"])
-    assert all(not driver["control_enabled"] for driver in manifest["drivers"])
+    # read_only and control_enabled are two spellings of one fact and must
+    # never disagree: a driver that may control while claiming to be read-only
+    # reads as safe to anything checking only one of them.
+    assert all(
+        driver["read_only"] is not driver["control_enabled"]
+        for driver in manifest["drivers"]
+    )
+    # A driver controls if its code does. Every battery driver here carries a
+    # driver_command, and publishing them unable to use it was the whole
+    # problem: the same file could drive a battery bundled and not downloaded.
+    controlling = {d["id"] for d in manifest["drivers"] if d["control_enabled"]}
+    assert {"sungrow", "pixii", "alphaess", "ferroamp"} <= controlling
+    # And a driver that declares read_only in its own DRIVER table stays a
+    # meter, whatever anything else says.
+    assert not ({"sdm630", "zap", "esphome_dsmr"} & controlling)
     assert all(driver["host_api"] == {"min": 1, "max": 1} for driver in manifest["drivers"])
     assert all(driver["metadata"]["source"] == "upstream" for driver in manifest["drivers"])
     assert all(driver["source_commit"] == COMMIT for driver in manifest["drivers"])
@@ -242,8 +255,24 @@ def test_manifest_requires_exact_canonical_envelope_bytes(
 @pytest.mark.parametrize(
     ("change", "message"),
     [
-        (lambda driver: driver.update(permissions=["http.post"]), "write-capable permission"),
-        (lambda driver: driver["metadata"].update(read_only=False), "metadata must stay read-only"),
+        (lambda driver: driver.update(permissions=["nonsense.write"]), "unknown permission"),
+        # A read-only driver handed a write path, and a manifest whose Lua
+        # metadata disagrees with it: both would read as safe to something
+        # checking only one field.
+        (
+            lambda driver: driver.update(
+                read_only=True, control_enabled=False, permissions=["modbus.write"]
+            ),
+            "read-only driver has a write-capable permission",
+        ),
+        (
+            lambda driver: driver["metadata"].update(read_only=False),
+            "Lua metadata read_only must match the manifest",
+        ),
+        (
+            lambda driver: driver.update(read_only=True, control_enabled=True),
+            "contradict each other",
+        ),
         (lambda driver: driver.update(channel="edge"), "invalid channel"),
         (
             lambda driver: driver.update(url=driver["url"].replace(driver["sha256"][:16], "0" * 16)),
@@ -319,7 +348,7 @@ def test_changed_final_artifact_requires_a_higher_driver_version(
     (repo / "manifests" / "goodwe.yaml").write_bytes(
         (ROOT / "manifests" / "goodwe.yaml").read_bytes()
     )
-    config = {"schema_version": 1, "include_all": True, "release_mode": "read_only"}
+    config = {"schema_version": 1, "include_all": True, "release_mode": "per_driver"}
     config_path = repo / "ftw-channel.json"
     config_path.write_text(json.dumps(config))
     _, first_output = build(
@@ -439,15 +468,38 @@ def test_stable_promotion_requires_the_exact_signed_beta_commit(
         verify_promotion(publications, keypair)
 
 
-def test_control_sources_become_write_inert_ftw_artifacts(
+def test_a_control_driver_keeps_the_control_path_it_was_ported_with(
     tmp_path: Path, keypair: tuple[str, str]
 ) -> None:
+    # The channel copy and the bundled copy are built from one source. Denying
+    # writes here made the same driver behave two ways depending on where its
+    # file came from: bundled it could drive a battery, downloaded it could not.
     manifest, output = build(tmp_path, keypair)
     sungrow = next(driver for driver in manifest["drivers"] if driver["id"] == "sungrow")
     artifact = (output / Path(sungrow["url"]).name).read_text()
 
+    assert "__sourceful_ftw_write_denied" not in artifact
+    assert "function driver_command(" in artifact
+    assert "function driver_command(action, value, context) return false end" not in artifact
+    assert sungrow["permissions"] == ["modbus.read", "modbus.write"]
+    assert sungrow["read_only"] is False
+    assert sungrow["control_enabled"] is True
+    # The signed identity is still reasserted after the source loads, so a
+    # driver cannot rename itself into another driver's slot.
+    assert artifact.rstrip().endswith("DRIVER = __sourceful_ftw_metadata")
+
+
+def test_a_driver_that_declares_read_only_keeps_its_write_guards(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    # A meter saying what it is. That statement outranks anything else, and it
+    # still gets the guards so a shared source cannot write through it.
+    manifest, output = build(tmp_path, keypair)
+    sdm630 = next(driver for driver in manifest["drivers"] if driver["id"] == "sdm630")
+    artifact = (output / Path(sdm630["url"]).name).read_text()
+
     assert "host.modbus_write = __sourceful_ftw_write_denied" in artifact
     assert "function driver_command(action, value, context) return false end" in artifact
-    assert sungrow["permissions"] == ["modbus.read"]
-    assert sungrow["read_only"] is True
-    assert sungrow["control_enabled"] is False
+    assert sdm630["permissions"] == ["modbus.read"]
+    assert sdm630["read_only"] is True
+    assert sdm630["control_enabled"] is False
