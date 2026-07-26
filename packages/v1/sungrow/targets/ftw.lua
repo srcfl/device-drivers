@@ -163,7 +163,7 @@ function driver_poll()
     local ok_rated, rated_regs = pcall(host.modbus_read, 5000, 1, "input")
     local rated_w = 0
     if ok_rated and rated_regs then
-        rated_w = rated_regs[1] * 0.1 * 1000
+        rated_W = rated_regs[1] * 0.1 * 1000
     end
 
     -- Heatsink temp: 5007, I16 × 0.1 C

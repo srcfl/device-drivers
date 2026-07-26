@@ -70,7 +70,7 @@ function driver_poll()
     local ok_rated, rated_regs = pcall(host.modbus_read, 31085, 2, "input")
     local rated_w = 0
     if ok_rated then
-        rated_w = host.decode_u32_be(rated_regs[1], rated_regs[2])
+        rated_W = host.decode_u32_be(rated_regs[1], rated_regs[2])
     end
 
     -- Emit PV telemetry (W always negative for generation)

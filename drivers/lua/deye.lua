@@ -60,7 +60,7 @@ function driver_poll()
     local ok_rated, rated_regs = pcall(host.modbus_read, 20, 2, "holding")
     local rated_w = 0
     if ok_rated then
-        rated_w = host.decode_u32_le(rated_regs[1], rated_regs[2]) * 0.1 * 1000
+        rated_W = host.decode_u32_le(rated_regs[1], rated_regs[2]) * 0.1 * 1000
     end
 
     -- Heatsink temperature: 541, U16 × 0.1 C
