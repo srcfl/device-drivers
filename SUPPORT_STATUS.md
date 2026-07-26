@@ -116,8 +116,8 @@ Catalog source is not proof that a target can install or run a driver.
 | solis | 1.2.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sonnen | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sonnen | 1.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| sungrow | 1.2.3 | ftw-core | observe_only_profile_blocked | 1.3.2 | 1.3.0 | exact_model_firmware_required | — | not_assessed | no |
-| sungrow | 1.2.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| sungrow | 1.3.0 | ftw-core | observe_only_profile_blocked | 1.3.2 | 1.3.0 | exact_model_firmware_required | — | not_assessed | no |
+| sungrow | 1.3.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | varta | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | varta | 1.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | victron | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

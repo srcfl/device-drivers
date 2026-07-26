@@ -16,6 +16,10 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 - `drivers/lua/GUIDELINES.md` no longer sets a bytecode ceiling. It described Zap's 48 KB shared Lua pool, which does not apply to a linux-edge host
 - `spec/host-api.md` documents `set_sn`, `set_poll_interval`, `set_device_fault` and `emit_metric`. All four were already called by shipped drivers without appearing in the spec
 
+### Added
+- **sungrow** 1.3.0 — Takes three things from FTW's bundled `sungrow-shx` that the catalog driver never had: the running-state fault channel, so a faulted inverter is reported as faulted instead of reading as a healthy 0 W; an MPPT fallback for firmware that leaves register 5016 at zero while the strings clearly generate; and diagnostic metrics that make both PV readings visible when they disagree. This is the first of the 20 drivers that exist in both repositories to be reconciled
+- The Lua test mock gained `emit_metric` and the canonical host aliases `write`, `write_registers` and `now_ms`. It lacked all four, so a driver using them failed in the harness while working on hardware — `hello` was already calling `now_ms`
+
 ### Changed
 - Every driver now emits the canonical `@srcful/data-models` keys — `W`, `Hz`, `SoC_nom_fract`, `L1_V`, `total_import_Wh` and the rest — and calls the canonical host functions `write`, `write_registers` and `now_ms`. FTW accepts both spellings from v1.11.4-beta.7, so no site loses telemetry. Canonical debt is 0
 - `v2x_charger` keeps the short keys. `@srcful/data-models` has no agreed shape for it and Blixt has no v2x driver to take the naming from; `spec/host-api-profile.json` records that as undecided rather than guessing
