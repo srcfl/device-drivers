@@ -7,6 +7,9 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Changed
+- The 19 drivers whose implementation was replaced by FTW's move to a **major version**. The signed channel refuses to publish changed bytes under a version it already published — that immutability is what makes rollback mean anything — so the release failed until they moved. A major bump is also the honest signal: these are different implementations, not patches, and an operator pinning a version needs to know that
+
 ### Fixed
 - **sungrow** 1.4.0 — **The SG12RT outage.** Sungrow ships two families behind one driver: SH hybrids answer the 13xxx block, SG string inverters have no battery and answer none of it. The driver read that block regardless, and because the host fails a whole poll when any single read fails, a string inverter did not report less telemetry — it reported none. A customer's SG12RT lost everything, 12 of 19 reads failing on every poll. It now asks the device which family it is, using the classification `driver_fingerprint` already had, and reads the hybrid block only when there is reason to. Measured: **zero failed reads from the first poll**, where it was eight
 - Detection and the serial read both give up after three tries. A register retried on every poll forever costs a failed read on every poll forever, which is the same outage arriving more slowly. Where detection never succeeds the driver probes once and settles, rather than guessing
