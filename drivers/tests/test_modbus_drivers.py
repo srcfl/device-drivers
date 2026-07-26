@@ -42,12 +42,13 @@ def _extract_modbus_reads(code):
 
 
 def _profile_decoders() -> set:
-    """Decode helpers the linux-edge profile defines, plus retired spellings."""
+    """Decode helpers a linux-edge host provides, in either dialect."""
     profile_path = (Path(__file__).resolve().parents[2]
                     / "spec" / "host-api-profile.json")
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
     allowed = set(profile["profiles"]["linux-edge"]["functions"]["decode"])
-    allowed |= set(profile["deprecated"]["functions"])
+    dialect = profile["deprecated"]["ftw_to_blixt"]
+    allowed |= set(dialect) | set(dialect.values())
     return {name for name in allowed if name.startswith("decode_")}
 
 

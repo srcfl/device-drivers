@@ -1,0 +1,22 @@
+name: "tibber"
+version: "1.0.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: http
+ders: [meter]
+control: true
+tested_devices:
+  - manufacturer: "Tibber"
+    model_family: "Tibber Pulse"
+    variants: [Pulse IR, Pulse HAN, Pulse P1]
+    regions: []
+    firmware_versions: ""
+    notes: "Tibber Pulse grid meter via GraphQL-transport-ws liveMeasurement stream."
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 12410
+dkb_id: "tibber"
+sha256: "845ca59a775a3a4a4c27962454f14ba654fba0d1b905f24647c80db5c26a62ae"
+signature: ""
+
+bytecode_sha256: ""

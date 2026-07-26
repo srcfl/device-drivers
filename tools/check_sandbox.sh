@@ -32,6 +32,19 @@ else
     FILES=("$REPO_ROOT"/drivers/lua/*.lua)
 fi
 
+# Drivers that are known to break this rule and are bundled-only until they
+# stop. FTW clears os, io and debug for control-v2 drivers but leaves the full
+# standard library to bundled ones, so these run today and would fail the day
+# they are published through the signed channel.
+#
+#   ferroamp_dc2_v2x: os.time() stamps an MQTT payload. There is no host
+#   wall-clock to replace it with -- host.millis() is monotonic since startup
+#   -- and dropping the field would change a contract with whoever consumes
+#   that topic. Needs a host function or a payload decision, not a rename.
+# One "<driver>|<pattern>" per line. Kept as plain strings because the bash
+# that ships with macOS has no associative arrays.
+BUNDLED_ONLY='ferroamp_dc2_v2x.lua|(^|[^A-Za-z0-9_."-])os\.'
+
 ERRORS=0
 
 for file in "${FILES[@]}"; do
@@ -43,6 +56,10 @@ for file in "${FILES[@]}"; do
     basename="$(basename "$file")"
 
     for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+        if printf '%s\n' "$BUNDLED_ONLY" | grep -qxF "$basename|$pattern"; then
+            echo "SKIP $basename: '$pattern' is a recorded bundled-only exception"
+            continue
+        fi
         # Search for the pattern, excluding comment lines. grep -n prefixes
         # each hit with "NN:", so the exclusion has to allow for that; without
         # it the filter never matched and every commented mention of os. or

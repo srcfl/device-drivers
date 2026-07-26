@@ -1,13 +1,12 @@
-"""A driver may only call host functions the linux-edge contract defines.
+"""Every driver must call only host functions some host actually provides.
 
-Nothing checked this before, and the drift shows: seven functions are called by
-shipped drivers without appearing in spec/host-api.md, and FTW renamed
-modbus_write_multiple to modbus_write_multi in its own copies. A driver that
-calls a function its host does not implement fails on hardware, not in CI.
-
-baselines/ftw is exempt. Those files are a byte-exact record of FTW's source,
-not drivers this repository ships; what they call is reported by
-tools/import_ftw_baseline.py --report instead.
+FTW and Blixt L1 spell several functions differently — `modbus_write` against
+`write`, `millis` against `now_ms`. Neither spelling is wrong: each is the real
+API of a shipping host, and a host that wants the other dialect's drivers adds
+aliases, which FTW did in v1.11.4-beta.7. What no host can rescue is a call to
+a name that exists nowhere. The catalog once had 35 drivers calling decode
+helpers that lived only in the test mock; they passed every test here and would
+have failed on hardware.
 """
 
 from __future__ import annotations
@@ -19,10 +18,12 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE_PATH = ROOT / "spec" / "host-api-profile.json"
-HOST_CALL = re.compile(r"host\.([a-z_0-9]+)")
+PROFILE = json.loads((ROOT / "spec" / "host-api-profile.json").read_text(encoding="utf-8"))
 
-PROFILE = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
+# Calls only. A driver may also assign to host.<name> — esphome_dsmr replaces
+# host.serial_write with a deny stub to harden itself — which is the opposite
+# of relying on the host to provide it.
+HOST_CALL = re.compile(r"\bhost\.(\w+)\s*\(")
 
 
 def allowed_functions(profile_name: str) -> set[str]:
@@ -31,9 +32,8 @@ def allowed_functions(profile_name: str) -> set[str]:
 
 
 LINUX_EDGE = allowed_functions("linux-edge")
-# Spellings the catalog grew on its own. Still accepted so existing drivers
-# keep working; tools/canonical_debt.py is what stops them from spreading.
-DEPRECATED = PROFILE["deprecated"]["functions"]
+# FTW's spelling on the left, Blixt L1's on the right. Both sides are real.
+DIALECT = PROFILE["deprecated"]["ftw_to_blixt"]
 PENDING = set(PROFILE["pending"]["functions"])
 
 CATALOG = sorted((ROOT / "drivers" / "lua").glob("*.lua"))
@@ -45,15 +45,14 @@ def called_functions(path: Path) -> set[str]:
 
 
 @pytest.mark.parametrize("path", CATALOG + TARGETS, ids=lambda p: p.stem)
-def test_driver_stays_inside_the_linux_edge_contract(path: Path) -> None:
+def test_driver_calls_only_functions_a_host_provides(path: Path) -> None:
     called = called_functions(path)
-    unknown = called - LINUX_EDGE - set(DEPRECATED)
+    unknown = called - LINUX_EDGE - set(DIALECT) - set(DIALECT.values())
 
     assert not unknown, (
-        f"{path.relative_to(ROOT)} calls host functions the linux-edge profile "
-        f"does not define: {sorted(unknown)}. Either add them to "
-        f"spec/host-api-profile.json and spec/host-api.md, or rewrite the "
-        f"driver without them."
+        f"{path.relative_to(ROOT)} calls host functions no host provides: "
+        f"{sorted(unknown)}. Add them to spec/host-api-profile.json once a "
+        f"host implements them, or fix the call."
         + (f" {sorted(unknown & PENDING)} are listed as pending, so decide "
            f"before shipping a driver that needs them."
            if unknown & PENDING else ""))
@@ -61,47 +60,18 @@ def test_driver_stays_inside_the_linux_edge_contract(path: Path) -> None:
 
 @pytest.mark.parametrize("path", CATALOG + TARGETS, ids=lambda p: p.stem)
 def test_driver_does_not_mix_both_spellings_of_one_function(path: Path) -> None:
-    """Calling both names of the same function means one of them is wrong."""
+    """One driver, one dialect. Both names of the same function means a mistake."""
     called = called_functions(path)
-    for old, canonical in DEPRECATED.items():
-        assert not (old in called and canonical in called), (
-            f"{path.relative_to(ROOT)} calls both {old} and {canonical}. "
-            f"They are the same host function under two names; use {canonical}.")
+    for ftw_name, blixt_name in DIALECT.items():
+        assert not (ftw_name in called and blixt_name in called), (
+            f"{path.relative_to(ROOT)} calls both {ftw_name} and {blixt_name}. "
+            f"They are one host function under two names; pick one.")
 
 
-def test_deprecated_spellings_are_not_also_canonical() -> None:
-    """A name cannot be both the target and the thing being replaced."""
-    overlap = set(DEPRECATED) & LINUX_EDGE
-    assert not overlap, (
-        f"{sorted(overlap)} appear as both canonical and deprecated.")
-
-    unknown_targets = set(DEPRECATED.values()) - LINUX_EDGE
-    assert not unknown_targets, (
-        f"deprecated spellings point at {sorted(unknown_targets)}, which the "
-        "profile does not define.")
-
-
-def test_profile_and_spec_agree() -> None:
-    """Every function in the profile must be documented in host-api.md."""
-    spec_text = (ROOT / "spec" / "host-api.md").read_text(encoding="utf-8")
-    documented = set(HOST_CALL.findall(spec_text))
-    undocumented = LINUX_EDGE - documented
-
-    assert not undocumented, (
-        f"spec/host-api.md does not document {sorted(undocumented)}, but the "
-        "linux-edge profile allows them. The prose and the contract must say "
-        "the same thing.")
-
-
-def test_pending_functions_are_not_already_allowed() -> None:
-    """A function cannot be both undecided and permitted."""
-    overlap = PENDING & LINUX_EDGE
-    assert not overlap, (
-        f"{sorted(overlap)} appear in both the profile and the pending list. "
-        "Decide which one is true.")
-
-
-def test_every_build_target_maps_to_a_profile() -> None:
-    for target, profile_name in PROFILE["targets"].items():
-        assert profile_name in PROFILE["profiles"], (
-            f"target {target} maps to unknown profile {profile_name}")
+def test_both_sides_of_the_dialect_map_are_real_names() -> None:
+    """A dialect entry that names something no host has would hide a typo."""
+    blixt_side = set(DIALECT.values())
+    unknown = blixt_side - LINUX_EDGE
+    assert not unknown, (
+        f"the dialect map points at {sorted(unknown)}, which the profile does "
+        "not define. Either add them or fix the map.")

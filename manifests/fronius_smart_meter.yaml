@@ -14,9 +14,9 @@ tested_devices:
     notes: ""
     min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
-size_bytes: 4110
+size_bytes: 6172
 dkb_id: "fronius_smart_meter"
-sha256: "82ad8a35f7131a1f3ae138e7a40944acdf2fb06a92aec9222f20fd417927b202"
+sha256: "b093fd1900589f98ba548cfc2b991f327457c2bc747cf8c6e1de687c2392dfc6"
 signature: ""
 
 bytecode_sha256: ""

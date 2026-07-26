@@ -1,0 +1,22 @@
+name: "zap"
+version: "2.0.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: http
+ders: [meter, pv, battery, v2x_charger]
+control: true
+tested_devices:
+  - manufacturer: "Sourceful"
+    model_family: "Sourceful Zap"
+    variants: [Sourceful Zap (ESP32-C3 controller firmware)]
+    regions: []
+    firmware_versions: ""
+    notes: "Official Sourceful Zap local-API integration for meter, PV, battery and V2X telemetry; safe leased control is pending firmware support."
+    min_driver_version: "2.0.0"
+min_host_version: "2.0.0"
+size_bytes: 30514
+dkb_id: "zap"
+sha256: "735c50fa54e678e7a75c04e4e284a43b3cd9a8e9656e994785c6776789a777a4"
+signature: ""
+
+bytecode_sha256: ""

@@ -74,6 +74,14 @@ def test_manifest_and_driver_table_agree_on_the_version(driver_id: str) -> None:
     if lua_version is None:
         pytest.skip(f"{driver_id} has no version in its DRIVER table")
 
+    baseline = ROOT / "baselines" / "ftw" / "drivers" / f"{driver_id}.lua"
+    if baseline.exists() and baseline.read_bytes() == (LUA_DIR / f"{driver_id}.lua").read_bytes():
+        pytest.skip(
+            f"{driver_id} is FTW's driver verbatim. Its DRIVER table counts "
+            f"FTW's releases; the manifest counts this repository's. Making "
+            f"them agree would mean editing a file kept byte-identical to its "
+            f"baseline, which is what makes provenance checkable.")
+
     assert manifest_version == lua_version, (
         f"{driver_id}: manifest says {manifest_version}, the DRIVER table says "
         f"{lua_version}. Run: make bump-driver ID={driver_id}")

@@ -1,0 +1,22 @@
+name: "ctek_hybrid"
+version: "0.2.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [ev]
+control: true
+tested_devices:
+  - manufacturer: "CTEK"
+    model_family: "CTEK Chargestorm (Modbus + MQTT)"
+    variants: [Chargestorm Connected 2, Chargestorm Connected 3]
+    regions: []
+    firmware_versions: ""
+    notes: "CTEK Chargestorm Connected 2/3 — MQTT for state + live telemetry (preferred), Modbus/TCP for control + telemetry fallback."
+    min_driver_version: "0.2.0"
+min_host_version: "2.0.0"
+size_bytes: 25711
+dkb_id: "ctek_hybrid"
+sha256: "d7c94d47576cb7d10bfcc0133f592be5991c9dc69c49450de85b2d60e2c6fa1b"
+signature: ""
+
+bytecode_sha256: ""

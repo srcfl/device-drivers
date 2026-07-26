@@ -14,9 +14,9 @@ tested_devices:
     notes: ""
     min_driver_version: "1.1.1"
 min_host_version: "2.0.0"
-size_bytes: 5743
+size_bytes: 5488
 dkb_id: "sdm630"
-sha256: "961951511e0800d0380bb4d5272013f4e282b2c5b2d34f0e29b410ead03f06b7"
+sha256: "27d5612b891b01c98b054304a16295bd3e78982d166f731fd99372e3871eea54"
 signature: ""
 
 bytecode_sha256: ""

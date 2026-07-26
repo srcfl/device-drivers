@@ -1,137 +1,175 @@
--- Victron Energy Venus OS Modbus TCP Driver (community, untested)
--- Emits: PV, Battery, Meter
--- Register type: HOLDING (FC 0x03)
--- Reads from Venus OS GX device as Modbus server, unit ID 100 (system summary)
+-- victron.lua
+-- Victron Energy Venus OS / Cerbo GX Modbus TCP driver
+-- Emits: PV, Battery, Meter telemetry (READ-ONLY)
+
+DRIVER = {
+  host_api_min = 1,
+  host_api_max = 1,
+  id           = "victron",
+  name         = "Victron Energy GX",
+  manufacturer = "Victron Energy",
+  version      = "1.0.0",
+  protocols    = { "modbus" },
+  capabilities = { "meter", "pv", "battery" },
+  description  = "Victron Cerbo GX / Venus GX monitoring via Modbus TCP.",
+  homepage     = "https://www.victronenergy.com",
+  authors      = { "FTW contributors" },
+  tested_models = { "Cerbo GX", "Venus GX" },
+  verification_status = "experimental",
+  verification_notes = "Ported from a reference implementation. Not yet verified against live hardware on a FTW site.",
+  connection_defaults = {
+    port    = 502,
+    unit_id = 1,
+  },
+}
 --
--- Sign convention:
---   PV W: negative (generation)
---   Battery W: positive = charging, negative = discharging
---   Meter W: positive = import, negative = export
+-- Register conventions:
+--   Register type: HOLDING (FC 0x03)
+--   Reads from Venus OS / Cerbo GX acting as a Modbus server.
+--   Unit ID 100 is the "system" aggregate — pre-summed across all inverters,
+--   chargers, and MPPTs wired to the GX. Configure unit_id: 100 in YAML.
+--
+-- Sign convention (site, after this driver):
+--   pv.w      negative = generation (this driver negates at the boundary)
+--   battery.w positive = charging, negative = discharging
+--   meter.w   positive = import, negative = export
+--
+-- Victron reports grid power already with import positive / export negative,
+-- so meter.w passes through unchanged. PV is reported positive and is negated
+-- here. Battery power at register 842 is reported with the same sign as the
+-- site convention (positive = charging), so it passes through unchanged.
+-- (The legacy hugin driver negated it; that driver was tagged community/
+-- untested and the inversion looks like a misread of the register map.)
 
 PROTOCOL = "modbus"
 
+----------------------------------------------------------------------------
+-- Initialization
+----------------------------------------------------------------------------
+
 function driver_init(config)
     host.set_make("Victron")
+
+    -- Serial number: unit 100, register 800 (product id) + 801 is reserved.
+    -- The Venus OS system service doesn't expose a scalar SN at unit 100, so
+    -- we leave set_sn for a future per-inverter driver variant. Device
+    -- identity falls back to ARP/endpoint resolution — see
+    -- docs/device-identity.md.
 end
 
-function driver_poll()
-    -- ---- PV Values ----
+----------------------------------------------------------------------------
+-- Telemetry polling
+----------------------------------------------------------------------------
 
-    -- PV AC power: 808 (U16, W)
-    local ok_pvac, pvac_regs = pcall(host.modbus_read, 808, 1, "holding")
+function driver_poll()
+    ------------------------------------------------------------------
+    -- PV (solar generation)
+    ------------------------------------------------------------------
+
+    -- PV AC-coupled output power: registers 808/809/810 (U16, W per phase L1/L2/L3).
+    -- Sum all three phases for total AC-coupled PV.
+    local ok_pvac, pvac_regs = pcall(host.modbus_read, 808, 3, "holding")
     local pv_ac_w = 0
-    if ok_pvac then
-        pv_ac_w = pvac_regs[1]
+    if ok_pvac and pvac_regs then
+        pv_ac_w = (pvac_regs[1] or 0) + (pvac_regs[2] or 0) + (pvac_regs[3] or 0)
     end
 
-    -- PV DC power: 850 (U16, W)
+    -- PV DC-coupled MPPT output power: register 850 (U16, W)
     local ok_pvdc, pvdc_regs = pcall(host.modbus_read, 850, 1, "holding")
     local pv_dc_w = 0
-    if ok_pvdc then
+    if ok_pvdc and pvdc_regs then
         pv_dc_w = pvdc_regs[1]
     end
 
-    -- Total PV = AC + DC, negate for generation convention
     local pv_total = pv_ac_w + pv_dc_w
 
-    -- Emit PV telemetry
+    -- Site convention: PV generation is negative (power flowing out of the
+    -- array into the site).
     host.emit("pv", {
-        W = -pv_total,
+        w = -pv_total,
     })
 
-    -- ---- Grid / Meter Values ----
+    ------------------------------------------------------------------
+    -- Meter (grid connection point)
+    ------------------------------------------------------------------
 
-    -- Grid L1 power: 820 (I16, W), L2: 821, L3: 822
-    local ok_gw, gw_regs = pcall(host.modbus_read, 820, 3, "holding")
-    local grid_l1_w, grid_l2_w, grid_l3_w = 0, 0, 0
-    if ok_gw then
-        grid_l1_w = host.decode_i16(gw_regs[1])
-        grid_l2_w = host.decode_i16(gw_regs[2])
-        grid_l3_w = host.decode_i16(gw_regs[3])
+    -- Grid per-phase power: 820/821/822 (I16, W), import positive (matches site).
+    -- NOTE: 823-825 are genset power (not voltage), 826 is active-input source
+    -- (not current). Only 820-822 are grid power registers on Venus OS unit 100.
+    local ok_grid, grid_regs = pcall(host.modbus_read, 820, 3, "holding")
+    local l1_w, l2_w, l3_w = 0, 0, 0
+    if ok_grid and grid_regs then
+        l1_w = host.decode_i16(grid_regs[1])
+        l2_w = host.decode_i16(grid_regs[2])
+        l3_w = host.decode_i16(grid_regs[3])
     end
 
-    -- Grid L1 voltage: 823 (U16, 0.1V), L2: 824, L3: 825
-    local ok_gv, gv_regs = pcall(host.modbus_read, 823, 3, "holding")
-    local grid_l1_v, grid_l2_v, grid_l3_v = 0, 0, 0
-    if ok_gv then
-        grid_l1_v = gv_regs[1] * 0.1
-        grid_l2_v = gv_regs[2] * 0.1
-        grid_l3_v = gv_regs[3] * 0.1
-    end
+    local grid_total_w = l1_w + l2_w + l3_w
 
-    -- Grid L1 current: 826 (I16, 0.1A), L2: 827, L3: 828
-    local ok_ga, ga_regs = pcall(host.modbus_read, 826, 3, "holding")
-    local grid_l1_a, grid_l2_a, grid_l3_a = 0, 0, 0
-    if ok_ga then
-        grid_l1_a = host.decode_i16(ga_regs[1]) * 0.1
-        grid_l2_a = host.decode_i16(ga_regs[2]) * 0.1
-        grid_l3_a = host.decode_i16(ga_regs[3]) * 0.1
-    end
-
-    local grid_total_w = grid_l1_w + grid_l2_w + grid_l3_w
-
-    -- Emit Meter telemetry (Victron: positive = import, matches convention)
     host.emit("meter", {
-        W    = grid_total_w,
-        L1_W = grid_l1_w,
-        L2_W = grid_l2_w,
-        L3_W = grid_l3_w,
-        L1_V = grid_l1_v,
-        L2_V = grid_l2_v,
-        L3_V = grid_l3_v,
-        L1_A = grid_l1_a,
-        L2_A = grid_l2_a,
-        L3_A = grid_l3_a,
+        w    = grid_total_w,
+        l1_w = l1_w,
+        l2_w = l2_w,
+        l3_w = l3_w,
     })
 
-    -- ---- Battery Values ----
+    -- Diagnostics: long-format TS DB
+    host.emit_metric("meter_l1_w", l1_w)
+    host.emit_metric("meter_l2_w", l2_w)
+    host.emit_metric("meter_l3_w", l3_w)
 
-    -- Battery voltage: 840 (U16, 0.1V)
-    local ok_bv, bv_regs = pcall(host.modbus_read, 840, 1, "holding")
-    local bat_v = 0
-    if ok_bv then
-        bat_v = bv_regs[1] * 0.1
+    ------------------------------------------------------------------
+    -- Battery
+    ------------------------------------------------------------------
+
+    -- Battery block: 840-844 in one atomic read.
+    --   840 — voltage  (U16, 0.1 V)
+    --   841 — current  (I16, 0.1 A) — positive = charging
+    --   842 — power    (I16, W)     — positive = charging (matches site)
+    --   843 — SoC      (U16, %)     — convert to 0.0–1.0 fraction
+    --   844 — temp     (I16, 0.1 C)
+    local ok_bat, bat_regs = pcall(host.modbus_read, 840, 5, "holding")
+    local bat_v, bat_a, bat_w, bat_soc, bat_temp = 0, 0, 0, 0, 0
+    if ok_bat and bat_regs then
+        bat_v    = bat_regs[1] * 0.1
+        bat_a    = host.decode_i16(bat_regs[2]) * 0.1
+        bat_w    = host.decode_i16(bat_regs[3])
+        bat_soc  = bat_regs[4] / 100
+        bat_temp = host.decode_i16(bat_regs[5]) * 0.1
     end
 
-    -- Battery current: 841 (I16, 0.1A)
-    local ok_ba, ba_regs = pcall(host.modbus_read, 841, 1, "holding")
-    local bat_a = 0
-    if ok_ba then
-        bat_a = host.decode_i16(ba_regs[1]) * 0.1
-    end
-
-    -- Battery power: 842 (I16, W)
-    local ok_bw, bw_regs = pcall(host.modbus_read, 842, 1, "holding")
-    local bat_w = 0
-    if ok_bw then
-        bat_w = host.decode_i16(bw_regs[1])
-    end
-
-    -- Battery SoC: 843 (U16, %)
-    local ok_soc, soc_regs = pcall(host.modbus_read, 843, 1, "holding")
-    local bat_soc = 0
-    if ok_soc then
-        bat_soc = soc_regs[1] / 100  -- percent to fraction
-    end
-
-    -- Battery temp: 844 (I16, 0.1C)
-    local ok_bt, bt_regs = pcall(host.modbus_read, 844, 1, "holding")
-    local bat_temp = 0
-    if ok_bt then
-        bat_temp = host.decode_i16(bt_regs[1]) * 0.1
-    end
-
-    -- Emit Battery telemetry
-    -- Victron Modbus: positive power = discharging, negate for convention
     host.emit("battery", {
-        W      = -bat_w,
-        V      = bat_v,
-        A      = bat_a,
-        SoC_nom_fract    = bat_soc,
-        temperature_C = bat_temp,
+        w      = bat_w,
+        v      = bat_v,
+        a      = bat_a,
+        soc    = bat_soc,
+        temp_c = bat_temp,
     })
+    host.emit_metric("battery_dc_v",    bat_v)
+    host.emit_metric("battery_dc_a",    bat_a)
+    host.emit_metric("battery_temp_c",  bat_temp)
 
     return 5000
+end
+
+----------------------------------------------------------------------------
+-- Control (read-only driver)
+----------------------------------------------------------------------------
+
+-- This driver is READ-ONLY: no battery force-charge, no export curtailment.
+-- Victron's ESS module accepts control via /Hub4/DisableCharge, /DisableFeedIn
+-- and /AcPowerSetpoint on service com.victronenergy.settings, but those are
+-- dbus-first and are not in the default Modbus register map. Extend this
+-- driver if/when we validate the write path on a real Cerbo GX.
+function driver_command(action, power_w, cmd)
+    if action == "init" or action == "deinit" then
+        return true
+    end
+    return false
+end
+
+function driver_default_mode()
+    -- Nothing to revert — device runs in its own ESS mode autonomously.
 end
 
 function driver_cleanup()

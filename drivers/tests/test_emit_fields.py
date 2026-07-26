@@ -58,6 +58,11 @@ VALID_FIELDS = {
         "upper_limit_w", "lower_limit_w",
         # Ferroamp, Ambibox nominal SoC
         "soc_nom_fract",
+        # Pixii reports what the pack is doing and why, not only how much.
+        # These come from a driver that has run in the field for months; the
+        # list above was written from the catalog's narrower view.
+        "charge_status", "control_mode",
+        "battery_state", "battery_vendor_state", "battery_event1",
     },
     "v2x_charger": {
         "w", "a", "v", "hz",

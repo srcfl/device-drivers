@@ -1,7 +1,0 @@
-{
-  "schema_version": "sourceful.canonical-debt/v1",
-  "note": "Lower is better. Never raise a number here by hand; convert a driver and re-record.",
-  "total": 0,
-  "drivers_affected": 0,
-  "per_driver": {}
-}

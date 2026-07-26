@@ -16,7 +16,11 @@ from manifest_parser import parse_yaml_simple, parse_tested_devices
 REQUIRED_FIELDS = ["name", "version", "tier", "protocol", "ders", "size_bytes"]
 VALID_TIERS = {"core", "community", "oem"}
 VALID_PROTOCOLS = {"modbus", "mqtt", "serial", "standalone", "http", ""}
-VALID_DERS = {"pv", "battery", "meter", "v2x_charger"}
+# The DER types FTW's drivers actually emit. `ev` is a charger, `v2x_charger`
+# one that can also discharge, and `vehicle` the car itself rather than the
+# thing it plugs into. The catalog knew only the first four, so eight shipped
+# drivers had no honest way to describe themselves.
+VALID_DERS = {"pv", "battery", "meter", "v2x_charger", "ev", "heatpump", "vehicle"}
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
 REQUIRED_DEVICE_FIELDS = {"manufacturer", "model_family"}

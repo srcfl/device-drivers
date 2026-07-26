@@ -1,0 +1,22 @@
+name: "solis_string"
+version: "1.0.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [pv]
+control: true
+tested_devices:
+  - manufacturer: "Ginlong Solis"
+    model_family: "Solis string inverter"
+    variants: [S5-GC, S6-GR1P, 3P-G4, 1P-G4]
+    regions: []
+    firmware_versions: ""
+    notes: "Solis non-hybrid PV inverters via Modbus TCP."
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 4752
+dkb_id: "solis_string"
+sha256: "f9d1e29e5209c6870a690b7bcf00f153b15a0c61bcc491f6183cb8a8cdacb5a2"
+signature: ""
+
+bytecode_sha256: ""

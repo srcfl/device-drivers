@@ -3,10 +3,13 @@
 Functions available to Lua drivers via the `host` table, implemented by each
 linux-edge host: FTW (gopher-lua) and Blixt L1 (luajit).
 
-Names follow Blixt L1, which is this repository's naming reference. Where the
-catalog grew a different spelling for the same function, the old name still
-works and is listed in `spec/host-api-profile.json` under `deprecated`;
-`tools/canonical_debt.py` counts what is left to convert.
+Two hosts, two dialects, both correct. FTW spells several functions the way
+its Go binding always has (`modbus_write`, `millis`); Blixt L1 spells them
+`write` and `now_ms`. Neither is the "real" name — each is the real API of a
+shipping host, and a host that wants the other's drivers adds aliases, which
+FTW did in about thirty lines. `spec/host-api-profile.json` maps the two under
+`ftw_to_blixt`, and `tools/host_api_check.py` enforces the one rule that
+matters: a driver must not call a name no host provides.
 
 ## Core
 
@@ -74,9 +77,10 @@ A repeating structure is a plural-named array, never numbered keys. `pv.mppts`
 is a list of `{V, A, W}` as long as the device physically has. The catalog's
 `mppt1_v`/`mppt2_v` cannot describe a four-MPPT inverter at all.
 
-Catalog drivers still emit the older lowercase keys (`w`, `soc`, `import_wh`).
-Those are counted as debt by `tools/canonical_debt.py` and convert one driver
-at a time.
+Emit keys follow the same two dialects: FTW's drivers use `w`, `soc`,
+`import_wh`, Blixt's use `W`, `SoC_nom_fract`, `total_import_Wh`. FTW accepts
+both since v1.11.4-beta.7. Use whichever your target speaks and do not convert
+a working driver to change the spelling of what it already reports correctly.
 
 **V2X Charger:** `w`, `a`, `v`, `hz`, `l1_a`..`l3_a`, `l1_v`..`l3_v`, `l1_w`..`l3_w`, `dc_w`, `dc_a`, `dc_v`, `vehicle_soc_fract`, `ev_max_energy_req_wh`, `ev_min_energy_req_wh`, `session_charge_wh`, `session_discharge_wh`, `total_charge_wh`, `total_discharge_wh`, `capacity_wh`, `rated_power_w`
 

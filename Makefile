@@ -8,15 +8,12 @@ LEVEL ?= patch
 
 .PHONY: bootstrap new-driver test-driver package-driver check boundary \
 	sync-manifests bump-driver history ftw-baseline ftw-baseline-report \
-	canonical-debt canonical-debt-record
+	host-api
 
-# How far the catalog still is from the canonical driver shape.
-canonical-debt:
-	uv run --frozen --extra package --extra dev python tools/canonical_debt.py
+# Does any driver call a host function no host provides?
+host-api:
+	uv run --frozen --extra package --extra dev python tools/host_api_check.py
 
-# Accept the current debt after converting a driver. Never raise it by hand.
-canonical-debt-record:
-	uv run --frozen --extra package --extra dev python tools/canonical_debt.py --record
 
 # Re-import FTW's bundled drivers into baselines/ftw. Needs the GitHub API.
 ftw-baseline:
@@ -78,6 +75,6 @@ check: boundary
 	git diff --exit-code -- support-status.json SUPPORT_STATUS.md
 	uv run --frozen --extra package --extra dev python tools/generate_history.py --check
 	uv run --frozen --extra package --extra dev python tools/import_ftw_baseline.py --check
-	uv run --frozen --extra package --extra dev python tools/canonical_debt.py --check
+	uv run --frozen --extra package --extra dev python tools/host_api_check.py --check
 	bash tools/check_sandbox.sh
 	uv run --frozen --extra package --extra dev pytest -q drivers/tests tests

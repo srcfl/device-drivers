@@ -35,9 +35,9 @@ tested_devices:
     notes: "Three-phase grid-tie string inverter (PV + meter only)"
     min_driver_version: "1.2.0"
 min_host_version: "2.0.0"
-size_bytes: 7187
+size_bytes: 22941
 dkb_id: "deye"
-sha256: "a6cf9865dfb46aff166d294c0ffa8fe26a877318df90df88ee6fc7f7fd18ef31"
+sha256: "a563b0ce0f06f853d84d481708612bb620fadc0389c1f3fbc2e08195cfc68adc"
 signature: ""
 
 bytecode_sha256: ""

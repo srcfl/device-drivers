@@ -1,0 +1,22 @@
+name: "solaredge_legacy"
+version: "0.2.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [pv]
+control: true
+tested_devices:
+  - manufacturer: "SolarEdge"
+    model_family: "SolarEdge legacy (K-series with display)"
+    variants: [SE17K (display, legacy firmware)]
+    regions: []
+    firmware_versions: ""
+    notes: "SolarEdge K-series (SE7K / SE10K / SE17K / SE25K) PV inverter via Modbus TCP — reads use FC 0x03 holding; curtail writes use FC 0x10 multi-holding on the same Advanced Power Control registers (0xF000/0xF001) as HD-Wave."
+    min_driver_version: "0.2.0"
+min_host_version: "2.0.0"
+size_bytes: 14730
+dkb_id: "solaredge_legacy"
+sha256: "669aa969467e81c337269ab0f5a2d01d01a0f270deb55491c6a5adc6df848a6f"
+signature: ""
+
+bytecode_sha256: ""

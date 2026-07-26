@@ -42,9 +42,9 @@ tested_devices:
     notes: "Commercial/industrial inverter"
     min_driver_version: "1.2.0"
 min_host_version: "2.0.0"
-size_bytes: 7202
+size_bytes: 16671
 dkb_id: "solis"
-sha256: "79c9f2cbc4e57e4f904ab8eeb89008f2f11df4791fa072296466b3ecec710874"
+sha256: "d44a018d2a4d1d08d9bc65a7441ee62a81b05852f19aa8df6115b9d360ebc5b3"
 signature: ""
 
 bytecode_sha256: ""

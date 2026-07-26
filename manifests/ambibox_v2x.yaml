@@ -1,0 +1,22 @@
+name: "ambibox_v2x"
+version: "1.0.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: mqtt
+ders: [v2x_charger]
+control: true
+tested_devices:
+  - manufacturer: "Ambibox"
+    model_family: "Ambibox V2X"
+    variants: []
+    regions: []
+    firmware_versions: ""
+    notes: "Ambibox bidirectional V2X charger via MQTT."
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 7506
+dkb_id: "ambibox_v2x"
+sha256: "90a572b0f74511d42e4b55047a6e1e52f266af5f595ce31dbcf2ffd74ce4253f"
+signature: ""
+
+bytecode_sha256: ""

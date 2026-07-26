@@ -1,0 +1,22 @@
+name: "zuidwijk_p1"
+version: "1.0.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: modbus
+ders: [meter]
+control: true
+tested_devices:
+  - manufacturer: "Zuidwijk"
+    model_family: "Zuidwijk P1 Reader Ethernet"
+    variants: [Sagemcom T210-D, Kaifa MA105/MA304, Iskra ME382]
+    regions: []
+    firmware_versions: ""
+    notes: "Dutch DSMR P1 smart-meter via Zuidwijk Serial-to-Ethernet bridge (raw TCP, port 23)."
+    min_driver_version: "1.0.0"
+min_host_version: "2.0.0"
+size_bytes: 16217
+dkb_id: "zuidwijk_p1"
+sha256: "61f1d6522823b6054172d9f9fd17cc6f84088be515077043e1123b6dfb509f3a"
+signature: ""
+
+bytecode_sha256: ""
