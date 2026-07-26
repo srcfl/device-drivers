@@ -1,5 +1,5 @@
 name: "deye"
-version: "1.2.1"
+version: "1.2.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -37,7 +37,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 7187
 dkb_id: "deye"
-sha256: "f2635f7e8dea29b9851d0cecc41c9b94e6d50afacdbd718edfc3445a4dd103eb"
+sha256: "a6cf9865dfb46aff166d294c0ffa8fe26a877318df90df88ee6fc7f7fd18ef31"
 signature: ""
 
 bytecode_sha256: ""

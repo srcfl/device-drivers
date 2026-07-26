@@ -81,13 +81,13 @@ drivers:
     size_bytes: 3444
     sha256: "4a788619bac31c0a339d56e9014eac17e9e71c07ce43105dea9a8d105b809d04"
   - name: "deye"
-    version: "1.2.1"
+    version: "1.2.2"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: false
     size_bytes: 7187
-    sha256: "f2635f7e8dea29b9851d0cecc41c9b94e6d50afacdbd718edfc3445a4dd103eb"
+    sha256: "a6cf9865dfb46aff166d294c0ffa8fe26a877318df90df88ee6fc7f7fd18ef31"
   - name: "easee"
     version: "1.0.2"
     tier: community
@@ -145,13 +145,13 @@ drivers:
     size_bytes: 6075
     sha256: "aa3aedd8172431fe1a3295ca6259a36c7bf845113d68c099a0cf3381dce7a992"
   - name: "fronius"
-    version: "1.2.3"
+    version: "1.2.4"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: false
     size_bytes: 8762
-    sha256: "803c9b3b375666028764c1f4b05f63dd256e1590c1a5f7c6f9d9e0c733fe8d42"
+    sha256: "f5b557ee938833ccdad5a04e4fc5754ffe5f461df71801aaf11bb0b589c978fc"
   - name: "fronius_api"
     version: "1.0.1"
     tier: community
@@ -385,13 +385,13 @@ drivers:
     size_bytes: 3925
     sha256: "133d960e034793011b4c503f778dd7dba000ab2ea0288fd108b4c42f34d95c16"
   - name: "sma"
-    version: "1.2.3"
+    version: "1.2.4"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: false
     size_bytes: 7610
-    sha256: "3eaf7eaf4eddfdd03b223b1ec84248bc3e358cc1cfd7611f3c3fcdba5a04a337"
+    sha256: "817e9a29badc0e5c922a2111f0be26ef1b39305e08e2e7eaf39dac3e9bd6dbed"
   - name: "socomec"
     version: "1.0.2"
     tier: community
@@ -449,13 +449,13 @@ drivers:
     size_bytes: 2101
     sha256: "2adae2aca26c547d224f87f486c74231165035ed5cb61a12227fe689663f27f9"
   - name: "sungrow"
-    version: "1.3.0"
+    version: "1.3.1"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
     size_bytes: 14397
-    sha256: "d3169fa4ae35b50c7deb9ce9ee4a88729a7d5bb05ffc284ab7374147a606e6fe"
+    sha256: "592941b552e15d2117411a394b04f537aa8f68db094e1193f922ef44ccf89c90"
   - name: "varta"
     version: "1.0.1"
     tier: community

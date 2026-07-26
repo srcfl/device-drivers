@@ -129,7 +129,7 @@ function driver_poll()
     local ok_rw, rw_regs = pcall(host.modbus_read, 40134, 1, "holding")
     local rated_w = 0
     if ok_rw then
-        rated_w = scale(rw_regs[1], rated_w_sf)
+        rated_W = scale(rw_regs[1], rated_w_sf)
     end
 
     -- MPPT1 A/V: 40282-40283, U16 each

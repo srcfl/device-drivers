@@ -1,5 +1,5 @@
 name: "fronius"
-version: "1.2.3"
+version: "1.2.4"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -51,7 +51,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 8762
 dkb_id: "fronius_symo_gen24"
-sha256: "803c9b3b375666028764c1f4b05f63dd256e1590c1a5f7c6f9d9e0c733fe8d42"
+sha256: "f5b557ee938833ccdad5a04e4fc5754ffe5f461df71801aaf11bb0b589c978fc"
 signature: ""
 
 bytecode_sha256: ""

@@ -1,5 +1,5 @@
 name: "sma"
-version: "1.2.3"
+version: "1.2.4"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -58,7 +58,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 7610
 dkb_id: "sma"
-sha256: "3eaf7eaf4eddfdd03b223b1ec84248bc3e358cc1cfd7611f3c3fcdba5a04a337"
+sha256: "817e9a29badc0e5c922a2111f0be26ef1b39305e08e2e7eaf39dac3e9bd6dbed"
 signature: ""
 
 bytecode_sha256: ""
