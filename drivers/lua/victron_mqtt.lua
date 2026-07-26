@@ -138,7 +138,7 @@ function driver_poll()
 
     if fresh_pv then
         host.emit("pv", {
-            w = -pv_total,
+            W = -pv_total,
         })
     end
 
@@ -148,11 +148,11 @@ function driver_poll()
 
     if fresh_battery then
         host.emit("battery", {
-            w      = -bat_w,
-            v      = bat_v,
-            a      = bat_a,
-            soc    = bat_soc_fract,
-            temp_c = bat_temp,
+            W      = -bat_w,
+            V      = bat_v,
+            A      = bat_a,
+            SoC_nom_fract    = bat_soc_fract,
+            temperature_C = bat_temp,
         })
     end
 
@@ -162,10 +162,10 @@ function driver_poll()
 
     if fresh_meter then
         host.emit("meter", {
-            w    = grid_total,
-            l1_w = grid_l1_w,
-            l2_w = grid_l2_w,
-            l3_w = grid_l3_w,
+            W    = grid_total,
+            L1_W = grid_l1_w,
+            L2_W = grid_l2_w,
+            L3_W = grid_l3_w,
         })
     end
 

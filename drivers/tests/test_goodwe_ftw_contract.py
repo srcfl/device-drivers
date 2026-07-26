@@ -1,6 +1,7 @@
 """Run the public GoodWe source against the FTW v1 driver contract."""
 
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -11,13 +12,23 @@ sys.path.insert(0, str(ROOT / "tools"))
 from driver_package import _validate_lua_source_for_target  # noqa: E402
 
 
+def _goodwe_package_version() -> str:
+    """The package version, read rather than pinned.
+
+    A literal here fails on every driver bump for a reason unrelated to what
+    the test is checking, which is that the Lua metadata and the package agree.
+    """
+    package = (ROOT / "packages/v1/goodwe/package-source.json").read_text(encoding="utf-8")
+    return re.search(r'^  "version":\s*"([^"]+)"', package, re.M).group(1)
+
+
 def test_goodwe_public_source_has_ftw_managed_metadata():
     source = (ROOT / "drivers/lua/goodwe.lua").read_bytes()
     _validate_lua_source_for_target(
         source,
         target="ftw-core",
         read_only=True,
-        package_version="1.0.2",
+        package_version=_goodwe_package_version(),
         runtime_abi="gopher-lua-source-v1",
     )
 

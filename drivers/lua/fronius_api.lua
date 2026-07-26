@@ -54,8 +54,8 @@ function driver_poll()
 
     -- Emit PV telemetry (negative for generation)
     host.emit("pv", {
-        w           = -pv_w,
-        lifetime_wh = pv_total_wh,
+        W           = -pv_w,
+        total_generation_Wh = pv_total_wh,
     })
 
     -- Grid power: P_Grid (W, positive = import, negative = export)
@@ -63,7 +63,7 @@ function driver_poll()
 
     -- Emit Meter telemetry
     host.emit("meter", {
-        w = grid_w,
+        W = grid_w,
     })
 
     return 5000

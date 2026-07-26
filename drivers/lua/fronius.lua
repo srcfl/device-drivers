@@ -176,14 +176,14 @@ function driver_poll()
 
     -- Emit PV telemetry (PV = -DC_W, always negative for generation)
     host.emit("pv", {
-        w           = -dc_w,
+        W           = -dc_w,
         mppt1_v     = mppt1_v,
         mppt1_a     = mppt1_a,
         mppt2_v     = mppt2_v,
         mppt2_a     = mppt2_a,
-        lifetime_wh = lifetime_wh,
-        temp_c      = heatsink_c,
-        rated_w     = rated_w,
+        total_generation_Wh = lifetime_wh,
+        temperature_C      = heatsink_c,
+        rated_W     = rated_w,
     })
 
     -- ---- Battery ----
@@ -235,9 +235,9 @@ function driver_poll()
 
     -- Emit Battery telemetry
     host.emit("battery", {
-        w   = bat_w,
-        v   = bat_v,
-        soc = bat_soc,
+        W   = bat_w,
+        V   = bat_v,
+        SoC_nom_fract = bat_soc,
     })
 
     -- ---- Meter (derived from AC values) ----
@@ -248,17 +248,17 @@ function driver_poll()
 
     -- Emit Meter telemetry (AC power direct, positive=import)
     host.emit("meter", {
-        w    = ac_w,
-        l1_w = l1_w,
-        l2_w = l2_w,
-        l3_w = l3_w,
-        l1_v = l1_v,
-        l2_v = l2_v,
-        l3_v = l3_v,
-        l1_a = l1_a,
-        l2_a = l2_a,
-        l3_a = l3_a,
-        hz   = hz,
+        W    = ac_w,
+        L1_W = l1_w,
+        L2_W = l2_w,
+        L3_W = l3_w,
+        L1_V = l1_v,
+        L2_V = l2_v,
+        L3_V = l3_v,
+        L1_A = l1_a,
+        L2_A = l2_a,
+        L3_A = l3_a,
+        Hz   = hz,
     })
 
     return 5000

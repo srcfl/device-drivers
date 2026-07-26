@@ -115,11 +115,59 @@
   "emit_keys": {
     "description": "Blixt reads each emit table by exact key name and silently drops a key whose case is wrong, so these are a contract rather than a convention. They match @srcful/data-models verbatim. The catalog grew lowercase names instead; both are counted as debt until drivers are converted.",
     "canonical": {
-      "battery": ["W", "V", "A", "SoC_nom_fract", "temperature_C", "total_charge_Wh", "total_discharge_Wh", "available_charge_Wh", "available_discharge_Wh"],
-      "inverter": ["W", "VA", "Hz", "L1_V", "L1_A", "L1_W", "L2_V", "L2_A", "L2_W", "L3_V", "L3_A", "L3_W", "rated_W"],
-      "pv": ["W", "total_generation_Wh", "mppts"],
-      "meter": ["W", "Hz", "L1_V", "L1_A", "L1_W", "L2_V", "L2_A", "L2_W", "L3_V", "L3_A", "L3_W", "total_import_Wh", "total_export_Wh"]
+      "battery": [
+        "W",
+        "V",
+        "A",
+        "SoC_nom_fract",
+        "temperature_C",
+        "total_charge_Wh",
+        "total_discharge_Wh",
+        "available_charge_Wh",
+        "available_discharge_Wh"
+      ],
+      "inverter": [
+        "W",
+        "VA",
+        "Hz",
+        "L1_V",
+        "L1_A",
+        "L1_W",
+        "L2_V",
+        "L2_A",
+        "L2_W",
+        "L3_V",
+        "L3_A",
+        "L3_W",
+        "rated_W"
+      ],
+      "pv": [
+        "W",
+        "total_generation_Wh",
+        "mppts"
+      ],
+      "meter": [
+        "W",
+        "Hz",
+        "L1_V",
+        "L1_A",
+        "L1_W",
+        "L2_V",
+        "L2_A",
+        "L2_W",
+        "L3_V",
+        "L3_A",
+        "L3_W",
+        "total_import_Wh",
+        "total_export_Wh"
+      ]
     },
-    "repeating_structures": "A repeating structure is a plural-named array, not numbered keys. pv.mppts is a list of {V, A, W} whose length is what the device physically has. The catalog's mppt1_v/mppt2_v cannot represent a four-MPPT inverter at all."
+    "repeating_structures": "A repeating structure is a plural-named array, not numbered keys. pv.mppts is a list of {V, A, W} whose length is what the device physically has. The catalog's mppt1_v/mppt2_v cannot represent a four-MPPT inverter at all.",
+    "no_canonical_schema_yet": {
+      "der_types": [
+        "v2x_charger"
+      ],
+      "reason": "@srcful/data-models has no agreed v2x_charger shape, and Blixt has no v2x driver to take the naming from. The 13 chargers here keep the short keys until one exists; guessing a schema would be worse than saying it is undecided."
+    }
   }
 }

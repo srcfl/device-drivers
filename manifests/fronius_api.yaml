@@ -1,5 +1,5 @@
 name: "fronius_api"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -14,9 +14,9 @@ tested_devices:
     notes: "HTTP alternative to Modbus driver, read-only"
     min_driver_version: "1.0.0"
 min_host_version: "2.1.0"
-size_bytes: 2072
+size_bytes: 2080
 dkb_id: ""
-sha256: "cedaf36dc3f5aca8b75c624fd66f868d9566bc23464b6034528327e875b7db9c"
+sha256: "3094603577fc51aa45bb4c757a471d24e8cb77ee4f0c596bb2fd4112b22a6578"
 signature: ""
 
 bytecode_sha256: ""

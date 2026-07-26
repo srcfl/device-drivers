@@ -89,7 +89,7 @@ def write_lua_version(path: Path, version: str) -> bool:
     return changed
 
 
-def write_package_version(driver_id: str, version: str) -> bool:
+def write_package_version(driver_id: str, previous: str, version: str) -> bool:
     """Keep packages/v1/<id>/package-source.json in step.
 
     The package build refuses an artifact whose Lua metadata version differs
@@ -99,10 +99,16 @@ def write_package_version(driver_id: str, version: str) -> bool:
     if not path.exists():
         return False
     text = path.read_text(encoding="utf-8")
-    new_text, count = re.subn(r'^(  "version":\s*)"[^"]+"', rf'\1"{version}"',
-                              text, count=1, flags=re.M)
-    if count != 1 or new_text == text:
+
+    # A package may run its own version line. sungrow's catalog driver is on
+    # 1.2.x while its package is on 1.3.x, and forcing them together would
+    # rewrite a published package version. Only follow along when the package
+    # was tracking the driver, which is what sdm630 does.
+    match = re.search(r'^  "version":\s*"([^"]+)"', text, re.M)
+    if not match or match.group(1) != previous:
         return False
+
+    new_text = text[:match.start(1)] + version + text[match.end(1):]
     path.write_text(new_text, encoding="utf-8")
     return True
 
@@ -137,7 +143,7 @@ def main() -> int:
 
     write_manifest_version(manifest_path, target)
     lua_changed = write_lua_version(lua_path, target)
-    package_changed = write_package_version(args.id, target)
+    package_changed = write_package_version(args.id, current, target)
 
     updated = ["manifest"]
     if lua_changed:

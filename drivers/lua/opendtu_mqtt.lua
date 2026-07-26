@@ -100,21 +100,21 @@ function driver_poll()
     -- Emit PV telemetry
     -- Negate power: PV generation is negative by convention
     host.emit("pv", {
-        w           = -ac_power,
+        W           = -ac_power,
         mppt1_v     = dc0_voltage,
         mppt1_a     = dc0_current,
         mppt2_v     = 0,
         mppt2_a     = 0,
-        lifetime_wh = yield_total_kwh * 1000,
+        total_generation_Wh = yield_total_kwh * 1000,
     })
 
     -- Emit Meter telemetry from AC side
     host.emit("meter", {
-        w           = ac_power,
-        l1_v        = ac_voltage,
-        l1_a        = ac_current,
-        hz          = ac_frequency,
-        import_wh   = yield_total_kwh * 1000,
+        W           = ac_power,
+        L1_V        = ac_voltage,
+        L1_A        = ac_current,
+        Hz          = ac_frequency,
+        total_import_Wh   = yield_total_kwh * 1000,
     })
 
     return 2000

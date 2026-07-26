@@ -11,7 +11,7 @@ DRIVER = {
     id = "pixii",
     name = "Pixii PowerShaper",
     manufacturer = "Pixii",
-    version = "1.2.2",
+    version = "1.2.3",
     protocols = {"modbus"},
     capabilities = {"battery", "meter"},
     description = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -245,19 +245,19 @@ function driver_poll()
     end
 
     host.emit("meter", {
-        w = meter_w,
-        l1_w = l1_w,
-        l2_w = l2_w,
-        l3_w = l3_w,
-        l1_v = l1_v,
-        l2_v = l2_v,
-        l3_v = l3_v,
-        l1_a = l1_a,
-        l2_a = l2_a,
-        l3_a = l3_a,
-        hz = meter_hz,
-        import_wh = import_wh,
-        export_wh = export_wh,
+        W = meter_w,
+        L1_W = l1_w,
+        L2_W = l2_w,
+        L3_W = l3_w,
+        L1_V = l1_v,
+        L2_V = l2_v,
+        L3_V = l3_v,
+        L1_A = l1_a,
+        L2_A = l2_a,
+        L3_A = l3_a,
+        Hz = meter_hz,
+        total_import_Wh = import_wh,
+        total_export_Wh = export_wh,
     })
 
     return 5000
@@ -286,13 +286,13 @@ end
 local function write_setpoint(power_w)
     local pixii_w = -power_w
     local hi, lo = encode_i32_be(pixii_w)
-    local write_error = host.modbus_write_multi(REG_SETPOINT_HI, {hi, lo})
+    local write_error = host.write_registers(REG_SETPOINT_HI, {hi, lo})
     if write_error then
         return false, "setpoint write failed: " .. tostring(write_error)
     end
 
     heartbeat = (heartbeat + 1) % 100
-    local heartbeat_error = host.modbus_write(REG_HEARTBEAT, heartbeat)
+    local heartbeat_error = host.write(REG_HEARTBEAT, heartbeat)
     if heartbeat_error then
         return false, "heartbeat write failed: " .. tostring(heartbeat_error)
     end

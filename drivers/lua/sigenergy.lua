@@ -11,7 +11,7 @@ local function write_u32(addr, val)
     val = math.floor(math.abs(val))
     local hi = math.floor(val / 65536)
     local lo = val % 65536
-    host.modbus_write_multiple(addr, {hi, lo})
+    host.write_registers(addr, {hi, lo})
 end
 
 function driver_init(config)
@@ -31,7 +31,7 @@ function driver_poll()
     end
 
     host.emit("pv", {
-        w = -pv_w,
+        W = -pv_w,
     })
 
     -- =====================
@@ -57,8 +57,8 @@ function driver_poll()
     local ok_soh, soh_regs = pcall(host.modbus_read, 30087, 1, "input")
 
     host.emit("battery", {
-        w   = bat_w,
-        soc = bat_soc,
+        W   = bat_w,
+        SoC_nom_fract = bat_soc,
     })
 
     -- =====================
@@ -84,10 +84,10 @@ function driver_poll()
     end
 
     host.emit("meter", {
-        w    = meter_w,
-        l1_w = l1_w,
-        l2_w = l2_w,
-        l3_w = l3_w,
+        W    = meter_w,
+        L1_W = l1_w,
+        L2_W = l2_w,
+        L3_W = l3_w,
     })
 
     return 5000
@@ -96,20 +96,20 @@ end
 function driver_command(action, power_w, cmd)
     if action == "init" then
         -- Enable Remote EMS
-        host.modbus_write(40029, 1)
+        host.write(40029, 1)
         return true
     elseif action == "battery" then
         if power_w > 0 then
             -- Command charging (PV first)
-            host.modbus_write(40031, 4)
+            host.write(40031, 4)
             write_u32(40032, power_w)
         elseif power_w < 0 then
             -- Command discharging (ESS first)
-            host.modbus_write(40031, 6)
+            host.write(40031, 6)
             write_u32(40034, math.abs(power_w))
         else
             -- Max self-consumption
-            host.modbus_write(40031, 2)
+            host.write(40031, 2)
         end
         return true
     elseif action == "curtail" then
@@ -122,14 +122,14 @@ function driver_command(action, power_w, cmd)
         return true
     elseif action == "deinit" then
         -- Disable Remote EMS, return to local control
-        host.modbus_write(40029, 0)
+        host.write(40029, 0)
         return true
     end
     return false
 end
 
 function driver_default_mode()
-    host.modbus_write(40029, 0)
+    host.write(40029, 0)
 end
 
 function driver_cleanup()

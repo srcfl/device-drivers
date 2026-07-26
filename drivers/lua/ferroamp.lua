@@ -164,7 +164,7 @@ function driver_poll()
             -- ppv can be an array of per-string values or a scalar total
             local total = sum_phases(ppv)
             -- Negate: Ferroamp reports PV as positive, convention requires negative
-            host.emit("pv", { w = -total })
+            host.emit("pv", { W = -total })
         end
     end
 

@@ -49,13 +49,13 @@ function driver_poll()
 
     -- Emit PV telemetry (W always negative for generation)
     host.emit("pv", {
-        w           = -pv_w,
+        W           = -pv_w,
         mppt1_v     = mppt1_v,
         mppt1_a     = mppt1_a,
         mppt2_v     = mppt2_v,
         mppt2_a     = mppt2_a,
-        lifetime_wh = pv_gen_wh,
-        temp_c      = inv_temp,
+        total_generation_Wh = pv_gen_wh,
+        temperature_C      = inv_temp,
     })
 
     -- Battery voltage: 33133, U16 × 0.1 V
@@ -121,13 +121,13 @@ function driver_poll()
 
     -- Emit Battery telemetry
     host.emit("battery", {
-        w            = bat_w,
-        v            = bat_v,
-        a            = bat_a,
-        soc          = bat_soc,
-        temp_c       = bat_temp,
-        charge_wh    = bat_charge_wh,
-        discharge_wh = bat_discharge_wh,
+        W            = bat_w,
+        V            = bat_v,
+        A            = bat_a,
+        SoC_nom_fract          = bat_soc,
+        temperature_C       = bat_temp,
+        total_charge_Wh    = bat_charge_wh,
+        total_discharge_Wh = bat_discharge_wh,
     })
 
     -- Per-phase V/A: 33251-33256, alternating U16 × 0.1 V / U16 × 0.01 A
@@ -177,19 +177,19 @@ function driver_poll()
 
     -- Emit Meter telemetry (negate per-phase to match our convention)
     host.emit("meter", {
-        w         = meter_w,
-        l1_w      = -l1_w,
-        l2_w      = -l2_w,
-        l3_w      = -l3_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = l1_a,
-        l2_a      = l2_a,
-        l3_a      = l3_a,
-        hz        = hz,
-        import_wh = import_wh,
-        export_wh = export_wh,
+        W         = meter_w,
+        L1_W      = -l1_w,
+        L2_W      = -l2_w,
+        L3_W      = -l3_w,
+        L1_V      = l1_v,
+        L2_V      = l2_v,
+        L3_V      = l3_v,
+        L1_A      = l1_a,
+        L2_A      = l2_a,
+        L3_A      = l3_a,
+        Hz        = hz,
+        total_import_Wh = import_wh,
+        total_export_Wh = export_wh,
     })
 
     return 5000
@@ -201,30 +201,30 @@ function driver_command(action, power_w, cmd)
     elseif action == "battery" then
         if power_w > 0 then
             -- Charge: set limit then mode=1 (forced_charge)
-            host.modbus_write(43050, power_w)
-            host.modbus_write(43049, 1)
+            host.write(43050, power_w)
+            host.write(43049, 1)
         elseif power_w < 0 then
             -- Discharge: set limit then mode=2 (forced_discharge)
-            host.modbus_write(43051, math.abs(power_w))
-            host.modbus_write(43049, 2)
+            host.write(43051, math.abs(power_w))
+            host.write(43049, 2)
         else
             -- Auto mode
-            host.modbus_write(43049, 0)
+            host.write(43049, 0)
         end
         return true
     elseif action == "curtail" then
-        host.modbus_write(43050, math.abs(power_w))
-        host.modbus_write(43049, 1)
+        host.write(43050, math.abs(power_w))
+        host.write(43049, 1)
         return true
     elseif action == "curtail_disable" or action == "deinit" then
-        host.modbus_write(43049, 0)
+        host.write(43049, 0)
         return true
     end
     return false
 end
 
 function driver_default_mode()
-    host.modbus_write(43049, 0)  -- auto mode
+    host.write(43049, 0)  -- auto mode
 end
 
 function driver_cleanup()

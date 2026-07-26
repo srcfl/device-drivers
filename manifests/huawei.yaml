@@ -1,5 +1,5 @@
 name: "huawei"
-version: "1.3.1"
+version: "1.3.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -42,9 +42,9 @@ tested_devices:
     notes: "C&I aggregator gateway, Modbus TCP server"
     min_driver_version: "1.3.0"
 min_host_version: "2.0.0"
-size_bytes: 8336
+size_bytes: 8288
 dkb_id: "huawei_sun2000"
-sha256: "1fadc57a128397a3701008fcbae2d5a43bf075a4ae79940f69635758c991ef30"
+sha256: "65e7d6b3d4a8d356c915700e08e6517011d09d1bb9652e229e47d221fbce7de3"
 signature: ""
 
 bytecode_sha256: ""

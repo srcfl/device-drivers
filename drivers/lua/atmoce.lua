@@ -15,7 +15,7 @@ local function write_u32(addr, val)
     val = math.floor(math.abs(val))
     local hi = math.floor(val / 65536)
     local lo = val % 65536
-    host.modbus_write_multiple(addr, {hi, lo})
+    host.write_registers(addr, {hi, lo})
 end
 
 function driver_init(config)
@@ -42,8 +42,8 @@ function driver_poll()
     end
 
     host.emit("pv", {
-        w           = -pv_w,
-        lifetime_wh = pv_gen_wh,
+        W           = -pv_w,
+        total_generation_Wh = pv_gen_wh,
     })
 
     -- =====================
@@ -79,8 +79,8 @@ function driver_poll()
     end
 
     host.emit("battery", {
-        w   = bat_w,
-        soc = bat_soc,
+        W   = bat_w,
+        SoC_nom_fract = bat_soc,
     })
 
     -- =====================
@@ -123,15 +123,15 @@ function driver_poll()
     end
 
     host.emit("meter", {
-        w         = meter_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = l1_a,
-        l2_a      = l2_a,
-        l3_a      = l3_a,
-        import_wh = import_wh,
-        export_wh = export_wh,
+        W         = meter_w,
+        L1_V      = l1_v,
+        L2_V      = l2_v,
+        L3_V      = l3_v,
+        L1_A      = l1_a,
+        L2_A      = l2_a,
+        L3_A      = l3_a,
+        total_import_Wh = import_wh,
+        total_export_Wh = export_wh,
     })
 
     return 5000
@@ -140,42 +140,42 @@ end
 function driver_command(action, power_w, cmd)
     if action == "init" then
         -- Enable remote communication control
-        host.modbus_write(60301, 1)
+        host.write(60301, 1)
         return true
     elseif action == "battery" then
         if power_w > 0 then
             -- Forced charging
-            host.modbus_write(60310, 0)
+            host.write(60310, 0)
             write_u32(60314, power_w)
         elseif power_w < 0 then
             -- Forced discharging
-            host.modbus_write(60310, 1)
+            host.write(60310, 1)
             write_u32(60314, math.abs(power_w))
         else
             -- Exit forced mode
-            host.modbus_write(60310, 2)
+            host.write(60310, 2)
         end
         return true
     elseif action == "curtail" then
         -- Force charge to absorb excess PV
-        host.modbus_write(60310, 0)
+        host.write(60310, 0)
         write_u32(60314, math.abs(power_w))
         return true
     elseif action == "curtail_disable" then
-        host.modbus_write(60310, 2)
+        host.write(60310, 2)
         return true
     elseif action == "deinit" then
         -- Exit forced mode and return to local control
-        host.modbus_write(60310, 2)
-        host.modbus_write(60301, 0)
+        host.write(60310, 2)
+        host.write(60301, 0)
         return true
     end
     return false
 end
 
 function driver_default_mode()
-    host.modbus_write(60310, 2)
-    host.modbus_write(60301, 0)
+    host.write(60310, 2)
+    host.write(60301, 0)
 end
 
 function driver_cleanup()

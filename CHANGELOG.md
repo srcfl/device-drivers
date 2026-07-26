@@ -16,6 +16,11 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 - `drivers/lua/GUIDELINES.md` no longer sets a bytecode ceiling. It described Zap's 48 KB shared Lua pool, which does not apply to a linux-edge host
 - `spec/host-api.md` documents `set_sn`, `set_poll_interval`, `set_device_fault` and `emit_metric`. All four were already called by shipped drivers without appearing in the spec
 
+### Changed
+- Every driver now emits the canonical `@srcful/data-models` keys — `W`, `Hz`, `SoC_nom_fract`, `L1_V`, `total_import_Wh` and the rest — and calls the canonical host functions `write`, `write_registers` and `now_ms`. FTW accepts both spellings from v1.11.4-beta.7, so no site loses telemetry. Canonical debt is 0
+- `v2x_charger` keeps the short keys. `@srcful/data-models` has no agreed shape for it and Blixt has no v2x driver to take the naming from; `spec/host-api-profile.json` records that as undecided rather than guessing
+- Three tests hand-maintained lists of valid decode functions, emit fields and package versions. Each now reads `spec/host-api-profile.json` or the manifest, so a name added to the contract cannot fail a test that was never updated
+
 ### Fixed
 - **sdm630** and 11 other drivers decoded every positive float as negative on a 32-bit integer Lua build. The float helper combined both registers into one 32-bit word and tested the sign with `combined >= 0x80000000`, which is always true where that literal is itself negative. `ferroamp_modbus` had the same fault in its encode path, so a battery setpoint could be written with a flipped sign. Both now work on the 16-bit halves, verified by an encode/decode round trip
 - Decode helpers that no host provides — `decode_f32_be`, `decode_u64`, `scale` — now live in the driver's own Lua rather than being called on `host`. They are arithmetic, not I/O, so 16 drivers stop depending on a host function that has to be added first

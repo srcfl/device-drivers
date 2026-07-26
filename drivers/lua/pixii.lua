@@ -147,13 +147,13 @@ function driver_poll()
 
     -- Emit Battery telemetry
     host.emit("battery", {
-        w            = bat_w,
-        v            = bat_v,
-        a            = bat_a,
-        soc          = bat_soc,
-        temp_c       = temp_c,
-        charge_wh    = bat_charge_wh,
-        discharge_wh = bat_discharge_wh,
+        W            = bat_w,
+        V            = bat_v,
+        A            = bat_a,
+        SoC_nom_fract          = bat_soc,
+        temperature_C       = temp_c,
+        total_charge_Wh    = bat_charge_wh,
+        total_discharge_Wh = bat_discharge_wh,
     })
 
     -- ---- Meter Values ----
@@ -211,19 +211,19 @@ function driver_poll()
 
     -- Emit Meter telemetry (Pixii: negative=import, so negate for our convention)
     host.emit("meter", {
-        w         = -meter_w,
-        l1_w      = -l1_w,
-        l2_w      = -l2_w,
-        l3_w      = -l3_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = -l1_a,
-        l2_a      = -l2_a,
-        l3_a      = -l3_a,
-        hz        = meter_hz,
-        import_wh = import_wh,
-        export_wh = export_wh,
+        W         = -meter_w,
+        L1_W      = -l1_w,
+        L2_W      = -l2_w,
+        L3_W      = -l3_w,
+        L1_V      = l1_v,
+        L2_V      = l2_v,
+        L3_V      = l3_v,
+        L1_A      = -l1_a,
+        L2_A      = -l2_a,
+        L3_A      = -l3_a,
+        Hz        = meter_hz,
+        total_import_Wh = import_wh,
+        total_export_Wh = export_wh,
     })
 
     return 5000

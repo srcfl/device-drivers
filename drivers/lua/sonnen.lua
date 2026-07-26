@@ -43,8 +43,8 @@ function driver_poll()
     local bat_soc = (data.USOC or 0) / 100  -- percent to fraction
 
     host.emit("battery", {
-        w   = bat_w,
-        soc = bat_soc,
+        W   = bat_w,
+        SoC_nom_fract = bat_soc,
     })
 
     -- Meter telemetry
@@ -57,9 +57,9 @@ function driver_poll()
     local frequency = data.Fac or 0
 
     host.emit("meter", {
-        w    = grid_w,
-        l1_v = voltage,
-        hz   = frequency,
+        W    = grid_w,
+        L1_V = voltage,
+        Hz   = frequency,
     })
 
     return 5000

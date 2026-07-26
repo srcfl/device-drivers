@@ -1,5 +1,5 @@
 name: "socomec"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2787
+size_bytes: 2799
 dkb_id: ""
-sha256: "28ddd0cfd8aace6030a905a7e32d51c68f8e91ac16463fae80001ac64d7f65c6"
+sha256: "547ec63deb7b05717d63c44dfc3f544aad2d80f62b9924d6522a1bb6734024c6"
 signature: ""
 
 bytecode_sha256: ""

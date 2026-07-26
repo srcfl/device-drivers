@@ -1,5 +1,5 @@
 name: "p1_encrypted"
-version: "2.0.0"
+version: "2.0.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: serial
@@ -21,9 +21,9 @@ tested_devices:
     notes: "HDLC/DLMS/COSEM, AES-GCM encrypted"
     min_driver_version: "2.0.0"
 min_host_version: "2.0.0"
-size_bytes: 11059
+size_bytes: 11071
 dkb_id: "p1_encrypted"
-sha256: "7ca97f0e232daa529e627f7887106c63ccb0ff6693812d6b36ad464f7651bc1d"
+sha256: "a5337ddce9fc75cfa66d0c2c393b5ba203604e4474df56f5e28c19596560d082"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""

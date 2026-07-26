@@ -30,8 +30,8 @@ function driver_poll()
 
     -- Emit Battery telemetry
     host.emit("battery", {
-        w          = bat_w,
-        soc        = bat_soc,
+        W          = bat_w,
+        SoC_nom_fract        = bat_soc,
     })
 
     -- ---- Meter ----
@@ -59,9 +59,9 @@ function driver_poll()
 
     -- Emit Meter telemetry
     host.emit("meter", {
-        w    = meter_w,
-        l1_v = l1_v,
-        l1_a = l1_a,
+        W    = meter_w,
+        L1_V = l1_v,
+        L1_A = l1_a,
     })
 
     return 5000

@@ -1,5 +1,5 @@
 name: "schneider_meter"
-version: "1.0.2"
+version: "1.0.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3608
+size_bytes: 3620
 dkb_id: ""
-sha256: "31cfe8b1f55ba587f6fa20885e5abf72d1f208a962a946eb0ad1e5c817c39532"
+sha256: "83cba484ce7231ebb1a221772ce62482edaa8f3b78aa955d58aa97100b3ea734"
 signature: ""
 
 bytecode_sha256: ""

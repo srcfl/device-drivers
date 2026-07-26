@@ -76,19 +76,19 @@ function driver_poll()
     end
 
     host.emit("meter", {
-        w         = total_w,
-        l1_w      = total_w,
-        l2_w      = 0,
-        l3_w      = 0,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = l1_a,
-        l2_a      = l2_a,
-        l3_a      = l3_a,
-        hz        = hz,
-        import_wh = import_wh,
-        export_wh = export_wh,
+        W         = total_w,
+        L1_W      = total_w,
+        L2_W      = 0,
+        L3_W      = 0,
+        L1_V      = l1_v,
+        L2_V      = l2_v,
+        L3_V      = l3_v,
+        L1_A      = l1_a,
+        L2_A      = l2_a,
+        L3_A      = l3_a,
+        Hz        = hz,
+        total_import_Wh = import_wh,
+        total_export_Wh = export_wh,
     })
 
     return 5000

@@ -43,7 +43,7 @@ local function decode_f32_ws(regs)
 end
 
 -- Encode float32 to word-swapped uint16 pair for Modbus holding register writes.
--- Returns {lo_word, hi_word} suitable for host.modbus_write_multiple.
+-- Returns {lo_word, hi_word} suitable for host.write_registers.
 local function encode_f32_ws(value)
     if value == 0 then return {0, 0} end
 
@@ -127,19 +127,19 @@ function driver_poll()
     end
 
     host.emit("meter", {
-        w         = grid_w,
-        hz        = hz,
-        l1_w      = l1_w,
-        l2_w      = l2_w,
-        l3_w      = l3_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = l1_a,
-        l2_a      = l2_a,
-        l3_a      = l3_a,
-        import_wh = import_wh,
-        export_wh = export_wh,
+        W         = grid_w,
+        Hz        = hz,
+        L1_W      = l1_w,
+        L2_W      = l2_w,
+        L3_W      = l3_w,
+        L1_V      = l1_v,
+        L2_V      = l2_v,
+        L3_V      = l3_v,
+        L1_A      = l1_a,
+        L2_A      = l2_a,
+        L3_A      = l3_a,
+        total_import_Wh = import_wh,
+        total_export_Wh = export_wh,
     })
 
     -- Solar power: input 5100, float32, kW (always positive from Ferroamp)
@@ -154,8 +154,8 @@ function driver_poll()
 
     -- Emit PV (W negative for generation)
     host.emit("pv", {
-        w           = -pv_w,
-        lifetime_wh = pv_lifetime_wh,
+        W           = -pv_w,
+        total_generation_Wh = pv_lifetime_wh,
     })
 
     -- Battery power: input 6100, float32, kW
@@ -179,10 +179,10 @@ function driver_poll()
     end
 
     host.emit("battery", {
-        w            = bat_w,
-        soc          = bat_soc,
-        charge_wh    = bat_charge_wh,
-        discharge_wh = bat_discharge_wh,
+        W            = bat_w,
+        SoC_nom_fract          = bat_soc,
+        total_charge_Wh    = bat_charge_wh,
+        total_discharge_Wh = bat_discharge_wh,
     })
 
     return 5000
@@ -200,31 +200,31 @@ function driver_command(action, power_w, cmd)
         -- Our convention: positive power_w = charge
         -- Ferroamp: negative kW = charge -> negate and convert W to kW
         local ref_kw = -power_w / 1000
-        host.modbus_write_multiple(6064, encode_f32_ws(ref_kw))
-        host.modbus_write(6000, 1)  -- power mode
+        host.write_registers(6064, encode_f32_ws(ref_kw))
+        host.write(6000, 1)  -- power mode
         return true
     elseif action == "curtail" then
         -- Limit export to |power_w| watts
-        host.modbus_write(8010, 1)  -- enable export limit
-        host.modbus_write_multiple(8012, encode_f32_ws(math.abs(power_w)))
-        host.modbus_write(8016, 1)  -- apply
+        host.write(8010, 1)  -- enable export limit
+        host.write_registers(8012, encode_f32_ws(math.abs(power_w)))
+        host.write(8016, 1)  -- apply
         return true
     elseif action == "curtail_disable" then
-        host.modbus_write(8010, 0)  -- disable export limit
-        host.modbus_write(8016, 1)  -- apply
+        host.write(8010, 0)  -- disable export limit
+        host.write(8016, 1)  -- apply
         return true
     elseif action == "deinit" then
         -- Restore auto mode and remove export limits
-        host.modbus_write(6000, 0)
-        host.modbus_write(8010, 0)
-        host.modbus_write(8016, 1)
+        host.write(6000, 0)
+        host.write(8010, 0)
+        host.write(8016, 1)
         return true
     end
     return false
 end
 
 function driver_default_mode()
-    host.modbus_write(6000, 0)  -- default/auto mode
+    host.write(6000, 0)  -- default/auto mode
 end
 
 function driver_cleanup()
