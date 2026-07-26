@@ -816,7 +816,7 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "goodwe",
-      "package_id": "com.sourceful.driver.goodwe",
+      "package_id": null,
       "targets": {
         "blixt-l1": {
           "candidate_package_version": null,
@@ -829,7 +829,7 @@
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.0.3",
+          "candidate_package_version": null,
           "control_enabled": false,
           "hil": "gw8kn_et_hk3000_required",
           "historical_signed_beta_version": null,

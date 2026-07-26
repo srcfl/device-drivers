@@ -19,10 +19,10 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 ### Removed
 - `tools/canonical_debt.py` measured distance from an ideal that never existed. In its place `tools/host_api_check.py` asks the only question that predicts a crash: does a driver call a function no host provides? That is what 35 drivers were doing while passing every test here
 - Tests pinning the behaviour of catalog drivers that have been replaced. They tested code that no longer exists; FTW tests the promoted drivers in Go
+- The **goodwe** package recipe. It promised `read_only: true` and copied `drivers/lua/goodwe.lua` straight through, which was true of the catalog's goodwe and is not true of FTW's — that one has a control path and declares no such thing. Publishing it unchanged would have shipped a control-capable driver under a package that promised it could not write. Rebuilding it needs a write-inert target derived deliberately, the way `packages/v1/sungrow/targets/ftw-observe.lua` was, which is a decision about hardware rather than a build fix
 
 ### Added
 - `spec/host-api-profile.json` defines what a canonical driver may call on a linux-edge host, enforced by `make check`. Blixt L1 is the naming reference: endianness belongs in the name (`decode_u32_be`, not `decode_u32`), identification has its own setters (`set_model`, `set_rated_w`, `set_warmup_s`), and `decode_string` replaces the register loop every driver writes by hand
-- `tools/canonical_debt.py` and `canonical-debt.json` count how far the catalog still is from that shape — 370 items across all 62 drivers. `make check` fails if the count grows, so a new driver cannot add to it and a converted driver ratchets it down
 
 ### Changed
 - This repository targets linux-edge hosts only: FTW and Blixt L1. `zap-firmware` is no longer a package target and `zap` is no longer a host product; Zap is built on a separate track that compiles from this source
@@ -34,7 +34,7 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 - The Lua test mock gained `emit_metric` and the canonical host aliases `write`, `write_registers` and `now_ms`. It lacked all four, so a driver using them failed in the harness while working on hardware — `hello` was already calling `now_ms`
 
 ### Changed
-- Every driver now emits the canonical `@srcful/data-models` keys — `W`, `Hz`, `SoC_nom_fract`, `L1_V`, `total_import_Wh` and the rest — and calls the canonical host functions `write`, `write_registers` and `now_ms`. FTW accepts both spellings from v1.11.4-beta.7, so no site loses telemetry. Canonical debt is 0
+- Every driver now emits the canonical `@srcful/data-models` keys — `W`, `Hz`, `SoC_nom_fract`, `L1_V`, `total_import_Wh` and the rest — and calls the canonical host functions `write`, `write_registers` and `now_ms`. FTW accepts both spellings from v1.11.4-beta.7, so no site loses telemetry.
 - `v2x_charger` keeps the short keys. `@srcful/data-models` has no agreed shape for it and Blixt has no v2x driver to take the naming from; `spec/host-api-profile.json` records that as undecided rather than guessing
 - Three tests hand-maintained lists of valid decode functions, emit fields and package versions. Each now reads `spec/host-api-profile.json` or the manifest, so a name added to the contract cannot fail a test that was never updated
 
