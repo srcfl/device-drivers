@@ -49,6 +49,11 @@ VALID_FIELDS = {
         "w", "rated_w", "hv_lv",
         "mppt1_v", "mppt1_a",
         "mppt2_v", "mppt2_a",
+        # Sungrow reports each string's power and says which branch of its PV
+        # fallback ladder produced the figure. Both matter when register 5016
+        # sticks at zero while the strings are clearly generating, which is the
+        # firmware quirk the ladder exists for.
+        "mppt1_w", "mppt2_w", "pv_source",
         "temp_c", "lifetime_wh",
         "lower_limit_w", "upper_limit_w",
     },
