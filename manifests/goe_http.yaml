@@ -1,5 +1,5 @@
 name: "goe_http"
-version: "1.0.0"
+version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http

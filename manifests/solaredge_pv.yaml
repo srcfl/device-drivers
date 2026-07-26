@@ -1,5 +1,5 @@
 name: "solaredge_pv"
-version: "1.1.0"
+version: "1.2.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus

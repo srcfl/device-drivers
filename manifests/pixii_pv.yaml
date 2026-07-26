@@ -1,5 +1,5 @@
 name: "pixii_pv"
-version: "0.2.0"
+version: "0.3.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt

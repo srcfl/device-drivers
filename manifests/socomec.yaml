@@ -1,5 +1,5 @@
 name: "socomec"
-version: "1.0.2"
+version: "1.0.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
