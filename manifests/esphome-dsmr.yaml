@@ -1,5 +1,5 @@
 name: "esphome-dsmr"
-version: "1.0.2"
+version: "1.0.3"
 tier: community
 author: "FTW contributors"
 protocol: http
@@ -16,7 +16,7 @@ tested_devices:
 min_host_version: "1.10.0"
 size_bytes: 16772
 dkb_id: ""
-sha256: "0a026f97146b5136a8b7575ae0b208e28ab90e086e58f8f9391506ec3aab616f"
+sha256: "f91e7c1769c239020b94aa75555dcaf830449d60d2bbbe54d09a969d2a423382"
 signature: ""
 
 bytecode_sha256: ""

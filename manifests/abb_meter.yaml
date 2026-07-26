@@ -1,5 +1,5 @@
 name: "abb_meter"
-version: "1.0.4"
+version: "1.0.5"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus

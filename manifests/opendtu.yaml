@@ -1,5 +1,5 @@
 name: "opendtu"
-version: "1.0.1"
+version: "1.0.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
