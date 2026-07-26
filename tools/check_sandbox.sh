@@ -20,9 +20,9 @@ FORBIDDEN_PATTERNS=(
     '\bdofile\s*[\("]'
     '\bloadfile\s*[\("]'
     '\bloadstring\s*[\("]'
-    '\bio\.'
-    '\bos\.'
-    '\bdebug\.'
+    '(^|[^A-Za-z0-9_."-])io\.'
+    '(^|[^A-Za-z0-9_."-])os\.'
+    '(^|[^A-Za-z0-9_."-])debug\.'
 )
 
 # Get files to check
@@ -43,8 +43,11 @@ for file in "${FILES[@]}"; do
     basename="$(basename "$file")"
 
     for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
-        # Search for pattern, excluding comments (lines starting with --)
-        matches=$(grep -nE "$pattern" "$file" | grep -v '^\s*--' || true)
+        # Search for the pattern, excluding comment lines. grep -n prefixes
+        # each hit with "NN:", so the exclusion has to allow for that; without
+        # it the filter never matched and every commented mention of os. or
+        # io. was a hard failure.
+        matches=$(grep -nE "$pattern" "$file" | grep -vE '^[0-9]+:[[:space:]]*--' || true)
         if [ -n "$matches" ]; then
             echo "FAIL $basename: forbidden pattern '$pattern'"
             echo "$matches" | while IFS= read -r line; do

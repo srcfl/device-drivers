@@ -38,14 +38,19 @@ make ftw-baseline-report   # what blocks each baseline from the catalog
 The bundled drivers cannot simply replace their catalog namesakes:
 
 - of the 20 that map onto a catalog driver, none is byte-identical;
-- 14 compile to more than the 8 KB of bytecode `drivers/lua/GUIDELINES.md`
-  allows a driver on Zap. They are correct on FTW, which runs gopher-lua on
-  much larger hardware, and too big for a shared catalog driver;
+- 14 compile to more than 8 KB of bytecode. That mattered when this
+  repository still targeted Zap; it no longer does, and a linux-edge driver
+  has no size ceiling. The figure is kept only because the Zap build track
+  compiles from this source and still has a pool to fit;
 - 17 have no catalog driver at all;
-- they call 14 host functions that `spec/host-api.md` does not define, among
-  them `set_device_fault`, `persist_secret`, `sleep` and the `tcp_*` and `ws_*`
-  families;
-- `ferroamp_dc2_v2x` calls `os.time()`, which the driver sandbox forbids.
+- six of them call host functions the contract does not cover, listed under
+  `pending` in `spec/host-api-profile.json`: `easee_cloud` and
+  `ferroamp_dc2_v2x` need `json_encode`, `myuplink` needs `persist_secret`,
+  `tesla_vehicle` needs `set_watchdog_timeout_s`, `tibber` needs the `ws_*`
+  family and `zuidwijk_p1` the `tcp_*` family. The other 31 are clean;
+- `ferroamp_dc2_v2x` calls `os.time()`, which the driver sandbox forbids. The
+  catalog's own `drivers/lua/ferroamp_dc2_v2x.lua` has no such call, so the fix
+  already exists upstream.
 
 Each of those is a decision per driver, not a bulk move. Take them one at a
 time and record the outcome in the source map.
