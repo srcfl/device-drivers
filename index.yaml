@@ -129,13 +129,13 @@ drivers:
     size_bytes: 5830
     sha256: "1bb07ec76653b096c7fee4f72200d8dd2be480c03d8eb5478254da2c608a947f"
   - name: "ferroamp_modbus"
-    version: "1.0.3"
+    version: "1.0.4"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 8291
-    sha256: "4a93d271442a36a6271578f871dea9fd2634ebbd2d2a8f0b0a95caf024ca8427"
+    size_bytes: 10983
+    sha256: "51aa29aeb04d4ff0f4358deb813092871a96d7cbb1b0090ffe5bfcd2d6827392"
   - name: "foxess"
     version: "1.0.2"
     tier: community

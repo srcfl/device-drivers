@@ -42,10 +42,36 @@ local function decode_f32_ws(regs)
     return decode_f32_be(regs[2], regs[1])
 end
 
+-- decode_f32_be refuses infinity, but scaling kW to W can overflow straight
+-- back into it: an inverter reporting float32's largest value, which some
+-- firmware does for a register it cannot answer, decodes to 3.4e38 and turns
+-- into inf the moment it is multiplied by 1000. Nothing but a finite number
+-- may reach a site total.
+local function finite(value)
+    if value ~= value then return 0 end
+    if value == math.huge or value == -math.huge then return 0 end
+    return value
+end
+
+-- The range float32 can hold. Outside it this encoder has no honest answer:
+-- infinity spins the loop below forever, a value past F32_MAX sets the sign
+-- bit and turns a large charge into a small discharge, and anything under
+-- F32_MIN_NORMAL drives the exponent negative and yields a word that is not a
+-- 16-bit number at all.
+local F32_MAX = 3.4028234663852886e38
+local F32_MIN_NORMAL = 1.1754943508222875e-38
+
 -- Encode float32 to word-swapped uint16 pair for Modbus holding register writes.
--- Returns {lo_word, hi_word} suitable for host.write_registers.
+-- Returns {lo_word, hi_word} suitable for host.write_registers, or nil when the
+-- value cannot be represented. Setpoints arrive from the control plane, so a
+-- unit slip or a NaN from a division upstream reaches this directly.
 local function encode_f32_ws(value)
-    if value == 0 then return {0, 0} end
+    if value ~= value then return nil end
+    -- Catches infinity too, which compares greater than any finite number.
+    if value > F32_MAX or value < -F32_MAX then return nil end
+    -- Below the smallest normal a setpoint is zero in every sense that
+    -- matters, and zero is a safe thing to ask a battery for.
+    if value > -F32_MIN_NORMAL and value < F32_MIN_NORMAL then return {0, 0} end
 
     -- Build the two 16-bit halves separately. Assembling a full 32-bit word
     -- overflows a 32-bit integer build and flips the sign of every setpoint.
@@ -102,7 +128,7 @@ function driver_poll()
     -- Grid active power (total): input 3100, float32, kW
     local ok_gw, gw_regs = pcall(host.modbus_read, 3100, 2, "input")
     local grid_w = 0
-    if ok_gw then grid_w = decode_f32_ws(gw_regs) * 1000 end
+    if ok_gw then grid_w = finite(decode_f32_ws(gw_regs) * 1000) end
 
     -- Grid active current L1/L2/L3: input 3112/3116/3120, float32, Arms
     local ok_ga, ga_regs = pcall(host.modbus_read, 3112, 10, "input")
@@ -114,16 +140,16 @@ function driver_poll()
     end
 
     -- Per-phase power: V * I_active (no per-phase power registers available)
-    local l1_w = l1_v * l1_a
-    local l2_w = l2_v * l2_a
-    local l3_w = l3_v * l3_a
+    local l1_w = finite(l1_v * l1_a)
+    local l2_w = finite(l2_v * l2_a)
+    local l3_w = finite(l3_v * l3_a)
 
     -- Grid energy: export at 3064, import at 3068, float32, kWh
     local ok_ge, ge_regs = pcall(host.modbus_read, 3064, 8, "input")
     local export_wh, import_wh = 0, 0
     if ok_ge then
-        export_wh = decode_f32_ws({ge_regs[1], ge_regs[2]}) * 1000  -- 3064-3065
-        import_wh = decode_f32_ws({ge_regs[5], ge_regs[6]}) * 1000  -- 3068-3069
+        export_wh = finite(decode_f32_ws({ge_regs[1], ge_regs[2]}) * 1000)  -- 3064-3065
+        import_wh = finite(decode_f32_ws({ge_regs[5], ge_regs[6]}) * 1000)  -- 3068-3069
     end
 
     host.emit("meter", {
@@ -145,12 +171,12 @@ function driver_poll()
     -- Solar power: input 5100, float32, kW (always positive from Ferroamp)
     local ok_pv, pv_regs = pcall(host.modbus_read, 5100, 2, "input")
     local pv_w = 0
-    if ok_pv then pv_w = decode_f32_ws(pv_regs) * 1000 end
+    if ok_pv then pv_w = finite(decode_f32_ws(pv_regs) * 1000) end
 
     -- Solar energy produced: input 5064, float32, kWh
     local ok_pe, pe_regs = pcall(host.modbus_read, 5064, 2, "input")
     local pv_lifetime_wh = 0
-    if ok_pe then pv_lifetime_wh = decode_f32_ws(pe_regs) * 1000 end
+    if ok_pe then pv_lifetime_wh = finite(decode_f32_ws(pe_regs) * 1000) end
 
     -- Emit PV (W negative for generation)
     host.emit("pv", {
@@ -163,7 +189,7 @@ function driver_poll()
     -- Our convention: positive = charging, negative = discharging -> negate
     local ok_bw, bw_regs = pcall(host.modbus_read, 6100, 2, "input")
     local bat_w = 0
-    if ok_bw then bat_w = -decode_f32_ws(bw_regs) * 1000 end
+    if ok_bw then bat_w = finite(-decode_f32_ws(bw_regs) * 1000) end
 
     -- Battery SoC: input 6016, float32, percent -> fraction
     local ok_soc, soc_regs = pcall(host.modbus_read, 6016, 2, "input")
@@ -174,8 +200,8 @@ function driver_poll()
     local ok_be, be_regs = pcall(host.modbus_read, 6064, 8, "input")
     local bat_discharge_wh, bat_charge_wh = 0, 0
     if ok_be then
-        bat_discharge_wh = decode_f32_ws({be_regs[1], be_regs[2]}) * 1000  -- 6064-6065
-        bat_charge_wh    = decode_f32_ws({be_regs[5], be_regs[6]}) * 1000  -- 6068-6069
+        bat_discharge_wh = finite(decode_f32_ws({be_regs[1], be_regs[2]}) * 1000)  -- 6064-6065
+        bat_charge_wh    = finite(decode_f32_ws({be_regs[5], be_regs[6]}) * 1000)  -- 6068-6069
     end
 
     host.emit("battery", {
@@ -199,14 +225,35 @@ function driver_command(action, power_w, cmd)
     elseif action == "battery" then
         -- Our convention: positive power_w = charge
         -- Ferroamp: negative kW = charge -> negate and convert W to kW
-        local ref_kw = -power_w / 1000
-        host.write_registers(6064, encode_f32_ws(ref_kw))
+        -- Divide before negating. On a 32-bit integer build, negating the
+        -- smallest integer wraps to itself, so `-power_w` leaves the sign
+        -- alone and the driver asks a battery to charge when the caller said
+        -- discharge. Dividing first makes it a float, where negation works.
+        local ref_kw = -(power_w / 1000)
+        local words = encode_f32_ws(ref_kw)
+        if words == nil then
+            host.log("warn", "Ferroamp: refusing a battery setpoint of "
+                .. tostring(power_w) .. " W, which float32 cannot hold")
+            return false
+        end
+        host.write_registers(6064, words)
         host.write(6000, 1)  -- power mode
         return true
     elseif action == "curtail" then
-        -- Limit export to |power_w| watts
+        -- Limit export to |power_w| watts. Encode before enabling the limit:
+        -- enabling it and then failing to write the value would curtail the
+        -- site at whatever figure happened to be in the register already.
+        -- `* 1.0` for the same reason as the battery case: math.abs on the
+        -- smallest integer returns it unchanged, still negative, which would
+        -- encode a negative export limit.
+        local words = encode_f32_ws(math.abs(power_w * 1.0))
+        if words == nil then
+            host.log("warn", "Ferroamp: refusing an export limit of "
+                .. tostring(power_w) .. " W, which float32 cannot hold")
+            return false
+        end
         host.write(8010, 1)  -- enable export limit
-        host.write_registers(8012, encode_f32_ws(math.abs(power_w)))
+        host.write_registers(8012, words)
         host.write(8016, 1)  -- apply
         return true
     elseif action == "curtail_disable" then

@@ -450,7 +450,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.0.4",
       "driver_id": "ferroamp_modbus",
       "package_id": null,
       "targets": {
