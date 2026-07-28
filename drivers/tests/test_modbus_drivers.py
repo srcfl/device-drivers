@@ -52,6 +52,30 @@ def _profile_decoders() -> set:
     return {name for name in allowed if name.startswith("decode_")}
 
 
+def _split_top_level_args(text):
+    """Split a Lua argument list on commas that sit at bracket depth zero.
+
+    A nested call is one argument, not two. `reg(regs, 40084)` passed to
+    decode_i16 is a single value; counting its comma reads the call as
+    two arguments and fails a driver that is correct.
+    """
+    args = []
+    depth = 0
+    current = ""
+    for ch in text:
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+        if ch == "," and depth == 0:
+            args.append(current)
+            current = ""
+        else:
+            current += ch
+    args.append(current)
+    return [a.strip() for a in args if a.strip()]
+
+
 def _extract_decode_calls(code):
     """Extract all decode function calls and their argument counts.
 
@@ -60,15 +84,24 @@ def _extract_decode_calls(code):
     clean = strip_lua_comments(code)
     calls = []
 
-    # Match host.decode_xxx(args)
-    pattern = re.compile(r'host\.(decode_\w+)\s*\(([^)]*)\)')
+    # Find each host.decode_xxx( and walk to its matching close paren, so a
+    # nested helper call inside the argument list stays part of one argument.
+    opener = re.compile(r'host\.(decode_\w+)\s*\(')
 
-    for match in pattern.finditer(clean):
+    for match in opener.finditer(clean):
         func_name = match.group(1)
-        args = match.group(2)
-        # Count arguments by splitting on commas (rough)
-        arg_count = len([a.strip() for a in args.split(',') if a.strip()])
-        calls.append((func_name, arg_count))
+        depth = 1
+        index = match.end()
+        while index < len(clean) and depth > 0:
+            if clean[index] == "(":
+                depth += 1
+            elif clean[index] == ")":
+                depth -= 1
+            index += 1
+        if depth != 0:
+            continue  # unbalanced source; the Lua compile check will catch it
+        args = clean[match.end():index - 1]
+        calls.append((func_name, len(_split_top_level_args(args))))
 
     return calls
 

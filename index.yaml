@@ -393,13 +393,13 @@ drivers:
     size_bytes: 19344
     sha256: "29f2bd2f73c0d39d809839ca60b40c3e4281f1dda267ba2b26e66bd9ab80c27b"
   - name: "pixii"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: core
     protocol: modbus
     ders: [battery, meter]
     control: false
-    size_bytes: 26945
-    sha256: "142bba366f1bbcadc005a98eec0c0f9e410d740bc2891475672470fb4d8d7280"
+    size_bytes: 28137
+    sha256: "923f0434614c981fe2f8cfbf80a605fa0aefb6751996284209de135f3b7bd41c"
   - name: "pixii_pv"
     version: "0.3.0"
     tier: core
@@ -505,13 +505,13 @@ drivers:
     size_bytes: 20326
     sha256: "38e8b39254e3171d758cd27fa7a07bd87d62f94e62b74d2d87ad81eb19b53823"
   - name: "solaredge_legacy"
-    version: "0.3.0"
+    version: "0.3.1"
     tier: core
     protocol: modbus
     ders: [pv]
     control: true
-    size_bytes: 14730
-    sha256: "669aa969467e81c337269ab0f5a2d01d01a0f270deb55491c6a5adc6df848a6f"
+    size_bytes: 15890
+    sha256: "7f9308fa51f205c9116fc53bd9576a50ed428610ef18cdbfb9995372b2b32e63"
   - name: "solaredge_pv"
     version: "1.2.0"
     tier: core

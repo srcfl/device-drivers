@@ -7,6 +7,11 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Fixed
+- **pixii** 2.1.1 — **The 40288 flap, returning.** PowerShaper firmware below CPU 2.0.23 answers Modbus exception 2 on register 40288 (`meter_energy_sf`). The driver caught that in `pcall` and fell back to sf=0, which is the right value — but the host counts the failed read against the poll whether or not Lua handled it, so the driver sat at "1 of 37 reads failed" every five seconds, went offline on the stale-telemetry watchdog, and stopped feeding the planner. It now probes each scale factor once, remembers the absent ones and stops asking. A restart re-probes, so a firmware update that adds the register is picked up. This was fixed once already, in #16 for issue #15; the fix lived only in `packages/v1/pixii/targets/ftw.lua`, so promoting FTW's driver in #27 reverted the catalog copy and the flap reached customer hardware again. The test added here runs the catalog driver, which is what the signed channel publishes
+- **solaredge_legacy** 0.3.1 — Same failure, different register. K-series inverters (SE7K/10K/17K/25K, the display era) do not populate the proprietary MPPT block at 40123, so every poll spent a failed read on it and the driver flapped offline with PV data never reaching the planner. It now probes once and emits Model 103 metrics alone when the block is absent
+- `_extract_decode_calls` in the Modbus test suite counted a nested call's comma as an argument separator, so `host.decode_i16(reg(regs, 40084))` read as two arguments and failed a driver that was correct. It now matches parentheses and splits only at depth zero. The bug stayed hidden because the drivers that write decode calls this way were byte-identical to `baselines/ftw` and therefore exempt from the suite
+
 ### Changed
 - The 19 drivers whose implementation was replaced by FTW's move to a **major version**. The signed channel refuses to publish changed bytes under a version it already published — that immutability is what makes rollback mean anything — so the release failed until they moved. A major bump is also the honest signal: these are different implementations, not patches, and an operator pinning a version needs to know that
 
