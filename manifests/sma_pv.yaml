@@ -1,5 +1,5 @@
 name: "sma_pv"
-version: "1.1.0"
+version: "1.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "SMA Sunny Tripower commercial string inverters (STP 50-40 / 50-41 / X-class) via Modbus TCP, with active-power curtailment over Modbus holding register 40915."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 18375
+size_bytes: 19567
 dkb_id: "sma_pv"
-sha256: "ad589ee1c62c214a2efaee95ccc55cc9b33067b60bc996d27a4bc5114c363767"
+sha256: "9aee3a604c605b5ecb9148c68fea03811485f3acb49ded834da74f852f3598af"
 signature: ""
 
 bytecode_sha256: ""

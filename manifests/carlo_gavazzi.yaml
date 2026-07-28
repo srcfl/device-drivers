@@ -1,5 +1,5 @@
 name: "carlo_gavazzi"
-version: "1.0.4"
+version: "1.0.5"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3466
+size_bytes: 4491
 dkb_id: ""
-sha256: "417debd4e4fc9e6f8e3153b7cab6190eb1d7314a72f8ed06207144e67affe494"
+sha256: "f073b4f842b066bd2add50d8c600ead9bf64052fddf78ebe8085b773b9a342cf"
 signature: ""
 
 bytecode_sha256: ""

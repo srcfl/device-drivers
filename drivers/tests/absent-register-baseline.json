@@ -1,33 +1,17 @@
 {
   "_comment": [
-    "Registers each driver reads forever while still reporting telemetry.",
+    "Registers a driver reads forever while still reporting telemetry.",
     "The host counts every failed modbus_read against the poll, so each one",
-    "of these takes the driver offline on hardware that omits that register.",
+    "takes the driver offline on hardware that omits that register.",
     "",
-    "This file records debt that already shipped. It must only shrink.",
-    "drivers/tests/test_absent_register_settles.py fails when a count rises,",
-    "when a driver not listed here has any, and when a count falls without",
-    "this file being updated.",
+    "This file recorded debt that already shipped: 497 addresses across 49 of",
+    "the 50 Modbus drivers when it was first measured. It is now empty, so",
+    "drivers/tests/test_absent_register_settles.py holds every driver to the",
+    "rule with no exceptions -- a single entry appearing here again is a",
+    "regression, not a budget.",
     "",
-    "Regenerate one driver's number with:",
-    "  ./lua55 drivers/tests/lua_harness/absent_register_probe.lua . drivers/lua/<id>.lua"
+    "Check one driver with:",
+    "  make absent-register-report ID=<id>"
   ],
-  "drivers": {
-    "alphaess": 9,
-    "carlo_gavazzi": 7,
-    "chint": 6,
-    "ctek_hybrid": 3,
-    "ctek_v2": 3,
-    "ferroamp_modbus": 10,
-    "mennekes": 10,
-    "schrack_ev": 5,
-    "siemens_pac": 7,
-    "sma_pv": 15,
-    "socomec": 7,
-    "solaredge": 13,
-    "solaredge_pv": 4,
-    "solis_string": 4,
-    "sungrow": 9,
-    "varta": 5
-  }
+  "drivers": {}
 }

@@ -1,5 +1,5 @@
 name: "solaredge"
-version: "2.1.0"
+version: "2.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -35,9 +35,9 @@ tested_devices:
     notes: "Residential single-phase series"
     min_driver_version: "1.2.0"
 min_host_version: "2.0.0"
-size_bytes: 20326
+size_bytes: 21555
 dkb_id: "solaredge"
-sha256: "38e8b39254e3171d758cd27fa7a07bd87d62f94e62b74d2d87ad81eb19b53823"
+sha256: "94b5f18fb42c1413540d7321bca47ed755c8a0a9b069f8d51dbac4384910c496"
 signature: ""
 
 bytecode_sha256: ""

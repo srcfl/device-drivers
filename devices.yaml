@@ -122,7 +122,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -133,7 +133,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -181,7 +181,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "ctek_v2"
-            version: "0.3.0"
+            version: "0.3.1"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -192,7 +192,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "ctek_hybrid"
-            version: "0.3.0"
+            version: "0.3.1"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -205,7 +205,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "carlo_gavazzi"
-            version: "1.0.4"
+            version: "1.0.5"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -218,7 +218,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "chint"
-            version: "1.0.4"
+            version: "1.0.5"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -380,7 +380,7 @@ manufacturers:
             control: true
           - protocol: modbus
             driver: "ferroamp_modbus"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -540,7 +540,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis_string"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [pv]
             control: true
         firmware_versions: ""
@@ -950,7 +950,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "mennekes"
-            version: "1.0.2"
+            version: "1.0.3"
             ders: [v2x_charger]
             control: false
         firmware_versions: ""
@@ -1098,7 +1098,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma_pv"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [pv, meter]
             control: true
         firmware_versions: ""
@@ -1227,7 +1227,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "schrack_ev"
-            version: "1.0.2"
+            version: "1.0.3"
             ders: [v2x_charger]
             control: false
         firmware_versions: ""
@@ -1374,7 +1374,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "siemens_pac"
-            version: "1.0.4"
+            version: "1.0.5"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1433,7 +1433,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "socomec"
-            version: "1.0.3"
+            version: "1.0.4"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -1527,7 +1527,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solaredge"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [meter, pv]
             control: false
         firmware_versions: ""
@@ -1538,7 +1538,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solaredge"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [meter, pv]
             control: false
         firmware_versions: ""
@@ -1549,7 +1549,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solaredge"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [meter, pv]
             control: false
         firmware_versions: ""
@@ -1560,7 +1560,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solaredge_pv"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [pv]
             control: true
         firmware_versions: ""
@@ -1582,7 +1582,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solaredge"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [meter, pv]
             control: false
         firmware_versions: ""
@@ -1722,7 +1722,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.0"
+            version: "1.5.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1733,7 +1733,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.0"
+            version: "1.5.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1744,7 +1744,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.0"
+            version: "1.5.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1755,7 +1755,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.0"
+            version: "1.5.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1766,7 +1766,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.0"
+            version: "1.5.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1805,7 +1805,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
@@ -1816,7 +1816,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
@@ -1827,7 +1827,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
