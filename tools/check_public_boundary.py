@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -44,17 +45,37 @@ SECRET_PATTERN_EXCEPTIONS = {
 }
 
 
-def main() -> int:
+def repository_files(root: Path) -> list[Path]:
+    """Every file the public repository carries, as paths relative to root.
+
+    Ask git rather than walk the disk. A walk descends into ignored paths too,
+    and a git worktree under .claude/worktrees/ is a second full checkout whose
+    copies of the provenance files then fail the checks below, naming paths the
+    contributor never edited. Ignored means not part of this repository.
+
+    Untracked files that are not ignored are included: a secret must be caught
+    before it is staged, not after.
+    """
+    result = subprocess.run(
+        ("git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"),
+        cwd=root, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(f"git ls-files failed in {root}: {result.stderr.strip()}")
+    return sorted({Path(name) for name in result.stdout.split("\0") if name})
+
+
+def main(root: Path = ROOT) -> int:
     errors: list[str] = []
-    present = sorted(name for name in FORBIDDEN_TOP_LEVEL if (ROOT / name).exists())
+    present = sorted(name for name in FORBIDDEN_TOP_LEVEL if (root / name).exists())
     if present:
         errors.append("private top-level paths present: " + ", ".join(present))
 
-    for path in sorted(item for item in ROOT.rglob("*") if item.is_file()):
-        if {".git", ".venv", ".artifacts"}.intersection(path.parts) or path.stat().st_size > 2_000_000:
+    for relative in repository_files(root):
+        path = root / relative
+        # git also lists a tracked file deleted from the disk, and a submodule.
+        if not path.is_file() or path.stat().st_size > 2_000_000:
             continue
         raw = path.read_bytes()
-        relative = path.relative_to(ROOT)
         if relative not in SECRET_PATTERN_EXCEPTIONS:
             for pattern in SECRET_PATTERNS:
                 if pattern.search(raw):
@@ -68,12 +89,12 @@ def main() -> int:
                     if value in text:
                         errors.append(f"{relative}: forbidden private reference {value}")
 
-    for source in sorted((ROOT / "packages" / "v1").glob("*/package-source.json")):
+    for source in sorted((root / "packages" / "v1").glob("*/package-source.json")):
         payload = json.loads(source.read_text(encoding="utf-8"))
         if payload["source"]["repository"] != "https://github.com/srcfl/device-drivers":
-            errors.append(f"{source.relative_to(ROOT)}: public source repository mismatch")
+            errors.append(f"{source.relative_to(root)}: public source repository mismatch")
         if payload["builder_id"] != "https://github.com/srcfl/device-drivers/blob/main/tools/driver_package.py":
-            errors.append(f"{source.relative_to(ROOT)}: public builder id mismatch")
+            errors.append(f"{source.relative_to(root)}: public builder id mismatch")
 
     if errors:
         for error in errors:

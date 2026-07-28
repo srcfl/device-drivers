@@ -457,13 +457,13 @@ drivers:
     size_bytes: 4376
     sha256: "1c5ae9906a5f19e39a38ef79be1fb6aed19092b1f99305a8503ea09882a8b6d4"
   - name: "sigenergy"
-    version: "1.1.1"
+    version: "1.1.2"
     tier: community
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 4959
-    sha256: "bede3741e137d20a24a6c7a348904b7d0ab3511ff5a0b527cdd93d7267cd4213"
+    size_bytes: 4841
+    sha256: "e2b903b6e3f616a1b49b8e6a0fbff6997415e8f80e5e14af9adcba0a866c7fcc"
   - name: "sma"
     version: "2.1.1"
     tier: core
@@ -561,13 +561,13 @@ drivers:
     size_bytes: 6158
     sha256: "92163e4356b895e16b0205e849aa42a2dcea0d799f8cc6bcbce60b5e2cd92285"
   - name: "sungrow"
-    version: "1.5.1"
+    version: "1.5.2"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 40822
-    sha256: "1b147acfd969efc1acaa0939de7f64bc1aaf46ef49fe62a8874f5004adc685e0"
+    size_bytes: 42225
+    sha256: "a157eee20197c9025267dfe018c5d277b0fca1f1626e23b3963aa0613c76f177"
   - name: "tesla_vehicle"
     version: "0.2.0"
     tier: core

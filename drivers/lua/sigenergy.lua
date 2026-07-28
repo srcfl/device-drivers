@@ -80,9 +80,6 @@ function driver_poll()
         bat_soc = soc_regs[1] / 1000  -- gain 10 → percent, / 100 → fraction
     end
 
-    -- ESS SOH: 30087, U16, %, gain 10 (read but not emitted yet)
-    local soh_regs = probe_read(30087, 1, "input")
-
     host.emit("battery", {
         W   = bat_w,
         SoC_nom_fract = bat_soc,

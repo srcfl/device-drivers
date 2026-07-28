@@ -1598,7 +1598,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "sigenergy",
       "package_id": null,
       "targets": {
@@ -1962,7 +1962,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.5.1",
+      "catalog_version": "1.5.2",
       "driver_id": "sungrow",
       "package_id": "com.sourceful.driver.sungrow",
       "targets": {
