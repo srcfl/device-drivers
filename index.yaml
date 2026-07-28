@@ -457,7 +457,7 @@ drivers:
     size_bytes: 3435
     sha256: "c48e79b7d3c0ed8546984c00802acac03f7473c175b356db09e73b21c37f77eb"
   - name: "sigenergy"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: community
     protocol: modbus
     ders: [battery, meter, pv]
