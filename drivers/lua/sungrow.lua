@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow-shx",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.5.2",
+  version      = "1.5.3",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -99,6 +99,14 @@ local function classify_device_type(code)
 end
 
 local model_family = nil -- "hybrid", "string", "unknown", or nil while asking
+
+-- Set once the battery registers have actually answered. The device type code
+-- is the fast answer to "does this have a battery"; this is the slow one, and
+-- it is the only one available when register 4999 never answers. The control
+-- path needs it: `unknown` is a state the read path may probe its way out of,
+-- because a failed read is bounded and self-correcting, while a write to a
+-- register the model does not implement is neither.
+local battery_confirmed = false
 
 -- Detection has to give up. Retrying a register the inverter never answers
 -- costs one failed read on every poll for the rest of the session, which is
@@ -535,6 +543,7 @@ function driver_poll()
         bat_regs = optional_read(13019, 4, "input")
     end
     if bat_regs then
+        battery_confirmed = true
         bat_v   = bat_regs[1] * 0.1
         bat_a   = bat_regs[2] * 0.1
         bat_w   = bat_regs[3]
@@ -685,7 +694,7 @@ end
 -- EMS convention: positive power_w = charge, negative = discharge
 -- Verified: charge 200W and discharge 200W both tested and confirmed
 --
--- Do not remove the string-inverter guard below. It shipped in 1.2.1 (#17),
+-- Do not remove the no-battery guard below. It shipped in 1.2.1 (#17),
 -- was lost when #27 replaced this file with FTW's driver, and #29 restored
 -- only the read half at 1.4.0. Between those, a battery command on a model
 -- this driver had already classified as "string" wrote forced mode, a force
@@ -699,17 +708,29 @@ end
 -- a warn line naming the reason, and a result the host can report. The code is
 -- the one packages/v1/sungrow/targets/ftw.lua returns, so the two control
 -- paths refuse in the same words rather than drifting apart again.
+--
+-- Two ways to know this device takes a battery command: it named itself a
+-- hybrid, or its battery registers have answered. Everything else is a guess,
+-- and the guess used to be "yes" -- so an SG inverter whose device-type
+-- register never answered still got the EMS writes. Note what this is not:
+-- refusing everything the device type did not positively confirm. A hybrid
+-- whose register 4999 is unreadable reads its battery every poll and reports
+-- its SoC; denying control to a battery the driver is actively reading would
+-- be an outage of its own, and detection giving up is common enough that
+-- DETECT_ATTEMPTS exists for it.
 function driver_command(action, power_w, cmd)
     if action == "init" then
         return true
     elseif action == "battery" then
-        if model_family == "string" then
-            host.log("warn", "Sungrow: battery command refused — "
-                .. "this model has no battery registers")
+        if model_family ~= "hybrid" and not battery_confirmed then
+            local why = model_family == "string"
+                and "this model has no battery registers"
+                or "no battery register has answered on this device"
+            host.log("warn", "Sungrow: battery command refused — " .. why)
             return false, {
                 status = "rejected",
                 code = "no_battery",
-                message = "this Sungrow model has no battery registers",
+                message = why,
                 device_state = "unchanged",
             }
         end

@@ -42,6 +42,11 @@ local sn_read = false
 local REG_DEVICE_TYPE = 4999
 local model_family = nil -- "hybrid", "string", or nil while still unknown
 
+-- Set once the battery registers have actually answered. The device type code
+-- is the fast answer to "does this have a battery"; this is the slow one, and
+-- the only one available when register 4999 never answers.
+local battery_confirmed = false
+
 -- A register that answers on one model and not on another. Absence has to be
 -- proved, not guessed: a single timeout or a busy bus must not silence a
 -- register for the rest of the session, so only a run of failures counts.
@@ -200,6 +205,7 @@ function driver_poll()
         bat_regs = optional_read(13019, 4, "input")
     end
     if bat_regs then
+        battery_confirmed = true
         local bat_v   = bat_regs[1] * 0.1
         local bat_a   = bat_regs[2] * 0.1
         local bat_w   = bat_regs[3]
@@ -401,14 +407,19 @@ function driver_command_v2(command)
     local inputs = command.inputs or {}
 
     if action == "battery" then
-        -- The inverter identified itself as a string model, so it has no
-        -- battery. Refuse rather than write EMS registers it does not
-        -- implement.
-        if model_family == "string" then
+        -- Two ways to know this device takes a battery command: it named
+        -- itself a hybrid, or its battery registers have answered. Refuse
+        -- everything else rather than write EMS registers the model may not
+        -- implement. Checking only for "string" left the gap: an SG inverter
+        -- whose device-type register never answered fell through and got the
+        -- writes. Matches drivers/lua/sungrow.lua, deliberately.
+        if model_family ~= "hybrid" and not battery_confirmed then
             return {
                 status = "rejected",
                 code = "no_battery",
-                message = "this Sungrow model has no battery registers",
+                message = model_family == "string"
+                    and "this Sungrow model has no battery registers"
+                    or "no battery register has answered on this device",
                 device_state = "unchanged",
             }
         end
