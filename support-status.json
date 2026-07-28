@@ -86,7 +86,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.0.4",
       "driver_id": "alfen",
       "package_id": null,
       "targets": {
@@ -310,7 +310,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.0",
+      "catalog_version": "0.3.1",
       "driver_id": "ctek",
       "package_id": null,
       "targets": {
@@ -422,7 +422,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.0.4",
       "driver_id": "easee",
       "package_id": null,
       "targets": {
@@ -534,7 +534,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "etrel",
       "package_id": null,
       "targets": {
@@ -1066,7 +1066,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "kstar",
       "package_id": null,
       "targets": {
@@ -1430,7 +1430,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "saj",
       "package_id": null,
       "targets": {
@@ -1458,7 +1458,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.4",
+      "catalog_version": "1.0.5",
       "driver_id": "schneider_meter",
       "package_id": null,
       "targets": {
@@ -1822,7 +1822,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "solax",
       "package_id": null,
       "targets": {

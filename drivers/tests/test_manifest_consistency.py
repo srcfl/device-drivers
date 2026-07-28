@@ -16,6 +16,7 @@ from conftest import (
     strip_lua_comments,
     DRIVERS_DIR,
     MANIFESTS_DIR,
+    valid_ders,
 )
 
 
@@ -160,15 +161,15 @@ class TestManifestSchema:
     def test_ders_are_valid(self, driver_name):
         """All DER types in the manifest must be valid."""
         manifest = self._load_manifest(driver_name)
-        valid_ders = {"pv", "battery", "meter", "v2x_charger"}
+        valid_ders_set = valid_ders()
         ders = manifest.get("ders", [])
         assert isinstance(ders, list), (
             f"{driver_name}: ders must be a list, got {type(ders)}"
         )
         for der in ders:
-            assert der in valid_ders, (
+            assert der in valid_ders_set, (
                 f"{driver_name}: invalid DER type '{der}' in manifest, "
-                f"expected one of {valid_ders}"
+                f"expected one of {valid_ders_set}"
             )
 
     def test_ders_not_empty(self, driver_name):

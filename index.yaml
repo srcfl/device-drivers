@@ -25,13 +25,13 @@ drivers:
     size_bytes: 3412
     sha256: "e3607864140b8d92fcaa175d066b8f3315c49065755f8cb1bb5b8a3f075cfaa9"
   - name: "alfen"
-    version: "1.0.3"
+    version: "1.0.4"
     tier: community
     protocol: modbus
     ders: [v2x_charger]
     control: false
-    size_bytes: 3489
-    sha256: "028f647c5402f370a9e6adf7ca1a3c18c5cc10b275574b8e8398de6bd431c614"
+    size_bytes: 4649
+    sha256: "effe4374a11f46cc174d9bf0167131835adcaaf657aee05469baef8d06f4365e"
   - name: "alphaess"
     version: "1.1.0"
     tier: community
@@ -89,13 +89,13 @@ drivers:
     size_bytes: 4749
     sha256: "7ebfe010a41f380885b59976d1a4a6d27db4abec08844cd3c553d4cf754e6aa3"
   - name: "ctek"
-    version: "0.3.0"
+    version: "0.3.1"
     tier: core
     protocol: modbus
     ders: [ev]
     control: true
-    size_bytes: 13397
-    sha256: "502732aedbed8c7b38affe111f59b5a8915dd08b7322158d8972961a18bc9412"
+    size_bytes: 14921
+    sha256: "34cf0492da22354658ae1bfa71cb3e72f94623740d12792d3f2f9ebd9daa709e"
   - name: "ctek_hybrid"
     version: "0.3.0"
     tier: core
@@ -121,13 +121,13 @@ drivers:
     size_bytes: 23467
     sha256: "5fdc1acd72f881ff02696e765df0528a68f300fa9ca557a4fba068874f0129df"
   - name: "easee"
-    version: "1.0.3"
+    version: "1.0.4"
     tier: community
     protocol: modbus
     ders: [v2x_charger]
     control: false
-    size_bytes: 2859
-    sha256: "479671d9747d5e0231b37f5f5ab777b72a888f2d2a0c3bfb4142299d1b1b42b8"
+    size_bytes: 4054
+    sha256: "4a2cd1efb4a5583468ce897ebd88a000e348917295c40210e86ecf834c0ba543"
   - name: "easee_cloud"
     version: "1.1.0"
     tier: core
@@ -153,13 +153,13 @@ drivers:
     size_bytes: 19353
     sha256: "c415e507f4371c859fbf60827cc0704c5e24ad122dca1a9e5e1f190d67e852d1"
   - name: "etrel"
-    version: "1.0.2"
+    version: "1.0.3"
     tier: community
     protocol: modbus
     ders: [v2x_charger]
     control: false
-    size_bytes: 2367
-    sha256: "ff7f01535576798ac85865cfa845cd0ca6c9d0959241b16fbada89f1464b6554"
+    size_bytes: 3545
+    sha256: "fdf3c3cae6ca45f9b546a97cf16a34b047172293711db2dfa759286f065d77c8"
   - name: "ferroamp"
     version: "2.1.0"
     tier: core
@@ -305,13 +305,13 @@ drivers:
     size_bytes: 11199
     sha256: "e0801761d200b1a948872b6bfca3c662483c7dfc00445e15f83eaf07f80a6bf5"
   - name: "kstar"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 2656
-    sha256: "0ec37325fa0e1a502f2e53b2a08bcda2e98af88120660b92e23e9b05b9abdd5f"
+    size_bytes: 3615
+    sha256: "c6e41381f5a59f197b8e9899a770c32acd1e49c4c70a9faa3fec6b43f291d862"
   - name: "mennekes"
     version: "1.0.2"
     tier: community
@@ -409,21 +409,21 @@ drivers:
     size_bytes: 6692
     sha256: "d0901b6478e05b5cdf46fc2a9675700ba6008be2feb370be0ff7e87d2f1de883"
   - name: "saj"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 3995
-    sha256: "6186e287d7f912fc287717ec610837366fcedfd5aa52786e07a0df459024d1f2"
+    size_bytes: 4855
+    sha256: "3eec98c298872444cbddfc33c7c666decc367c427e5aacb7e1c240a3d6cdd21f"
   - name: "schneider_meter"
-    version: "1.0.4"
+    version: "1.0.5"
     tier: community
     protocol: modbus
     ders: [meter]
     control: false
-    size_bytes: 3620
-    sha256: "83cba484ce7231ebb1a221772ce62482edaa8f3b78aa955d58aa97100b3ea734"
+    size_bytes: 4615
+    sha256: "cfe95da259940699c7403e349c6402e10aad9dd358dc864f14d102326a1a39e7"
   - name: "schrack_ev"
     version: "1.0.2"
     tier: community
@@ -521,13 +521,13 @@ drivers:
     size_bytes: 10451
     sha256: "d956b2473c27e52f63504862a85b36f803414327a583464fca087679c428de47"
   - name: "solax"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 4231
-    sha256: "cd0cfab218ca407e8a5379e757a90982577127d4529950c9ee10a66cf73a91c4"
+    size_bytes: 5110
+    sha256: "b5f07776c959d4891a0487c23a3bc7e29b8c9c063eaaef754b98f0572cc547b2"
   - name: "solinteg"
     version: "1.1.1"
     tier: community
