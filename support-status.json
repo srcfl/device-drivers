@@ -1374,7 +1374,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.1",
+      "catalog_version": "2.1.2",
       "driver_id": "pixii",
       "package_id": "com.sourceful.driver.pixii",
       "targets": {
@@ -1389,7 +1389,7 @@
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.2.4",
+          "candidate_package_version": "1.2.5",
           "control_enabled": false,
           "hil": "required",
           "historical_signed_beta_version": null,
