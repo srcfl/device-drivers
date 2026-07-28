@@ -768,7 +768,7 @@ local function test_pixii_ftw_v2()
     if not load_ok then
         return false, {"Failed to load: " .. tostring(load_err)}
     end
-    if not DRIVER or DRIVER.version ~= "1.2.3" or
+    if not DRIVER or DRIVER.version ~= "1.2.4" or
        DRIVER.host_api_min ~= 2 or DRIVER.host_api_max ~= 2 then
         table.insert(errors, "Pixii FTW v2 metadata is wrong")
     end

@@ -54,11 +54,11 @@ end
                 for line in result.stdout.strip().splitlines() if " " in line)
 
 
-def poll_with_absent(driver: str, absent: int, present: int,
+def poll_with_absent(path: Path, absent: int, present: int,
                      config: str = "{}") -> dict[str, str]:
     return run_lua(f'''
 host._modbus_read_fail_addresses[{absent}] = "Illegal Data Address"
-dofile("{ROOT}/drivers/lua/{driver}.lua")
+dofile("{path}")
 driver_init({config})
 for poll = 1, {POLLS} do
     local ok, err = pcall(driver_poll)
@@ -75,20 +75,34 @@ print("STREAMS " .. streams)
 ''')
 
 
-def test_pixii_probes_absent_scale_factor_once():
+# The catalog driver and the package target are separate files that both ship.
+# Fixing one and not the other is what let this bug come back: #16 patched both,
+# #27 overwrote only the catalog copy, and the package target's own test stayed
+# green while the flap reached customer hardware. Hold both to the same rule.
+PIXII_SOURCES = {
+    "catalog": ROOT / "drivers" / "lua" / "pixii.lua",
+    "package-target": ROOT / "packages" / "v1" / "pixii" / "targets" / "ftw.lua",
+}
+
+
+@pytest.mark.parametrize("source", sorted(PIXII_SOURCES), ids=sorted(PIXII_SOURCES))
+def test_pixii_probes_absent_scale_factor_once(source):
     """40288 meter_energy_sf is absent on PowerShaper firmware below CPU 2.0.23."""
-    out = poll_with_absent("pixii", absent=40288, present=40256,
+    out = poll_with_absent(PIXII_SOURCES[source], absent=40288, present=40256,
                            config="{host = '127.0.0.1', port = 502, unit_id = 1}")
 
     assert int(out["ABSENT_READS"]) <= 1, (
-        f"pixii read absent 40288 {out['ABSENT_READS']} times over {POLLS} polls; "
-        "every failed read counts against the poll and takes the driver offline"
+        f"pixii {source} read absent 40288 {out['ABSENT_READS']} times over "
+        f"{POLLS} polls; every failed read counts against the poll and takes "
+        "the driver offline"
     )
     # Caching absence must not freeze a scale factor the firmware does carry.
     assert int(out["PRESENT_READS"]) >= POLLS, (
-        "pixii stopped re-reading meter power SF 40256, which is present"
+        f"pixii {source} stopped re-reading meter power SF 40256, which is present"
     )
-    assert int(out["STREAMS"]) >= 2, "pixii stopped telemetry when 40288 is absent"
+    assert int(out["STREAMS"]) >= 2, (
+        f"pixii {source} stopped telemetry when 40288 is absent"
+    )
 
 
 def test_solaredge_legacy_probes_absent_mppt_block_once():

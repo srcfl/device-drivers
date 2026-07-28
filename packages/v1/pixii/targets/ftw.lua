@@ -11,7 +11,7 @@ DRIVER = {
     id = "pixii",
     name = "Pixii PowerShaper",
     manufacturer = "Pixii",
-    version = "1.2.3",
+    version = "1.2.4",
     protocols = {"modbus"},
     capabilities = {"battery", "meter"},
     description = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -33,7 +33,6 @@ local REG_METER_ENERGY_SF = 40288 -- SunSpec model 213 offset 53; absent on some
 
 local heartbeat = 0
 local serial_read = false
-local has_meter_energy_sf = true -- probed once in driver_init
 local last_calibrating = nil
 
 local function scale(value, factor)
@@ -41,10 +40,33 @@ local function scale(value, factor)
     return value * (10 ^ factor)
 end
 
+-- Scale-factor addresses this hardware has confirmed absent.
+--   nil = not probed yet, true = present, false = confirmed absent
+--
+-- Some PowerShaper firmware answers Modbus exception 2 ("illegal data
+-- address") on optional SunSpec model 213 scale factors — 40288
+-- (meter_energy_sf) is the one seen in the field. The pcall below
+-- catches that and falls back to sf=0, which is the right value. But
+-- the host counts the failed modbus_read toward the driver-poll error
+-- tally whether or not Lua handled it, so re-reading an absent
+-- register every poll holds the driver at "1 of N reads failed" and
+-- the stale-telemetry watchdog takes it offline. Probe once, remember,
+-- then stop asking. A restart re-probes, so a firmware update that
+-- adds the register is picked up.
+local sf_present = {}
+
 local function read_scale_factor(address)
+    if sf_present[address] == false then return 0 end
     local ok, registers = pcall(host.modbus_read, address, 1, "holding")
     if ok and registers and registers[1] ~= nil then
+        sf_present[address] = true
         return host.decode_i16(registers[1])
+    end
+    if sf_present[address] == nil then
+        sf_present[address] = false
+        host.log("info", string.format(
+            "Pixii: scale factor at %d is not exposed by this firmware; " ..
+            "using sf=0 (x1) from here on. Re-probed on restart.", address))
     end
     return 0
 end
@@ -92,13 +114,6 @@ end
 
 function driver_init(config)
     host.set_make("Pixii")
-
-    local ok, registers = pcall(host.modbus_read, REG_METER_ENERGY_SF, 1, "holding")
-    has_meter_energy_sf = ok and registers ~= nil and registers[1] ~= nil
-    if not has_meter_energy_sf then
-        host.log("info", "Pixii: meter energy scale factor @" .. REG_METER_ENERGY_SF
-            .. " not available; import/export Wh use sf=0")
-    end
 end
 
 function driver_poll()
@@ -124,10 +139,7 @@ function driver_poll()
     local meter_v_factor = read_scale_factor(40249)
     local meter_hz_factor = read_scale_factor(40251)
     local meter_w_factor = read_scale_factor(40256)
-    local meter_energy_factor = 0
-    if has_meter_energy_sf then
-        meter_energy_factor = read_scale_factor(REG_METER_ENERGY_SF)
-    end
+    local meter_energy_factor = read_scale_factor(REG_METER_ENERGY_SF)
 
     local ok_ac_w, ac_w_registers = pcall(host.modbus_read, 40083, 1, "holding")
     local ac_w = 0
