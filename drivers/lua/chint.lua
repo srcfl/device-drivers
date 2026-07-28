@@ -26,6 +26,32 @@ local function decode_f32_be(hi, lo)
     return sign * (1 + mantissa / 0x800000) * 2^(exponent - 127)
 end
 
+-- The host counts every failed modbus_read against the poll whether or not
+-- Lua caught it, so a register this meter does not answer -- a DDSU666 has no
+-- L2/L3 block -- costs a failed read on every poll forever and the
+-- stale-telemetry watchdog takes the site offline. Ask three times, since one
+-- miss can just be a slow link, then leave the register alone. A restart
+-- re-probes.
+local GIVE_UP_AFTER = 3
+local read_failures = {}
+
+local function probe_read(addr, count, kind)
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, regs = pcall(host.modbus_read, addr, count, kind)
+    if ok and regs and regs[1] ~= nil then
+        read_failures[addr] = nil
+        return regs
+    end
+    local failures = (read_failures[addr] or 0) + 1
+    read_failures[addr] = failures
+    if failures == GIVE_UP_AFTER then
+        host.log("info", string.format(
+            "Chint: register %d did not answer %d times; leaving it alone " ..
+            "until restart", addr, GIVE_UP_AFTER))
+    end
+    return nil
+end
+
 function driver_init(config)
     host.set_make("Chint")
 end
@@ -33,45 +59,45 @@ end
 function driver_poll()
     -- Per-phase voltage: 8192(0x2000), 8194(0x2002) (F32, V)
     -- DDSU666 is single-phase (L1 only); DTSU666 has L1+L2
-    local ok_v, v_regs = pcall(host.modbus_read, 8192, 4, "holding")
+    local v_regs = probe_read(8192, 4, "holding")
     local l1_v, l2_v, l3_v = 0, 0, 0
-    if ok_v then
+    if v_regs then
         l1_v = decode_f32_be(v_regs[1], v_regs[2])
         l2_v = decode_f32_be(v_regs[3], v_regs[4])
     end
 
     -- Total power: 8196(0x2004) (F32, W)
-    local ok_tw, tw_regs = pcall(host.modbus_read, 8196, 2, "holding")
+    local tw_regs = probe_read(8196, 2, "holding")
     local total_w = 0
-    if ok_tw then
+    if tw_regs then
         total_w = decode_f32_be(tw_regs[1], tw_regs[2])
     end
 
     -- Per-phase current: 8198(0x2006) (F32, A)
-    local ok_a, a_regs = pcall(host.modbus_read, 8198, 2, "holding")
+    local a_regs = probe_read(8198, 2, "holding")
     local l1_a, l2_a, l3_a = 0, 0, 0
-    if ok_a then
+    if a_regs then
         l1_a = decode_f32_be(a_regs[1], a_regs[2])
     end
 
     -- Frequency: 8206(0x200E) (F32, Hz)
-    local ok_hz, hz_regs = pcall(host.modbus_read, 8206, 2, "holding")
+    local hz_regs = probe_read(8206, 2, "holding")
     local hz = 0
-    if ok_hz then
+    if hz_regs then
         hz = decode_f32_be(hz_regs[1], hz_regs[2])
     end
 
     -- Import energy: 16384(0x4000) (F32, kWh -> Wh)
-    local ok_imp, imp_regs = pcall(host.modbus_read, 16384, 2, "holding")
+    local imp_regs = probe_read(16384, 2, "holding")
     local import_wh = 0
-    if ok_imp then
+    if imp_regs then
         import_wh = decode_f32_be(imp_regs[1], imp_regs[2]) * 1000
     end
 
     -- Export energy: 16394(0x400A) (F32, kWh -> Wh)
-    local ok_exp, exp_regs = pcall(host.modbus_read, 16394, 2, "holding")
+    local exp_regs = probe_read(16394, 2, "holding")
     local export_wh = 0
-    if ok_exp then
+    if exp_regs then
         export_wh = decode_f32_be(exp_regs[1], exp_regs[2]) * 1000
     end
 

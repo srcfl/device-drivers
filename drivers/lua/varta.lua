@@ -7,6 +7,31 @@
 
 PROTOCOL = "modbus"
 
+-- The host counts every failed modbus_read against the poll whether or not
+-- Lua caught it, so a register this unit does not answer costs a failed read
+-- on every poll forever and the stale-telemetry watchdog takes the site
+-- offline. Ask three times -- one miss can just be a slow link -- then leave
+-- the register alone. A restart re-probes.
+local GIVE_UP_AFTER = 3
+local read_failures = {}
+
+local function probe_read(addr, count, kind)
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, regs = pcall(host.modbus_read, addr, count, kind)
+    if ok and regs and regs[1] ~= nil then
+        read_failures[addr] = nil
+        return regs
+    end
+    local failures = (read_failures[addr] or 0) + 1
+    read_failures[addr] = failures
+    if failures == GIVE_UP_AFTER then
+        host.log("info", string.format(
+            "VARTA: register %d did not answer %d times; leaving it alone " ..
+            "until restart", addr, GIVE_UP_AFTER))
+    end
+    return nil
+end
+
 function driver_init(config)
     host.set_make("VARTA")
 end
@@ -15,16 +40,16 @@ function driver_poll()
     -- ---- Battery ----
 
     -- Battery power: 1066, I16, W (positive=charge, negative=discharge)
-    local ok_bw, bw_regs = pcall(host.modbus_read, 1066, 1, "holding")
+    local bw_regs = probe_read(1066, 1, "holding")
     local bat_w = 0
-    if ok_bw then
+    if bw_regs then
         bat_w = host.decode_i16(bw_regs[1])
     end
 
     -- Battery SoC: 1068, U16, %
-    local ok_bsoc, bsoc_regs = pcall(host.modbus_read, 1068, 1, "holding")
+    local bsoc_regs = probe_read(1068, 1, "holding")
     local bat_soc = 0
-    if ok_bsoc then
+    if bsoc_regs then
         bat_soc = bsoc_regs[1] / 100  -- percent to fraction
     end
 
@@ -37,23 +62,23 @@ function driver_poll()
     -- ---- Meter ----
 
     -- Grid power: 1078, I16, W (positive=import)
-    local ok_mw, mw_regs = pcall(host.modbus_read, 1078, 1, "holding")
+    local mw_regs = probe_read(1078, 1, "holding")
     local meter_w = 0
-    if ok_mw then
+    if mw_regs then
         meter_w = host.decode_i16(mw_regs[1])
     end
 
     -- Phase 1 voltage: 1080, U16 × 0.1V
-    local ok_lv, lv_regs = pcall(host.modbus_read, 1080, 1, "holding")
+    local lv_regs = probe_read(1080, 1, "holding")
     local l1_v = 0
-    if ok_lv then
+    if lv_regs then
         l1_v = lv_regs[1] * 0.1
     end
 
     -- Phase 1 current: 1081, U16 × 0.1A
-    local ok_la, la_regs = pcall(host.modbus_read, 1081, 1, "holding")
+    local la_regs = probe_read(1081, 1, "holding")
     local l1_a = 0
-    if ok_la then
+    if la_regs then
         l1_a = la_regs[1] * 0.1
     end
 
