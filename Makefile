@@ -23,6 +23,12 @@ ftw-baseline:
 ftw-baseline-report:
 	uv run --frozen --extra package --extra dev python tools/import_ftw_baseline.py --report
 
+# Which registers a driver reads forever while still reporting telemetry.
+# Every one takes the driver offline on hardware that omits that register.
+absent-register-report:
+	test -n "$(ID)"
+	./lua55 drivers/tests/lua_harness/absent_register_probe.lua . "drivers/lua/$(ID).lua"
+
 bootstrap:
 	uv sync --frozen --extra package --extra dev
 
