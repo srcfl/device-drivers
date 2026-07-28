@@ -1,5 +1,5 @@
 name: "ferroamp_modbus"
-version: "2.1.0"
+version: "2.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Modbus TCP must be enabled by Ferroamp support. Port 502, Unit ID 1. Word-swapped float32."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 13112
+size_bytes: 14450
 dkb_id: "ferroamp_modbus"
-sha256: "b71b1ec55442d8f8c96e22490da3e4331750335acdc0af72fbd9267455eb1230"
+sha256: "8be39a1d41b18b1e12fb9b669e6fe11c93775abfdb4f41338f9dc79fe66fd2d9"
 signature: ""
 
 bytecode_sha256: ""

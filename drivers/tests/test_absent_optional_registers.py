@@ -1,10 +1,14 @@
-"""A register the firmware does not carry must be probed once, not every poll.
+"""A register the firmware does not carry must be given up on, not read forever.
 
 The host counts every failed `host.modbus_read` toward the driver-poll error
 tally, whether or not Lua caught the error with pcall. So a driver that keeps
 re-reading an absent optional register sits at "1 of N reads failed" forever,
 the stale-telemetry watchdog marks it offline, and telemetry stops reaching
 the planner. Both cases below were found on customer hardware.
+
+The drivers spend a bounded number of attempts and then stop. These two cases
+are pinned here by name because they are the ones that reached customers;
+`test_absent_register_settles.py` holds every driver to the same property.
 
 The Lua harness in lua_harness/ covers the same ground, but CI only runs
 pytest, so the guard has to live here to hold.
@@ -19,7 +23,17 @@ ROOT = Path(__file__).resolve().parents[2]
 LUA = ROOT / "lua55"
 HARNESS = ROOT / "drivers" / "tests" / "lua_harness"
 
-POLLS = 3
+# Poll well past the point a driver should have given up, so a total read
+# count below the attempt budget proves it stopped rather than merely
+# started slowly.
+POLLS = 6
+
+# What a driver may spend on a register before leaving it alone. One failure
+# is not proof a register is missing — the link may just have been slow — so
+# the drivers retry a bounded number of times and then stop. Bounded is the
+# property that matters; the exact bound is a judgement call, and this is the
+# one sungrow already used.
+GIVE_UP_AFTER = 3
 
 pytestmark = pytest.mark.skipif(
     not LUA.exists(), reason="run make check to build ./lua55")
@@ -86,15 +100,15 @@ PIXII_SOURCES = {
 
 
 @pytest.mark.parametrize("source", sorted(PIXII_SOURCES), ids=sorted(PIXII_SOURCES))
-def test_pixii_probes_absent_scale_factor_once(source):
+def test_pixii_gives_up_on_an_absent_scale_factor(source):
     """40288 meter_energy_sf is absent on PowerShaper firmware below CPU 2.0.23."""
     out = poll_with_absent(PIXII_SOURCES[source], absent=40288, present=40256,
                            config="{host = '127.0.0.1', port = 502, unit_id = 1}")
 
-    assert int(out["ABSENT_READS"]) <= 1, (
+    assert int(out["ABSENT_READS"]) <= GIVE_UP_AFTER, (
         f"pixii {source} read absent 40288 {out['ABSENT_READS']} times over "
-        f"{POLLS} polls; every failed read counts against the poll and takes "
-        "the driver offline"
+        f"{POLLS} polls, so it never stopped. Every failed read counts against "
+        f"the poll and takes the driver offline; the budget is {GIVE_UP_AFTER}."
     )
     # Caching absence must not freeze a scale factor the firmware does carry.
     assert int(out["PRESENT_READS"]) >= POLLS, (
@@ -105,7 +119,7 @@ def test_pixii_probes_absent_scale_factor_once(source):
     )
 
 
-def test_solaredge_legacy_probes_absent_mppt_block_once():
+def test_solaredge_legacy_gives_up_on_an_absent_mppt_block():
     """K-series firmware does not populate the proprietary MPPT block at 40123."""
     out = run_lua(f'''
 -- The driver refuses a device that does not answer the SunSpec magic.
@@ -123,9 +137,9 @@ print("PRESENT_READS " .. count_reads(40069))
 print("PV " .. ((host._emitted.pv and #host._emitted.pv) or 0))
 ''')
 
-    assert int(out["ABSENT_READS"]) <= 1, (
+    assert int(out["ABSENT_READS"]) <= GIVE_UP_AFTER, (
         f"solaredge_legacy read absent 40123 {out['ABSENT_READS']} times over "
-        f"{POLLS} polls; every failed read counts against the poll"
+        f"{POLLS} polls, so it never stopped; the budget is {GIVE_UP_AFTER}."
     )
     # Model 103 carries AC power and must keep flowing.
     assert int(out["PRESENT_READS"]) >= POLLS, (

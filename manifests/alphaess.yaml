@@ -1,5 +1,5 @@
 name: "alphaess"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -21,9 +21,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3049
+size_bytes: 4031
 dkb_id: ""
-sha256: "438209c33ea5490f16f68c33279a35bf2ce3becc3c4e07f49504b5d059e1b67e"
+sha256: "eb76e0ff3be764a001b110a82a58f75ad967d4610d866eeb37e99802624fc07d"
 signature: ""
 
 bytecode_sha256: ""

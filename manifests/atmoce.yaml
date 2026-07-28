@@ -1,5 +1,5 @@
 name: "atmoce"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -28,9 +28,9 @@ tested_devices:
     notes: "Standalone gateway module"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 5486
+size_bytes: 6790
 dkb_id: "atmoce"
-sha256: "fa6a52d4446ec3361e8e0579015d94c6cb96e3f3d700ba33b43c320e71be3705"
+sha256: "b8ba3c35901c333c09903a97aeb7175afc763be1de87626b4b7f3d6810a6fabd"
 signature: ""
 
 bytecode_sha256: ""

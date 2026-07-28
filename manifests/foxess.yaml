@@ -1,5 +1,5 @@
 name: "foxess"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -42,9 +42,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 6075
+size_bytes: 6933
 dkb_id: ""
-sha256: "aa3aedd8172431fe1a3295ca6259a36c7bf845113d68c099a0cf3381dce7a992"
+sha256: "c998df936f95c2c183d027fbf5fc297e1c551b53b81da370c06d03f397959933"
 signature: ""
 
 bytecode_sha256: ""

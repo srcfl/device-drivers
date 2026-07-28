@@ -14,6 +14,7 @@ from conftest import (
     get_mqtt_drivers,
     get_driver_protocol,
     strip_lua_comments,
+    valid_ders,
 )
 
 DRIVERS = get_driver_names()
@@ -221,11 +222,11 @@ class TestVariableScoping:
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
-        valid_types = {"pv", "battery", "meter", "v2x_charger"}
+        valid_types = valid_ders()
         emit_matches = re.findall(r'host\.emit\s*\(\s*"(\w+)"', clean)
 
         for der_type in emit_matches:
             assert der_type in valid_types, (
                 f"{driver_name}: host.emit() uses invalid DER type "
-                f"'{der_type}', expected one of {valid_types}"
+                f"'{der_type}', expected one of {sorted(valid_types)}"
             )

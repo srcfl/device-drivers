@@ -1,5 +1,5 @@
 name: "janitza"
-version: "1.0.4"
+version: "1.0.5"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3530
+size_bytes: 4524
 dkb_id: ""
-sha256: "2f5a647c6e5df1783a6baf9306175ae78fa10fabc17676af8f486718f199a33a"
+sha256: "e3594504efd1315d86ced6480b8f526cfd0f940e992a5743858af8f772199eae"
 signature: ""
 
 bytecode_sha256: ""

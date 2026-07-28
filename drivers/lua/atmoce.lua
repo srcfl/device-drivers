@@ -18,6 +18,40 @@ local function write_u32(addr, val)
     host.write_registers(addr, {hi, lo})
 end
 
+----------------------------------------------------------------------------
+-- Absent-register guard
+----------------------------------------------------------------------------
+-- The host counts every failed modbus_read against the poll whether or not
+-- Lua caught it. So a register this driver can live without must stop being
+-- read once the device has made clear it will not answer — otherwise the
+-- poll keeps failing, the stale-telemetry watchdog marks the gateway
+-- offline, and the site reports nothing at all instead of one field less.
+--
+-- Three strikes rather than one: a single miss is more often a slow link
+-- than a missing register. A restart re-probes.
+--
+-- Poll reads only. The control path below writes and never reads, so a
+-- register the poll gave up on cannot veto a later setpoint.
+local GIVE_UP_AFTER = 3
+local read_failures = {}
+
+local function probe_read(addr, count, kind)
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, regs = pcall(host.modbus_read, addr, count, kind)
+    if ok and regs and regs[1] ~= nil then
+        read_failures[addr] = nil
+        return regs
+    end
+    local failures = (read_failures[addr] or 0) + 1
+    read_failures[addr] = failures
+    if failures == GIVE_UP_AFTER then
+        host.log("info", string.format(
+            "ATMOCE: register %d did not answer %d times; leaving it alone " ..
+            "until restart", addr, GIVE_UP_AFTER))
+    end
+    return nil
+end
+
 function driver_init(config)
     host.set_make("ATMOCE")
 end
@@ -28,16 +62,16 @@ function driver_poll()
     -- =====================
 
     -- PV Power Output: 60069-60070, U32, kW, gain 1000 (raw = watts)
-    local ok_pvw, pvw_regs = pcall(host.modbus_read, 60069, 2, "holding")
+    local pvw_regs = probe_read(60069, 2, "holding")
     local pv_w = 0
-    if ok_pvw then
+    if pvw_regs then
         pv_w = host.decode_u32_be(pvw_regs[1], pvw_regs[2])
     end
 
     -- Cumulative PV Generation: 60100-60103, U64, kWh, gain 100
-    local ok_pvgen, pvgen_regs = pcall(host.modbus_read, 60100, 4, "holding")
+    local pvgen_regs = probe_read(60100, 4, "holding")
     local pv_gen_wh = 0
-    if ok_pvgen then
+    if pvgen_regs then
         pv_gen_wh = decode_u64(pvgen_regs[1], pvgen_regs[2], pvgen_regs[3], pvgen_regs[4]) * 10
     end
 
@@ -51,16 +85,16 @@ function driver_poll()
     -- =====================
 
     -- ESS Charging/Discharging Power: 60071-60072, I32, kW, gain 1000 (raw = watts)
-    local ok_bat, bat_regs = pcall(host.modbus_read, 60071, 2, "holding")
+    local bat_regs = probe_read(60071, 2, "holding")
     local bat_w = 0
-    if ok_bat then
+    if bat_regs then
         bat_w = math.abs(host.decode_i32_be(bat_regs[1], bat_regs[2]))
     end
 
     -- ESS Status: 60067, U16 (1=Charging, 2=Discharging, 99=idle)
-    local ok_bst, bst_regs = pcall(host.modbus_read, 60067, 1, "holding")
+    local bst_regs = probe_read(60067, 1, "holding")
     local ess_status = 99
-    if ok_bst then
+    if bst_regs then
         ess_status = bst_regs[1]
     end
 
@@ -72,9 +106,9 @@ function driver_poll()
     end
 
     -- ESS SOC: 60095, U16, %, gain 1 (0-100)
-    local ok_soc, soc_regs = pcall(host.modbus_read, 60095, 1, "holding")
+    local soc_regs = probe_read(60095, 1, "holding")
     local bat_soc = 0
-    if ok_soc then
+    if soc_regs then
         bat_soc = soc_regs[1] / 100  -- percent to fraction
     end
 
@@ -89,17 +123,17 @@ function driver_poll()
 
     -- Grid Active Power: 60073-60074, I32, kW, gain 1000 (raw = watts)
     -- ATMOCE: positive=import, negative=export → matches our convention
-    local ok_gw, gw_regs = pcall(host.modbus_read, 60073, 2, "holding")
+    local gw_regs = probe_read(60073, 2, "holding")
     local meter_w = 0
-    if ok_gw then
+    if gw_regs then
         meter_w = host.decode_i32_be(gw_regs[1], gw_regs[2])
     end
 
     -- Phase V/A: 60089-60094
     -- A_V(U16 g10), A_I(I16 g100), B_V, B_I, C_V, C_I
-    local ok_va, va_regs = pcall(host.modbus_read, 60089, 6, "holding")
+    local va_regs = probe_read(60089, 6, "holding")
     local l1_v, l1_a, l2_v, l2_a, l3_v, l3_a = 0, 0, 0, 0, 0, 0
-    if ok_va then
+    if va_regs then
         l1_v = va_regs[1] * 0.1
         l1_a = host.decode_i16(va_regs[2]) * 0.01
         l2_v = va_regs[3] * 0.1
@@ -109,16 +143,16 @@ function driver_poll()
     end
 
     -- Cumulative Sales (export): 60178-60181, U64, kWh, gain 100
-    local ok_exp, exp_regs = pcall(host.modbus_read, 60178, 4, "holding")
+    local exp_regs = probe_read(60178, 4, "holding")
     local export_wh = 0
-    if ok_exp then
+    if exp_regs then
         export_wh = decode_u64(exp_regs[1], exp_regs[2], exp_regs[3], exp_regs[4]) * 10
     end
 
     -- Cumulative Purchase (import): 60184-60187, U64, kWh, gain 100
-    local ok_imp, imp_regs = pcall(host.modbus_read, 60184, 4, "holding")
+    local imp_regs = probe_read(60184, 4, "holding")
     local import_wh = 0
-    if ok_imp then
+    if imp_regs then
         import_wh = decode_u64(imp_regs[1], imp_regs[2], imp_regs[3], imp_regs[4]) * 10
     end
 

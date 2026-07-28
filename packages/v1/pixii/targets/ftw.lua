@@ -11,7 +11,7 @@ DRIVER = {
     id = "pixii",
     name = "Pixii PowerShaper",
     manufacturer = "Pixii",
-    version = "1.2.4",
+    version = "1.2.5",
     protocols = {"modbus"},
     capabilities = {"battery", "meter"},
     description = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -40,33 +40,44 @@ local function scale(value, factor)
     return value * (10 ^ factor)
 end
 
--- Scale-factor addresses this hardware has confirmed absent.
---   nil = not probed yet, true = present, false = confirmed absent
+-- Registers this device has stopped answering.
 --
--- Some PowerShaper firmware answers Modbus exception 2 ("illegal data
--- address") on optional SunSpec model 213 scale factors — 40288
--- (meter_energy_sf) is the one seen in the field. The pcall below
--- catches that and falls back to sf=0, which is the right value. But
--- the host counts the failed modbus_read toward the driver-poll error
--- tally whether or not Lua handled it, so re-reading an absent
--- register every poll holds the driver at "1 of N reads failed" and
--- the stale-telemetry watchdog takes it offline. Probe once, remember,
--- then stop asking. A restart re-probes, so a firmware update that
--- adds the register is picked up.
-local sf_present = {}
+-- The host counts every failed host.modbus_read against the poll whether or
+-- not this driver caught the error — "driver_poll: N of M modbus reads
+-- failed". So a register retried on every poll costs a failed poll on every
+-- poll, and the stale-telemetry watchdog takes the driver offline. The site
+-- then reports nothing at all, which is worse than reporting one field less.
+-- PowerShaper firmware below CPU 2.0.23 answers Modbus exception 2 on 40288
+-- (meter_energy_sf), which is how this was found in the field.
+--
+-- Three attempts absorb a transient blip; after that we stop asking. A
+-- restart re-probes, so firmware that gains the register is picked up.
+local GIVE_UP_AFTER = 3
+local read_failures = {}
 
-local function read_scale_factor(address)
-    if sf_present[address] == false then return 0 end
-    local ok, registers = pcall(host.modbus_read, address, 1, "holding")
+local function probe_read(address, count, kind)
+    if (read_failures[address] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, registers = pcall(host.modbus_read, address, count, kind)
     if ok and registers and registers[1] ~= nil then
-        sf_present[address] = true
-        return host.decode_i16(registers[1])
+        read_failures[address] = nil
+        return registers
     end
-    if sf_present[address] == nil then
-        sf_present[address] = false
+    local failures = (read_failures[address] or 0) + 1
+    read_failures[address] = failures
+    if failures == GIVE_UP_AFTER then
         host.log("info", string.format(
-            "Pixii: scale factor at %d is not exposed by this firmware; " ..
-            "using sf=0 (x1) from here on. Re-probed on restart.", address))
+            "Pixii: register %d did not answer %d times; leaving it alone " ..
+            "until restart", address, GIVE_UP_AFTER))
+    end
+    return nil
+end
+
+-- SF=0 (x1 scaling) is the right fallback when the register is absent, and
+-- matches units where it exists but reads zero.
+local function read_scale_factor(address)
+    local registers = probe_read(address, 1, "holding")
+    if registers then
+        return host.decode_i16(registers[1])
     end
     return 0
 end
@@ -84,8 +95,8 @@ local function decode_ascii(registers, count)
 end
 
 local function read_charge_status()
-    local ok, registers = pcall(host.modbus_read, REG_BATTERY_CHARGE_STATUS, 1, "holding")
-    if not ok or not registers or registers[1] == nil then
+    local registers = probe_read(REG_BATTERY_CHARGE_STATUS, 1, "holding")
+    if not registers then
         return nil
     end
     return registers[1]
@@ -118,8 +129,8 @@ end
 
 function driver_poll()
     if not serial_read then
-        local ok, registers = pcall(host.modbus_read, 40052, 16, "holding")
-        if ok and registers then
+        local registers = probe_read(40052, 16, "holding")
+        if registers then
             local serial = decode_ascii(registers, 16)
             if string.len(serial) > 0 then
                 host.set_sn(serial)
@@ -141,54 +152,54 @@ function driver_poll()
     local meter_w_factor = read_scale_factor(40256)
     local meter_energy_factor = read_scale_factor(REG_METER_ENERGY_SF)
 
-    local ok_ac_w, ac_w_registers = pcall(host.modbus_read, 40083, 1, "holding")
+    local ac_w_registers = probe_read(40083, 1, "holding")
     local ac_w = 0
-    if ok_ac_w and ac_w_registers then
+    if ac_w_registers then
         ac_w = scale(host.decode_i16(ac_w_registers[1]), ac_w_factor)
     end
 
-    local ok_hz, hz_registers = pcall(host.modbus_read, 40085, 1, "holding")
+    local hz_registers = probe_read(40085, 1, "holding")
     local inverter_hz = 0
-    if ok_hz and hz_registers then
+    if hz_registers then
         inverter_hz = scale(hz_registers[1], hz_factor)
     end
 
-    local ok_temp, temp_registers = pcall(host.modbus_read, 40102, 1, "holding")
+    local temp_registers = probe_read(40102, 1, "holding")
     local temp_c = 0
-    if ok_temp and temp_registers then
+    if temp_registers then
         temp_c = scale(host.decode_i16(temp_registers[1]), temp_factor)
     end
 
-    local ok_soc, soc_registers = pcall(host.modbus_read, 40132, 1, "holding")
+    local soc_registers = probe_read(40132, 1, "holding")
     local battery_soc = nil
-    if ok_soc and soc_registers then
+    if soc_registers then
         local candidate = scale(soc_registers[1], soc_factor) / 100
         if candidate >= 0 and candidate <= 1 then
             battery_soc = candidate
         end
     end
 
-    local ok_battery_v, battery_v_registers = pcall(host.modbus_read, 40155, 1, "holding")
+    local battery_v_registers = probe_read(40155, 1, "holding")
     local battery_v = 0
-    if ok_battery_v and battery_v_registers then
+    if battery_v_registers then
         battery_v = scale(host.decode_i16(battery_v_registers[1]), battery_v_factor)
     end
 
-    local ok_battery_a, battery_a_registers = pcall(host.modbus_read, 40165, 1, "holding")
+    local battery_a_registers = probe_read(40165, 1, "holding")
     local battery_a = 0
-    if ok_battery_a and battery_a_registers then
+    if battery_a_registers then
         battery_a = scale(host.decode_i16(battery_a_registers[1]), battery_a_factor)
     end
 
-    local ok_battery_w, battery_w_registers = pcall(host.modbus_read, 40168, 1, "holding")
+    local battery_w_registers = probe_read(40168, 1, "holding")
     local battery_w = 0
-    if ok_battery_w and battery_w_registers then
+    if battery_w_registers then
         battery_w = scale(host.decode_i16(battery_w_registers[1]), battery_w_factor)
     end
 
-    local ok_energy, energy_registers = pcall(host.modbus_read, 39958, 4, "holding")
+    local energy_registers = probe_read(39958, 4, "holding")
     local charge_wh, discharge_wh = 0, 0
-    if ok_energy and energy_registers then
+    if energy_registers then
         charge_wh = host.decode_i32_be(energy_registers[1], energy_registers[2]) * 1000
         discharge_wh = host.decode_i32_be(energy_registers[3], energy_registers[4]) * 1000
     end
@@ -208,51 +219,51 @@ function driver_poll()
     if battery_soc ~= nil then battery.soc = battery_soc end
     host.emit("battery", battery)
 
-    local ok_meter_a, meter_a_registers = pcall(host.modbus_read, 40237, 3, "holding")
+    local meter_a_registers = probe_read(40237, 3, "holding")
     local l1_a, l2_a, l3_a = 0, 0, 0
-    if ok_meter_a and meter_a_registers then
+    if meter_a_registers then
         l1_a = scale(host.decode_i16(meter_a_registers[1]), meter_a_factor)
         l2_a = scale(host.decode_i16(meter_a_registers[2]), meter_a_factor)
         l3_a = scale(host.decode_i16(meter_a_registers[3]), meter_a_factor)
     end
 
-    local ok_meter_v, meter_v_registers = pcall(host.modbus_read, 40242, 3, "holding")
+    local meter_v_registers = probe_read(40242, 3, "holding")
     local l1_v, l2_v, l3_v = 0, 0, 0
-    if ok_meter_v and meter_v_registers then
+    if meter_v_registers then
         l1_v = scale(host.decode_i16(meter_v_registers[1]), meter_v_factor)
         l2_v = scale(host.decode_i16(meter_v_registers[2]), meter_v_factor)
         l3_v = scale(host.decode_i16(meter_v_registers[3]), meter_v_factor)
     end
 
-    local ok_meter_hz, meter_hz_registers = pcall(host.modbus_read, 40250, 1, "holding")
+    local meter_hz_registers = probe_read(40250, 1, "holding")
     local meter_hz = 0
-    if ok_meter_hz and meter_hz_registers then
+    if meter_hz_registers then
         meter_hz = scale(meter_hz_registers[1], meter_hz_factor)
     end
 
-    local ok_meter_w, meter_w_registers = pcall(host.modbus_read, 40252, 1, "holding")
+    local meter_w_registers = probe_read(40252, 1, "holding")
     local meter_w = 0
-    if ok_meter_w and meter_w_registers then
+    if meter_w_registers then
         meter_w = scale(host.decode_i16(meter_w_registers[1]), meter_w_factor)
     end
 
-    local ok_phase_w, phase_w_registers = pcall(host.modbus_read, 40253, 3, "holding")
+    local phase_w_registers = probe_read(40253, 3, "holding")
     local l1_w, l2_w, l3_w = 0, 0, 0
-    if ok_phase_w and phase_w_registers then
+    if phase_w_registers then
         l1_w = scale(host.decode_i16(phase_w_registers[1]), meter_w_factor)
         l2_w = scale(host.decode_i16(phase_w_registers[2]), meter_w_factor)
         l3_w = scale(host.decode_i16(phase_w_registers[3]), meter_w_factor)
     end
 
-    local ok_export, export_registers = pcall(host.modbus_read, 40272, 4, "holding")
+    local export_registers = probe_read(40272, 4, "holding")
     local export_wh = 0
-    if ok_export and export_registers then
+    if export_registers then
         export_wh = scale(host.decode_u32_be(export_registers[1], export_registers[2]), meter_energy_factor)
     end
 
-    local ok_import, import_registers = pcall(host.modbus_read, 40280, 4, "holding")
+    local import_registers = probe_read(40280, 4, "holding")
     local import_wh = 0
-    if ok_import and import_registers then
+    if import_registers then
         import_wh = scale(host.decode_u32_be(import_registers[1], import_registers[2]), meter_energy_factor)
     end
 

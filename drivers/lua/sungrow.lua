@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow-shx",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.5.1",
+  version      = "1.5.2",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -131,6 +131,15 @@ end
 -- A register that answers on one model and not another. Absence has to be
 -- proved: a single timeout or a busy bus must not silence a register for the
 -- rest of the session, so only a run of failures counts.
+--
+-- Every read driver_poll makes goes through here, including the 5xxx block
+-- that every family is supposed to answer. "Supposed to" is not a guarantee:
+-- a register the inverter never answers costs a failed read on every poll
+-- forever, and the stale-telemetry watchdog then takes the whole site offline
+-- while this driver is still reporting good numbers for everything else. The
+-- control paths below stay on a plain pcall -- they run only when a command
+-- arrives, so they cost the poll nothing, and a poll-time miss must not veto
+-- a later command without trying.
 local MISSES_BEFORE_SKIP = 3
 local miss_counts = {}
 
@@ -363,18 +372,18 @@ function driver_poll()
     -- at 0 even while MPPT1/MPPT2 V×I clearly indicate generation. So we
     -- also read the MPPT voltage+current pairs separately and use their
     -- product as a fallback when the top-level register doesn't match.
-    local ok_pv, pv_regs = pcall(host.modbus_read, 5016, 2, "input")
+    local pv_regs = optional_read(5016, 2, "input")
     local pv_w_primary = 0
     local pv_raw_u32 = 0
-    if ok_pv and pv_regs then
+    if pv_regs then
         pv_w_primary = host.decode_u32_le(pv_regs[1], pv_regs[2])
         pv_raw_u32   = pv_w_primary
     end
 
     -- PV MPPT: 5010-5013 (V×0.1, A×0.1 per string)
-    local ok_mppt, mppt_regs = pcall(host.modbus_read, 5010, 4, "input")
+    local mppt_regs = optional_read(5010, 4, "input")
     local mppt1_v, mppt1_a, mppt2_v, mppt2_a = 0, 0, 0, 0
-    if ok_mppt and mppt_regs then
+    if mppt_regs then
         mppt1_v = mppt_regs[1] * 0.1
         mppt1_a = mppt_regs[2] * 0.1
         mppt2_v = mppt_regs[3] * 0.1
@@ -411,24 +420,24 @@ function driver_poll()
     end
 
     -- Rated power: 5000, U16 × 0.1 kW
-    local ok_rated, rated_regs = pcall(host.modbus_read, 5000, 1, "input")
+    local rated_regs = optional_read(5000, 1, "input")
     local rated_w = rated_ac_w
-    if ok_rated and rated_regs then
+    if rated_regs then
         rated_w = rated_regs[1] * 0.1 * 1000
         if rated_w > 0 then rated_ac_w = rated_w end
     end
 
     -- Heatsink temp: 5007, I16 × 0.1 C
-    local ok_temp, temp_regs = pcall(host.modbus_read, 5007, 1, "input")
+    local temp_regs = optional_read(5007, 1, "input")
     local heatsink_c = 0
-    if ok_temp and temp_regs then
+    if temp_regs then
         heatsink_c = host.decode_i16(temp_regs[1]) * 0.1
     end
 
     -- Grid frequency: 5241, U16 × 0.01 Hz
-    local ok_hz, hz_regs = pcall(host.modbus_read, 5241, 1, "input")
+    local hz_regs = optional_read(5241, 1, "input")
     local hz = 0
-    if ok_hz and hz_regs then
+    if hz_regs then
         hz = hz_regs[1] * 0.01
     end
 
@@ -581,34 +590,34 @@ function driver_poll()
     end
 
     -- Grid meter power: 5600-5601, I32 LE, watts (positive=import, negative=export)
-    local ok_mw, mw_regs = pcall(host.modbus_read, 5600, 2, "input")
+    local mw_regs = optional_read(5600, 2, "input")
     local meter_w = 0
-    if ok_mw and mw_regs then
+    if mw_regs then
         meter_w = host.decode_i32_le(mw_regs[1], mw_regs[2])
     end
 
     -- Per-phase power: 5602-5607, I32 LE pairs
-    local ok_mp, mp_regs = pcall(host.modbus_read, 5602, 6, "input")
+    local mp_regs = optional_read(5602, 6, "input")
     local l1_w, l2_w, l3_w = 0, 0, 0
-    if ok_mp and mp_regs then
+    if mp_regs then
         l1_w = host.decode_i32_le(mp_regs[1], mp_regs[2])
         l2_w = host.decode_i32_le(mp_regs[3], mp_regs[4])
         l3_w = host.decode_i32_le(mp_regs[5], mp_regs[6])
     end
 
     -- Per-phase voltage: 5740-5742, U16 × 0.1 V
-    local ok_mv, mv_regs = pcall(host.modbus_read, 5740, 3, "input")
+    local mv_regs = optional_read(5740, 3, "input")
     local l1_v, l2_v, l3_v = 0, 0, 0
-    if ok_mv and mv_regs then
+    if mv_regs then
         l1_v = mv_regs[1] * 0.1
         l2_v = mv_regs[2] * 0.1
         l3_v = mv_regs[3] * 0.1
     end
 
     -- Per-phase current: 5743-5745, U16 × 0.01 A
-    local ok_ma, ma_regs = pcall(host.modbus_read, 5743, 3, "input")
+    local ma_regs = optional_read(5743, 3, "input")
     local l1_a, l2_a, l3_a = 0, 0, 0
-    if ok_ma and ma_regs then
+    if ma_regs then
         l1_a = ma_regs[1] * 0.01
         l2_a = ma_regs[2] * 0.01
         l3_a = ma_regs[3] * 0.01

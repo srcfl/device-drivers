@@ -56,6 +56,13 @@ VALID_FIELDS = {
         "mppt1_w", "mppt2_w", "pv_source",
         "temp_c", "lifetime_wh",
         "lower_limit_w", "upper_limit_w",
+        # Solis string inverters carry four trackers, not two, and report DC
+        # input power alongside AC output — the difference is the conversion
+        # loss, which is what tells a healthy inverter from a failing one.
+        # `status` and `mode` are the device's own words for what it is doing,
+        # the same kind of diagnostic the Pixii battery fields below carry.
+        "mppt3_v", "mppt3_a", "mppt4_v", "mppt4_a",
+        "dc_w", "status", "mode",
     },
     "battery": {
         "w", "v", "a", "soc",

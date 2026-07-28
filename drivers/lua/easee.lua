@@ -25,38 +25,67 @@ local function decode_f32_be(hi, lo)
     return sign * (1 + mantissa / 0x800000) * 2^(exponent - 127)
 end
 
+-- Reading a register the charger does not have costs a failed read on every
+-- poll forever, and the host counts those against the poll whether or not Lua
+-- caught the error. Enough of them and the site is marked offline and reports
+-- nothing at all, which is worse than reporting one field less. So stop asking
+-- once a register has proved it is not there. Three tries, because one failure
+-- proves nothing -- the link may just have been slow.
+--
+-- Safe to bound every read here: this driver has no driver_command, so no read
+-- below is on a control path where giving up could veto a later command.
+local GIVE_UP_AFTER = 3
+local read_failures = {}
+
+local function probe_read(addr, count, kind)
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, regs = pcall(host.modbus_read, addr, count, kind)
+    if ok and regs and regs[1] ~= nil then
+        read_failures[addr] = nil
+        return regs
+    end
+    local failures = (read_failures[addr] or 0) + 1
+    read_failures[addr] = failures
+    if failures == GIVE_UP_AFTER then
+        host.log("info", string.format(
+            "Easee: register %d did not answer %d times; leaving it alone " ..
+            "until restart", addr, GIVE_UP_AFTER))
+    end
+    return nil
+end
+
 function driver_init(config)
     host.set_make("Easee")
 end
 
 function driver_poll()
     -- L1 current: 0 (F32, A), L2: 2
-    local ok_a, a_regs = pcall(host.modbus_read, 0, 4, "holding")
+    local a_regs = probe_read(0, 4, "holding")
     local l1_a, l2_a = 0, 0
-    if ok_a then
+    if a_regs then
         l1_a = decode_f32_be(a_regs[1], a_regs[2])
         l2_a = decode_f32_be(a_regs[3], a_regs[4])
     end
 
     -- Active power: 4 (F32, W)
-    local ok_w, w_regs = pcall(host.modbus_read, 4, 2, "holding")
+    local w_regs = probe_read(4, 2, "holding")
     local power_w = 0
-    if ok_w then
+    if w_regs then
         power_w = decode_f32_be(w_regs[1], w_regs[2])
     end
 
     -- Session energy: 8 (F32, Wh)
-    local ok_se, se_regs = pcall(host.modbus_read, 8, 2, "holding")
+    local se_regs = probe_read(8, 2, "holding")
     local session_wh = 0
-    if ok_se then
+    if se_regs then
         session_wh = decode_f32_be(se_regs[1], se_regs[2])
     end
 
     -- Charger state: 10 (U16: 1=disconnected, 2=awaiting, 3=charging, 4=completed, 5=error)
-    local ok_st, st_regs = pcall(host.modbus_read, 10, 1, "holding")
+    local st_regs = probe_read(10, 1, "holding")
     local raw_state = 0
     local state = 0
-    if ok_st then
+    if st_regs then
         raw_state = st_regs[1]
         -- Map Easee states to standard: 0=idle, 1=connected, 2=charging, 3=error
         if raw_state == 1 then

@@ -40,6 +40,26 @@ def ftw_sourced_drivers():
 FTW_SOURCED = ftw_sourced_drivers()
 
 
+def valid_ders():
+    """The DER vocabulary, read from the tool that enforces it.
+
+    Two tests used to hand-maintain their own copy of this set, and both were
+    left behind when `ev`, `heatpump` and `vehicle` were added for the drivers
+    promoted from FTW. Nothing noticed, because every driver emitting one of
+    those was byte-identical to its baseline and therefore exempt. Editing one
+    for any reason made two unrelated tests fail on a rule that had already
+    been changed to allow it.
+    """
+    import re
+    path = os.path.join(os.path.dirname(__file__), "..", "..",
+                        "tools", "validate_manifest.py")
+    with open(path) as handle:
+        match = re.search(r"^VALID_DERS\s*=\s*\{([^}]*)\}", handle.read(), re.M)
+    assert match, "VALID_DERS not found in tools/validate_manifest.py"
+    return {name.strip().strip('"\'') for name in match.group(1).split(",")
+            if name.strip()}
+
+
 def skip_if_ftw_sourced(name):
     """Skip a catalog-convention check for a driver FTW owns and tests."""
     if name in FTW_SOURCED:

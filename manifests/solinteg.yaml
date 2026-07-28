@@ -1,5 +1,5 @@
 name: "solinteg"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -42,9 +42,9 @@ tested_devices:
     notes: "Gen2 single-phase hybrid inverter"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 7966
+size_bytes: 8837
 dkb_id: "solinteg"
-sha256: "522d603368b8cfd2c5b111e9f59bba4dd190f08e6cac28c709409fc25a94c66e"
+sha256: "8529406d47253a42a360ff77ff527679587eb24a78241f0ee66e6274818ac67b"
 signature: ""
 
 bytecode_sha256: ""

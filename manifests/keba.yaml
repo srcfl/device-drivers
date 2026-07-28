@@ -1,5 +1,5 @@
 name: "keba"
-version: "1.0.2"
+version: "1.0.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3463
+size_bytes: 4620
 dkb_id: ""
-sha256: "a590749729442ab3f9c5dae31b0de02e8a367ca47ddd9dec3574045e95421ff3"
+sha256: "8c8f2685dbd9a67b422c134c9d1afc53d073233f0b2c10cca75c8b30fefaad91"
 signature: ""
 
 bytecode_sha256: ""

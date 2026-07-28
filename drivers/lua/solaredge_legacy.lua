@@ -33,7 +33,7 @@ DRIVER = {
   id           = "solaredge-legacy",
   name         = "SolarEdge legacy (K-series with display)",
   manufacturer = "SolarEdge",
-  version      = "0.3.1",
+  version      = "0.3.2",
   protocols    = { "modbus" },
   capabilities = { "pv", "pv-curtail" },
   description  = "SolarEdge K-series (SE7K / SE10K / SE17K / SE25K) PV inverter via Modbus TCP — reads use FC 0x03 holding; curtail writes use FC 0x10 multi-holding on the same Advanced Power Control registers (0xF000/0xF001) as HD-Wave.",
@@ -111,6 +111,40 @@ local REG_APC_ENABLE = 61440  -- 0xF000
 local REG_APC_LIMIT  = 61441  -- 0xF001
 
 ----------------------------------------------------------------------------
+-- Absent-register guard
+----------------------------------------------------------------------------
+-- Same reasoning as mppt_present above, generalised: the host counts every
+-- failed modbus_read against the poll whether or not Lua caught it, so an
+-- optional register this driver can live without must stop being read once
+-- the inverter has made clear it will not answer.
+--
+-- Three strikes rather than one: a single miss is more often a slow link
+-- than a missing register. A restart re-probes.
+--
+-- This guard is for reads the driver survives. It is deliberately NOT used
+-- for the SunSpec probe at 40000 or the Model 103 block at 40069 — see the
+-- comments at those call sites.
+local GIVE_UP_AFTER = 3
+local read_failures = {}
+
+local function probe_read(addr, count, kind)
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, regs = pcall(host.modbus_read, addr, count, kind)
+    if ok and regs and regs[1] ~= nil then
+        read_failures[addr] = nil
+        return regs
+    end
+    local failures = (read_failures[addr] or 0) + 1
+    read_failures[addr] = failures
+    if failures == GIVE_UP_AFTER then
+        host.log("info", string.format(
+            "SolarEdge legacy: register %d did not answer %d times; leaving " ..
+            "it alone until restart", addr, GIVE_UP_AFTER))
+    end
+    return nil
+end
+
+----------------------------------------------------------------------------
 -- SunSpec helpers
 ----------------------------------------------------------------------------
 
@@ -136,6 +170,13 @@ end
 -- length); 40069..40120 (52 regs) covers the header plus everything
 -- we care about: AC W/V/A + SFs, energy + SF, heat-sink temp + SF.
 -- Returns the raw register slice or nil on error.
+--
+-- Deliberately NOT routed through probe_read. When this block fails the
+-- driver emits nothing at all and returns early, so the failed read is the
+-- honest report of an unreadable inverter, not a cost paid for a field we
+-- decided to skip. Giving up on it after three misses would silence the
+-- driver permanently on three transient blips, with no way back short of a
+-- restart. Retrying forever is right here.
 local function read_inverter_block()
     local ok, regs = pcall(host.modbus_read, 40069, 52, "holding")
     if not ok or not regs then return nil end
@@ -186,6 +227,12 @@ end
 -- confirmed SunSpec; subsequent calls short-circuit. Failure is sticky
 -- *for this poll* but we re-probe on later polls in case the link was
 -- transiently slow during the first attempt.
+--
+-- Deliberately NOT routed through probe_read, for the same reason as
+-- read_inverter_block: a failure here gates the whole poll, so the driver
+-- emits nothing and the failed read is honest. Capping the retries would
+-- turn three slow polls into permanent silence until someone restarts the
+-- daemon. Retrying forever is the only way back.
 local function probe_sunspec()
     if sunspec_ok == true then return true end
     local ok, regs = pcall(host.modbus_read, 40000, 2, "holding")
@@ -219,9 +266,12 @@ function driver_poll()
     end
 
     -- ---- Serial number (SunSpec common block, one-shot) ----
+    -- Bounded: the driver emits PV happily without a serial number, so a
+    -- firmware that leaves this block empty must not cost a failed read on
+    -- every poll forever.
     if not sn_read then
-        local ok_sn, sn_regs = pcall(host.modbus_read, 40052, 16, "holding")
-        if ok_sn and sn_regs then
+        local sn_regs = probe_read(40052, 16, "holding")
+        if sn_regs then
             local sn = decode_ascii(sn_regs, 16)
             if #sn > 0 then
                 host.set_sn(sn)
