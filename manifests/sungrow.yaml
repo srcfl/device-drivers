@@ -1,5 +1,5 @@
 name: "sungrow"
-version: "1.5.0"
+version: "1.5.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -42,9 +42,9 @@ tested_devices:
     notes: "Commercial/industrial three-phase string inverter. Needs 1.2.1, which stops polling the SH battery registers this family does not answer."
     min_driver_version: "1.2.1"
 min_host_version: "2.0.0"
-size_bytes: 40500
+size_bytes: 41903
 dkb_id: "sungrow_sh_rt"
-sha256: "38b49dcaf022f44faa93a70f6d9cdcce7cde7236f338bb2350f34fc895beead5"
+sha256: "12001703cb0c8250a057ff351dc29d09c7f87ee2277cf841298c96138844929e"
 signature: ""
 
 bytecode_sha256: ""

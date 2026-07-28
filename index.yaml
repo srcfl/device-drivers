@@ -561,13 +561,13 @@ drivers:
     size_bytes: 6158
     sha256: "92163e4356b895e16b0205e849aa42a2dcea0d799f8cc6bcbce60b5e2cd92285"
   - name: "sungrow"
-    version: "1.5.0"
+    version: "1.5.1"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 40500
-    sha256: "38b49dcaf022f44faa93a70f6d9cdcce7cde7236f338bb2350f34fc895beead5"
+    size_bytes: 41903
+    sha256: "12001703cb0c8250a057ff351dc29d09c7f87ee2277cf841298c96138844929e"
   - name: "tesla_vehicle"
     version: "0.2.0"
     tier: core

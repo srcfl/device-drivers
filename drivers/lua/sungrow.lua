@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow-shx",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.5.0",
+  version      = "1.5.1",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -675,10 +675,35 @@ end
 -- Battery control command handler
 -- EMS convention: positive power_w = charge, negative = discharge
 -- Verified: charge 200W and discharge 200W both tested and confirmed
+--
+-- Do not remove the string-inverter guard below. It shipped in 1.2.1 (#17),
+-- was lost when #27 replaced this file with FTW's driver, and #29 restored
+-- only the read half at 1.4.0. Between those, a battery command on a model
+-- this driver had already classified as "string" wrote forced mode, a force
+-- command and a setpoint into the 13xxx block the family does not implement,
+-- and then reported success: the read-back that would have caught it fails on
+-- such a device, and a failed read-back is treated as transient and assumed
+-- good. The host recorded an applied setpoint, renewed the lease on it, and
+-- the planner went on dispatching a battery that is not there.
+--
+-- Refusing follows the shape curtail already uses when rated power is missing:
+-- a warn line naming the reason, and a result the host can report. The code is
+-- the one packages/v1/sungrow/targets/ftw.lua returns, so the two control
+-- paths refuse in the same words rather than drifting apart again.
 function driver_command(action, power_w, cmd)
     if action == "init" then
         return true
     elseif action == "battery" then
+        if model_family == "string" then
+            host.log("warn", "Sungrow: battery command refused — "
+                .. "this model has no battery registers")
+            return false, {
+                status = "rejected",
+                code = "no_battery",
+                message = "this Sungrow model has no battery registers",
+                device_state = "unchanged",
+            }
+        end
         return set_battery_power(power_w)
     elseif action == "curtail" then
         return set_pv_curtail_limit(math.abs(power_w))
