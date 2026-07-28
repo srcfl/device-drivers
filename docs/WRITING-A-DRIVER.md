@@ -54,6 +54,58 @@ one that takes a site down:
 `optional_read` in the blueprint does the second. `detect_model` does the
 first, and bounds itself too.
 
+### What this looks like in a shipped driver
+
+Most Modbus drivers here route every read through one helper. Copy it, change
+the manufacturer name, and use it everywhere the driver reads a register:
+
+```lua
+local GIVE_UP_AFTER = 3
+local read_failures = {}
+
+local function probe_read(addr, count, kind)
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, regs = pcall(host.modbus_read, addr, count, kind)
+    if ok and regs and regs[1] ~= nil then
+        read_failures[addr] = nil
+        return regs
+    end
+    local failures = (read_failures[addr] or 0) + 1
+    read_failures[addr] = failures
+    if failures == GIVE_UP_AFTER then
+        host.log("info", string.format(
+            "Example: register %d did not answer %d times; leaving it alone " ..
+            "until restart", addr, GIVE_UP_AFTER))
+    end
+    return nil
+end
+```
+
+Three attempts rather than one: a single failure is not proof a register is
+missing, and the link may just have been slow. Bounded is the property that
+matters, not the number. A restart re-probes, so firmware that gains the
+register is picked up without anyone editing the driver.
+
+Wrap the driver's own typed helpers — `read_i16`, `read_u32_be` and the like —
+around `probe_read` rather than giving each its own `pcall`. That fixes every
+call site at once and leaves one place to reason about.
+
+### Check your driver before you open the pull request
+
+```bash
+make absent-register-report ID=example
+```
+
+It takes every register your driver reads, makes that one stop answering, and
+watches ten polls. A line ending `SETTLED 0` with `EMITTED` above zero is the
+outage: the driver decided it can live without the register and then went on
+paying for it.
+
+`drivers/tests/test_absent_register_settles.py` holds every driver to this.
+A new driver must be clean. The drivers that already carried this debt when it
+was first measured are listed in `absent-register-baseline.json`, and that file
+may only shrink.
+
 ## Sign convention
 
 **Positive watts flow into the site.** Every driver, every device, no
