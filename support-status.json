@@ -394,7 +394,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.0",
+      "catalog_version": "2.1.1",
       "driver_id": "deye",
       "package_id": null,
       "targets": {
@@ -646,7 +646,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "foxess",
       "package_id": null,
       "targets": {
@@ -842,7 +842,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.0",
+      "catalog_version": "2.1.1",
       "driver_id": "growatt",
       "package_id": null,
       "targets": {
@@ -1626,7 +1626,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.0",
+      "catalog_version": "2.1.1",
       "driver_id": "sma",
       "package_id": null,
       "targets": {

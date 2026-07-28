@@ -113,13 +113,13 @@ drivers:
     size_bytes: 10865
     sha256: "bfbbf150290a962552fb67144751e0a1bd65210dd13eef16c4012ff7f99fecbd"
   - name: "deye"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 22941
-    sha256: "a563b0ce0f06f853d84d481708612bb620fadc0389c1f3fbc2e08195cfc68adc"
+    size_bytes: 23467
+    sha256: "5fdc1acd72f881ff02696e765df0528a68f300fa9ca557a4fba068874f0129df"
   - name: "easee"
     version: "1.0.3"
     tier: community
@@ -185,13 +185,13 @@ drivers:
     size_bytes: 13112
     sha256: "b71b1ec55442d8f8c96e22490da3e4331750335acdc0af72fbd9267455eb1230"
   - name: "foxess"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 6075
-    sha256: "aa3aedd8172431fe1a3295ca6259a36c7bf845113d68c099a0cf3381dce7a992"
+    size_bytes: 6933
+    sha256: "c998df936f95c2c183d027fbf5fc297e1c551b53b81da370c06d03f397959933"
   - name: "fronius"
     version: "2.1.1"
     tier: core
@@ -241,13 +241,13 @@ drivers:
     size_bytes: 8600
     sha256: "a63e529c056dbd066f5cab0fd192d24205ee707e975dda9830f37eb50f896043"
   - name: "growatt"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 8553
-    sha256: "6b2eebacab317b28d0931c27b766fb1aae279eef7da8a60b2caad6b6c89c5d70"
+    size_bytes: 9353
+    sha256: "3c4563fc848786caa8fb3a751b1a9c5fbf13db9e173b27a5fa2780c9cbadcf49"
   - name: "hardybarth"
     version: "1.0.1"
     tier: community
@@ -465,13 +465,13 @@ drivers:
     size_bytes: 3925
     sha256: "133d960e034793011b4c503f778dd7dba000ab2ea0288fd108b4c42f34d95c16"
   - name: "sma"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 13444
-    sha256: "a6b3acc819c198318018fcd99b0a834d00f98916ae38c530ab27406e0264423f"
+    size_bytes: 13951
+    sha256: "4af66894fef80d3955a94d4c5879d93d0110c8c91b32191bd8a597bee8dd17f3"
   - name: "sma_pv"
     version: "1.1.0"
     tier: core

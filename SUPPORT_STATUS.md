@@ -32,8 +32,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ctek_hybrid | 0.3.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ctek_v2 | 0.3.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ctek_v2 | 0.3.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| deye | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| deye | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| deye | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| deye | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | easee | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | easee | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | easee_cloud | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -50,8 +50,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ferroamp_dc2_v2x | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ferroamp_modbus | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ferroamp_modbus | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| foxess | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| foxess | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| foxess | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| foxess | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius_api | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -64,8 +64,8 @@ Catalog source is not proof that a target can install or run a driver.
 | goe_http | 1.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | goodwe | 2.1.0 | ftw-core | contract_passed | — | — | gw8kn_et_hk3000_required | — | profile_selected | no |
 | goodwe | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| growatt | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| growatt | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| growatt | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| growatt | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hardybarth | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hardybarth | 1.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | heishamon | 0.5.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -120,8 +120,8 @@ Catalog source is not proof that a target can install or run a driver.
 | siemens_pac | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sigenergy | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sigenergy | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| sma | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| sma | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| sma | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| sma | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sma_pv | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sma_pv | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | socomec | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
