@@ -1,4 +1,4 @@
-"""Sungrow must not read a battery that is not there.
+"""Sungrow must not read, or drive, a battery that is not there.
 
 Sungrow ships two families behind one driver. SH hybrids answer the 13xxx
 block; SG string inverters have no battery and answer none of it. The host
@@ -8,6 +8,11 @@ SG12RT lost all telemetry for weeks this way, with 12 of 19 reads failing on
 every poll.
 
 These tests exist so that cannot come back. The first one is the incident.
+
+The last few hold the write path to the same fact. The read path learned the
+two families apart in 1.4.0; `driver_command` did not, and went on writing an
+EMS setpoint to a model the driver itself had already classified as having no
+battery -- and reporting success.
 """
 
 from __future__ import annotations
@@ -213,3 +218,89 @@ print("FAULTED " .. tostring(host._faulted))
         "a string inverter does not read the running state, so it must not "
         "claim anything about the device's fault status")
     assert out["FAULTED"] == "false", out
+
+
+def send_command(action: str, power_w: int = 1000) -> str:
+    """Let the driver settle on a family, then send it one command.
+
+    The write counter is zeroed after init and the polls, so what it reports
+    is what this one command wrote and nothing else.
+    """
+    return f'''
+dofile("{DRIVER}")
+driver_init({{}})
+for poll = 1, 3 do pcall(driver_poll) end
+host._modbus_write_attempts = 0
+local accepted, refusal = driver_command("{action}", {power_w}, {{}})
+print("ACCEPTED " .. tostring(accepted))
+print("WRITES " .. tostring(host._modbus_write_attempts))
+print("CODE " .. tostring(type(refusal) == "table" and refusal.code or "none"))
+print("STATE " .. tostring(type(refusal) == "table" and refusal.device_state or "none"))
+local reason = "none"
+for _, line in ipairs(host._logs) do
+    if string.find(line, "no battery registers", 1, true) then reason = "logged" end
+end
+print("REASON " .. reason)
+'''
+
+
+def test_string_inverter_refuses_a_battery_command() -> None:
+    """The write half of the SG12RT fix.
+
+    Accepting was worse than a no-op. The driver wrote forced mode, a force
+    command and a setpoint into a block an SG string inverter does not
+    implement, then answered success: the read-back that would have caught it
+    fails on such a device, and a failed read-back is assumed transient and
+    treated as good.
+    """
+    out = run_lua(STRING_INVERTER + send_command("battery"))
+
+    assert out["ACCEPTED"] == "false", (
+        "the driver reported a battery setpoint applied on an inverter it had "
+        "already classified as having no battery. The host renews the lease on "
+        "that answer, so the planner goes on dispatching a battery that is not "
+        "there and nothing in the system contradicts it.")
+    assert out["WRITES"] == "0", (
+        f"the refusal still wrote {out['WRITES']} registers. 13049, 13050 and "
+        f"13051 are not implemented on an SG string inverter, so these are "
+        f"unexpected writes to live hardware, not a harmless no-op.")
+
+
+def test_battery_refusal_says_why() -> None:
+    """A bare false says the command failed. It does not say it never could."""
+    out = run_lua(STRING_INVERTER + send_command("battery"))
+
+    assert out["CODE"] == "no_battery", (
+        f"the refusal carried code {out['CODE']!r}. It must be 'no_battery', "
+        f"the same code packages/v1/sungrow/targets/ftw.lua already returns, "
+        f"so both control paths refuse in one vocabulary.")
+    assert out["STATE"] == "unchanged", (
+        "a refused command touched nothing, and the host needs to be told so "
+        "before it decides whether the device still needs default mode")
+    assert out["REASON"] == "logged", (
+        "an operator reading the logs gets no reason. Curtail already names "
+        "its own when rated power is missing; so must this.")
+
+
+def test_hybrid_still_takes_a_battery_command() -> None:
+    """The regression risk of refusing: a real hybrid must lose control."""
+    out = run_lua(HEALTHY_HYBRID + send_command("battery"))
+
+    assert out["ACCEPTED"] == "true", (
+        "an SH hybrid has a battery and the driver classified it as one. "
+        "Refusing here would take battery control off every hybrid on the "
+        "fleet, which is a larger outage than the one being fixed.")
+    assert int(out["WRITES"]) > 0, "an accepted setpoint has to reach the device"
+
+
+def test_string_inverter_still_takes_a_curtail_command() -> None:
+    """Only the battery is missing. The PV cap is not.
+
+    An SG string inverter answers the Active Power Limitation pair at
+    13088/13089. Refusing that too would cost the fleet a control it has.
+    """
+    out = run_lua(STRING_INVERTER + send_command("curtail"))
+
+    assert out["ACCEPTED"] == "true", (
+        "curtail was refused on a model that supports it. The device has no "
+        "battery; it does have PV.")
