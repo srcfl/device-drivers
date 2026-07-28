@@ -7,6 +7,9 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Fixed
+- **sigenergy** 1.1.1 — Removed the ESS State of Health read at register 30087 (`input`, U16, gain 10). The result was thrown away; nothing in `spec/host-api.md`, the canonical battery keys or `test_emit_fields.py` has anywhere to put SoH, and the read cost a failed Modbus round trip every poll once the register went unanswered. `drivers/tests/absent-register-baseline.json` sigenergy count drops from 6 to 5.
+
 ### Added
 - **The flap that took Pixii and SolarEdge legacy offline is now measured across the whole catalog, and it is not two drivers.** `drivers/tests/test_absent_register_settles.py` takes every register a driver reads, makes that register stop answering, and watches ten polls. The rule: a driver that keeps reporting telemetry must not keep failing reads. Emitting nothing while failing is fine — a device that cannot answer its identity block really is unreadable. Doing both is the outage, because the host counts every failed `modbus_read` against the poll and the watchdog marks the driver offline
 - The first run found **49 of 50 Modbus drivers violating the rule on at least one register — 497 of 543 probed addresses.** Pixii and SolarEdge legacy were not unlucky; they were the two that met firmware omitting a register they happened to read. `drivers/tests/absent-register-baseline.json` records that debt and the test ratchets against it: a count that rises fails, a driver not listed must be clean, and a count that falls fails until the file is updated, so the debt cannot be quietly re-borrowed. Shrink it, never grow it. `make absent-register-report ID=<id>` prints the registers for one driver
