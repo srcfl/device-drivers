@@ -29,7 +29,7 @@ DRIVER = {
   id           = "pixii",
   name         = "Pixii PowerShaper",
   manufacturer = "Pixii",
-  version      = "2.1.2",
+  version      = "2.1.3",
   protocols    = { "modbus" },
   capabilities = { "battery", "meter" },
   description  = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -406,7 +406,7 @@ function driver_poll()
     local soc_regs = probe_read(REG_BATTERY_SOC, 1, "holding")
     local bat_soc = nil
     local bat_soc_pct = nil
-    if ok_soc and soc_regs and soc_regs[1] ~= nil then
+    if soc_regs and soc_regs[1] ~= nil then
         bat_soc_pct = scale(soc_regs[1], soc_sf)
         local candidate = bat_soc_pct / 100
         if candidate >= 0 and candidate <= 1 then
@@ -549,13 +549,13 @@ function driver_poll()
     end
     local va_regs = probe_read(40257, 1, "holding")
     local meter_va, meter_va_ok = 0, false
-    if ok_va and va_regs and i16_present(va_regs[1]) then
+    if va_regs and i16_present(va_regs[1]) then
         meter_va = scale(host.decode_i16(va_regs[1]), meter_va_sf)
         meter_va_ok = true
     end
     local var_regs = probe_read(40262, 1, "holding")
     local meter_var, meter_var_ok = 0, false
-    if ok_var and var_regs and i16_present(var_regs[1]) then
+    if var_regs and i16_present(var_regs[1]) then
         meter_var = scale(host.decode_i16(var_regs[1]), meter_var_sf)
         meter_var_ok = true
     end
