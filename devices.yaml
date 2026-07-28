@@ -1039,7 +1039,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "pixii"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
@@ -1571,7 +1571,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solaredge_legacy"
-            version: "0.3.0"
+            version: "0.3.1"
             ders: [pv]
             control: true
         firmware_versions: ""

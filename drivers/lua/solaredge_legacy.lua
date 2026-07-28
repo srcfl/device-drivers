@@ -33,7 +33,7 @@ DRIVER = {
   id           = "solaredge-legacy",
   name         = "SolarEdge legacy (K-series with display)",
   manufacturer = "SolarEdge",
-  version      = "0.2.0",
+  version      = "0.3.1",
   protocols    = { "modbus" },
   capabilities = { "pv", "pv-curtail" },
   description  = "SolarEdge K-series (SE7K / SE10K / SE17K / SE25K) PV inverter via Modbus TCP — reads use FC 0x03 holding; curtail writes use FC 0x10 multi-holding on the same Advanced Power Control registers (0xF000/0xF001) as HD-Wave.",
@@ -89,6 +89,20 @@ PROTOCOL = "modbus"
 -- and removes the failure-vs-zero ambiguity entirely.
 local sn_read    = false
 local sunspec_ok = nil  -- true / false / nil (= not yet probed)
+
+-- Whether this firmware exposes the proprietary MPPT block at 40123.
+--   nil = not probed yet, true = present, false = confirmed absent
+--
+-- K-series units (SE7K/10K/17K/25K, the display era) answer Modbus
+-- exception 2 there — the registers are simply not populated. The
+-- pcall below already treats that as "no MPPT metrics, carry on with
+-- Model 103", which is right at the Lua level. But the host counts the
+-- failed modbus_read toward the driver-poll error tally regardless, so
+-- retrying it every poll holds the driver at "1 of 2 reads failed"
+-- until the stale-telemetry watchdog marks it offline and PV data
+-- stops reaching the planner. Probe once, then stop issuing a read we
+-- know will fail. A restart re-probes.
+local mppt_present = nil
 
 -- Curtail state — see header comment for the protocol.
 local nominal_w = 0
@@ -254,17 +268,25 @@ function driver_poll()
     -- (40160-40161). reg_off below converts a doc address into the
     -- 1-based block index.
     local mppt1_a, mppt1_v, mppt2_a, mppt2_v = 0, 0, 0, 0
-    local ok_mppt, mppt_regs = pcall(host.modbus_read, 40123, 39, "holding")
-    if ok_mppt and mppt_regs and #mppt_regs >= 39 then
-        local function reg_off(addr) return mppt_regs[addr - 40123 + 1] end
-        local mppt_a_sf = host.decode_i16(reg_off(40123))
-        local mppt_v_sf = host.decode_i16(reg_off(40124))
-        mppt1_a = scale(reg_off(40140), mppt_a_sf)
-        mppt1_v = scale(reg_off(40141), mppt_v_sf)
-        -- Single-string K-series units return zeros for MPPT2; that's
-        -- the correct emit, no warning needed.
-        mppt2_a = scale(reg_off(40160), mppt_a_sf)
-        mppt2_v = scale(reg_off(40161), mppt_v_sf)
+    if mppt_present ~= false then
+        local ok_mppt, mppt_regs = pcall(host.modbus_read, 40123, 39, "holding")
+        if ok_mppt and mppt_regs and #mppt_regs >= 39 then
+            mppt_present = true
+            local function reg_off(addr) return mppt_regs[addr - 40123 + 1] end
+            local mppt_a_sf = host.decode_i16(reg_off(40123))
+            local mppt_v_sf = host.decode_i16(reg_off(40124))
+            mppt1_a = scale(reg_off(40140), mppt_a_sf)
+            mppt1_v = scale(reg_off(40141), mppt_v_sf)
+            -- Single-string K-series units return zeros for MPPT2; that's
+            -- the correct emit, no warning needed.
+            mppt2_a = scale(reg_off(40160), mppt_a_sf)
+            mppt2_v = scale(reg_off(40161), mppt_v_sf)
+        elseif mppt_present == nil then
+            mppt_present = false
+            host.log("info",
+                "SolarEdge legacy: the MPPT block at 40123 is not readable on " ..
+                "this firmware; emitting Model 103 metrics only. Re-probed on restart.")
+        end
     end
 
     -- Site convention: generation is negative W.

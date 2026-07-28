@@ -29,7 +29,7 @@ DRIVER = {
   id           = "pixii",
   name         = "Pixii PowerShaper",
   manufacturer = "Pixii",
-  version      = "2.1.0",
+  version      = "2.1.1",
   protocols    = { "modbus" },
   capabilities = { "battery", "meter" },
   description  = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -89,10 +89,35 @@ local function scale(v, sf)
     return v * (10 ^ sf)
 end
 
+-- Scale-factor addresses this hardware has confirmed absent.
+--   nil = not probed yet, true = present, false = confirmed absent
+--
+-- Some PowerShaper firmware answers Modbus exception 2 ("illegal data
+-- address") on optional SunSpec model 213 scale factors — 40288
+-- (meter_energy_sf) is the one seen in the field. The pcall below
+-- catches that and falls back to SF=0, which is the right value. But
+-- the host counts the failed modbus_read toward the driver-poll error
+-- tally whether or not Lua handled it, so re-reading an absent
+-- register every poll holds the driver at "1 of N reads failed" and
+-- the stale-telemetry watchdog takes it offline. Probe once, remember,
+-- then stop asking. A restart re-probes, so a firmware update that
+-- adds the register is picked up.
+local sf_present = {}
+
 -- Read a single i16-typed scale factor register, returning 0 on error.
 local function read_sf(addr)
+    if sf_present[addr] == false then return 0 end
     local ok, regs = pcall(host.modbus_read, addr, 1, "holding")
-    if ok and regs then return host.decode_i16(regs[1]) end
+    if ok and regs and regs[1] ~= nil then
+        sf_present[addr] = true
+        return host.decode_i16(regs[1])
+    end
+    if sf_present[addr] == nil then
+        sf_present[addr] = false
+        host.log("info", string.format(
+            "Pixii: scale factor at %d is not exposed by this firmware; " ..
+            "using sf=0 (x1) from here on. Re-probed on restart.", addr))
+    end
     return 0
 end
 

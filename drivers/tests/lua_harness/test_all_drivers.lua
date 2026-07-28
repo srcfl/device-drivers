@@ -1072,6 +1072,98 @@ local function test_sungrow_transient_read_recovers()
     return #errors == 0, errors
 end
 
+-- An optional register the firmware does not carry must be probed once, not
+-- once per poll. Lua catching the error is not enough: the host counts every
+-- failed modbus_read toward the driver-poll tally, so a driver that keeps
+-- asking sits at "1 of N reads failed" until the watchdog marks it offline
+-- and telemetry stops.
+--
+-- These two cover the catalog drivers under drivers/lua. The equivalent
+-- Pixii test above runs the package target, which is why it stayed green
+-- through the promotion in #27 while the catalog driver lost the fix from
+-- #15 and the flap came back on customer hardware.
+
+local function test_pixii_catalog_absent_scale_factor()
+    host.reset()
+    clear_driver_globals()
+    setup_modbus_data("pixii")
+    -- 40288 meter_energy_sf, SunSpec model 213 — absent on PowerShaper
+    -- firmware older than CPU 2.0.23.
+    host._modbus_read_fail_addresses[40288] = "Illegal Data Address"
+
+    local errors = {}
+    local load_ok, load_err = pcall(dofile, drivers_dir .. "/pixii.lua")
+    if not load_ok then
+        return false, {"Failed to load: " .. tostring(load_err)}
+    end
+
+    driver_init({host = "127.0.0.1", port = 502, unit_id = 1})
+    for i = 1, 3 do
+        local poll_ok, poll_err = pcall(driver_poll)
+        if not poll_ok then
+            table.insert(errors, "Pixii poll " .. i .. " failed without 40288: " .. tostring(poll_err))
+        end
+    end
+
+    if not host._emitted.battery or not host._emitted.meter then
+        table.insert(errors, "Pixii stopped telemetry when 40288 is absent")
+    end
+    local absent_reads = count_reads(40288)
+    if absent_reads > 1 then
+        table.insert(errors, string.format(
+            "Pixii read absent 40288 %d times over 3 polls; every one counts against the poll",
+            absent_reads))
+    end
+    -- Caching absence must not freeze a scale factor the firmware does carry.
+    if count_reads(40256) < 3 then
+        table.insert(errors, "Pixii stopped re-reading meter power SF 40256, which is present")
+    end
+
+    return #errors == 0, errors
+end
+
+local function test_solaredge_legacy_absent_mppt_block()
+    host.reset()
+    clear_driver_globals()
+    setup_modbus_data("solaredge")
+    -- The driver refuses to read a device that does not answer the SunSpec
+    -- magic at 40000-40001, so the mock has to speak it.
+    host._modbus_registers.holding[40000] = 0x5375
+    host._modbus_registers.holding[40001] = 0x6e53
+    -- K-series firmware does not populate the proprietary MPPT block.
+    host._modbus_read_fail_addresses[40123] = "Illegal Data Address"
+
+    local errors = {}
+    local load_ok, load_err = pcall(dofile, drivers_dir .. "/solaredge_legacy.lua")
+    if not load_ok then
+        return false, {"Failed to load: " .. tostring(load_err)}
+    end
+
+    driver_init({host = "127.0.0.1", port = 502, unit_id = 1, nominal_w = 17000})
+    for i = 1, 3 do
+        local poll_ok, poll_err = pcall(driver_poll)
+        if not poll_ok then
+            table.insert(errors, "SolarEdge legacy poll " .. i .. " failed without 40123: " .. tostring(poll_err))
+        end
+    end
+
+    if not host._emitted.pv or #host._emitted.pv == 0 then
+        table.insert(errors, "SolarEdge legacy stopped PV telemetry when the MPPT block is absent")
+    end
+    local absent_reads = count_reads(40123)
+    if absent_reads > 1 then
+        table.insert(errors, string.format(
+            "SolarEdge legacy read absent 40123 %d times over 3 polls; every one counts against the poll",
+            absent_reads))
+    end
+    -- Model 103 is the block that carries AC power, and it must keep flowing.
+    if count_reads(40069) < 3 then
+        table.insert(errors, "SolarEdge legacy stopped reading the Model 103 block")
+    end
+
+    return #errors == 0, errors
+end
+
 ---------------------------------------------------------------------------
 -- Main execution
 ---------------------------------------------------------------------------
@@ -1127,6 +1219,8 @@ max_name_len = math.max(max_name_len, #"sungrow-ftw-v2-sg-string" + 2)
 max_name_len = math.max(max_name_len, #"sungrow-unknown-model" + 2)
 max_name_len = math.max(max_name_len, #"sungrow-transient-read" + 2)
 max_name_len = math.max(max_name_len, #"pixii-ftw-v2" + 2)
+max_name_len = math.max(max_name_len, #"pixii-catalog-missing-40288" + 2)
+max_name_len = math.max(max_name_len, #"solaredge-legacy-missing-40123" + 2)
 
 -- Run tests
 local results = {}
@@ -1250,6 +1344,40 @@ else
     io.write(string.format("  %s%s%s[FAIL]%s  optional meter energy scale factor\n",
         pixii_missing_sf_name, pixii_missing_sf_padding, RED, RESET))
     for _, err in ipairs(pixii_missing_sf_errors) do
+        io.write(string.format("          %s- %s%s\n", RED, err, RESET))
+    end
+end
+
+total = total + 1
+local pixii_catalog_sf_name = "pixii-catalog-missing-40288"
+local pixii_catalog_sf_ok, pixii_catalog_sf_errors = test_pixii_catalog_absent_scale_factor()
+local pixii_catalog_sf_padding = string.rep(" ", max_name_len - #pixii_catalog_sf_name)
+if pixii_catalog_sf_ok then
+    passed = passed + 1
+    io.write(string.format("  %s%s%s[PASS]%s  absent scale factor probed once, not every poll\n",
+        pixii_catalog_sf_name, pixii_catalog_sf_padding, GREEN, RESET))
+else
+    failed = failed + 1
+    io.write(string.format("  %s%s%s[FAIL]%s  absent scale factor probed once, not every poll\n",
+        pixii_catalog_sf_name, pixii_catalog_sf_padding, RED, RESET))
+    for _, err in ipairs(pixii_catalog_sf_errors) do
+        io.write(string.format("          %s- %s%s\n", RED, err, RESET))
+    end
+end
+
+total = total + 1
+local se_legacy_mppt_name = "solaredge-legacy-missing-40123"
+local se_legacy_mppt_ok, se_legacy_mppt_errors = test_solaredge_legacy_absent_mppt_block()
+local se_legacy_mppt_padding = string.rep(" ", max_name_len - #se_legacy_mppt_name)
+if se_legacy_mppt_ok then
+    passed = passed + 1
+    io.write(string.format("  %s%s%s[PASS]%s  absent MPPT block probed once, not every poll\n",
+        se_legacy_mppt_name, se_legacy_mppt_padding, GREEN, RESET))
+else
+    failed = failed + 1
+    io.write(string.format("  %s%s%s[FAIL]%s  absent MPPT block probed once, not every poll\n",
+        se_legacy_mppt_name, se_legacy_mppt_padding, RED, RESET))
+    for _, err in ipairs(se_legacy_mppt_errors) do
         io.write(string.format("          %s- %s%s\n", RED, err, RESET))
     end
 end
