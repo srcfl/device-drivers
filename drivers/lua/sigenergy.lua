@@ -7,6 +7,33 @@
 
 PROTOCOL = "modbus"
 
+-- Bounded register probe.
+-- The host counts every failed host.modbus_read against the poll, even one
+-- pcall caught here. A driver that keeps emitting while a register keeps
+-- failing is marked offline by the stale-telemetry watchdog, and the site
+-- then reports nothing at all. So: three tries, then leave the register
+-- alone. Three rather than one because a single failure is not proof the
+-- register is missing -- the link may just have been slow.
+local GIVE_UP_AFTER = 3
+local read_failures = {}
+
+local function probe_read(addr, count, kind)
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, regs = pcall(host.modbus_read, addr, count, kind)
+    if ok and regs and regs[1] ~= nil then
+        read_failures[addr] = nil
+        return regs
+    end
+    local failures = (read_failures[addr] or 0) + 1
+    read_failures[addr] = failures
+    if failures == GIVE_UP_AFTER then
+        host.log("info", string.format(
+            "Sigenergy: register %d did not answer %d times; leaving it alone " ..
+            "until restart", addr, GIVE_UP_AFTER))
+    end
+    return nil
+end
+
 local function write_u32(addr, val)
     val = math.floor(math.abs(val))
     local hi = math.floor(val / 65536)
@@ -24,9 +51,9 @@ function driver_poll()
     -- =====================
 
     -- PV Power: 30035-30036, S32, kW, gain 1000 (raw = watts)
-    local ok_pvw, pvw_regs = pcall(host.modbus_read, 30035, 2, "input")
+    local pvw_regs = probe_read(30035, 2, "input")
     local pv_w = 0
-    if ok_pvw then
+    if pvw_regs then
         pv_w = math.abs(host.decode_i32_be(pvw_regs[1], pvw_regs[2]))
     end
 
@@ -40,21 +67,21 @@ function driver_poll()
 
     -- ESS Power: 30037-30038, S32, kW, gain 1000 (raw = watts)
     -- Sigenergy: >0 charging, <0 discharging → matches our convention
-    local ok_bat, bat_regs = pcall(host.modbus_read, 30037, 2, "input")
+    local bat_regs = probe_read(30037, 2, "input")
     local bat_w = 0
-    if ok_bat then
+    if bat_regs then
         bat_w = host.decode_i32_be(bat_regs[1], bat_regs[2])
     end
 
     -- ESS SOC: 30014, U16, %, gain 10
-    local ok_soc, soc_regs = pcall(host.modbus_read, 30014, 1, "input")
+    local soc_regs = probe_read(30014, 1, "input")
     local bat_soc = 0
-    if ok_soc then
+    if soc_regs then
         bat_soc = soc_regs[1] / 1000  -- gain 10 → percent, / 100 → fraction
     end
 
-    -- ESS SOH: 30087, U16, %, gain 10
-    local ok_soh, soh_regs = pcall(host.modbus_read, 30087, 1, "input")
+    -- ESS SOH: 30087, U16, %, gain 10 (read but not emitted yet)
+    local soh_regs = probe_read(30087, 1, "input")
 
     host.emit("battery", {
         W   = bat_w,
@@ -68,16 +95,16 @@ function driver_poll()
     -- Grid Active Power: 30005-30006, S32, kW, gain 1000 (raw = watts)
     -- Sigenergy: >0 buy from grid (import), <0 sell to grid (export)
     -- Our convention: positive=import → matches directly
-    local ok_gw, gw_regs = pcall(host.modbus_read, 30005, 2, "input")
+    local gw_regs = probe_read(30005, 2, "input")
     local meter_w = 0
-    if ok_gw then
+    if gw_regs then
         meter_w = host.decode_i32_be(gw_regs[1], gw_regs[2])
     end
 
     -- Grid per-phase active power: 30052-30057 (3 x S32, kW, gain 1000)
-    local ok_gp, gp_regs = pcall(host.modbus_read, 30052, 6, "input")
+    local gp_regs = probe_read(30052, 6, "input")
     local l1_w, l2_w, l3_w = 0, 0, 0
-    if ok_gp then
+    if gp_regs then
         l1_w = host.decode_i32_be(gp_regs[1], gp_regs[2])
         l2_w = host.decode_i32_be(gp_regs[3], gp_regs[4])
         l3_w = host.decode_i32_be(gp_regs[5], gp_regs[6])
