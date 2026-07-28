@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 LUA = ROOT / "lua55"
 HARNESS = ROOT / "drivers" / "tests" / "lua_harness"
 DRIVER = ROOT / "drivers" / "lua" / "sungrow.lua"
+FTW_V2 = ROOT / "packages" / "v1" / "sungrow" / "targets" / "ftw.lua"
 
 # Every address in the hybrid block this driver touches.
 HYBRID_BLOCK = [12999, 13000, 13002, 13019, 13026, 13036, 13040, 13045, 13049]
@@ -293,6 +294,76 @@ def test_hybrid_still_takes_a_battery_command() -> None:
     assert int(out["WRITES"]) > 0, "an accepted setpoint has to reach the device"
 
 
+UNIDENTIFIED_STRING = '''
+-- The same SG12RT, except register 4999 never answers either. Detection gives
+-- up after three tries and settles on "unknown", so nothing ever names this
+-- device a string inverter -- only the silence of the 13xxx block does.
+host._modbus_read_fail_addresses[4999] = "Illegal Data Address"
+host._modbus_registers.input[5000] = {120}
+host._modbus_registers.input[5016] = {4000, 0}
+host._modbus_registers.input[5600] = {1500, 0}
+''' + fail_hybrid_block()
+
+
+UNIDENTIFIED_HYBRID = '''
+-- An SH10RT whose device-type register is unreadable. Detection settles on
+-- "unknown", the driver probes, and the battery block answers on the first
+-- poll -- so it reads and reports this battery every five seconds.
+host._modbus_read_fail_addresses[4999] = "Illegal Data Address"
+host._modbus_registers.input[5000]  = {100}
+host._modbus_registers.input[5016]  = {4000, 0}
+host._modbus_registers.input[12999] = {0x0000}
+host._modbus_registers.input[13000] = {0x0004}
+host._modbus_registers.input[13002] = {5000, 0}
+host._modbus_registers.input[13019] = {4800, 120, 900, 550}
+host._modbus_registers.input[13026] = {1000, 0}
+host._modbus_registers.input[13036] = {2000, 0}
+host._modbus_registers.input[13040] = {3000, 0}
+host._modbus_registers.input[13045] = {4000, 0}
+host._modbus_registers.input[5600]  = {1500, 0}
+'''
+
+
+def test_unidentified_string_inverter_also_refuses_a_battery_command() -> None:
+    """Classified as a string is not the only way to have no battery.
+
+    When register 4999 never answers, detection settles on "unknown" and no
+    classification ever says "string". A guard that tests only for "string"
+    falls straight through, and an SG inverter whose device-type register is
+    unreadable gets the EMS writes anyway -- the exact behaviour this driver
+    is supposed to have stopped.
+    """
+    out = run_lua(UNIDENTIFIED_STRING + send_command("battery"))
+
+    assert out["ACCEPTED"] == "false", (
+        "an unidentified device that has never answered a battery register "
+        "got a battery setpoint. The device type is the fast way to know "
+        "there is no battery; the silence of the 13xxx block is the only way "
+        "left when 4999 does not answer.")
+    assert out["WRITES"] == "0", f"the refusal still wrote {out['WRITES']} registers"
+    assert out["CODE"] == "no_battery", out
+
+
+def test_unidentified_hybrid_still_takes_a_battery_command() -> None:
+    """Why the guard is not `model_family == "hybrid"`.
+
+    An SH inverter whose device-type register is unreadable settles on
+    "unknown" too, but its battery block answers, so the driver reads that
+    battery and reports its SoC on every poll. Refusing to command a battery
+    the driver is actively reading would be an outage of its own -- and
+    detection giving up is common enough that DETECT_ATTEMPTS exists for it.
+    Evidence decides, not the absence of a positive label.
+    """
+    out = run_lua(UNIDENTIFIED_HYBRID + send_command("battery"))
+
+    assert out["ACCEPTED"] == "true", (
+        "battery control was denied to an inverter whose battery registers "
+        "answer every poll, because register 4999 happened to be unreadable. "
+        "Tightening the guard to a positively identified hybrid costs more "
+        "than it saves.")
+    assert int(out["WRITES"]) > 0, "an accepted setpoint has to reach the device"
+
+
 def test_string_inverter_still_takes_a_curtail_command() -> None:
     """Only the battery is missing. The PV cap is not.
 
@@ -304,3 +375,91 @@ def test_string_inverter_still_takes_a_curtail_command() -> None:
     assert out["ACCEPTED"] == "true", (
         "curtail was refused on a model that supports it. The device has no "
         "battery; it does have PV.")
+
+
+# --------------------------------------------------------------------------
+# Both copies of this driver, held to one rule
+#
+# The Sungrow driver exists twice: the catalog driver the signed channel
+# publishes, and the FTW v2 control target, which is a separate file and not
+# generated from it. They speak different command ABIs -- v1 returns a boolean,
+# v2 returns a result table -- but the rule underneath is the same, so one test
+# states it once. Pixii's 40288 came back because the package target had its
+# own green test; the v2 target here had no pytest at all, only a Lua harness
+# CI does not run.
+# --------------------------------------------------------------------------
+
+BOTH_DRIVERS = [pytest.param(DRIVER, id="catalog"), pytest.param(FTW_V2, id="ftw-v2")]
+
+
+def battery_command_on(driver: Path) -> str:
+    """Send one battery setpoint through whichever ABI this file speaks."""
+    if driver == FTW_V2:
+        call = '''
+local result = driver_command_v2({
+    command = "battery.set_power",
+    runtime_action = "battery",
+    inputs = {power_w = 1000},
+})
+print("ACCEPTED " .. tostring(result.status ~= "rejected"))
+print("CODE " .. tostring(result.code or "none"))
+'''
+    else:
+        call = '''
+local accepted, refusal = driver_command("battery", 1000, {})
+print("ACCEPTED " .. tostring(accepted == true))
+print("CODE " .. tostring(type(refusal) == "table" and refusal.code or "none"))
+'''
+    return f'''
+dofile("{driver}")
+driver_init({{}})
+for poll = 1, 4 do pcall(driver_poll) end
+host._modbus_write_attempts = 0
+{call}
+print("WRITES " .. tostring(host._modbus_write_attempts))
+'''
+
+
+@pytest.mark.parametrize("driver", BOTH_DRIVERS)
+@pytest.mark.parametrize("device,label", [
+    pytest.param(STRING_INVERTER,
+                 "a model that names itself a string inverter",
+                 id="named-string"),
+    pytest.param(UNIDENTIFIED_STRING,
+                 "a model that names nothing and answers no battery register",
+                 id="unidentified-string"),
+])
+def test_neither_copy_writes_a_battery_it_cannot_confirm(
+        driver: Path, device: str, label: str) -> None:
+    out = run_lua(device + battery_command_on(driver))
+
+    assert out["ACCEPTED"] == "false", (
+        f"{driver.name} accepted a battery setpoint on {label}. Writing "
+        f"13049/13050/13051 to an inverter that does not implement them is "
+        f"unexpected traffic to live hardware, and answering success renews "
+        f"the lease on a battery that is not there.")
+    assert out["WRITES"] == "0", (
+        f"{driver.name} refused and still wrote {out['WRITES']} registers")
+    assert out["CODE"] == "no_battery", (
+        f"{driver.name} refused with code {out['CODE']!r}. Both control paths "
+        f"refuse in one vocabulary or they drift apart again.")
+
+
+@pytest.mark.parametrize("driver", BOTH_DRIVERS)
+@pytest.mark.parametrize("device,label", [
+    pytest.param(HEALTHY_HYBRID,
+                 "an inverter that names itself a hybrid",
+                 id="named-hybrid"),
+    pytest.param(UNIDENTIFIED_HYBRID,
+                 "an inverter whose battery answers but whose type does not",
+                 id="unidentified-hybrid"),
+])
+def test_neither_copy_refuses_a_battery_it_can_confirm(
+        driver: Path, device: str, label: str) -> None:
+    """The other half. Refusing too much is also an outage."""
+    out = run_lua(device + battery_command_on(driver))
+
+    assert out["ACCEPTED"] == "true", (
+        f"{driver.name} refused a battery setpoint on {label}. A driver that "
+        f"reads a battery every poll and will not command it has taken a "
+        f"control off the fleet.")
