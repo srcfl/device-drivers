@@ -7,6 +7,14 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Added
+- **The flap that took Pixii and SolarEdge legacy offline is now measured across the whole catalog, and it is not two drivers.** `drivers/tests/test_absent_register_settles.py` takes every register a driver reads, makes that register stop answering, and watches ten polls. The rule: a driver that keeps reporting telemetry must not keep failing reads. Emitting nothing while failing is fine — a device that cannot answer its identity block really is unreadable. Doing both is the outage, because the host counts every failed `modbus_read` against the poll and the watchdog marks the driver offline
+- The first run found **49 of 50 Modbus drivers violating the rule on at least one register — 497 of 543 probed addresses.** Pixii and SolarEdge legacy were not unlucky; they were the two that met firmware omitting a register they happened to read. `drivers/tests/absent-register-baseline.json` records that debt and the test ratchets against it: a count that rises fails, a driver not listed must be clean, and a count that falls fails until the file is updated, so the debt cannot be quietly re-borrowed. Shrink it, never grow it. `make absent-register-report ID=<id>` prints the registers for one driver
+- `tests/test_blueprint.py` had held the blueprint to this property since it was written. It applied to an imaginary driver and to none of the ones that ship
+
+### Fixed
+- **The FTW exemption was hiding the outage it caused.** `drivers/tests/conftest.py` skips catalog-convention checks for every driver promoted from FTW, which is right for conventions this repository grew and FTW never spoke — spelling, key names, structure. It was applied to all parametrised checks without distinction, so a rule about what a driver does on hardware was skipped for exactly the 34 drivers the outage happened in. A check marked `holds_for_ftw_drivers` now applies to every driver. Without it the new suite silently measured 46 drivers and reported success
+
 ### Fixed
 - **pixii package** 1.2.4 — The package target carried the narrow fix from #16, which guarded register 40288 alone. Every other scale factor it reads — 40084, 40086, 40106, 40177, 40180, 40182, 40184, 40240, 40249, 40251, 40256 — would flap the poll counter the same way if that firmware omitted it. It now uses the same per-address probe as the catalog driver: measured 3 reads of an absent 40256 over 3 polls before, 1 after. Both files are held to the rule by one parametrised test, because the package target having its own green test is what hid the catalog regression
 
