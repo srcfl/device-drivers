@@ -696,7 +696,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -707,7 +707,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -718,7 +718,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -729,7 +729,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -740,7 +740,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1652,7 +1652,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1663,7 +1663,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1674,7 +1674,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1685,7 +1685,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1696,7 +1696,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""

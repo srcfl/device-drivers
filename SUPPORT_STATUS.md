@@ -62,8 +62,8 @@ Catalog source is not proof that a target can install or run a driver.
 | goe | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | goe_http | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | goe_http | 1.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| goodwe | 2.1.0 | ftw-core | contract_passed | — | — | gw8kn_et_hk3000_required | — | profile_selected | no |
-| goodwe | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| goodwe | 2.1.1 | ftw-core | contract_passed | — | — | gw8kn_et_hk3000_required | — | profile_selected | no |
+| goodwe | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | growatt | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | growatt | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hardybarth | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -72,8 +72,8 @@ Catalog source is not proof that a target can install or run a driver.
 | heishamon | 0.5.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hello | 1.1.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hello | 1.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| huawei | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| huawei | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| huawei | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| huawei | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | janitza | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | janitza | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -138,8 +138,8 @@ Catalog source is not proof that a target can install or run a driver.
 | solax | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | solinteg | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | solinteg | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| solis | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| solis | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| solis | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| solis | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | solis_string | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | solis_string | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sonnen | 2.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

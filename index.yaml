@@ -233,13 +233,13 @@ drivers:
     size_bytes: 3340
     sha256: "48b6d9ded6043e9b42a09bf03bd8edbab6363b18781e2279e957eee237556d25"
   - name: "goodwe"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 8600
-    sha256: "a63e529c056dbd066f5cab0fd192d24205ee707e975dda9830f37eb50f896043"
+    size_bytes: 9543
+    sha256: "674845c2b9bb815cbabc3a7b698d6eee4248eeb7b919d20859c4785107f175e3"
   - name: "growatt"
     version: "2.1.1"
     tier: community
@@ -273,13 +273,13 @@ drivers:
     size_bytes: 1362
     sha256: "4f273fa6aaff3bb462c3ac141f1773a2b6985421633d002578ce647726aa0ba9"
   - name: "huawei"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 14218
-    sha256: "5531e6f5d66114aab093d58188f5083feb388ad3608efa93f3b373362d75e517"
+    size_bytes: 15257
+    sha256: "0bfdeadf96fc9076d7214f5b751886984f049efde59a9a7c8cb6c01928702aa5"
   - name: "janitza"
     version: "1.0.4"
     tier: community
@@ -537,13 +537,13 @@ drivers:
     size_bytes: 7966
     sha256: "522d603368b8cfd2c5b111e9f59bba4dd190f08e6cac28c709409fc25a94c66e"
   - name: "solis"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 16671
-    sha256: "d44a018d2a4d1d08d9bc65a7441ee62a81b05852f19aa8df6115b9d360ebc5b3"
+    size_bytes: 17463
+    sha256: "ed089b7b41a5d15bf6144aea9f625039f3a14b82e44b41a8db40d2795dc69eb8"
   - name: "solis_string"
     version: "1.1.0"
     tier: core

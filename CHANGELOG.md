@@ -8,6 +8,16 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 ## [Unreleased]
 
 ### Fixed
+- **First round against the absent-register debt: 209 of 497 addresses, 9 of 49 drivers.** **kostal** 2.1.1, **fronius** 2.1.1, **pixii** 2.1.2 (and its package target 1.2.5), **foxess** 1.1.1, **growatt** 2.1.1, **sma** 2.1.1, **deye** 2.1.1, **solis** 2.1.1, **huawei** 2.1.1, **goodwe** 2.1.1. Each now reads every register through `probe_read`, which remembers what the device did not answer and stops after three attempts. Three rather than one absorbs a transient blip without disabling a register that is really there; a restart re-probes. Measured to zero on every one, and each emits exactly what it emitted before against a device that answers everything
+- **pixii** 2.1.2 — #33 covered the fourteen scale-factor reads and left twenty-three value reads behind: AC power, frequency, temperature, SoC, battery voltage and current, the meter block, the energy counters. Each still retried forever while the driver went on emitting. The package target carried seventeen of its own, so both move together — fixing one and not the other is what let the original bug come back
+- Two reads are deliberately left alone, and both are correct as they stand. Huawei's meter register 37113 already emits nothing when it fails, which is the honest-failure path rather than the outage; bounding it would silence the driver permanently after three blips instead of letting it recover. Deye's `read_battery_voltage` runs only on a battery command and never during a poll, so it costs no failed poll, and bounding it would let poll-time failures veto a later charge command
+- Editing ten drivers cost each its byte-identity with `baselines/ftw`, so the full catalog suite began applying to them — **473 checks that had been skipped**. All pass without further change
+
+### Changed
+- `docs/WRITING-A-DRIVER.md` carries the `probe_read` helper next to the rule it follows, and the command that checks a driver before the pull request: `make absent-register-report ID=<id>`. The rule was already written down; the code that satisfies it was not
+- `test_absent_optional_registers.py` asserted an absent register is read **at most once**, which pinned the one-shot policy rather than the property. It polls six times and holds the total within the attempt budget, which proves the driver stopped rather than merely started slowly
+
+### Fixed
 - **kostal** 2.1.1 and **fronius** 2.1.1 — first payment on the absent-register debt, **54 of 497 addresses**. Both read every register through `probe_read`, which remembers what the device did not answer and stops asking after three attempts. Three rather than one absorbs a transient blip without disabling a register that is really there; a restart re-probes, so firmware that gains the register is picked up. This is the pattern sungrow already used, now written once per driver instead of at each of 27 call sites. Measured with the probe: kostal 27 → 0, fronius 27 → 0, and both emit exactly what they emitted before against a device that answers everything
 - Editing the two cost them byte-identity with `baselines/ftw`, so the full catalog suite began applying to them — 96 checks that had been skipped. Both pass without further change
 

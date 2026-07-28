@@ -1,5 +1,5 @@
 name: "goodwe"
-version: "2.1.0"
+version: "2.1.1"
 tier: community
 author: "frekes81 and Sourceful contributors"
 protocol: modbus
@@ -7,9 +7,9 @@ ders: [pv, battery, meter]
 control: false
 tested_devices: []
 min_host_version: "1.10.0-beta.1"
-size_bytes: 8600
+size_bytes: 9543
 dkb_id: ""
-sha256: "a63e529c056dbd066f5cab0fd192d24205ee707e975dda9830f37eb50f896043"
+sha256: "674845c2b9bb815cbabc3a7b698d6eee4248eeb7b919d20859c4785107f175e3"
 signature: ""
 
 bytecode_sha256: ""
