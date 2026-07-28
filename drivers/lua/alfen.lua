@@ -24,48 +24,77 @@ local function decode_f32_be(hi, lo)
     return sign * (1 + mantissa / 0x800000) * 2^(exponent - 127)
 end
 
+-- Reading a register the charger does not have costs a failed read on every
+-- poll forever, and the host counts those against the poll whether or not Lua
+-- caught the error. Enough of them and the site is marked offline and reports
+-- nothing at all, which is worse than reporting one field less. So stop asking
+-- once a register has proved it is not there. Three tries, because one failure
+-- proves nothing -- the link may just have been slow.
+--
+-- Safe to bound every read here: this driver has no driver_command, so no read
+-- below is on a control path where giving up could veto a later command.
+local GIVE_UP_AFTER = 3
+local read_failures = {}
+
+local function probe_read(addr, count, kind)
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, regs = pcall(host.modbus_read, addr, count, kind)
+    if ok and regs and regs[1] ~= nil then
+        read_failures[addr] = nil
+        return regs
+    end
+    local failures = (read_failures[addr] or 0) + 1
+    read_failures[addr] = failures
+    if failures == GIVE_UP_AFTER then
+        host.log("info", string.format(
+            "Alfen: register %d did not answer %d times; leaving it alone " ..
+            "until restart", addr, GIVE_UP_AFTER))
+    end
+    return nil
+end
+
 function driver_init(config)
     host.set_make("Alfen")
 end
 
 function driver_poll()
     -- L1 current: 320 (F32, A), L2: 322, L3: 324
-    local ok_a, a_regs = pcall(host.modbus_read, 320, 6, "holding")
+    local a_regs = probe_read(320, 6, "holding")
     local l1_a, l2_a, l3_a = 0, 0, 0
-    if ok_a then
+    if a_regs then
         l1_a = decode_f32_be(a_regs[1], a_regs[2])
         l2_a = decode_f32_be(a_regs[3], a_regs[4])
         l3_a = decode_f32_be(a_regs[5], a_regs[6])
     end
 
     -- L1 voltage: 326 (F32, V), L2: 328, L3: 330
-    local ok_v, v_regs = pcall(host.modbus_read, 326, 6, "holding")
+    local v_regs = probe_read(326, 6, "holding")
     local l1_v, l2_v, l3_v = 0, 0, 0
-    if ok_v then
+    if v_regs then
         l1_v = decode_f32_be(v_regs[1], v_regs[2])
         l2_v = decode_f32_be(v_regs[3], v_regs[4])
         l3_v = decode_f32_be(v_regs[5], v_regs[6])
     end
 
     -- Active power: 344 (F32, W)
-    local ok_w, w_regs = pcall(host.modbus_read, 344, 2, "holding")
+    local w_regs = probe_read(344, 2, "holding")
     local power_w = 0
-    if ok_w then
+    if w_regs then
         power_w = decode_f32_be(w_regs[1], w_regs[2])
     end
 
     -- Session energy: 346 (F32, Wh)
-    local ok_se, se_regs = pcall(host.modbus_read, 346, 2, "holding")
+    local se_regs = probe_read(346, 2, "holding")
     local session_wh = 0
-    if ok_se then
+    if se_regs then
         session_wh = decode_f32_be(se_regs[1], se_regs[2])
     end
 
     -- Charger state: 1201 (U16: 0=unavailable, 1=available, 2=occupied, 3=charging)
-    local ok_st, st_regs = pcall(host.modbus_read, 1201, 1, "holding")
+    local st_regs = probe_read(1201, 1, "holding")
     local raw_state = 0
     local state = 0
-    if ok_st then
+    if st_regs then
         raw_state = st_regs[1]
         -- Map Alfen states to standard: 0=idle, 1=connected, 2=charging, 3=error
         if raw_state == 0 then
@@ -80,9 +109,9 @@ function driver_poll()
     end
 
     -- Max current: 1210 (F32, A)
-    local ok_mc, mc_regs = pcall(host.modbus_read, 1210, 2, "holding")
+    local mc_regs = probe_read(1210, 2, "holding")
     local max_a = 0
-    if ok_mc then
+    if mc_regs then
         max_a = decode_f32_be(mc_regs[1], mc_regs[2])
     end
 

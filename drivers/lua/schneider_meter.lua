@@ -25,63 +25,89 @@ local function decode_f32_be(hi, lo)
     return sign * (1 + mantissa / 0x800000) * 2^(exponent - 127)
 end
 
+-- Reading a register the device does not have costs a failed read on every
+-- poll forever, and the host counts those against the poll whether or not Lua
+-- caught the error. Enough of them and the site is marked offline and reports
+-- nothing at all, which is worse than reporting one field less. So stop asking
+-- once a register has proved it is not there. Three tries, because one failure
+-- proves nothing -- the link may just have been slow.
+local GIVE_UP_AFTER = 3
+local read_failures = {}
+
+local function probe_read(addr, count, kind)
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local ok, regs = pcall(host.modbus_read, addr, count, kind)
+    if ok and regs and regs[1] ~= nil then
+        read_failures[addr] = nil
+        return regs
+    end
+    local failures = (read_failures[addr] or 0) + 1
+    read_failures[addr] = failures
+    if failures == GIVE_UP_AFTER then
+        host.log("info", string.format(
+            "Schneider Electric: register %d did not answer %d times; " ..
+            "leaving it alone until restart", addr, GIVE_UP_AFTER))
+    end
+    return nil
+end
+
 function driver_init(config)
     host.set_make("Schneider Electric")
 end
 
 function driver_poll()
     -- Per-phase current: 2999-3000, 3001-3002, 3003-3004 (F32, A)
-    local ok_a, a_regs = pcall(host.modbus_read, 2999, 6, "holding")
+    local a_regs = probe_read(2999, 6, "holding")
     local l1_a, l2_a, l3_a = 0, 0, 0
-    if ok_a then
+    if a_regs then
         l1_a = decode_f32_be(a_regs[1], a_regs[2])
         l2_a = decode_f32_be(a_regs[3], a_regs[4])
         l3_a = decode_f32_be(a_regs[5], a_regs[6])
     end
 
     -- Per-phase voltage L-N: 3027-3028, 3029-3030, 3031-3032 (F32, V)
-    local ok_v, v_regs = pcall(host.modbus_read, 3027, 6, "holding")
+    local v_regs = probe_read(3027, 6, "holding")
     local l1_v, l2_v, l3_v = 0, 0, 0
-    if ok_v then
+    if v_regs then
         l1_v = decode_f32_be(v_regs[1], v_regs[2])
         l2_v = decode_f32_be(v_regs[3], v_regs[4])
         l3_v = decode_f32_be(v_regs[5], v_regs[6])
     end
 
     -- Per-phase power: 3053-3054, 3055-3056, 3057-3058 (F32, W)
-    local ok_w, w_regs = pcall(host.modbus_read, 3053, 6, "holding")
+    local w_regs = probe_read(3053, 6, "holding")
     local l1_w, l2_w, l3_w = 0, 0, 0
-    if ok_w then
+    if w_regs then
         l1_w = decode_f32_be(w_regs[1], w_regs[2])
         l2_w = decode_f32_be(w_regs[3], w_regs[4])
         l3_w = decode_f32_be(w_regs[5], w_regs[6])
     end
 
     -- Total active power: 3059-3060 (F32, W)
-    local ok_tw, tw_regs = pcall(host.modbus_read, 3059, 2, "holding")
+    local tw_regs = probe_read(3059, 2, "holding")
     local total_w = 0
-    if ok_tw then
+    if tw_regs then
         total_w = decode_f32_be(tw_regs[1], tw_regs[2])
     end
 
     -- Frequency: 3109-3110 (F32, Hz)
-    local ok_hz, hz_regs = pcall(host.modbus_read, 3109, 2, "holding")
+    local hz_regs = probe_read(3109, 2, "holding")
     local hz = 0
-    if ok_hz then
+    if hz_regs then
         hz = decode_f32_be(hz_regs[1], hz_regs[2])
     end
 
     -- Import active energy: 3203-3204 (I64, Wh — read high U32 pair)
-    local ok_imp, imp_regs = pcall(host.modbus_read, 3203, 4, "holding")
+    local imp_regs = probe_read(3203, 4, "holding")
     local import_wh = 0
-    if ok_imp then
+    if imp_regs then
         import_wh = host.decode_u32_be(imp_regs[1], imp_regs[2])
     end
 
     -- Export active energy: 3207-3208 (I64, Wh — read high U32 pair)
-    local ok_exp, exp_regs = pcall(host.modbus_read, 3207, 4, "holding")
+    local exp_regs = probe_read(3207, 4, "holding")
     local export_wh = 0
-    if ok_exp then
+    if exp_regs then
         export_wh = host.decode_u32_be(exp_regs[1], exp_regs[2])
     end
 
