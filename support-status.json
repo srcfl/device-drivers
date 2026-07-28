@@ -2,7 +2,7 @@
   "drivers": [
     {
       "catalog_source": true,
-      "catalog_version": "1.0.5",
+      "catalog_version": "1.0.6",
       "driver_id": "abb_meter",
       "package_id": null,
       "targets": {
@@ -58,7 +58,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.0.4",
       "driver_id": "acrel",
       "package_id": null,
       "targets": {
@@ -730,7 +730,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.0",
+      "catalog_version": "2.1.1",
       "driver_id": "fronius_smart_meter",
       "package_id": null,
       "targets": {
@@ -982,7 +982,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.4",
+      "catalog_version": "1.0.5",
       "driver_id": "janitza",
       "package_id": null,
       "targets": {
@@ -1598,7 +1598,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "sigenergy",
       "package_id": null,
       "targets": {
@@ -1850,7 +1850,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "solinteg",
       "package_id": null,
       "targets": {
@@ -2130,7 +2130,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "wallbox",
       "package_id": null,
       "targets": {

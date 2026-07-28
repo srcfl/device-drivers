@@ -1,13 +1,13 @@
 version: 1
 drivers:
   - name: "abb_meter"
-    version: "1.0.5"
+    version: "1.0.6"
     tier: community
     protocol: modbus
     ders: [meter]
     control: false
-    size_bytes: 2875
-    sha256: "49bc4f790372db8130a28a347174f8f8b6bfff24cb28d1e310442c75ec667b7b"
+    size_bytes: 3865
+    sha256: "e59cc7382dc43df90be789f675a02cfe64250caa2ac9a910a3e91c20cbbeaf06"
   - name: "abb_terra"
     version: "1.0.2"
     tier: community
@@ -17,13 +17,13 @@ drivers:
     size_bytes: 2543
     sha256: "242389de945154f5e00dc898256c3d769eaeb3800cd153b1065f1fff8a64fcd5"
   - name: "acrel"
-    version: "1.0.3"
+    version: "1.0.4"
     tier: community
     protocol: modbus
     ders: [meter]
     control: false
-    size_bytes: 2403
-    sha256: "6b73d99232f21a577e00b16feabfb8b9315c770f8c6d5c2483d9ea74c277243a"
+    size_bytes: 3412
+    sha256: "e3607864140b8d92fcaa175d066b8f3315c49065755f8cb1bb5b8a3f075cfaa9"
   - name: "alfen"
     version: "1.0.3"
     tier: community
@@ -209,13 +209,13 @@ drivers:
     size_bytes: 2080
     sha256: "3094603577fc51aa45bb4c757a471d24e8cb77ee4f0c596bb2fd4112b22a6578"
   - name: "fronius_smart_meter"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: core
     protocol: modbus
     ders: [meter]
     control: false
-    size_bytes: 6172
-    sha256: "b093fd1900589f98ba548cfc2b991f327457c2bc747cf8c6e1de687c2392dfc6"
+    size_bytes: 7521
+    sha256: "1ba6d717b2a04818da0d23cfedd5bddc0dd603da5d8ad838b68bf42c0595e0f2"
   - name: "goe"
     version: "1.0.2"
     tier: community
@@ -281,13 +281,13 @@ drivers:
     size_bytes: 15257
     sha256: "0bfdeadf96fc9076d7214f5b751886984f049efde59a9a7c8cb6c01928702aa5"
   - name: "janitza"
-    version: "1.0.4"
+    version: "1.0.5"
     tier: community
     protocol: modbus
     ders: [meter]
     control: false
-    size_bytes: 3530
-    sha256: "2f5a647c6e5df1783a6baf9306175ae78fa10fabc17676af8f486718f199a33a"
+    size_bytes: 4524
+    sha256: "e3594504efd1315d86ced6480b8f526cfd0f940e992a5743858af8f772199eae"
   - name: "keba"
     version: "1.0.2"
     tier: community
@@ -457,13 +457,13 @@ drivers:
     size_bytes: 3435
     sha256: "c48e79b7d3c0ed8546984c00802acac03f7473c175b356db09e73b21c37f77eb"
   - name: "sigenergy"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: community
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 3925
-    sha256: "133d960e034793011b4c503f778dd7dba000ab2ea0288fd108b4c42f34d95c16"
+    size_bytes: 4959
+    sha256: "bede3741e137d20a24a6c7a348904b7d0ab3511ff5a0b527cdd93d7267cd4213"
   - name: "sma"
     version: "2.1.1"
     tier: core
@@ -529,13 +529,13 @@ drivers:
     size_bytes: 4231
     sha256: "cd0cfab218ca407e8a5379e757a90982577127d4529950c9ee10a66cf73a91c4"
   - name: "solinteg"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: community
     protocol: modbus
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 7966
-    sha256: "522d603368b8cfd2c5b111e9f59bba4dd190f08e6cac28c709409fc25a94c66e"
+    size_bytes: 8837
+    sha256: "8529406d47253a42a360ff77ff527679587eb24a78241f0ee66e6274818ac67b"
   - name: "solis"
     version: "2.1.1"
     tier: core
@@ -609,13 +609,13 @@ drivers:
     size_bytes: 5779
     sha256: "deb4dba9ef525a59c023939d95686f4b533ee5a9d39a34598e499323afb6535f"
   - name: "wallbox"
-    version: "1.0.2"
+    version: "1.0.3"
     tier: community
     protocol: modbus
     ders: [v2x_charger]
     control: false
-    size_bytes: 1794
-    sha256: "ee0fe799b503923edd19cce5f26846e392cc56115f24626e7fe525d277b0374c"
+    size_bytes: 2842
+    sha256: "1c0362e0a25f1fe297de838a85089eb7676b25e78a7d6d1d03ccea1258b94403"
   - name: "zap"
     version: "2.0.1"
     tier: core

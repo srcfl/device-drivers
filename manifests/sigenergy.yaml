@@ -1,5 +1,5 @@
 name: "sigenergy"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -35,9 +35,9 @@ tested_devices:
     notes: "Three-phase hybrid inverter with ESS, includes TPLV series"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3925
+size_bytes: 4959
 dkb_id: "sigenergy"
-sha256: "133d960e034793011b4c503f778dd7dba000ab2ea0288fd108b4c42f34d95c16"
+sha256: "bede3741e137d20a24a6c7a348904b7d0ab3511ff5a0b527cdd93d7267cd4213"
 signature: ""
 
 bytecode_sha256: ""

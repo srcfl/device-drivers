@@ -4,12 +4,12 @@ Catalog source is not proof that a target can install or run a driver.
 
 | Driver | Catalog | Target | Conformance | Candidate | Signed beta | HIL | Stable | Legacy parity | Control |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| abb_meter | 1.0.5 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| abb_meter | 1.0.5 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| abb_meter | 1.0.6 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| abb_meter | 1.0.6 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | abb_terra | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | abb_terra | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| acrel | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| acrel | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| acrel | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| acrel | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | alfen | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | alfen | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | alphaess | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -56,8 +56,8 @@ Catalog source is not proof that a target can install or run a driver.
 | fronius | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius_api | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius_api | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| fronius_smart_meter | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| fronius_smart_meter | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| fronius_smart_meter | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| fronius_smart_meter | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | goe | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | goe | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | goe_http | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -74,8 +74,8 @@ Catalog source is not proof that a target can install or run a driver.
 | hello | 1.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | huawei | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | huawei | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| janitza | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| janitza | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| janitza | 1.0.5 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| janitza | 1.0.5 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | kostal | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -118,8 +118,8 @@ Catalog source is not proof that a target can install or run a driver.
 | shelly | 1.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | siemens_pac | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | siemens_pac | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| sigenergy | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| sigenergy | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| sigenergy | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| sigenergy | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sma | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sma | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sma_pv | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -136,8 +136,8 @@ Catalog source is not proof that a target can install or run a driver.
 | solaredge_pv | 1.2.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | solax | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | solax | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| solinteg | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| solinteg | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| solinteg | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| solinteg | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | solis | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | solis | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | solis_string | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -156,8 +156,8 @@ Catalog source is not proof that a target can install or run a driver.
 | victron | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | victron_mqtt | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | victron_mqtt | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| wallbox | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| wallbox | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| wallbox | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| wallbox | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | zap | 2.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | zap | 2.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | zaptec | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
