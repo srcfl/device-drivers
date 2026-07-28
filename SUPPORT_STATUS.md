@@ -52,8 +52,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ferroamp_modbus | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | foxess | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | foxess | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| fronius | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| fronius | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| fronius | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| fronius | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius_api | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius_api | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius_smart_meter | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -78,8 +78,8 @@ Catalog source is not proof that a target can install or run a driver.
 | janitza | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| kostal | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| kostal | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| kostal | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| kostal | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | kstar | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | kstar | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | mennekes | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

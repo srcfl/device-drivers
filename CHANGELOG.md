@@ -7,6 +7,10 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Fixed
+- **kostal** 2.1.1 and **fronius** 2.1.1 — first payment on the absent-register debt, **54 of 497 addresses**. Both read every register through `probe_read`, which remembers what the device did not answer and stops asking after three attempts. Three rather than one absorbs a transient blip without disabling a register that is really there; a restart re-probes, so firmware that gains the register is picked up. This is the pattern sungrow already used, now written once per driver instead of at each of 27 call sites. Measured with the probe: kostal 27 → 0, fronius 27 → 0, and both emit exactly what they emitted before against a device that answers everything
+- Editing the two cost them byte-identity with `baselines/ftw`, so the full catalog suite began applying to them — 96 checks that had been skipped. Both pass without further change
+
 ### Added
 - **The flap that took Pixii and SolarEdge legacy offline is now measured across the whole catalog, and it is not two drivers.** `drivers/tests/test_absent_register_settles.py` takes every register a driver reads, makes that register stop answering, and watches ten polls. The rule: a driver that keeps reporting telemetry must not keep failing reads. Emitting nothing while failing is fine — a device that cannot answer its identity block really is unreadable. Doing both is the outage, because the host counts every failed `modbus_read` against the poll and the watchdog marks the driver offline
 - The first run found **49 of 50 Modbus drivers violating the rule on at least one register — 497 of 543 probed addresses.** Pixii and SolarEdge legacy were not unlucky; they were the two that met firmware omitting a register they happened to read. `drivers/tests/absent-register-baseline.json` records that debt and the test ratchets against it: a count that rises fails, a driver not listed must be clean, and a count that falls fails until the file is updated, so the debt cannot be quietly re-borrowed. Shrink it, never grow it. `make absent-register-report ID=<id>` prints the registers for one driver

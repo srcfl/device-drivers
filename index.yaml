@@ -193,13 +193,13 @@ drivers:
     size_bytes: 6075
     sha256: "aa3aedd8172431fe1a3295ca6259a36c7bf845113d68c099a0cf3381dce7a992"
   - name: "fronius"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: core
     protocol: modbus
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 12360
-    sha256: "45d0793cd9cf1d19a96af2a4df544d897a1dc0f8a3e5972dc63c730b231562c6"
+    size_bytes: 12721
+    sha256: "bc526decf391d60f20369d84a20ac564c03255bdaad061ba6d08426169efe3e7"
   - name: "fronius_api"
     version: "1.0.2"
     tier: community
@@ -297,13 +297,13 @@ drivers:
     size_bytes: 3463
     sha256: "a590749729442ab3f9c5dae31b0de02e8a367ca47ddd9dec3574045e95421ff3"
   - name: "kostal"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: community
     protocol: modbus
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 10232
-    sha256: "a3d7ad7facf1483f3efac1604ded22dd55b2de88199caf5c33fe1fc468378784"
+    size_bytes: 11199
+    sha256: "e0801761d200b1a948872b6bfca3c662483c7dfc00445e15f83eaf07f80a6bf5"
   - name: "kstar"
     version: "1.1.0"
     tier: community
