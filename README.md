@@ -47,8 +47,11 @@ The drivers here target linux-edge hosts: FTW (gopher-lua) and Blixt L1
 memory budget.
 
 37 of them came from FTW, where they have run on customer sites for months.
-They are kept byte-identical to `baselines/ftw/drivers/` so their provenance
-stays checkable, and FTW continues to test them in Go.
+They were promoted byte-identical to `baselines/ftw/drivers/` so their
+provenance stays checkable, and FTW continues to test them in Go. A driver
+that has since been fixed here no longer matches its baseline, which is the
+point — the baseline is a record of what was imported, not a mirror of what
+ships. `make ftw-baseline-report` lists the current state.
 
 **One driver per device, not one dialect per repository.** FTW and Blixt spell
 some host functions differently, and both spellings are correct — each is the

@@ -19,10 +19,10 @@ private service consumes a locked commit and must reject local source drift.
 
 ## FTW bundled drivers
 
-FTW still ships its own bundled copies. `baselines/ftw` now holds all 37 of
-them byte for byte, recorded in `source-map.json` with each file's hash, FTW
-driver id and version. `make check` verifies those hashes, so a baseline
-cannot be edited by hand and FTW's source cannot drift away unnoticed.
+`baselines/ftw` holds all 37 of FTW's bundled drivers byte for byte as they
+stood at FTW commit `b297b378`, recorded in `source-map.json` with each file's
+hash, FTW driver id and version. `make check` verifies those hashes, so a
+baseline cannot be edited by hand.
 
 A baseline is a record, not a driver. Nothing under `baselines` reaches the
 catalog, a package recipe or the signed channel, and every entry stays
@@ -35,22 +35,29 @@ make ftw-baseline          # re-import from FTW master
 make ftw-baseline-report   # what blocks each baseline from the catalog
 ```
 
-The bundled drivers cannot simply replace their catalog namesakes:
+## What happened to the import question
 
-- of the 20 that map onto a catalog driver, none is byte-identical;
-- 14 compile to more than 8 KB of bytecode. That mattered when this
-  repository still targeted Zap; it no longer does, and a linux-edge driver
-  has no size ceiling. The figure is kept only because the Zap build track
-  compiles from this source and still has a pool to fit;
-- 17 have no catalog driver at all;
-- six of them call host functions the contract does not cover, listed under
-  `pending` in `spec/host-api-profile.json`: `easee_cloud` and
-  `ferroamp_dc2_v2x` need `json_encode`, `myuplink` needs `persist_secret`,
-  `tesla_vehicle` needs `set_watchdog_timeout_s`, `tibber` needs the `ws_*`
-  family and `zuidwijk_p1` the `tcp_*` family. The other 31 are clean;
-- `ferroamp_dc2_v2x` calls `os.time()`, which the driver sandbox forbids. The
-  catalog's own `drivers/lua/ferroamp_dc2_v2x.lua` has no such call, so the fix
-  already exists upstream.
+This file used to weigh whether the bundled drivers could replace their catalog
+namesakes, and answered one at a time. #27 settled it the other way: all 37
+were promoted verbatim and the catalog's own 62 drivers stopped being the
+truth. `CHANGELOG.md` records why — the serious defects were all in the
+catalog, never in FTW's drivers.
 
-Each of those is a decision per driver, not a bulk move. Take them one at a
-time and record the outcome in the source map.
+Two consequences outlive that decision.
+
+**The direction of the snapshot reversed.** FTW's `drivers/` is now generated
+from this repository at the commit pinned in FTW's `drivers/BUNDLED_SOURCE.json`,
+and FTW's CI rejects any drift. A fix merged here does not reach that snapshot
+on its own; someone moves the pin and runs FTW's `scripts/sync-bundled-drivers.sh`.
+
+**A promoted driver drops its exemption the moment it is edited.**
+`drivers/tests/conftest.py` decides byte-identity by content, so a fixed driver
+rejoins every catalog convention at once. See `AGENTS.md` for what to do when
+that fails a check.
+
+Some promoted drivers call host functions the contract does not cover, listed
+under `pending` in `spec/host-api-profile.json` — the `ws_*` and `tcp_*`
+families, `json_encode`, `persist_secret`, `set_watchdog_timeout_s`,
+`mqtt_pub`, `serial_write`. They shipped anyway because they work on FTW.
+Defining each for every linux-edge host, or rewriting the driver without it,
+is still open.
