@@ -13,21 +13,16 @@
     "  ./lua55 drivers/tests/lua_harness/absent_register_probe.lua . drivers/lua/<id>.lua"
   ],
   "drivers": {
-    "abb_terra": 6,
     "alfen": 6,
     "alphaess": 9,
-    "atmoce": 9,
     "carlo_gavazzi": 7,
     "chint": 6,
-    "circutor": 7,
     "ctek": 3,
     "ctek_hybrid": 3,
     "ctek_v2": 3,
     "easee": 4,
     "etrel": 5,
     "ferroamp_modbus": 10,
-    "goe": 6,
-    "keba": 10,
     "kstar": 8,
     "mennekes": 10,
     "saj": 13,
@@ -36,14 +31,11 @@
     "siemens_pac": 7,
     "sma_pv": 15,
     "socomec": 7,
-    "sofar": 14,
     "solaredge": 13,
-    "solaredge_legacy": 1,
     "solaredge_pv": 4,
     "solax": 12,
     "solis_string": 4,
     "sungrow": 9,
-    "varta": 5,
-    "victron": 4
+    "varta": 5
   }
 }

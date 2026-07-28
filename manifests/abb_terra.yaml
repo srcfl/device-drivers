@@ -1,5 +1,5 @@
 name: "abb_terra"
-version: "1.0.2"
+version: "1.0.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2543
+size_bytes: 3779
 dkb_id: ""
-sha256: "242389de945154f5e00dc898256c3d769eaeb3800cd153b1065f1fff8a64fcd5"
+sha256: "95098bbe0efed794b06d56b1d73e4d18d5582777f0eadd766a534ac66ff9dc56"
 signature: ""
 
 bytecode_sha256: ""

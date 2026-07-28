@@ -30,7 +30,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "abb_terra",
       "package_id": null,
       "targets": {
@@ -198,7 +198,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "atmoce",
       "package_id": null,
       "targets": {
@@ -282,7 +282,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.4",
+      "catalog_version": "1.0.5",
       "driver_id": "circutor",
       "package_id": null,
       "targets": {
@@ -758,7 +758,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "goe",
       "package_id": null,
       "targets": {
@@ -1010,7 +1010,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.2",
+      "catalog_version": "1.0.3",
       "driver_id": "keba",
       "package_id": null,
       "targets": {
@@ -1710,7 +1710,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.0",
+      "catalog_version": "2.1.1",
       "driver_id": "sofar",
       "package_id": null,
       "targets": {
@@ -1766,7 +1766,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.1",
+      "catalog_version": "0.3.2",
       "driver_id": "solaredge_legacy",
       "package_id": null,
       "targets": {
@@ -2074,7 +2074,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.0",
+      "catalog_version": "2.1.1",
       "driver_id": "victron",
       "package_id": null,
       "targets": {

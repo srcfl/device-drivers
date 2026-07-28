@@ -19,7 +19,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "abb_terra"
-            version: "1.0.2"
+            version: "1.0.3"
             ders: [v2x_charger]
             control: false
         firmware_versions: ""
@@ -32,7 +32,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "atmoce"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -43,7 +43,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "atmoce"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -54,7 +54,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "atmoce"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -231,7 +231,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "circutor"
-            version: "1.0.4"
+            version: "1.0.5"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -856,7 +856,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "keba"
-            version: "1.0.2"
+            version: "1.0.3"
             ders: [v2x_charger]
             control: false
         firmware_versions: ""
@@ -1446,7 +1446,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sofar"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1457,7 +1457,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sofar"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1468,7 +1468,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sofar"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1571,7 +1571,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solaredge_legacy"
-            version: "0.3.1"
+            version: "0.3.2"
             ders: [pv]
             control: true
         firmware_versions: ""
@@ -1922,7 +1922,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
@@ -1938,7 +1938,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
@@ -1954,7 +1954,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
@@ -1970,7 +1970,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
@@ -1986,7 +1986,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
@@ -2043,7 +2043,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "goe"
-            version: "1.0.2"
+            version: "1.0.3"
             ders: [v2x_charger]
             control: false
         firmware_versions: ""

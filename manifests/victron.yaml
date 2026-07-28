@@ -1,5 +1,5 @@
 name: "victron"
-version: "2.1.0"
+version: "2.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -42,9 +42,9 @@ tested_devices:
     notes: "Requires Venus OS with Modbus TCP enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 6662
+size_bytes: 7998
 dkb_id: ""
-sha256: "07a06e7f9051be097e95c247d3fbdcbe30e9a9c64db2a9d3e3bb2a882a928f5d"
+sha256: "3c477072004592762c3422cc29a5570752e74bb7a1a59e51c279ab3d0fd654fd"
 signature: ""
 
 bytecode_sha256: ""

@@ -1,5 +1,5 @@
 name: "solaredge_legacy"
-version: "0.3.1"
+version: "0.3.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -14,9 +14,9 @@ tested_devices:
     notes: "SolarEdge K-series (SE7K / SE10K / SE17K / SE25K) PV inverter via Modbus TCP — reads use FC 0x03 holding; curtail writes use FC 0x10 multi-holding on the same Advanced Power Control registers (0xF000/0xF001) as HD-Wave."
     min_driver_version: "0.2.0"
 min_host_version: "2.0.0"
-size_bytes: 15890
+size_bytes: 18246
 dkb_id: "solaredge_legacy"
-sha256: "7f9308fa51f205c9116fc53bd9576a50ed428610ef18cdbfb9995372b2b32e63"
+sha256: "7a590f5f35efc395754f002f0d48aef8b2d46cab525bf2ae863f4fd73b01781b"
 signature: ""
 
 bytecode_sha256: ""

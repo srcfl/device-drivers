@@ -1,5 +1,5 @@
 name: "sofar"
-version: "2.1.0"
+version: "2.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -28,9 +28,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 8199
+size_bytes: 9083
 dkb_id: ""
-sha256: "1a901ee8e50e8d3a7dca0f1412d61f2837fdbe70e5d550f84662275350fd4ba8"
+sha256: "26307ffaec7a11139038fc286a96d3d4ee7c6097bdba7c0eef22a2761597115c"
 signature: ""
 
 bytecode_sha256: ""
