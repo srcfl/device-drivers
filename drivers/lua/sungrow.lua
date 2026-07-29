@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow-shx",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.5.5",
+  version      = "1.5.6",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -139,13 +139,13 @@ end
 -- Whether the device has named itself a model with no battery registers.
 --
 -- Read this narrowly. It gates startup *reads* of the battery limit block and
--- nothing else. It must never gate a write that clears a forced state: since
--- 1.5.4 a zero-watt command is accepted on any family, so a device this
--- function calls "string" can still be holding EMS mode 2, and
--- set_self_consumption is the only thing that writes mode 0 back. A device
--- classified here is not proof there is nothing to release -- Sungrow shipping
--- a hybrid under a device-type family classify_device_type has not been taught
--- lands in exactly this branch.
+-- nothing else. It must never gate a write that clears a forced state, because
+-- a device this function calls "string" can still be holding EMS mode 2 --
+-- left there by an earlier run, or by a firmware that answers the type
+-- register differently after an update -- and set_self_consumption is the only
+-- thing that writes mode 0 back. Being classified here is not proof there is
+-- nothing to release: a hybrid shipped under a device-type family
+-- classify_device_type has not been taught lands in exactly this branch.
 local function known_to_have_no_battery()
     return model_family == "string"
 end
@@ -747,20 +747,7 @@ function driver_command(action, power_w, cmd)
     if action == "init" then
         return true
     elseif action == "battery" then
-        -- Zero is not a dispatch. It is the host handing the device back to
-        -- itself: forced mode off, setpoint nought. Refusing to write "stop"
-        -- is a different risk from refusing to write "charge" -- a device
-        -- left in a forced state stays there, and the safe default is the
-        -- one path that must never be gated on how much we know about the
-        -- hardware. It also arrives before the first poll, from the
-        -- lifecycle rather than from the planner, which is exactly when
-        -- nothing has been confirmed yet.
-        --
-        -- On a genuine string inverter this writes to a register block the
-        -- model does not implement. That write fails at the Modbus layer and
-        -- costs nothing; the outage it protects against is a battery left
-        -- charging with no way to say stop.
-        if power_w ~= 0 and model_family ~= "hybrid" and not battery_confirmed then
+        if model_family ~= "hybrid" and not battery_confirmed then
             local why = model_family == "string"
                 and "this model has no battery registers"
                 or "no battery register has answered on this device"

@@ -392,30 +392,28 @@ def test_string_inverter_still_takes_a_curtail_command() -> None:
 BOTH_DRIVERS = [pytest.param(DRIVER, id="catalog"), pytest.param(FTW_V2, id="ftw-v2")]
 
 
-def battery_command_on(driver: Path, power_w: int = 1000,
-                       polls: int = 4) -> str:
+def battery_command_on(driver: Path) -> str:
     """Send one battery setpoint through whichever ABI this file speaks."""
     if driver == FTW_V2:
         call = '''
 local result = driver_command_v2({
     command = "battery.set_power",
     runtime_action = "battery",
-    inputs = {power_w = POWER_W},
+    inputs = {power_w = 1000},
 })
 print("ACCEPTED " .. tostring(result.status ~= "rejected"))
 print("CODE " .. tostring(result.code or "none"))
 '''
     else:
         call = '''
-local accepted, refusal = driver_command("battery", POWER_W, {})
+local accepted, refusal = driver_command("battery", 1000, {})
 print("ACCEPTED " .. tostring(accepted == true))
 print("CODE " .. tostring(type(refusal) == "table" and refusal.code or "none"))
 '''
-    call = call.replace("POWER_W", str(power_w))
     return f'''
 dofile("{driver}")
 driver_init({{}})
-for poll = 1, {polls} do pcall(driver_poll) end
+for poll = 1, 4 do pcall(driver_poll) end
 host._modbus_write_attempts = 0
 {call}
 print("WRITES " .. tostring(host._modbus_write_attempts))
@@ -467,65 +465,231 @@ def test_neither_copy_refuses_a_battery_it_can_confirm(
         f"control off the fleet.")
 
 
-# ---------------------------------------------------------------------------
-# Zero is not a dispatch
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------
+# Zero watts, before the first poll
 #
-# A zero-power battery command is the host handing the device back to itself:
-# forced mode off, setpoint nought. It arrives from the lifecycle rather than
-# the planner, so it can land before the first poll -- when nothing has been
-# confirmed and the guard above would otherwise refuse it.
+# srcfl/ftw#704 stalled here. FTW's TestSungrowZeroBatteryCommandForcesIdle
+# loads the driver, sends {"action":"battery","power_w":0} with no poll first,
+# and expects the forced-idle writes. The guard above refuses it: before the
+# first poll nothing has named a family and no battery register has answered.
 #
-# Refusing to write "stop" is a different risk from refusing to write
-# "charge". A device left in a forced state stays there, and the safe default
-# is the one path that must never be gated on how much is known about the
-# hardware. On a string inverter the write fails at the Modbus layer and costs
-# nothing; the outage it prevents is a battery with no way to be told to stop.
+# The refusal stands, and these tests carry the reason so it is not re-argued.
 #
-# FTW's TestSungrowZeroBatteryCommandForcesIdle sends exactly this, straight
-# after load. These cases are that test's rule, held here so the two cannot
-# drift.
+# The case for waving zero through was that it is not a dispatch but the
+# safety operation that hands a device back to itself, so refusing it can
+# strand an inverter in a forced state. Neither half survives contact with
+# this driver on this host:
+#
+#   * Zero does not hand the inverter back. driver_command("battery", 0)
+#     writes EMS mode 2 -- forced -- and pins the battery at 0 W under FTW's
+#     control. The write that returns an inverter to its own self-consumption
+#     is mode 0, and it lives in driver_default_mode.
+#   * The release is a separate entrypoint, and it is not gated. FTW reaches
+#     it through Registry.SendDefault on shutdown, lease expiry, the telemetry
+#     watchdog and the stale-site-meter standdown, never through
+#     driver_command. driver_init writes self-consumption too, before the run
+#     loop can accept any command -- so the window where a battery command is
+#     refused is a window where the inverter is already back on its own. On
+#     the control v2 path FTW does not even rely on that: it calls
+#     driver_default_mode_v2 itself once driver_init returns.
+#
+# Refusing therefore withholds nothing that is not reachable by a route which
+# cannot refuse. Accepting would put mode 2 and a setpoint back on an SG
+# inverter that implements neither, and report success, because the read-back
+# that would catch it fails on that device too. That is the SG12RT bug again,
+# arriving through the one action nobody thought to guard.
+#
+# The residue is honest and small: if the init write fails on a real hybrid,
+# battery commands are refused until the first poll confirms the battery --
+# at most one poll interval, with driver_default_mode available throughout.
+#
+# The two copies agree on the guard, and the tests below hold both to it. They
+# do NOT agree on what zero writes: the catalog driver forces idle (mode 2),
+# the v2 target hands the inverter back (mode 0, device_state "default", which
+# clears FTW's lease). The v2 target uses a different register map throughout
+# -- 13050 and 13051 as per-direction limits rather than force command and
+# setpoint -- so this is one question inside a larger one. It belongs to the
+# register-map review packages/v1/sungrow/PILOT.md already requires before
+# that target ships; its verification_status is "experimental" and the signed
+# package builds from targets/ftw-observe.lua, so nothing here reaches
+# hardware today. Written down because untested drift between these two files
+# is how Pixii's 40288 came back.
+# --------------------------------------------------------------------------
 
-@pytest.mark.parametrize("driver", BOTH_DRIVERS)
-@pytest.mark.parametrize("device,label", [
-    pytest.param(STRING_INVERTER,
-                 "a model that names itself a string inverter",
-                 id="named-string"),
-    pytest.param(UNIDENTIFIED_STRING,
-                 "a model that names nothing and answers no battery register",
-                 id="unidentified-string"),
-    pytest.param(HEALTHY_HYBRID, "a hybrid", id="hybrid"),
-])
-def test_zero_is_never_refused(driver: Path, device: str, label: str) -> None:
-    out = run_lua(device + battery_command_on(driver, power_w=0))
-
-    # Not refused by the guard is the rule. Whether the write then succeeds is
-    # a separate matter: on a device that does not implement 13049 the
-    # read-back fails and the driver says so, which is the honest outcome. The
-    # thing that must never happen is the command being turned away before it
-    # is tried.
-    assert out["CODE"] != "no_battery", (
-        f"{driver.name} refused a zero-power battery command on {label}. Zero "
-        f"is the safe default -- the host handing the device back to itself. "
-        f"A driver that will not accept 'stop' can leave a battery in a "
-        f"forced state with no way out.")
+NOTHING_ANSWERED_YET = '''
+-- No registers configured, so every read answers 0 -- both the mock's default
+-- and Sungrow's documented "not present" code at 4999. No family named, no
+-- battery register answered: the state a driver sits in between driver_init
+-- and its first poll, and the state FTW's Go test leaves it in.
+'''
 
 
-@pytest.mark.parametrize("driver", BOTH_DRIVERS)
-def test_zero_lands_before_the_first_poll(driver: Path) -> None:
-    """The ordering FTW's Go suite exercises: load, then command, no poll.
+def ems_mode_written() -> str:
+    """Report the last value written to the EMS mode register, 13049.
 
-    Nothing has answered yet, so neither the model family nor the battery is
-    confirmed. This is precisely when the guard must not fire.
+    2 is forced control, 0 hands the inverter back to self-consumption. One
+    line tells apart a command that takes the device over from one that
+    releases it.
     """
-    out = run_lua(UNIDENTIFIED_STRING
-                  + battery_command_on(driver, power_w=0, polls=0))
+    return '''
+local mode = "none"
+for _, call in ipairs(host._calls) do
+    if call.func == "modbus_write" and call.args[1] == 13049 then
+        mode = tostring(call.args[2])
+    end
+end
+print("EMS_MODE_WRITTEN " .. mode)
+local writes = {}
+for _, call in ipairs(host._calls) do
+    if call.func == "modbus_write" then
+        writes[#writes + 1] = tostring(call.args[1]) .. "=" .. tostring(call.args[2])
+    end
+end
+print("WRITE_LOG " .. table.concat(writes, ","))
+'''
 
-    assert out["CODE"] != "no_battery", (
-        f"{driver.name} refused a zero-power command issued before the first "
-        f"poll. Detection has had no chance to run at that point, and a "
-        f"safety idle cannot wait for it.")
 
+def zero_command_before_any_poll(driver: Path) -> str:
+    """Init, then one zero-watt battery command, with no poll in between.
+
+    The earliest a command can reach a driver on FTW. Registry.Add runs
+    driver_init and then starts the run loop, whose select serves the command
+    channel before the first poll timer fires -- and that timer is a full poll
+    interval out, longer with host.set_warmup_s.
+    """
+    if driver == FTW_V2:
+        call = '''
+local result = driver_command_v2({
+    command = "battery.set_power",
+    runtime_action = "battery",
+    inputs = {power_w = 0},
+})
+print("ACCEPTED " .. tostring(result.status ~= "rejected"))
+print("CODE " .. tostring(result.code or "none"))
+'''
+    else:
+        call = '''
+local accepted, refusal = driver_command("battery", 0, {})
+print("ACCEPTED " .. tostring(accepted == true))
+print("CODE " .. tostring(type(refusal) == "table" and refusal.code or "none"))
+'''
+    return f'''
+dofile("{driver}")
+driver_init({{}})
+host._modbus_write_attempts = 0
+{call}
+print("WRITES " .. tostring(host._modbus_write_attempts))
+'''
+
+
+@pytest.mark.parametrize("driver", BOTH_DRIVERS)
+def test_zero_watts_is_still_a_battery_command(driver: Path) -> None:
+    """A setpoint of zero is a setpoint. It proves nothing about the battery.
+
+    Nothing here says this device has one: no family named, no battery
+    register answered. A guard that trusts the number rather than the evidence
+    is not a guard -- an SG string inverter takes a zero as readily as it
+    takes a thousand, and answers success to both.
+    """
+    out = run_lua(NOTHING_ANSWERED_YET + zero_command_before_any_poll(driver))
+
+    assert out["ACCEPTED"] == "false", (
+        f"{driver.name} accepted a zero-watt battery command on a device that "
+        f"has confirmed nothing. Zero is not exempt: it writes the same three "
+        f"registers to the same models, and reports the same false success.")
+    assert out["WRITES"] == "0", (
+        f"{driver.name} refused and still wrote {out['WRITES']} registers")
+    assert out["CODE"] == "no_battery", (
+        f"{driver.name} refused with code {out['CODE']!r}, not 'no_battery'")
+
+
+def test_zero_watts_takes_the_inverter_over_rather_than_handing_it_back() -> None:
+    """The claim that decides it.
+
+    If zero released the device, refusing it would withhold a safety action.
+    It does not: it writes mode 2 and holds the battery at 0 W under FTW's
+    control. An inverter is more controlled after this command than before.
+    """
+    body = HEALTHY_HYBRID + f'''
+dofile("{DRIVER}")
+driver_init({{}})
+for poll = 1, 3 do pcall(driver_poll) end
+host._calls = {{}}
+local accepted = driver_command("battery", 0, {{}})
+print("ACCEPTED " .. tostring(accepted == true))
+''' + ems_mode_written()
+    out = run_lua(body)
+
+    assert out["ACCEPTED"] == "true", (
+        "a confirmed hybrid must still take a zero-watt setpoint")
+    assert out["WRITE_LOG"] == "13049=2,13050=204,13051=0", (
+        f"zero wrote {out['WRITE_LOG']}. FTW's Go test expects these three "
+        f"and no others, so the two repositories agree on what zero does.")
+    assert out["EMS_MODE_WRITTEN"] == "2", (
+        f"zero left EMS mode at {out['EMS_MODE_WRITTEN']}. Mode 2 is forced "
+        f"control; mode 0 is the release. Calling this a safety operation "
+        f"reads it backwards.")
+
+
+def release_before_any_poll(driver: Path) -> str:
+    """Init, then the release, with no poll in between."""
+    if driver == FTW_V2:
+        call = '''
+local result = driver_default_mode_v2({reason = "host_shutdown"})
+print("RELEASED " .. tostring(result.status ~= "rejected"))
+'''
+    else:
+        call = '''
+print("RELEASED " .. tostring(driver_default_mode() == true))
+'''
+    return f'''
+dofile("{driver}")
+driver_init({{}})
+host._calls = {{}}
+{call}
+''' + ems_mode_written()
+
+
+@pytest.mark.parametrize("driver", BOTH_DRIVERS)
+def test_the_release_is_never_gated(driver: Path) -> None:
+    """Why refusing a battery command is safe, and the thing that must not move.
+
+    Refusing costs nothing only while handing the inverter back stays
+    reachable without evidence of a battery. Gate driver_default_mode the way
+    driver_command is gated and the whole argument collapses: a device would
+    then be able to hold a forced state that nothing is allowed to clear.
+    """
+    out = run_lua(NOTHING_ANSWERED_YET + release_before_any_poll(driver))
+
+    assert out["RELEASED"] == "true", (
+        f"{driver.name} refused to hand the inverter back on a device that "
+        f"has confirmed nothing. Shutdown, lease expiry, the watchdog and the "
+        f"stale-meter standdown all arrive here, and none of them can wait "
+        f"for a poll.")
+    assert out["EMS_MODE_WRITTEN"] == "0", (
+        f"the release left EMS mode at {out['EMS_MODE_WRITTEN']}, not 0. "
+        f"Anything else keeps the inverter under FTW's control.")
+
+
+def test_init_hands_the_inverter_back_before_a_command_can_arrive() -> None:
+    """The other reason refusing costs nothing.
+
+    A container that dies mid-force leaves the inverter holding the last
+    command. driver_init clears it -- and it runs before FTW's run loop exists
+    to accept a command at all. So there is no window where a battery command
+    is refused and the inverter is stranded in a forced state.
+    """
+    body = NOTHING_ANSWERED_YET + f'''
+dofile("{DRIVER}")
+driver_init({{}})
+''' + ems_mode_written()
+    out = run_lua(body)
+
+    assert out["EMS_MODE_WRITTEN"] == "0", (
+        f"driver_init left EMS mode at {out['EMS_MODE_WRITTEN']}. It has to "
+        f"reach self-consumption unconditionally: the family is often still "
+        f"unknown here, and an inverter still holding yesterday's forced "
+        f"charge is the case this write exists for.")
 
 # --------------------------------------------------------------------------
 # Startup traffic, and the line it must not cross
@@ -543,11 +707,12 @@ def test_zero_lands_before_the_first_poll(driver: Path) -> None:
 #
 # That last clause is the whole boundary, and the last test here holds it. An
 # earlier draft of this change gated set_self_consumption on the same family
-# test. Since 1.5.4 a zero-watt command is accepted on every family, so a
-# device classified "string" -- a Sungrow hybrid shipped under a device-type
-# code classify_device_type has not been taught lands there -- can be holding
-# EMS mode 2, and set_self_consumption is the only thing that writes mode 0
-# back. Gating it left that device forced with nothing able to release it.
+# test. A device classified "string" -- a Sungrow hybrid shipped under a
+# device-type code classify_device_type has not been taught lands there -- can
+# still be holding EMS mode 2, left by an earlier run or by a firmware that
+# answers the type register differently after an update. set_self_consumption
+# is the only thing that writes mode 0 back, so gating it left that device
+# forced with nothing able to release it.
 # --------------------------------------------------------------------------
 
 BATTERY_LIMIT_BLOCK = [13057, 33046, 33047]
@@ -603,8 +768,8 @@ def test_string_inverter_startup_reads_no_battery_limit_it_cannot_have() -> None
         f"registers. Those are the ones nothing needs.")
 
     # Two failed reads remain, both at 13049, and both are meant to. One is
-    # set_self_consumption's readback, which must run on every family since
-    # 1.5.4 -- see test_the_release_is_still_reachable_on_a_string_inverter.
+    # set_self_consumption's readback, which must run on every family --
+    # see test_the_release_is_still_reachable_on_a_string_inverter.
     # The other is the startup EMS-state log, which is exactly where a device
     # misclassified as "string" while holding mode 2 would show up. Gating
     # either to make this number nicer would cost more than it saves.
@@ -633,11 +798,11 @@ host._modbus_registers.holding[33047] = {10}
 def test_the_release_is_still_reachable_on_a_string_inverter() -> None:
     """The line the startup gate must not cross.
 
-    Since 1.5.4 a zero-watt command is accepted whatever the family, and it
-    writes EMS mode 2. So "the device named itself a string inverter" is not
-    proof there is nothing to release: Sungrow shipping a hybrid under an
-    unrecognised device-type code lands in exactly that branch, takes the
-    forced write, and then needs mode 0 written back.
+    "The device named itself a string inverter" is not proof there is nothing
+    to release. A Sungrow hybrid shipped under an unrecognised device-type
+    code lands in exactly that branch, and it can already be holding EMS mode
+    2 from an earlier run or an earlier firmware. Mode 0 still has to be
+    written back.
 
     Gate set_self_consumption on the family and this fails -- the device stays
     at mode 2 through the watchdog and through cleanup, with nothing left that
@@ -652,8 +817,11 @@ host._modbus_registers.input[5016] = {4000, 0}
 dofile("{DRIVER}")
 driver_init({{}})
 for poll = 1, 3 do pcall(driver_poll) end
-driver_command("battery", 0, {{}})
-print("FORCED " .. tostring(host._modbus_registers.holding[13049]))
+-- Forced by an earlier run rather than by a command: the guard refuses a
+-- battery setpoint on this family, which is the point -- the device is
+-- holding mode 2 and nothing on the command path can clear it.
+host._modbus_registers.holding[13049] = {{2}}
+print("FORCED " .. tostring(host._modbus_registers.holding[13049][1]))
 driver_default_mode()
 print("AFTER_WATCHDOG " .. tostring(host._modbus_registers.holding[13049]))
 driver_cleanup()
@@ -662,7 +830,7 @@ print("AFTER_CLEANUP " .. tostring(host._modbus_registers.holding[13049]))
     out = run_lua(body)
 
     assert out["FORCED"] == "2", (
-        "a zero-watt command is meant to reach every family since 1.5.4")
+        "the fixture failed to leave the device in a forced state")
     assert out["AFTER_WATCHDOG"] == "0", (
         f"the watchdog left EMS mode at {out['AFTER_WATCHDOG']}, not 0. The "
         f"device is holding a forced state and the release is the only write "
