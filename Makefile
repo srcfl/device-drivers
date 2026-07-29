@@ -7,6 +7,7 @@ ARTIFACT_DIR ?= .artifacts/$(ID)
 LEVEL ?= patch
 
 .PHONY: bootstrap new-driver test-driver package-driver check boundary \
+	refused-write-report absent-register-report \
 	sync-manifests bump-driver history ftw-baseline ftw-baseline-report \
 	host-api
 
@@ -28,6 +29,13 @@ ftw-baseline-report:
 absent-register-report:
 	test -n "$(ID)"
 	./lua55 drivers/tests/lua_harness/absent_register_probe.lua . "drivers/lua/$(ID).lua"
+
+# Does this driver keep writing a register the device refuses? The watchdog
+# reaches driver_default_mode on a timer, so anything but a settled count
+# repeats for the life of the session.
+refused-write-report:
+	test -n "$(ID)"
+	./lua55 drivers/tests/lua_harness/refused_write_probe.lua . "drivers/lua/$(ID).lua"
 
 bootstrap:
 	uv sync --frozen --extra package --extra dev

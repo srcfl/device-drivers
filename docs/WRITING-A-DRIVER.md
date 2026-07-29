@@ -106,6 +106,55 @@ A new driver must be clean. The drivers that already carried this debt when it
 was first measured are listed in `absent-register-baseline.json`, and that file
 may only shrink.
 
+## The same rule for writes
+
+A device can refuse a write as easily as it can fail a read, and one path
+writes without anyone asking: `driver_default_mode()`. The host calls it on
+lease expiry, on the telemetry watchdog, on shutdown. Nothing there can say no,
+so a driver that writes whatever the device answers goes on writing for the
+life of the session, one log line per tick.
+
+Count refusals the way you count missed reads, and stop:
+
+```lua
+local WRITE_ATTEMPTS = 3
+local write_failures = 0
+
+local function block_worth_writing()
+    return write_failures < WRITE_ATTEMPTS
+end
+
+local function note_write(err)
+    if err == nil or err == "" then
+        write_failures = 0   -- one success proves the register is there
+    else
+        write_failures = write_failures + 1
+    end
+end
+```
+
+Three rather than one, for the same reason as reads: a busy bus is not proof.
+The count lives in the process, so a restart always tries once — which is what
+the startup reset is for. A single success clears it, so firmware that gains
+the register is picked up without waiting for a restart.
+
+Do not gate this on the model instead. The device can be holding a state your
+driver did not set — a container that died mid-command, an older driver
+version, another EMS on the same bus — and a model label tells you nothing
+about that. Whether the device took the write does.
+
+Once it has given up, report the default as held rather than failed. A
+permanent `false` has the watchdog escalate against a device that was never
+under control.
+
+```bash
+make refused-write-report ID=example
+```
+
+`drivers/tests/test_refused_write_settles.py` holds every driver to this, with
+`refused-write-baseline.json` recording what already shipped. `sungrow` is the
+worked example, and the only one clean when this was first measured.
+
 ## Sign convention
 
 **Positive watts flow into the site.** Every driver, every device, no
