@@ -20,7 +20,12 @@ class TestHttpPatterns:
     """Validate HTTP driver API usage patterns."""
 
     def test_constructs_base_url(self, driver_name):
-        """HTTP drivers should construct a base URL from config.host."""
+        """HTTP drivers should construct a base URL from config.host.
+
+        Both schemes are valid dialects: plain http for constrained LAN
+        devices, https for devices whose local API is TLS-only behind a
+        pinned certificate (NIBE's Local REST API).
+        """
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
@@ -28,9 +33,9 @@ class TestHttpPatterns:
         # base_url = "http://" .. config.host .. ":" .. port
         # or similar patterns
         has_url_construction = (
-            re.search(r'"http://".*config\.host', clean)
-            or re.search(r'config\.host.*"http://"', clean)
-            or re.search(r'base_url\s*=\s*"http://"', clean)
+            re.search(r'"https?://".*config\.host', clean)
+            or re.search(r'config\.host.*"https?://"', clean)
+            or re.search(r'base_url\s*=\s*"https?://"', clean)
         )
 
         assert has_url_construction, (
@@ -68,8 +73,10 @@ class TestHttpPatterns:
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
-        # Most HTTP drivers define a http_get_json helper or use pcall inline
-        has_helper = bool(re.search(r'function\s+http_get_json\s*\(', clean))
+        # Most HTTP drivers define a http_get_json/api_get helper or use
+        # pcall inline; the helpers return nil-plus-error instead of raising.
+        has_helper = bool(
+            re.search(r'function\s+(?:http_get_json|api_get)\s*\(', clean))
         has_inline_pcall = bool(
             re.search(r'pcall\s*\(\s*host\.http_get', clean)
         )
@@ -85,14 +92,19 @@ class TestHttpUrlSafety:
     """Validate URL construction safety."""
 
     def test_uses_http_scheme(self, driver_name):
-        """HTTP drivers should use http:// scheme (not https on constrained devices)."""
+        """HTTP drivers must state an explicit scheme when building URLs.
+
+        Plain http is the norm for constrained LAN devices; https is the
+        correct choice when the device's local API is TLS-only and the host
+        pins its certificate (NIBE's Local REST API). What is not acceptable
+        is a scheme-less URL left for the HTTP client to guess.
+        """
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
-        # Remove comments for checking
-        # Should have http:// somewhere in URL construction
-        assert '"http://"' in clean, (
-            f"{driver_name}: HTTP driver should use 'http://' scheme"
+        assert '"http://"' in clean or '"https://"' in clean, (
+            f"{driver_name}: HTTP driver should construct URLs with an "
+            f"explicit 'http://' or 'https://' scheme"
         )
 
     def test_uses_config_port(self, driver_name):

@@ -1,5 +1,5 @@
 name: "nibe_local"
-version: "1.1.0"
+version: "1.2.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -11,12 +11,12 @@ tested_devices:
     variants: [NIBE S735]
     regions: []
     firmware_versions: ""
-    notes: "Read-only NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Observe-only — no control."
+    notes: "NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Read-only by default; opt-in write path feeds the pump's native Solar PV surplus input (2107/2109)."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 18227
+size_bytes: 34651
 dkb_id: "nibe_local"
-sha256: "b89177004a2eff5a5b60e2f275f584f079acf02876c049b231ba3170bb35ac50"
+sha256: "24bced8a28261c51d919db8892b1917fd09ac2688de694864d1ed5bf9a2f1a13"
 signature: ""
 
 bytecode_sha256: ""

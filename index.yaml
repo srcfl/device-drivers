@@ -329,13 +329,13 @@ drivers:
     size_bytes: 15278
     sha256: "d754fd4af96c2047f9d9e458a776ad8f10510569836618f4631dd70e2510f404"
   - name: "nibe_local"
-    version: "1.1.0"
+    version: "1.2.0"
     tier: core
     protocol: http
     ders: [meter]
     control: true
-    size_bytes: 18227
-    sha256: "b89177004a2eff5a5b60e2f275f584f079acf02876c049b231ba3170bb35ac50"
+    size_bytes: 34651
+    sha256: "24bced8a28261c51d919db8892b1917fd09ac2688de694864d1ed5bf9a2f1a13"
   - name: "opendtu"
     version: "1.0.2"
     tier: community

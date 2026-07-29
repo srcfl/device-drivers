@@ -1,6 +1,8 @@
--- NIBE S-series Heat Pump — LOCAL REST API driver (READ-ONLY telemetry)
+-- NIBE S-series Heat Pump — LOCAL REST API driver
 -- Emits: metrics only (compressor power, energy meters, temperatures, …)
---        into the long-format TS DB via host.emit_metric. NO control.
+--        into the long-format TS DB via host.emit_metric.
+-- Control: one opt-in write path — the pump's native "Solar PV" surplus feed
+--        (srcfl/ftw#537). Everything else on the pump stays untouchable.
 -- Protocol: HTTPS (NIBE "Local REST API", self-described at https://<ip>:8443/)
 --
 -- This is the local-network twin of drivers/myuplink.lua. Instead of the
@@ -11,14 +13,54 @@
 -- one bulk GET. Headline metrics land every minute; the bulk map records
 -- changes plus an hourly full snapshot so the TS DB stays bounded on a Pi.
 --
--- Observe-only by design: the pump is left in read-only mode (aidMode=off),
--- so this driver cannot actuate anything and cannot cause harm.
+-- READ-ONLY BY DEFAULT. Without `write.solar_pv: true` in the driver config
+-- the driver never issues a write. Note the write gate on the pump side is
+-- the installer's read-only / read-write choice for the Local REST API
+-- (installer menu 7.5.15) — NOT "aid mode", which is the pump's
+-- compressor-off fault-recovery state and has nothing to do with API
+-- permissions. A pump left read-only silently refuses writes (HTTP 200 with
+-- a per-point "error: read only value" result), and this driver surfaces
+-- that as an actionable error instead of pretending success.
+--
+-- THE SOLAR PV FEED (the only write this driver performs):
+--   The S-series has a built-in "Solar PV" input meant for NIBE's Modbus
+--   TCP/IP accessory: when the owner enables it (register 2107), the pump
+--   expects an external box to keep "Available power" (register 2109)
+--   updated with the current solar surplus, and applies the owner-tuned
+--   Offset heating/cooling/pool setpoint shifts to soak it up. FTW acts as
+--   that accessory: control-by-hint, not direct actuation — the pump's own
+--   firmware decides what to do with the number, so misbehaviour degrades to
+--   "pump believes a wrong solar value", never to unsafe operation.
+--   The semantic switch 2108 ("include own consumption") and the offset
+--   aggressiveness stay owner-tuned on the pump; this driver never writes
+--   them.
+--
+--   Safety posture (each clamp answers a quantified risk):
+--   - Value clamped to [0, write.max_w] — a sign bug or telemetry spike must
+--     not tell the pump there are 100 kW of surplus.
+--   - Deadband + at-most-one-write-per-interval — register wear and pointless
+--     churn; a heat pump reacts over minutes, not seconds.
+--   - Dead-man's switch: if no fresh solar_pv command lands within
+--     write.ttl_s, the driver writes 0 once and stops. The pump-side timeout
+--     for a silent feed is UNDOCUMENTED, so we do not rely on it.
+--   - driver_default_mode (watchdog trip, stale site meter, driver stop)
+--     clears the feed: absence of writes is the safe state.
+--   - On startup the driver clears a non-zero feed it does not remember
+--     writing (crash/restart orphan) — same undocumented-timeout reasoning.
+--   All of these run only while FTW itself runs. DECOMMISSIONING: before
+--   uninstalling FTW or permanently disabling this feed, turn the Solar PV
+--   input (2107) off on the pump — or set the Local REST API back to
+--   read-only (menu 7.5.15) — so no stale surplus value can stand with
+--   nobody left to clear it.
 --
 -- Site sign convention: a heat pump is a LOAD. Its electrical draw would be
 -- positive W flowing into the site at the grid boundary — but this driver
 -- emits diagnostics via host.emit_metric only (never host.emit("meter"|…)),
 -- so it performs NO sign conversion and never double-counts against the real
 -- grid meter. The thermal/load models consume hp_power_w etc. as twins.
+-- The solar_pv command arrives in site convention (negative W = surplus
+-- leaving the site) and is converted HERE to the pump's positive-W value —
+-- sign conversion happens only at the driver boundary.
 --
 -- AUTH + TRANSPORT:
 --   The local API uses HTTP Basic auth over HTTPS with a SELF-SIGNED
@@ -41,10 +83,19 @@
 --         username: "<local-api-username>"
 --         password: "<local-api-password>"   # masked via config_secrets
 --         # device_id: "..."        # optional; auto-detected if omitted
+--         # write:                  # opt-in Solar PV feed (srcfl/ftw#537)
+--         #   solar_pv: true        # master switch; default off
+--         #   max_w: 9000           # REQUIRED: site PV nameplate, clamp ceiling
+--         #   deadband_w: 50        # skip writes changing less than this
+--         #   ttl_s: 300            # dead-man: clear feed if commands stop
+--         #   min_interval_ms: 60000 # rate limit for nonzero increases
+--         #   enable_id: "5201"     # variableId override for register 2107
+--         #   available_id: "5202"  # variableId override for register 2109
 --       capabilities:
 --         http:
 --           allowed_hosts: ["192.168.1.180:8443"]
 --           tls_pin_sha256: "<64-hex-char certificate fingerprint>"
+--           # allow_write: true     # host-enforced write gate; default off
 --
 -- The four heating-UI headline metrics map to NIBE S735 variable ids by
 -- default; override per model via param_power_id / param_hw_temp_id /
@@ -57,12 +108,12 @@ DRIVER = {
   id           = "nibe-local",
   name         = "NIBE REST API S-series",
   manufacturer = "NIBE",
-  version      = "1.0.0",
+  version      = "1.2.0",
   protocols    = { "http" },
   capabilities = { "apicreds" },
-  description  = "Read-only NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Observe-only — no control.",
+  description  = "NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Read-only by default; one opt-in write path feeds the pump's native Solar PV surplus input (registers 2107/2109) so the pump soaks up excess solar.",
   homepage     = "https://www.nibe.eu",
-  authors      = { "HuggeK", "FTW contributors" },
+  authors      = { "Claude Code (with the help of HuggeK)" },
   tested_models = { "NIBE S735" },
   verification_status = "beta",
   config_secrets = { "password" },
@@ -80,15 +131,31 @@ local serial        = nil    -- device id (NIBE serial number) used in the path
 -- Self-heal: the pump can be briefly unreachable at boot / after a network
 -- blip. Rather than wedge on a nil serial (which needed a manual restart),
 -- driver_poll retries device detection on this backoff.
-local SETUP_RETRY_MS = 30000
+local setup_retry_ms = 30000
 local last_setup_ms  = nil
-local POLL_INTERVAL_MS = 60000
+local poll_interval_ms = 60000
 -- Headline metrics are emitted every poll. The remaining ~980-point map is
 -- change-only, with an hourly full refresh so latest-value timestamps stay
 -- useful without writing ~1.4 million mostly-duplicate TS rows per day.
-local FULL_REFRESH_MS = 3600000
+local full_refresh_ms = 3600000
 local last_full_emit_ms = nil
 local last_emitted = {}
+
+-- ---- Solar PV feed state (the one write path — srcfl/ftw#537) ------------
+-- The pump's "Solar PV" input, by S-series Modbus register id. The Local
+-- REST API keys points by its own variableId; every point's metadata carries
+-- modbusRegisterID, so we resolve variableIds at poll time and never
+-- hard-code them (they differ between models; the registers don't).
+local SOLAR_PV_ENABLE_REG    = 2107  -- "Modbus TCP/IP Ext. (Solar PV)" — owner-enabled master switch
+local SOLAR_PV_AVAILABLE_REG = 2109  -- "Available power" — the value FTW feeds (u16 W)
+
+local write_cfg = { solar_pv = false }
+local pv_reg           = nil   -- { enable={id,value}, avail={id,divisor,raw} } resolved from the bulk GET
+local feed_last_w      = nil   -- last surplus W this run successfully wrote (nil = never wrote)
+local feed_cmd_ms      = nil   -- host.millis() of the last solar_pv command received
+local feed_write_ms    = nil   -- host.millis() of the last successful PATCH
+local orphan_checked   = false -- startup clear of a feed left behind by a previous run
+local default_clear_ms = nil   -- rate limit for default-mode clears (fires every tick on stale site meter)
 
 -- ---- Headline metrics + per-model profiles -------------------------------
 -- The BULK of telemetry is metadata-driven (every point self-describes its
@@ -248,11 +315,203 @@ local function auth_headers()
 end
 
 local function api_get(path)
-    local resp, err = host.http_get(base_url .. path, auth_headers())
+    -- pcall both host calls: a malformed response or a host-side raise must
+    -- surface as a poll error the caller can back off on, never an
+    -- unprotected error that kills driver_poll.
+    local ok, resp, err = pcall(host.http_get, base_url .. path, auth_headers())
+    if not ok then return nil, "http_get error: " .. tostring(resp) end
     if err then return nil, tostring(err) end
-    local data = host.json_decode(resp)
-    if not data then return nil, "json decode failed" end
+    local ok_json, data = pcall(host.json_decode, resp)
+    if not ok_json or not data then return nil, "json decode failed" end
     return data, nil
+end
+
+-- ---- Solar PV feed (write path) ------------------------------------------
+
+-- Find one point in the bulk GET result: by explicit variableId override
+-- when configured, else by its Modbus register id from point metadata.
+local function find_point(data, var_id, modbus_reg)
+    if var_id then
+        local pt = data[tostring(var_id)]
+        if pt then return tostring(var_id), pt end
+        return nil, nil
+    end
+    for id, pt in pairs(data) do
+        local m = pt and pt.metadata
+        if type(m) == "table" and tonumber(m.modbusRegisterID) == modbus_reg then
+            return tostring(id), pt
+        end
+    end
+    return nil, nil
+end
+
+-- Resolve the Solar PV enable + available-power points from a bulk GET.
+-- Called every poll while the feed is requested, so the pump-side enable
+-- state (2107) stays current without extra requests. Last-known-good ids
+-- are RETAINED when a decodable body happens to lack the points (partial
+-- body, firmware hiccup): the ability to clear a standing feed must not
+-- vanish exactly when the pump misbehaves.
+local function resolve_pv_points(data)
+    local eid, ept = find_point(data, write_cfg.enable_id, SOLAR_PV_ENABLE_REG)
+    local aid, apt = find_point(data, write_cfg.available_id, SOLAR_PV_AVAILABLE_REG)
+    pv_reg = pv_reg or {}
+    if eid and ept then
+        pv_reg.enable = { id = eid, value = ept.value and ept.value.integerValue }
+    end
+    if aid and apt then
+        local m = apt.metadata or {}
+        local div = tonumber(m.divisor) or 1
+        if div == 0 then div = 1 end
+        pv_reg.avail = { id = aid, divisor = div, size = m.variableSize,
+                         raw = apt.value and apt.value.integerValue }
+    end
+end
+
+-- One PATCH of the available-power point. The pump answers HTTP 200 even
+-- when it refuses a write — the per-point result string ("modified" /
+-- "error: read only value" / "error: no such param") is the real verdict,
+-- so success is judged on the body, never on the status code alone.
+local function write_pv_surplus(w, why)
+    if not host.http_patch then
+        return nil, "host.http_patch unavailable — this FTW core predates HTTP writes"
+    end
+    if not (pv_reg and pv_reg.avail and serial) then
+        return nil, "Solar PV registers not resolved yet (no successful poll)"
+    end
+    local raw = math.floor(w * pv_reg.avail.divisor + 0.5)
+    -- 2109 is a u16 point and 65535 is the not-connected sentinel; stay
+    -- comfortably below both. write.max_w already clamped the wattage.
+    if raw > 65000 then raw = 65000 end
+    if raw < 0 then raw = 0 end
+    local body = string.format(
+        '[{"type":"datavalue","variableId":%d,"integerValue":%d,"stringValue":""}]',
+        tonumber(pv_reg.avail.id), raw)
+    local hdrs = auth_headers()
+    hdrs["Content-Type"] = "application/json"
+    local resp, err = host.http_patch(
+        base_url .. "/api/v1/devices/" .. serial .. "/points", body, hdrs)
+    if err then return nil, "PATCH failed: " .. tostring(err) end
+    resp = tostring(resp or "")
+    if string.find(resp, "read only", 1, true) then
+        return nil, "pump refused the write — its Local REST API is read-only; " ..
+            "switch it to read/write on the pump (installer menu 7.5.15)"
+    end
+    if string.find(resp, "error", 1, true) then
+        return nil, "pump rejected the write: " .. string.sub(resp, 1, 200)
+    end
+    if not string.find(resp, "modified", 1, true) then
+        -- Unknown-but-not-an-error response shape: accept, keep evidence.
+        host.log("debug", "NIBE: unexpected PATCH response: " .. string.sub(resp, 1, 200))
+    end
+    feed_last_w = w
+    feed_write_ms = host.millis()
+    host.emit_metric("hp_solar_pv_feed_w", w, "W",
+        tostring(SOLAR_PV_AVAILABLE_REG), "Solar PV feed (FTW)")
+    host.log("info", "NIBE: solar PV feed = " .. tostring(w) .. " W (" .. why .. ")")
+    return true, nil
+end
+
+-- The driver_command("solar_pv", power_w) implementation. power_w is in
+-- site convention: negative W = power leaving the site = exportable surplus.
+-- Returns true on success/no-op, or an error string (v1 contract).
+local function solar_pv_command(power_w)
+    if not write_cfg.solar_pv then
+        return "solar_pv: " .. (write_cfg.disabled_reason or
+            "writes are disabled (set driver config write.solar_pv: true)")
+    end
+    if not serial then
+        return "solar_pv: pump not detected yet"
+    end
+    if not host.http_patch then
+        return "solar_pv: host.http_patch unavailable — FTW core upgrade required"
+    end
+    if not (pv_reg and pv_reg.avail) then
+        return "solar_pv: Solar PV registers not resolved yet (waiting for first poll)"
+    end
+    local n = tonumber(power_w)
+    if n == nil then
+        return "solar_pv: power_w missing"
+    end
+    -- Site convention → pump value: only export (negative) is surplus.
+    local surplus = n < 0 and -n or 0
+    if surplus > write_cfg.max_w then surplus = write_cfg.max_w end
+    surplus = math.floor(surplus + 0.5)
+
+    feed_cmd_ms = host.millis()  -- any fresh command feeds the dead-man's switch
+
+    -- A clear is always safe: it bypasses the pump-side enable gate (the
+    -- owner turning 2107 off mid-feed must not block FTW from zeroing what
+    -- it wrote) and every rate limit — dropping a clear to save a request
+    -- would invert the safety trade.
+    if surplus == 0 then
+        if feed_last_w == 0 then return true end
+        local ok, werr = write_pv_surplus(0, "command")
+        if not ok then return "solar_pv: " .. tostring(werr) end
+        return true
+    end
+
+    if not pv_reg.enable then
+        return "solar_pv: register 2107 (Solar PV master enable) not found on this pump"
+    end
+    if pv_reg.enable.value == nil then
+        return "solar_pv: register 2107 (Solar PV master enable) could not be read"
+    end
+    if tonumber(pv_reg.enable.value) ~= 1 then
+        return "solar_pv: the pump-side Solar PV input (register 2107) is disabled — " ..
+            "the owner must enable it on the pump first"
+    end
+
+    if feed_last_w ~= nil then
+        local delta = surplus - feed_last_w
+        -- A decrease beyond the deadband is safety-direction (surplus
+        -- collapsed) and is written immediately; only small jitter and
+        -- rapid increases are swallowed.
+        if delta >= 0 or -delta < write_cfg.deadband_w then
+            if math.abs(delta) < write_cfg.deadband_w then return true end
+            if feed_write_ms and (feed_cmd_ms - feed_write_ms) < write_cfg.min_interval_ms then
+                return true
+            end
+        end
+    end
+
+    local ok, werr = write_pv_surplus(surplus, "command")
+    if not ok then return "solar_pv: " .. tostring(werr) end
+    return true
+end
+
+-- Per-poll feed maintenance: startup orphan clear + dead-man's switch.
+local function maintain_pv_feed()
+    if not (pv_reg and pv_reg.avail) then return end
+    -- A previous run may have died with a non-zero feed standing. The
+    -- pump-side timeout for a silent feed is undocumented, so clear it
+    -- ourselves the first time we can. Enabling write.solar_pv declares FTW
+    -- the owner of this register, so a non-zero value we don't remember
+    -- writing is ours to clean up. The one-shot check is only consumed once
+    -- an actual number was read, and the per-size "not connected" sentinel
+    -- is NOT a standing feed — writing 0 over it would turn "no accessory"
+    -- into "accessory reporting zero", which changes pump behavior.
+    if not orphan_checked then
+        local raw = pv_reg.avail.raw
+        if type(raw) == "number" then
+            orphan_checked = true
+            local sentinel = size_sentinel(pv_reg.avail.size)
+            if feed_last_w == nil and raw > 0 and raw ~= sentinel then
+                local ok, err = write_pv_surplus(0, "clearing orphaned feed from a previous run")
+                if not ok then
+                    orphan_checked = false  -- retry next poll
+                    host.log("warn", "NIBE: orphaned solar PV feed clear failed: " .. tostring(err))
+                end
+            end
+        end
+    end
+    -- Dead-man's switch: commands stopped arriving → clear once.
+    if feed_last_w and feed_last_w > 0 and feed_cmd_ms and
+       (host.millis() - feed_cmd_ms) > write_cfg.ttl_ms then
+        local ok, err = write_pv_surplus(0, "feed stale — dead-man's switch")
+        if not ok then
+            host.log("warn", "NIBE: stale solar PV feed clear failed: " .. tostring(err))
+        end
+    end
 end
 
 -- ---- Setup ---------------------------------------------------------------
@@ -280,11 +539,11 @@ local function detect_serial()
 end
 
 -- Bring the driver to "ready" (serial known). Safe to call repeatedly;
--- rate-limited by SETUP_RETRY_MS. Returns true once serial is established.
+-- rate-limited by setup_retry_ms. Returns true once serial is established.
 local function try_setup()
     if serial then return true end
     local now = host.millis()
-    if last_setup_ms ~= nil and (now - last_setup_ms) < SETUP_RETRY_MS then
+    if last_setup_ms ~= nil and (now - last_setup_ms) < setup_retry_ms then
         return false
     end
     last_setup_ms = now
@@ -295,7 +554,8 @@ local function try_setup()
     -- still win inside build_canon).
     local pkey, prof = select_profile(device_model, device_firmware)
     build_canon(prof, driver_config)
-    host.log("info", "NIBE: ready (read-only) serial=" .. serial .. " profile=" .. pkey)
+    local mode = write_cfg.solar_pv and "solar-pv feed armed" or "read-only"
+    host.log("info", "NIBE: ready (" .. mode .. ") serial=" .. serial .. " profile=" .. pkey)
     return true
 end
 
@@ -320,13 +580,45 @@ function driver_init(config)
     auth_value = "Basic " .. base64_encode(username .. ":" .. password)
 
     if config.poll_interval_ms ~= nil then
-        POLL_INTERVAL_MS = tonumber(config.poll_interval_ms) or POLL_INTERVAL_MS
+        poll_interval_ms = tonumber(config.poll_interval_ms) or poll_interval_ms
     end
     if config.setup_retry_ms ~= nil then
-        SETUP_RETRY_MS = tonumber(config.setup_retry_ms) or SETUP_RETRY_MS
+        setup_retry_ms = tonumber(config.setup_retry_ms) or setup_retry_ms
     end
     if config.full_refresh_ms ~= nil then
-        FULL_REFRESH_MS = tonumber(config.full_refresh_ms) or FULL_REFRESH_MS
+        full_refresh_ms = tonumber(config.full_refresh_ms) or full_refresh_ms
+    end
+
+    -- Solar PV feed config (write path). Off unless explicitly enabled, and
+    -- refused without a clamp ceiling: max_w bounds every value we could
+    -- ever write, so a missing max_w means the operator never stated the
+    -- site's PV nameplate and the risk clamp cannot do its job.
+    local w = config.write or {}
+    write_cfg = {
+        solar_pv        = (w.solar_pv == true),
+        -- The operator asked for the feed at all: clear-only machinery
+        -- (orphan sweep, dead-man's switch, default-mode clear) stays armed
+        -- on this flag even when validation below refuses NEW writes, so a
+        -- config mistake never strands a feed a previous run left standing.
+        requested       = (w.solar_pv == true),
+        max_w           = tonumber(w.max_w) or 0,
+        deadband_w      = tonumber(w.deadband_w) or 50,
+        ttl_ms          = (tonumber(w.ttl_s) or 300) * 1000,
+        min_interval_ms = tonumber(w.min_interval_ms) or 60000,
+        enable_id       = s(w.enable_id),
+        available_id    = s(w.available_id),
+        disabled_reason = nil,
+    }
+    if write_cfg.solar_pv and write_cfg.max_w <= 0 then
+        write_cfg.solar_pv = false
+        write_cfg.disabled_reason = "write.max_w (site PV nameplate, W) is missing " ..
+            "or invalid — new writes are disabled"
+        host.log("error", "NIBE: " .. write_cfg.disabled_reason ..
+            " (feed clearing stays active)")
+    end
+    if write_cfg.solar_pv and not host.http_patch then
+        host.log("warn", "NIBE: this FTW core has no host.http_patch — " ..
+            "solar PV writes unavailable until the core is upgraded")
     end
 
     -- Build the headline lookup with the generic profile now; try_setup
@@ -344,7 +636,7 @@ function driver_init(config)
         return
     end
 
-    host.set_poll_interval(POLL_INTERVAL_MS)
+    host.set_poll_interval(poll_interval_ms)
     -- Best-effort initial detection; driver_poll self-heals if it fails.
     if not try_setup() then
         host.log("warn", "NIBE: initial setup did not complete — will retry automatically")
@@ -352,19 +644,24 @@ function driver_init(config)
 end
 
 function driver_poll()
-    if not base_url then return SETUP_RETRY_MS end
+    if not base_url then return setup_retry_ms end
     if not serial then
-        if not try_setup() then return SETUP_RETRY_MS end
+        if not try_setup() then return setup_retry_ms end
     end
 
     local data, err = api_get("/api/v1/devices/" .. serial .. "/points")
     if err then
         host.log("warn", "NIBE: points poll failed: " .. err)
-        return POLL_INTERVAL_MS
+        return poll_interval_ms
+    end
+
+    if write_cfg.requested then
+        resolve_pv_points(data)
+        maintain_pv_feed()
     end
 
     local now = host.millis()
-    local full_refresh = last_full_emit_ms == nil or (now - last_full_emit_ms) >= FULL_REFRESH_MS
+    local full_refresh = last_full_emit_ms == nil or (now - last_full_emit_ms) >= full_refresh_ms
 
     -- Titles are not guaranteed unique. Count sanitized names first so every
     -- collision gets an id suffix deterministically; the old one-pass `seen`
@@ -405,16 +702,34 @@ function driver_poll()
     -- ids are absent and whose non-headline values remain unchanged.
     host.emit_metric("hp_poll_ok", 1, "")
 
-    return POLL_INTERVAL_MS
+    return poll_interval_ms
 end
 
-function driver_command(_action, _power_w, _cmd)
-    -- Read-only: no actuation. The pump stays in aidMode=off.
+function driver_command(action, power_w, _cmd)
+    if action == "solar_pv" then
+        return solar_pv_command(power_w)
+    end
+    -- Anything else (battery dispatch, EV commands, …) stays rejected: this
+    -- driver's only actuator is the Solar PV feed.
     return false
 end
 
 function driver_default_mode()
-    -- Read-only: nothing to release.
+    -- Safe state = no feed standing. Fires on watchdog trip, on every tick
+    -- while the site meter is stale, and on driver stop — so it must be
+    -- idempotent, rate-limited and quiet when there is nothing to clear.
+    -- Gated on `requested`, not the validated flag: a bad max_w must not
+    -- disarm the clearing path.
+    if not write_cfg.requested then return end
+    if feed_last_w == nil or feed_last_w == 0 then return end
+    local now = host.millis()
+    if default_clear_ms and (now - default_clear_ms) < 60000 then return end
+    default_clear_ms = now
+    local ok, err = write_pv_surplus(0, "default mode")
+    if not ok then
+        host.log("warn", "NIBE: default-mode solar PV clear failed " ..
+            "(will retry): " .. tostring(err))
+    end
 end
 
 function driver_cleanup()
@@ -422,4 +737,10 @@ function driver_cleanup()
     last_setup_ms = nil
     last_full_emit_ms = nil
     last_emitted = {}
+    pv_reg           = nil
+    feed_last_w      = nil
+    feed_cmd_ms      = nil
+    feed_write_ms    = nil
+    orphan_checked   = false
+    default_clear_ms = nil
 end

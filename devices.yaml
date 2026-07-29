@@ -989,11 +989,11 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "nibe_local"
-            version: "1.1.0"
+            version: "1.2.0"
             ders: [meter]
             control: true
         firmware_versions: ""
-        notes: "Read-only NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Observe-only — no control."
+        notes: "NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Read-only by default; opt-in write path feeds the pump's native Solar PV surplus input (2107/2109)."
   - name: "OpenEVSE"
     model_families:
       - name: "OpenEVSE"
