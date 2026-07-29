@@ -12,7 +12,7 @@ DRIVER = {
     id = "sungrow",
     name = "Sungrow hybrid and string inverter",
     manufacturer = "Sungrow",
-    version = "1.3.4",
+    version = "1.3.5",
     protocols = { "modbus" },
     capabilities = { "pv", "battery", "meter" },
     description = "Sungrow hybrid and string inverters via Modbus.",
@@ -414,13 +414,14 @@ function driver_command_v2(command)
         -- whose device-type register never answered fell through and got the
         -- writes. Matches drivers/lua/sungrow.lua, deliberately.
         --
-        -- Zero is exempt. It is not a dispatch but the host handing the
-        -- device back to itself, it arrives from the lifecycle rather than
-        -- the planner -- so before anything has been confirmed -- and a
-        -- device left in a forced state with no way to say stop is the worse
-        -- outage. On a string inverter the write fails at the Modbus layer
-        -- and costs nothing.
-        if inputs.power_w ~= 0 and model_family ~= "hybrid" and not battery_confirmed then
+        -- Zero is not exempt, and 1.3.4 was wrong to exempt it. Releasing a
+        -- device is driver_default_mode_v2, which is not gated; a battery
+        -- command is a command whatever number it carries. On the catalog
+        -- driver zero writes forced mode outright. Every FTW path that has to
+        -- hand a device back -- shutdown, lease expiry, the watchdog, the
+        -- stale-site-meter standdown -- takes the default-mode entrypoint,
+        -- never this one.
+        if model_family ~= "hybrid" and not battery_confirmed then
             return {
                 status = "rejected",
                 code = "no_battery",
