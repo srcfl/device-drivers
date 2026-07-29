@@ -1,5 +1,5 @@
 name: "sungrow"
-version: "1.5.4"
+version: "1.5.5"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -32,19 +32,19 @@ tested_devices:
     variants: [SG5.0RT, SG6.0RT, SG7.0RT, SG8.0RT, SG10RT, SG12RT, SG15RT, SG17RT, SG20RT, SG25RT]
     regions: [EU]
     firmware_versions: ""
-    notes: "Three-phase string inverter, PV + meter only (no battery). Needs 1.2.1, which stops polling the SH battery registers this family does not answer."
-    min_driver_version: "1.2.1"
+    notes: "Three-phase string inverter, PV + meter only (no battery). Needs 1.5.3: 1.2.1 stopped polling the SH battery registers this family does not answer, and 1.5.3 refuses a battery dispatch instead of writing them. A zero-watt command is still written on every family from 1.5.4 -- it is the release, and on a model without the registers it fails harmlessly."
+    min_driver_version: "1.5.3"
   - manufacturer: "Sungrow"
     model_family: "SG-CX (Three-Phase Commercial)"
     variants: [SG25CX, SG30CX, SG33CX, SG36CX, SG40CX, SG50CX]
     regions: [EU, INT]
     firmware_versions: ""
-    notes: "Commercial/industrial three-phase string inverter. Needs 1.2.1, which stops polling the SH battery registers this family does not answer."
-    min_driver_version: "1.2.1"
+    notes: "Commercial/industrial three-phase string inverter. Needs 1.5.3: 1.2.1 stopped polling the SH battery registers this family does not answer, and 1.5.3 refuses a battery dispatch instead of writing them. A zero-watt command is still written on every family from 1.5.4 -- it is the release, and on a model without the registers it fails harmlessly."
+    min_driver_version: "1.5.3"
 min_host_version: "2.0.0"
-size_bytes: 44353
+size_bytes: 45670
 dkb_id: "sungrow_sh_rt"
-sha256: "94f6e4fd483e4dff54fafd79179c4700637662ca8b30bb600127189848cf503f"
+sha256: "9667377a29f26d4325e3df450b93d9a16b802f778b54bb15a894eab26b8be306"
 signature: ""
 
 bytecode_sha256: ""

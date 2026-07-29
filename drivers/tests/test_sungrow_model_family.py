@@ -525,3 +525,147 @@ def test_zero_lands_before_the_first_poll(driver: Path) -> None:
         f"{driver.name} refused a zero-power command issued before the first "
         f"poll. Detection has had no chance to run at that point, and a "
         f"safety idle cannot wait for it.")
+
+
+# --------------------------------------------------------------------------
+# Startup traffic, and the line it must not cross
+#
+# configure_power_limits reads three battery registers at startup -- charge
+# power, discharge power, and the SoC ceiling and floor -- and raises the
+# first two when the unit shipped capped. A model that named itself a string
+# inverter answers none of them, so an SG12RT paid three failed reads on every
+# restart to learn nothing.
+#
+# These run once rather than on every poll, so they are not the SG12RT outage.
+# The reason to gate them is that they are free to gate: each write is already
+# conditional on its read having answered, and none of them clears a forced
+# state.
+#
+# That last clause is the whole boundary, and the last test here holds it. An
+# earlier draft of this change gated set_self_consumption on the same family
+# test. Since 1.5.4 a zero-watt command is accepted on every family, so a
+# device classified "string" -- a Sungrow hybrid shipped under a device-type
+# code classify_device_type has not been taught lands there -- can be holding
+# EMS mode 2, and set_self_consumption is the only thing that writes mode 0
+# back. Gating it left that device forced with nothing able to release it.
+# --------------------------------------------------------------------------
+
+BATTERY_LIMIT_BLOCK = [13057, 33046, 33047]
+
+
+def fail_battery_limit_block() -> str:
+    addresses = ", ".join(str(a) for a in BATTERY_LIMIT_BLOCK)
+    return f'''
+for _, addr in ipairs({{{addresses}}}) do
+    host._modbus_read_fail_addresses[addr] = "Illegal Data Address"
+end
+'''
+
+
+# The SG12RT as it really answers at startup: no hybrid block, and no battery
+# limit registers either.
+SG_AT_STARTUP = STRING_INVERTER + fail_battery_limit_block()
+
+
+def startup_reads(device: str) -> str:
+    return device + f'''
+dofile("{DRIVER}")
+driver_init({{}})
+local failed, limit_reads, off_ems = 0, 0, 0
+for _, call in ipairs(host._calls) do
+    if call.func == "modbus_read" then
+        local addr = call.args[1]
+        if host._modbus_read_fail_addresses[addr] then
+            failed = failed + 1
+            if addr ~= 13049 then off_ems = off_ems + 1 end
+        end
+        for _, limit in ipairs({{13057, 33046, 33047}}) do
+            if addr == limit then limit_reads = limit_reads + 1 end
+        end
+    end
+end
+print("FAILED_READS " .. tostring(failed))
+print("FAILED_OFF_EMS " .. tostring(off_ems))
+print("LIMIT_READS " .. tostring(limit_reads))
+print("WRITES " .. tostring(host._modbus_write_attempts))
+'''
+
+
+def test_string_inverter_startup_reads_no_battery_limit_it_cannot_have() -> None:
+    out = run_lua(startup_reads(SG_AT_STARTUP))
+
+    assert out["LIMIT_READS"] == "0", (
+        f"startup read the battery limit block {out['LIMIT_READS']} times on "
+        f"a model that named itself a string inverter. 33046, 33047 and 13057 "
+        f"are battery registers; this family has no battery.")
+    assert out["FAILED_OFF_EMS"] == "0", (
+        f"startup failed {out['FAILED_OFF_EMS']} reads outside the EMS "
+        f"registers. Those are the ones nothing needs.")
+
+    # Two failed reads remain, both at 13049, and both are meant to. One is
+    # set_self_consumption's readback, which must run on every family since
+    # 1.5.4 -- see test_the_release_is_still_reachable_on_a_string_inverter.
+    # The other is the startup EMS-state log, which is exactly where a device
+    # misclassified as "string" while holding mode 2 would show up. Gating
+    # either to make this number nicer would cost more than it saves.
+    assert out["FAILED_READS"] == "2", (
+        f"startup cost {out['FAILED_READS']} failed reads, not the 2 expected "
+        f"at 13049. Read the comment above before changing this number.")
+
+
+def test_hybrid_still_gets_its_power_limits_raised() -> None:
+    """The regression risk of gating: some units ship capped at 100 W."""
+    body = HEALTHY_HYBRID + '''
+host._modbus_registers.holding[33046] = {10}
+host._modbus_registers.holding[33047] = {10}
+''' + startup_reads("")
+    out = run_lua(body)
+
+    assert int(out["LIMIT_READS"]) >= 3, (
+        "a hybrid must still be asked about its charge and discharge caps")
+    raised = int(out["WRITES"])
+    assert raised >= 2, (
+        f"the hybrid shipped capped at 0.1 kW and startup made {raised} "
+        f"writes. Some Sungrow units ship with discharge capped at 100 W, and "
+        f"raising it is what this function is for.")
+
+
+def test_the_release_is_still_reachable_on_a_string_inverter() -> None:
+    """The line the startup gate must not cross.
+
+    Since 1.5.4 a zero-watt command is accepted whatever the family, and it
+    writes EMS mode 2. So "the device named itself a string inverter" is not
+    proof there is nothing to release: Sungrow shipping a hybrid under an
+    unrecognised device-type code lands in exactly that branch, takes the
+    forced write, and then needs mode 0 written back.
+
+    Gate set_self_consumption on the family and this fails -- the device stays
+    at mode 2 through the watchdog and through cleanup, with nothing left that
+    can clear it.
+    """
+    body = '''
+-- Classified "string" by device type, but its EMS registers accept writes.
+host._modbus_registers.input[4999] = {0x2434}
+host._modbus_registers.input[5000] = {120}
+host._modbus_registers.input[5016] = {4000, 0}
+''' + f'''
+dofile("{DRIVER}")
+driver_init({{}})
+for poll = 1, 3 do pcall(driver_poll) end
+driver_command("battery", 0, {{}})
+print("FORCED " .. tostring(host._modbus_registers.holding[13049]))
+driver_default_mode()
+print("AFTER_WATCHDOG " .. tostring(host._modbus_registers.holding[13049]))
+driver_cleanup()
+print("AFTER_CLEANUP " .. tostring(host._modbus_registers.holding[13049]))
+'''
+    out = run_lua(body)
+
+    assert out["FORCED"] == "2", (
+        "a zero-watt command is meant to reach every family since 1.5.4")
+    assert out["AFTER_WATCHDOG"] == "0", (
+        f"the watchdog left EMS mode at {out['AFTER_WATCHDOG']}, not 0. The "
+        f"device is holding a forced state and the release is the only write "
+        f"that clears it -- gating it on the family strands the device.")
+    assert out["AFTER_CLEANUP"] == "0", (
+        f"cleanup left EMS mode at {out['AFTER_CLEANUP']}, not 0")
