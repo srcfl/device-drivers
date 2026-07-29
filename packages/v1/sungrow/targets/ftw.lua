@@ -12,7 +12,7 @@ DRIVER = {
     id = "sungrow",
     name = "Sungrow hybrid and string inverter",
     manufacturer = "Sungrow",
-    version = "1.3.3",
+    version = "1.3.4",
     protocols = { "modbus" },
     capabilities = { "pv", "battery", "meter" },
     description = "Sungrow hybrid and string inverters via Modbus.",
@@ -413,7 +413,14 @@ function driver_command_v2(command)
         -- implement. Checking only for "string" left the gap: an SG inverter
         -- whose device-type register never answered fell through and got the
         -- writes. Matches drivers/lua/sungrow.lua, deliberately.
-        if model_family ~= "hybrid" and not battery_confirmed then
+        --
+        -- Zero is exempt. It is not a dispatch but the host handing the
+        -- device back to itself, it arrives from the lifecycle rather than
+        -- the planner -- so before anything has been confirmed -- and a
+        -- device left in a forced state with no way to say stop is the worse
+        -- outage. On a string inverter the write fails at the Modbus layer
+        -- and costs nothing.
+        if inputs.power_w ~= 0 and model_family ~= "hybrid" and not battery_confirmed then
             return {
                 status = "rejected",
                 code = "no_battery",

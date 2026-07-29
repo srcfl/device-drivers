@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow-shx",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.5.3",
+  version      = "1.5.4",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -722,7 +722,20 @@ function driver_command(action, power_w, cmd)
     if action == "init" then
         return true
     elseif action == "battery" then
-        if model_family ~= "hybrid" and not battery_confirmed then
+        -- Zero is not a dispatch. It is the host handing the device back to
+        -- itself: forced mode off, setpoint nought. Refusing to write "stop"
+        -- is a different risk from refusing to write "charge" -- a device
+        -- left in a forced state stays there, and the safe default is the
+        -- one path that must never be gated on how much we know about the
+        -- hardware. It also arrives before the first poll, from the
+        -- lifecycle rather than from the planner, which is exactly when
+        -- nothing has been confirmed yet.
+        --
+        -- On a genuine string inverter this writes to a register block the
+        -- model does not implement. That write fails at the Modbus layer and
+        -- costs nothing; the outage it protects against is a battery left
+        -- charging with no way to say stop.
+        if power_w ~= 0 and model_family ~= "hybrid" and not battery_confirmed then
             local why = model_family == "string"
                 and "this model has no battery registers"
                 or "no battery register has answered on this device"
