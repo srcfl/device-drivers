@@ -1,0 +1,34 @@
+{
+  "_comment": [
+    "Drivers whose driver_default_mode keeps writing a register the device",
+    "refuses. The watchdog, lease expiry and shutdown all reach that path, so",
+    "each of these reissues the same rejected write on every tick for the life",
+    "of the session, and logs a failure each time.",
+    "",
+    "A customer's Sungrow SG12RT is the worked example: 'self-consumption",
+    "reset write failed: modbus exception function=0x06' once per tick,",
+    "indefinitely, drowning the log while the site was offline for an",
+    "unrelated reason. Fixed in sungrow 1.5.7 by counting refusals.",
+    "",
+    "This file records debt that already shipped: 11 drivers when first",
+    "measured. The ratchet in test_refused_write_settles.py blocks new debt",
+    "immediately and asks for this file to shrink as each is paid off.",
+    "Shrink it, never grow it.",
+    "",
+    "Check one driver with:",
+    "  make refused-write-report ID=<id>"
+  ],
+  "drivers": {
+    "atmoce": 1,
+    "deye": 1,
+    "ferroamp_modbus": 1,
+    "huawei": 1,
+    "pixii": 1,
+    "sigenergy": 1,
+    "solaredge": 1,
+    "solaredge_legacy": 1,
+    "solaredge_pv": 1,
+    "solinteg": 1,
+    "solis": 1
+  }
+}
