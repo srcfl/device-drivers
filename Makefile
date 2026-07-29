@@ -9,7 +9,7 @@ LEVEL ?= patch
 .PHONY: bootstrap new-driver test-driver package-driver check boundary \
 	refused-write-report absent-register-report \
 	sync-manifests bump-driver history ftw-baseline ftw-baseline-report \
-	host-api site
+	host-api site watch-upstream-docs
 
 # Build the public driver catalog page into site/, exactly as GitHub Pages
 # publishes it. Open site/index.html to review a change before it ships.
@@ -66,6 +66,12 @@ boundary:
 # Rewrite sha256 and size_bytes in every manifest from the Lua source.
 sync-manifests:
 	uv run --frozen --extra package --extra dev python tools/sync_manifests.py
+
+# Fetch every manifest upstream_docs URL and report changes against the
+# baseline WITHOUT rewriting it. The scheduled watch-upstream-docs workflow
+# runs the same tool for real and opens a tracking issue on a change.
+watch-upstream-docs:
+	uv run --frozen --extra package --extra dev python tools/check_upstream_docs.py --dry-run
 
 # Raise a driver version in the manifest and the DRIVER table together.
 # Example: make bump-driver ID=sungrow LEVEL=patch

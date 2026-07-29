@@ -116,6 +116,23 @@ def test_unknown_field_is_rejected(tmp_path):
     assert any("upstream_docs[0]: unknown field 'foo'" in e for e in errors)
 
 
+def test_unknown_url_stability_is_rejected(tmp_path):
+    errors = _errors_for(
+        tmp_path,
+        'upstream_docs:\n  - url: "https://x/a.pdf"\n    url_stability: rock_solid\n',
+    )
+    assert any("upstream_docs[0]: url_stability 'rock_solid' is not valid" in e
+               for e in errors)
+
+
+def test_known_url_stability_is_accepted(tmp_path):
+    errors = _errors_for(
+        tmp_path,
+        'upstream_docs:\n  - url: "https://x/a.pdf"\n    url_stability: committed\n',
+    )
+    assert not [e for e in errors if e.startswith("upstream_docs")]
+
+
 def test_wellformed_entry_raises_no_upstream_error(tmp_path):
     errors = _errors_for(
         tmp_path,
@@ -141,4 +158,5 @@ def test_every_declared_upstream_doc_is_wellformed():
         for i, doc in enumerate(parse_upstream_docs(path.read_text(encoding="utf-8"))):
             url = doc.get("url", "")
             assert url.startswith(("http://", "https://")), f"{path.name}[{i}]: bad url"
-            assert set(doc) <= {"url", "title", "kind"}, f"{path.name}[{i}]: unknown field"
+            allowed = {"url", "title", "kind", "url_stability"}
+            assert set(doc) <= allowed, f"{path.name}[{i}]: unknown field"
