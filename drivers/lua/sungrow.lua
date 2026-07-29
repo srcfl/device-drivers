@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow-shx",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.5.4",
+  version      = "1.5.5",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -134,6 +134,20 @@ end
 -- reads it cannot afford. Only once detection has given up do we probe.
 local function hybrid_block_worth_reading()
     return model_family == "hybrid" or model_family == "unknown"
+end
+
+-- Whether the device has named itself a model with no battery registers.
+--
+-- Read this narrowly. It gates startup *reads* of the battery limit block and
+-- nothing else. It must never gate a write that clears a forced state: since
+-- 1.5.4 a zero-watt command is accepted on any family, so a device this
+-- function calls "string" can still be holding EMS mode 2, and
+-- set_self_consumption is the only thing that writes mode 0 back. A device
+-- classified here is not proof there is nothing to release -- Sungrow shipping
+-- a hybrid under a device-type family classify_device_type has not been taught
+-- lands in exactly this branch.
+local function known_to_have_no_battery()
+    return model_family == "string"
 end
 
 -- A register that answers on one model and not another. Absence has to be
@@ -279,6 +293,17 @@ end
 -- Ensure power limits allow full charge/discharge (5kW each)
 -- Some Sungrow units ship with discharge capped at 100W
 function configure_power_limits()
+    -- All three registers below are battery limits: charge power, discharge
+    -- power, and the SoC ceiling and floor. A model that named itself a string
+    -- inverter answers none of them, so asking costs three failed reads at
+    -- startup and learns nothing. Each write here is already conditional on
+    -- its read having answered, so skipping the reads skips the writes with
+    -- it -- and none of them clears a forced state, which is why this is the
+    -- one startup path that is safe to gate on the family alone.
+    if known_to_have_no_battery() then
+        return
+    end
+
     -- Max charge power: register 33046, scale 0.01 kW
     local ok_chg, chg = pcall(host.modbus_read, 33046, 1, "holding")
     if ok_chg and chg then

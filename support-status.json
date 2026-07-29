@@ -1962,7 +1962,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.5.4",
+      "catalog_version": "1.5.5",
       "driver_id": "sungrow",
       "package_id": "com.sourceful.driver.sungrow",
       "targets": {
