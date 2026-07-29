@@ -197,7 +197,7 @@ function host.modbus_read(addr, count, kind)
 
     local read_error = host._modbus_read_fail_addresses[addr] or host._modbus_read_error
     if read_error then
-        error(tostring(read_error))
+        return nil, tostring(read_error)
     end
 
     local short_count = host._modbus_read_short_counts[addr]

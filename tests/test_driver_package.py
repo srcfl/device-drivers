@@ -111,7 +111,11 @@ def test_pilot_safety_metadata_is_explicit() -> None:
     sungrow = load_json(PILOTS["sungrow"])
     targets = {item["target"]: item for item in sungrow["compatibility"]}
     assert sungrow["read_only"] is True
-    assert sungrow["version"] == "1.3.2"
+    # No version assertion. This test is about what the package promises --
+    # read-only, no commands, no control permissions -- and a version is not
+    # one of those promises. Pinning it here made an unrelated safety test the
+    # thing that failed on every legitimate bump, and the version is already
+    # held to the driver's own by the manifest checks and the package build.
     assert sungrow["commands"] == []
     assert sungrow["capabilities"]["control"] == []
     assert sungrow["permissions"] == ["modbus.read"]

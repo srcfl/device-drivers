@@ -392,28 +392,30 @@ def test_string_inverter_still_takes_a_curtail_command() -> None:
 BOTH_DRIVERS = [pytest.param(DRIVER, id="catalog"), pytest.param(FTW_V2, id="ftw-v2")]
 
 
-def battery_command_on(driver: Path) -> str:
+def battery_command_on(driver: Path, power_w: int = 1000,
+                       polls: int = 4) -> str:
     """Send one battery setpoint through whichever ABI this file speaks."""
     if driver == FTW_V2:
         call = '''
 local result = driver_command_v2({
     command = "battery.set_power",
     runtime_action = "battery",
-    inputs = {power_w = 1000},
+    inputs = {power_w = POWER_W},
 })
 print("ACCEPTED " .. tostring(result.status ~= "rejected"))
 print("CODE " .. tostring(result.code or "none"))
 '''
     else:
         call = '''
-local accepted, refusal = driver_command("battery", 1000, {})
+local accepted, refusal = driver_command("battery", POWER_W, {})
 print("ACCEPTED " .. tostring(accepted == true))
 print("CODE " .. tostring(type(refusal) == "table" and refusal.code or "none"))
 '''
+    call = call.replace("POWER_W", str(power_w))
     return f'''
 dofile("{driver}")
 driver_init({{}})
-for poll = 1, 4 do pcall(driver_poll) end
+for poll = 1, {polls} do pcall(driver_poll) end
 host._modbus_write_attempts = 0
 {call}
 print("WRITES " .. tostring(host._modbus_write_attempts))
@@ -463,3 +465,63 @@ def test_neither_copy_refuses_a_battery_it_can_confirm(
         f"{driver.name} refused a battery setpoint on {label}. A driver that "
         f"reads a battery every poll and will not command it has taken a "
         f"control off the fleet.")
+
+
+# ---------------------------------------------------------------------------
+# Zero is not a dispatch
+# ---------------------------------------------------------------------------
+#
+# A zero-power battery command is the host handing the device back to itself:
+# forced mode off, setpoint nought. It arrives from the lifecycle rather than
+# the planner, so it can land before the first poll -- when nothing has been
+# confirmed and the guard above would otherwise refuse it.
+#
+# Refusing to write "stop" is a different risk from refusing to write
+# "charge". A device left in a forced state stays there, and the safe default
+# is the one path that must never be gated on how much is known about the
+# hardware. On a string inverter the write fails at the Modbus layer and costs
+# nothing; the outage it prevents is a battery with no way to be told to stop.
+#
+# FTW's TestSungrowZeroBatteryCommandForcesIdle sends exactly this, straight
+# after load. These cases are that test's rule, held here so the two cannot
+# drift.
+
+@pytest.mark.parametrize("driver", BOTH_DRIVERS)
+@pytest.mark.parametrize("device,label", [
+    pytest.param(STRING_INVERTER,
+                 "a model that names itself a string inverter",
+                 id="named-string"),
+    pytest.param(UNIDENTIFIED_STRING,
+                 "a model that names nothing and answers no battery register",
+                 id="unidentified-string"),
+    pytest.param(HEALTHY_HYBRID, "a hybrid", id="hybrid"),
+])
+def test_zero_is_never_refused(driver: Path, device: str, label: str) -> None:
+    out = run_lua(device + battery_command_on(driver, power_w=0))
+
+    # Not refused by the guard is the rule. Whether the write then succeeds is
+    # a separate matter: on a device that does not implement 13049 the
+    # read-back fails and the driver says so, which is the honest outcome. The
+    # thing that must never happen is the command being turned away before it
+    # is tried.
+    assert out["CODE"] != "no_battery", (
+        f"{driver.name} refused a zero-power battery command on {label}. Zero "
+        f"is the safe default -- the host handing the device back to itself. "
+        f"A driver that will not accept 'stop' can leave a battery in a "
+        f"forced state with no way out.")
+
+
+@pytest.mark.parametrize("driver", BOTH_DRIVERS)
+def test_zero_lands_before_the_first_poll(driver: Path) -> None:
+    """The ordering FTW's Go suite exercises: load, then command, no poll.
+
+    Nothing has answered yet, so neither the model family nor the battery is
+    confirmed. This is precisely when the guard must not fire.
+    """
+    out = run_lua(UNIDENTIFIED_STRING
+                  + battery_command_on(driver, power_w=0, polls=0))
+
+    assert out["CODE"] != "no_battery", (
+        f"{driver.name} refused a zero-power command issued before the first "
+        f"poll. Detection has had no chance to run at that point, and a "
+        f"safety idle cannot wait for it.")
