@@ -9,7 +9,12 @@ LEVEL ?= patch
 .PHONY: bootstrap new-driver test-driver package-driver check boundary \
 	refused-write-report absent-register-report \
 	sync-manifests bump-driver history ftw-baseline ftw-baseline-report \
-	host-api
+	host-api site
+
+# Build the public driver catalog page into site/, exactly as GitHub Pages
+# publishes it. Open site/index.html to review a change before it ships.
+site:
+	uv run --frozen --extra package --extra dev python tools/generate_site.py --output site
 
 # Does any driver call a host function no host provides?
 host-api:
