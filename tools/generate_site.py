@@ -86,14 +86,6 @@ def lua_string(body: str, key: str) -> str:
     return match.group(1).replace('\\"', '"').replace("\\\\", "\\")
 
 
-def lua_string_list(body: str, key: str) -> list[str]:
-    """Read a `key = { "a", "b" }` field out of a Lua table body."""
-    match = re.search(rf'^\s*{key}\s*=\s*\{{(.*?)\}}', body, re.MULTILINE | re.DOTALL)
-    if not match:
-        return []
-    return re.findall(r'"((?:[^"\\]|\\.)*)"', match.group(1))
-
-
 def header_comment(text: str) -> list[str]:
     """Return the leading `--` comment block, dashes removed, indent kept."""
     lines: list[str] = []
