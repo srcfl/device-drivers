@@ -1,0 +1,56 @@
+name: pages
+
+# The catalog page is built from the commit it is published from, never from a
+# checked-in copy. There is no way for the page to fall behind main, and no
+# generated HTML in the repository to review.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time, and never cancel one half-done: an interrupted
+# deploy would leave the published catalog in an unknown state.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # configure-pages turns Pages on for this repository the first time it
+      # runs, so publishing needs no manual repository-settings change.
+      pages: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen --extra package --extra dev
+      - name: Check the page against the manifests before publishing it
+        run: uv run --no-sync pytest -q tests/test_site.py
+      - run: uv run --no-sync python tools/generate_site.py --output site
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
