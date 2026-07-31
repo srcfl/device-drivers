@@ -7,6 +7,9 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Fixed
+- **`nibe_local` was filed as a meter.** Its manifest declared `ders: [meter]`; it reads a NIBE S-series heat pump. The driver emits nothing but metrics — `hp_power_w`, `hp_used_power_w`, the temperatures and the lifetime energy counters, all through `host.emit_metric` and never through `host.emit("meter", …)` — which its header states is deliberate, so that a pump's electrical draw cannot double-count against the site's real grid meter. The catalog was advertising a DER the driver does not provide, and the published page (#51) badges and filters on exactly that field: the pump sat under **Meter** and was absent from **Heat pump**, where an owner looking for it would start. Now `ders: [heatpump]`, matching `heishamon` — the other metric-only heat pump, which has been filed that way since it landed. Manifest metadata only: the Lua source, its version and its `sha256` are untouched, so no host sees a new driver build
+
 ### Added
 - **A published driver catalog at [srcfl.github.io/device-drivers](https://srcfl.github.io/device-drivers/)** — all 80 drivers, searchable by manufacturer or model number and filterable by device type, protocol, tier and control. `tools/generate_site.py` builds it from the manifests and the Lua sources on every push to `main`, so no copy of this data is checked in and the page cannot fall behind what a host installs. It reports hardware evidence the way the repository does rather than the way a catalog usually does: 5 drivers state they have been confirmed against physical hardware and 28 state that they have not, and `tests/test_site.py` fails the build if a driver's `verification_status` is ever rendered as a stronger claim than the driver makes
 
