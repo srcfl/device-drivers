@@ -3,6 +3,8 @@ version: "2.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
+connectivity: local
+setup: [device_ui]
 ders: [battery, meter]
 control: false
 tested_devices:

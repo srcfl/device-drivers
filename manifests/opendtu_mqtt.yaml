@@ -3,6 +3,8 @@ version: "1.0.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
+connectivity: local
+setup: [bridge]
 ders: [pv, meter]
 control: false
 tested_devices:

@@ -3,6 +3,8 @@ version: "1.1.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
+connectivity: cloud
+setup: [vendor_portal]
 ders: [ev]
 control: true
 tested_devices:

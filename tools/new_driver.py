@@ -72,6 +72,13 @@ version: "{version}"
 tier: community
 author: "TODO"
 protocol: {args.protocol}
+connectivity: local
+# What a human must obtain before this driver can connect at all -- even when
+# it only ever talks to the LAN. Leave the line out rather than guessing:
+# absent means nobody recorded it, [none] claims nothing is needed. One or
+# more of: none, device_screen, device_ui, vendor_app, vendor_portal,
+# installer, vendor_approval, bridge
+# setup: [device_ui]
 ders: [{args.kind}]
 control: false
 tested_devices:

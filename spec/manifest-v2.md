@@ -11,6 +11,8 @@ Each driver has a YAML manifest in `manifests/` that describes its metadata, cap
 | `tier` | string | Yes | One of: `core`, `community`, `oem` |
 | `author` | string | Yes (core) | Author name or organization |
 | `protocol` | string | Yes | `modbus`, `mqtt`, `serial`, `standalone`, or `""` |
+| `connectivity` | string | Yes | `local` or `cloud` — where the driver talks while running |
+| `setup` | list | No | What a human must obtain before it connects (see below) |
 | `ders` | list | Yes | DER types the driver covers (see below) |
 | `control` | bool | Yes | Whether the driver supports EMS control commands |
 | `tested_devices` | list | No | Devices tested against (see below) |
@@ -24,6 +26,52 @@ Each driver has a YAML manifest in `manifests/` that describes its metadata, cap
 | `bytecode_signature` | string | No | Ed25519 signature of the bytecode hash |
 | `bytecode_size` | int | No | Size of the `.luac` bytecode file in bytes |
 | `changelog` | string | No | Version-specific release notes |
+
+## Connectivity and Setup
+
+`protocol` names a transport, which does not answer the two questions an owner
+asks first. `nibe_local` and `myuplink` are both `protocol: http` and both read
+a NIBE heat pump, and they are opposites: one reads the pump over the LAN, the
+other reads NIBE's cloud.
+
+`connectivity` says where the driver talks while it is running.
+
+| Value | Meaning |
+|-------|---------|
+| `local` | Talks only to the device or a broker on the local network. Keeps working with the internet unplugged |
+| `cloud` | Talks to a vendor service over the internet. No internet, no telemetry |
+
+`setup` says what a human must obtain **once**, and from whom, before the
+driver can connect at all — which is a separate question, because a driver can
+be `local` and still need a manufacturer to unlock the interface first.
+
+| Value | Meaning |
+|-------|---------|
+| `none` | Nothing beyond reaching the device on the network |
+| `device_screen` | Enabled on the device's own display or keypad |
+| `device_ui` | Enabled in the device's own local web interface |
+| `vendor_app` | Requires the manufacturer's phone app |
+| `vendor_portal` | Requires an account, API key or OAuth app from the vendor |
+| `installer` | Requires installer-level access or a service partner |
+| `vendor_approval` | The manufacturer must enable it for this site on request |
+| `bridge` | Requires separate hardware or firmware in between |
+
+An **absent** `setup` means nobody has recorded one. It does not mean there is
+nothing to do, and the catalog page renders it as "Not recorded" rather than
+"Nothing to set up". Only `setup: [none]` claims a device needs nothing but an
+address, so state it only when that has been confirmed. `none` cannot be
+combined with another value.
+
+`bridge` is for a translator that is not the device and not the vendor's own
+gateway product: a HeishaMon board, OpenDTU, an ESPHome build, TeslaBleHttpProxy,
+a serial-to-Ethernet bridge. A vendor gateway the customer buys as part of the
+system — the Sourceful Zap, a Ferroamp EnergyHub — is the device, not a bridge.
+
+Neither field reaches the signed driver artifact: `ftw_repository._load_channel`
+copies an explicit allowlist (`ders`, `protocol`, `manufacturer`, `model_family`
+and the `DRIVER` table) into the published metadata, and these two are not in
+it. So correcting one does **not** need a version bump, unlike the fields listed
+in CONTRIBUTING.
 
 ## DER Types
 
@@ -116,6 +164,7 @@ version: "1.1.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
+connectivity: local
 ders: [battery, meter, pv]
 control: true
 tested_devices:
@@ -152,11 +201,13 @@ Version changes must be accompanied by a `CHANGELOG.md` entry under `[Unreleased
 3. `tier` must be one of the three valid tiers
 4. `protocol` must be a known protocol or empty string
 5. All entries in `ders` must be valid DER types
-6. `size_bytes` must be non-negative
-7. `core` tier drivers must have an `author`
-8. Every manifest must have a corresponding `.lua` file in `drivers/`
-9. `tested_devices` entries must have `manufacturer` and `model_family`
-10. `upstream_docs` entries must have an `http(s)` `url`; `kind` and `url_stability`, when present, must be known values
+6. `connectivity` must be `local` or `cloud`
+7. `setup`, when present, must be a non-empty list of valid values, and `none` must stand alone
+8. `size_bytes` must be non-negative
+9. `core` tier drivers must have an `author`
+10. Every manifest must have a corresponding `.lua` file in `drivers/`
+11. `tested_devices` entries must have `manufacturer` and `model_family`
+12. `upstream_docs` entries must have an `http(s)` `url`; `kind` and `url_stability`, when present, must be known values
 
 ## Migration from V1
 
@@ -169,5 +220,7 @@ V2.1 extends `tested_devices` with: `model_family` (replaces `model`), `variants
 V2.2 adds bytecode fields: `bytecode_sha256`, `bytecode_signature`, `bytecode_size` for Lua 5.5.0 compiled bytecode.
 
 V2.3 adds `upstream_docs`: an optional list of vendor reference documents (`url`, `title`, `kind`, `url_stability`) to watch for register/protocol changes.
+
+V2.4 adds `connectivity` (`local`/`cloud`) and the optional `setup` list: where a driver talks while it is running, and what a human must obtain once before it can connect at all. `connectivity` is required, so every manifest carries it.
 
 Use `tools/migrate_manifests.py` to convert V1 JSON → V2 YAML.

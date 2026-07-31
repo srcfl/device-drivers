@@ -42,6 +42,27 @@ DER_LABELS = {
     "v2x_charger": "V2X charger",
     "vehicle": "Vehicle",
 }
+# Where the driver talks while it runs. The question behind this filter is
+# "does this keep working when the internet is down?", so the labels answer
+# that rather than naming a transport.
+CONNECTIVITY_LABELS = {
+    "local": "Local only",
+    "cloud": "Needs the internet",
+    "": "Unspecified",
+}
+# What somebody has to obtain before any of it works, even when the driver
+# itself never leaves the LAN. A driver with no entry has had none recorded,
+# which the page says instead of implying there is nothing to do.
+SETUP_LABELS = {
+    "none": "Nothing to set up",
+    "device_screen": "Enable on the device screen",
+    "device_ui": "Enable in the device web UI",
+    "vendor_app": "Manufacturer app",
+    "vendor_portal": "Manufacturer account",
+    "installer": "Installer access",
+    "vendor_approval": "Manufacturer must enable it",
+    "bridge": "Needs a bridge device",
+}
 PROTOCOL_LABELS = {
     "modbus": "Modbus",
     "mqtt": "MQTT",
@@ -267,6 +288,8 @@ def collect_drivers() -> list[dict]:
             "version": data.get("version", ""),
             "tier": data.get("tier", "community"),
             "protocol": data.get("protocol", ""),
+            "connectivity": data.get("connectivity", ""),
+            "setup": data.get("setup", []) or [],
             "ders": data.get("ders", []) or [],
             "control": bool(data.get("control", False)),
             "author": data.get("author", ""),
@@ -319,6 +342,8 @@ def build_catalog() -> dict:
             "ders": DER_LABELS,
             "protocols": PROTOCOL_LABELS,
             "tiers": TIER_LABELS,
+            "connectivity": CONNECTIVITY_LABELS,
+            "setup": SETUP_LABELS,
             "doc_kinds": DOC_KIND_LABELS,
             "url_stability": URL_STABILITY_LABELS,
         },
@@ -431,7 +456,7 @@ main { padding-bottom: 72px; }
 .catalog-body { padding-top: 30px; }
 .driver { border: 1px solid var(--line); background: var(--surface); margin-bottom: -1px; }
 .driver.is-open { border-color: var(--ink); position: relative; z-index: 1; }
-.driver-head { width: 100%; display: grid; grid-template-columns: minmax(0, 3fr) 90px minmax(0, 1.6fr) 76px 92px 74px 22px; align-items: center; gap: 14px; padding: 15px 18px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.driver-head { width: 100%; display: grid; grid-template-columns: minmax(0, 3fr) 90px 74px minmax(0, 1.6fr) 76px 92px 74px 22px; align-items: center; gap: 14px; padding: 15px 18px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .driver-head:hover { background: var(--signal-light); }
 .driver-id { display: block; color: var(--ink); font-family: var(--mono); font-size: 14px; font-weight: 700; }
 .driver-title { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -440,6 +465,9 @@ main { padding-bottom: 72px; }
 .badge.tier-core { border-color: var(--ink); background: var(--ink); color: var(--cream); }
 .badge.control-yes { border-color: var(--signal); color: var(--signal); font-weight: 700; }
 .badge.control-no { color: var(--muted); opacity: 0.7; }
+/* Local-first is the default this project is built for, so the badge that
+   earns attention is the one that says a device stops without the internet. */
+.badge.conn-cloud { border-style: dotted; color: var(--muted); }
 .ders { display: flex; gap: 5px; flex-wrap: wrap; }
 .ders .badge { border-style: dashed; }
 .version { color: var(--ink); font-family: var(--mono); font-size: 12px; }
@@ -532,7 +560,8 @@ SCRIPT = r"""
   var drivers = CATALOG.drivers;
   var labels = CATALOG.labels;
   var state = { view: "drivers", query: "", ders: new Set(), protocols: new Set(),
-                tiers: new Set(), control: false, verified: false };
+                tiers: new Set(), connectivity: new Set(), setup: new Set(),
+                control: false, verified: false };
 
   var listEl = document.getElementById("list");
   var countEl = document.getElementById("result-count");
@@ -546,6 +575,8 @@ SCRIPT = r"""
   function derLabel(d) { return labels.ders[d] || d; }
   function protocolLabel(p) { return labels.protocols[p] || p; }
   function tierLabel(t) { return labels.tiers[t] || t; }
+  function connectivityLabel(c) { return labels.connectivity[c] || c; }
+  function setupLabel(s) { return labels.setup[s] || s; }
   function docKindLabel(k) { return labels.doc_kinds[k] || k; }
   function stabilityLabel(s) { return labels.url_stability[s] || s; }
   function bytes(n) { return n >= 1024 ? (n / 1024).toFixed(1) + " kB" : n + " B"; }
@@ -554,6 +585,8 @@ SCRIPT = r"""
   // manufacturer, not only the driver id.
   drivers.forEach(function (d) {
     var parts = [d.id, d.title, d.description, d.protocol, d.tier, d.author];
+    parts.push(d.connectivity, connectivityLabel(d.connectivity));
+    d.setup.forEach(function (x) { parts.push(x, setupLabel(x)); });
     d.ders.forEach(function (x) { parts.push(x, derLabel(x)); });
     d.manufacturers.forEach(function (m) { parts.push(m); });
     d.tested_devices.forEach(function (dev) {
@@ -570,6 +603,13 @@ SCRIPT = r"""
     if (state.verified && !d.hardware_verified) return false;
     if (state.tiers.size && !state.tiers.has(d.tier)) return false;
     if (state.protocols.size && !state.protocols.has(d.protocol)) return false;
+    if (state.connectivity.size && !state.connectivity.has(d.connectivity)) return false;
+    // A driver with no recorded setup requirement cannot answer this filter,
+    // so it drops out rather than passing as if it needed nothing.
+    if (state.setup.size) {
+      var setupHit = d.setup.some(function (x) { return state.setup.has(x); });
+      if (!setupHit) return false;
+    }
     if (state.ders.size) {
       var hit = d.ders.some(function (x) { return state.ders.has(x); });
       if (!hit) return false;
@@ -638,6 +678,10 @@ SCRIPT = r"""
     var control = d.control
       ? '<span class="badge control-yes">Control</span>'
       : '<span class="badge control-no">Read only</span>';
+    var reach = d.connectivity
+      ? '<span class="badge conn-' + esc(d.connectivity) + '">' +
+        (d.connectivity === "cloud" ? "Cloud" : "Local") + "</span>"
+      : "";
     // The driver's own verification_status, rendered as what it actually says.
     // Most drivers are ports awaiting hardware, and the page must not dress
     // that up as a test result.
@@ -655,6 +699,10 @@ SCRIPT = r"""
     var facts = [
       ["Tier", esc(tierLabel(d.tier))],
       ["Protocol", esc(protocolLabel(d.protocol))],
+      ["Reach", esc(connectivityLabel(d.connectivity))],
+      ["To set up", d.setup.length
+        ? d.setup.map(function (x) { return esc(setupLabel(x)); }).join(", ")
+        : "Not recorded"],
       ["Catalog version", esc(d.version)],
       ["Min host", esc(d.min_host_version || "—")],
       ["Source size", bytes(d.size_bytes)],
@@ -670,6 +718,7 @@ SCRIPT = r"""
       '<button class="driver-head" type="button" aria-expanded="false" aria-controls="body-' + esc(d.id) + '">' +
         "<span><span class=\"driver-id\">" + esc(d.id) + '</span><span class="driver-title">' + esc(d.title) + "</span></span>" +
         '<span class="cell-inline"><span class="badge">' + esc(protocolLabel(d.protocol)) + "</span></span>" +
+        '<span class="cell-inline">' + reach + "</span>" +
         '<span class="ders cell-inline">' + ders + "</span>" +
         '<span class="cell-inline">' + control + "</span>" +
         '<span class="cell-inline cell-host"><span class="badge tier-' + esc(d.tier) + '">' + esc(tierLabel(d.tier)) + "</span></span>" +
@@ -803,6 +852,7 @@ SCRIPT = r"""
   clearEl.addEventListener("click", function () {
     state.query = ""; state.control = false; state.verified = false;
     state.ders.clear(); state.protocols.clear(); state.tiers.clear();
+    state.connectivity.clear(); state.setup.clear();
     searchEl.value = "";
     document.querySelectorAll("[data-filter]").forEach(function (chip) {
       chip.setAttribute("aria-pressed", "false");
@@ -838,16 +888,24 @@ def render_html(catalog: dict) -> str:
     ders_present = sorted({d for driver in drivers for d in driver["ders"]})
     protocols_present = sorted({driver["protocol"] for driver in drivers})
     tiers_present = sorted({driver["tier"] for driver in drivers})
+    connectivity_present = sorted({driver["connectivity"] for driver in drivers})
+    setup_present = sorted({s for driver in drivers for s in driver["setup"]})
 
     der_chips = "".join(chip("ders", d, DER_LABELS.get(d, d)) for d in ders_present)
     protocol_chips = "".join(
         chip("protocols", p, PROTOCOL_LABELS.get(p, p)) for p in protocols_present)
     tier_chips = "".join(chip("tiers", t, TIER_LABELS.get(t, t)) for t in tiers_present)
+    connectivity_chips = "".join(
+        chip("connectivity", c, CONNECTIVITY_LABELS.get(c, c))
+        for c in connectivity_present)
+    setup_chips = "".join(
+        chip("setup", s, SETUP_LABELS.get(s, s)) for s in setup_present)
 
     # Without JavaScript the page still has to answer "which drivers exist?".
     noscript_rows = "".join(
         f"<li><b>{d['id']}</b> v{d['version']} &middot; "
         f"{PROTOCOL_LABELS.get(d['protocol'], d['protocol'])} &middot; "
+        f"{CONNECTIVITY_LABELS.get(d['connectivity'], d['connectivity'])} &middot; "
         f"{', '.join(DER_LABELS.get(x, x) for x in d['ders']) or 'unspecified'}"
         f"{' &middot; control' if d['control'] else ''}</li>"
         for d in drivers)
@@ -941,6 +999,8 @@ def render_html(catalog: dict) -> str:
     <div class="filters">
       <div class="filter-group"><span>Type</span>{der_chips}</div>
       <div class="filter-group"><span>Protocol</span>{protocol_chips}</div>
+      <div class="filter-group"><span>Reach</span>{connectivity_chips}</div>
+      <div class="filter-group"><span>To set up</span>{setup_chips}</div>
       <div class="filter-group"><span>Tier</span>{tier_chips}</div>
       <div class="filter-group"><span>Evidence</span>{chip("control", "control", "Can control")}{chip("verified", "verified", "Verified on hardware")}</div>
     </div>
@@ -951,7 +1011,7 @@ def render_html(catalog: dict) -> str:
 
 <div class="wrap catalog-body">
   <div class="table-head" id="table-head">
-    <span>Driver</span><span>Protocol</span><span>Emits</span><span>Capability</span>
+    <span>Driver</span><span>Protocol</span><span>Reach</span><span>Emits</span><span>Capability</span>
     <span class="cell-host">Tier</span><span>Version</span><span></span>
   </div>
   <div id="list"></div>

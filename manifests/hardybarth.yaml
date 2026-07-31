@@ -3,6 +3,7 @@ version: "1.0.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
+connectivity: local
 ders: [v2x_charger]
 control: false
 tested_devices:
