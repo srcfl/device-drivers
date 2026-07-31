@@ -1,9 +1,9 @@
 name: "myuplink"
-version: "1.1.0"
+version: "1.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
-ders: []
+ders: [heatpump]
 control: true
 tested_devices:
   - manufacturer: "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)"
