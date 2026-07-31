@@ -49,6 +49,15 @@ Raise the version whenever the Lua source changes. A version names a set of
 bytes that runs on hardware, so shipping two different drivers under one
 version leaves a site with no way to say which one it has.
 
+Raise it too when a manifest field the signed channel publishes changes, even
+though no Lua moved. The channel signs source and metadata as one artifact, so
+`ders`, `protocol` and the `manufacturer` and `model_family` of a
+`tested_devices` entry all reach the published bytes. Changing one under a
+version already released fails the release with `changed artifact needs a
+higher version`, and it fails on `main` after the merge, not in the pull
+request — the check compares against the channel, which only the release can
+read.
+
 ```bash
 make bump-driver ID=example LEVEL=patch
 ```
