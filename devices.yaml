@@ -1013,7 +1013,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "heishamon"
-            version: "0.5.1"
+            version: "0.6.0"
             ders: [heatpump]
             control: true
         firmware_versions: ""
