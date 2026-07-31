@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import generate_site  # noqa: E402
-from manifest_parser import parse_yaml_simple  # noqa: E402
+from manifest_parser import parse_upstream_docs, parse_yaml_simple  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -97,6 +97,77 @@ def test_tested_devices_survive_intact(catalog: dict) -> None:
         for device in driver["tested_devices"]:
             assert device["manufacturer"], driver["id"]
             assert device["model_family"], driver["id"]
+
+
+def test_upstream_docs_reach_the_page(catalog: dict) -> None:
+    """A recorded source document is only useful if a reader can open it.
+
+    The manifest field exists so the register map a driver follows can be
+    found again. Collecting it and not rendering it would leave the page
+    exactly as silent about provenance as it was before the field existed.
+    """
+    for driver in catalog["drivers"]:
+        declared = parse_upstream_docs(
+            (ROOT / "manifests" / f"{driver['id']}.yaml").read_text(encoding="utf-8"))
+        assert [doc["url"] for doc in driver["upstream_docs"]] == \
+            [doc["url"] for doc in declared], driver["id"]
+
+    total = sum(len(d["upstream_docs"]) for d in catalog["drivers"])
+    assert total, "no manifest's upstream_docs reached the page"
+
+
+def test_every_document_label_has_wording(catalog: dict) -> None:
+    """An unmapped kind or stability would reach the page as a bare enum."""
+    for driver in catalog["drivers"]:
+        for doc in driver["upstream_docs"]:
+            assert doc["kind"] in generate_site.DOC_KIND_LABELS, (
+                f"{driver['id']}: doc kind {doc['kind']!r} has no wording")
+            assert doc["url_stability"] in generate_site.URL_STABILITY_LABELS, (
+                f"{driver['id']}: url_stability {doc['url_stability']!r} "
+                "has no wording")
+
+
+def test_the_card_renders_the_documents_it_collects() -> None:
+    """Guard the rendering, not just the data behind it.
+
+    `test_upstream_docs_reach_the_page` passes just as well when the payload
+    carries the documents and the card silently drops them — which is the
+    state this test was written to end.
+    """
+    script = generate_site.SCRIPT
+    card = script[script.index("function driverCard"):
+                  script.index("function manufacturerView")]
+    assert "upstreamDocs(d)" in card, "the driver card no longer renders the documents"
+    assert "doc.url" in script and "doc.title" in script
+
+
+def test_a_document_url_must_be_http() -> None:
+    """The page turns this value into an href a reader clicks.
+
+    `validate_manifest.py` holds the same line, but it is a different tool run
+    at a different time, and a javascript: URL reaching the rendered card
+    would be this generator's bug to have prevented.
+    """
+    manifest = (
+        'upstream_docs:\n'
+        '  - url: "javascript:alert(1)"\n'
+        '    title: "not a document"\n'
+        '  - url: "https://example.invalid/registers.pdf"\n'
+        '    title: "a real one"\n'
+        'min_host_version: "2.0.0"\n'
+    )
+    kept = generate_site.upstream_documents(manifest)
+    assert [doc["url"] for doc in kept] == ["https://example.invalid/registers.pdf"]
+
+
+def test_a_document_without_a_title_still_reads_as_a_link(catalog: dict) -> None:
+    """`title` is optional in the manifest; an empty link label is not."""
+    kept = generate_site.upstream_documents(
+        'upstream_docs:\n  - url: "https://example.invalid/map.pdf"\n')
+    assert kept[0]["title"] == "https://example.invalid/map.pdf"
+    for driver in catalog["drivers"]:
+        for doc in driver["upstream_docs"]:
+            assert doc["title"].strip(), driver["id"]
 
 
 def test_every_driver_says_something(catalog: dict) -> None:

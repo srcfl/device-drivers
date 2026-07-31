@@ -25,6 +25,7 @@ from ftw_repository import (  # noqa: E402
     RepositoryError,
     build_publication,
     canonical_json,
+    check_publication,
     verify_artifacts,
     verify_manifest,
     verify_stable_promotion,
@@ -337,28 +338,44 @@ def test_previous_signed_versions_are_kept_as_history(
     ) == current
 
 
-def test_changed_final_artifact_requires_a_higher_driver_version(
-    tmp_path: Path, keypair: tuple[str, str]
-) -> None:
+def single_driver_repo(tmp_path: Path, driver_id: str = "goodwe") -> tuple[Path, Path]:
+    """A repository holding one real driver, for rules that need a whole channel."""
     repo = tmp_path / "repo"
     (repo / "drivers" / "lua").mkdir(parents=True)
     (repo / "manifests").mkdir()
-    source_path = repo / "drivers" / "lua" / "goodwe.lua"
-    source_path.write_bytes((ROOT / "drivers" / "lua" / "goodwe.lua").read_bytes())
-    (repo / "manifests" / "goodwe.yaml").write_bytes(
-        (ROOT / "manifests" / "goodwe.yaml").read_bytes()
+    (repo / "drivers" / "lua" / f"{driver_id}.lua").write_bytes(
+        (ROOT / "drivers" / "lua" / f"{driver_id}.lua").read_bytes()
     )
-    config = {"schema_version": 1, "include_all": True, "release_mode": "per_driver"}
+    (repo / "manifests" / f"{driver_id}.yaml").write_bytes(
+        (ROOT / "manifests" / f"{driver_id}.yaml").read_bytes()
+    )
     config_path = repo / "ftw-channel.json"
-    config_path.write_text(json.dumps(config))
-    _, first_output = build(
-        tmp_path / "first",
-        keypair,
-        repo_root=repo,
-        config_path=config_path,
+    config_path.write_text(
+        json.dumps(
+            {"schema_version": 1, "include_all": True, "release_mode": "per_driver"}
+        )
+    )
+    return repo, config_path
+
+
+def publish_once(
+    tmp_path: Path, keypair: tuple[str, str], repo: Path, config_path: Path
+) -> Path:
+    """Publish the repository as it stands and keep the signed manifest."""
+    _, output = build(
+        tmp_path / "first", keypair, repo_root=repo, config_path=config_path
     )
     previous_path = tmp_path / "previous.json"
-    previous_path.write_bytes((first_output / "manifest.json").read_bytes())
+    previous_path.write_bytes((output / "manifest.json").read_bytes())
+    return previous_path
+
+
+def test_changed_final_artifact_requires_a_higher_driver_version(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path)
+    source_path = repo / "drivers" / "lua" / "goodwe.lua"
+    previous_path = publish_once(tmp_path, keypair, repo, config_path)
     source_path.write_text(source_path.read_text() + "\n-- source changed\n")
 
     with pytest.raises(RepositoryError, match="needs a higher version"):
@@ -369,6 +386,169 @@ def test_changed_final_artifact_requires_a_higher_driver_version(
             config_path=config_path,
             previous_manifest_path=previous_path,
         )
+
+
+def check(
+    keypair: tuple[str, str], repo: Path, config_path: Path, previous_path: Path
+) -> dict:
+    return check_publication(
+        repo_root=repo,
+        config_path=config_path,
+        previous_manifest_path=previous_path,
+        key_id=KEY_ID,
+        expected_public_key_base64=keypair[1],
+    )
+
+
+def test_check_versions_answers_what_the_release_would_answer(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    """The pull request check is worth nothing unless it agrees with the release.
+
+    Same tree, same published manifest: whatever `build` decides while signing,
+    `check_publication` has to decide without a key. Both read one rule so they
+    cannot drift apart, and this is what says so.
+    """
+    repo, config_path = single_driver_repo(tmp_path)
+    source_path = repo / "drivers" / "lua" / "goodwe.lua"
+    previous_path = publish_once(tmp_path, keypair, repo, config_path)
+
+    # Unchanged tree: the release publishes it, so the check passes it.
+    report = check(keypair, repo, config_path, previous_path)
+    assert report["changed"] == []
+    assert report["drivers"] == 1
+    build(
+        tmp_path / "unchanged",
+        keypair,
+        repo_root=repo,
+        config_path=config_path,
+        previous_manifest_path=previous_path,
+    )
+
+    # Changed bytes under a published version: both refuse.
+    source_path.write_text(source_path.read_text() + "\n-- source changed\n")
+    with pytest.raises(RepositoryError, match="needs a higher version"):
+        check(keypair, repo, config_path, previous_path)
+    with pytest.raises(RepositoryError, match="needs a higher version"):
+        build(
+            tmp_path / "second",
+            keypair,
+            repo_root=repo,
+            config_path=config_path,
+            previous_manifest_path=previous_path,
+        )
+
+
+def test_check_versions_catches_a_manifest_only_edit(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    """The failure this check exists to stop, in the shape it actually arrived in.
+
+    #53 corrected a manifest's `ders` and left the version alone, reading the
+    field as catalog-only. It is not: the signed artifact carries the manifest
+    metadata beside the Lua source, so the published bytes moved and the release
+    refused them on main. No Lua is touched here either.
+    """
+    repo, config_path = single_driver_repo(tmp_path)
+    manifest_path = repo / "manifests" / "goodwe.yaml"
+    lua_path = repo / "drivers" / "lua" / "goodwe.lua"
+    lua_before = lua_path.read_bytes()
+    previous_path = publish_once(tmp_path, keypair, repo, config_path)
+
+    edited, replaced = re.subn(
+        r"^ders: \[.*\]$", "ders: [heatpump]", manifest_path.read_text(), flags=re.M
+    )
+    assert replaced == 1, "the manifest edit must land"
+    manifest_path.write_text(edited)
+    assert lua_path.read_bytes() == lua_before, "no Lua source may change"
+
+    with pytest.raises(RepositoryError, match="needs a higher version"):
+        check(keypair, repo, config_path, previous_path)
+
+
+def test_check_versions_accepts_a_changed_driver_that_took_a_version(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path)
+    manifest_path = repo / "manifests" / "goodwe.yaml"
+    source_path = repo / "drivers" / "lua" / "goodwe.lua"
+    published_version = re.search(
+        r'^version:\s*"([^"]+)"', manifest_path.read_text(), re.M
+    ).group(1)
+    previous_path = publish_once(tmp_path, keypair, repo, config_path)
+
+    source_path.write_text(source_path.read_text() + "\n-- source changed\n")
+    major, minor, patch = (int(part) for part in published_version.split("."))
+    manifest_path.write_text(
+        re.sub(
+            r'^version:\s*"[^"]+"',
+            f'version: "{major}.{minor}.{patch + 1}"',
+            manifest_path.read_text(),
+            count=1,
+            flags=re.M,
+        )
+    )
+
+    report = check(keypair, repo, config_path, previous_path)
+    assert report["changed"] == ["goodwe"]
+    assert report["added"] == []
+
+
+def test_check_versions_reports_every_colliding_driver(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    """The release stops at the first; someone fixing a branch wants the list."""
+    repo, config_path = single_driver_repo(tmp_path)
+    for driver_id in ("sofar", "solis"):
+        (repo / "drivers" / "lua" / f"{driver_id}.lua").write_bytes(
+            (ROOT / "drivers" / "lua" / f"{driver_id}.lua").read_bytes()
+        )
+        (repo / "manifests" / f"{driver_id}.yaml").write_bytes(
+            (ROOT / "manifests" / f"{driver_id}.yaml").read_bytes()
+        )
+    previous_path = publish_once(tmp_path, keypair, repo, config_path)
+
+    for driver_id in ("goodwe", "sofar", "solis"):
+        source_path = repo / "drivers" / "lua" / f"{driver_id}.lua"
+        source_path.write_text(source_path.read_text() + "\n-- source changed\n")
+
+    with pytest.raises(RepositoryError) as raised:
+        check(keypair, repo, config_path, previous_path)
+    message = str(raised.value)
+    for driver_id in ("goodwe", "sofar", "solis"):
+        assert driver_id in message, f"{driver_id} is missing from the report"
+    assert "make bump-driver ID=goodwe" in message
+
+
+def test_check_versions_reports_a_driver_the_channel_has_never_published(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path)
+    previous_path = publish_once(tmp_path, keypair, repo, config_path)
+    (repo / "drivers" / "lua" / "sofar.lua").write_bytes(
+        (ROOT / "drivers" / "lua" / "sofar.lua").read_bytes()
+    )
+    (repo / "manifests" / "sofar.yaml").write_bytes(
+        (ROOT / "manifests" / "sofar.yaml").read_bytes()
+    )
+
+    report = check(keypair, repo, config_path, previous_path)
+    assert report["added"] == ["sofar"]
+    assert report["changed"] == []
+
+
+def test_check_versions_rejects_a_manifest_the_signing_key_did_not_sign(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    """It reads the channel over the network, so the signature still has to hold."""
+    repo, config_path = single_driver_repo(tmp_path)
+    previous_path = publish_once(tmp_path, keypair, repo, config_path)
+    envelope = json.loads(previous_path.read_text())
+    envelope["payload"]["drivers"][0]["sha256"] = "0" * 64
+    previous_path.write_bytes(canonical_json(envelope) + b"\n")
+
+    with pytest.raises(RepositoryError):
+        check(keypair, repo, config_path, previous_path)
 
 
 def test_stable_promotion_allows_added_driver_and_beta_only_history(

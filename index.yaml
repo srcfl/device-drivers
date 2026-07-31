@@ -369,12 +369,12 @@ drivers:
     size_bytes: 3766
     sha256: "5f985b8917aea7b08fba13c02506b45e40232a763393dc6af7c6eeb6ab5853af"
   - name: "myuplink"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: core
     protocol: http
     connectivity: cloud
     setup: [vendor_portal]
-    ders: []
+    ders: [heatpump]
     control: true
     size_bytes: 15278
     sha256: "d754fd4af96c2047f9d9e458a776ad8f10510569836618f4631dd70e2510f404"

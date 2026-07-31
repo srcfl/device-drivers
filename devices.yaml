@@ -963,8 +963,8 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "myuplink"
-            version: "1.1.0"
-            ders: []
+            version: "1.1.1"
+            ders: [heatpump]
             control: true
         firmware_versions: ""
         notes: "Read-only heat-pump telemetry via MyUplink Cloud REST API v2: compressor power + hot-water/indoor/outdoor temperatures. Observe-only — no control. OAuth: authorization-code + refresh-token (connect in Settings → Devices)."

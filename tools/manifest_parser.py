@@ -104,6 +104,64 @@ def parse_tested_devices(text: str) -> list[dict]:
     return devices
 
 
+def parse_upstream_docs(text: str) -> list[dict]:
+    """Parse the optional upstream_docs block from manifest text.
+
+    upstream_docs lists the vendor reference documents a driver was built
+    against — register maps, parameter changelogs, protocol manuals — at a
+    semi-persistent URL. A change to one of these is the upstream signal that
+    a driver's register decoding may need review. Each entry carries a `url`
+    and optional `title`/`kind`.
+
+    Mirrors parse_tested_devices(): a top-level block of "- " list items.
+    Returns a list of doc dicts (empty when the block is absent or `[]`).
+    """
+    docs = []
+    current = None
+    in_block = False
+
+    for line in text.splitlines():
+        stripped = line.strip()
+
+        # Detect start of upstream_docs block
+        if stripped.startswith("upstream_docs:"):
+            in_block = True
+            # Handle empty list: upstream_docs: []
+            if stripped == "upstream_docs: []":
+                return []
+            continue
+
+        # Detect end of block (next top-level key)
+        if in_block and stripped and not line.startswith(" ") and not line.startswith("\t"):
+            break
+
+        if not in_block:
+            continue
+
+        # Skip empty lines and comments
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        # New doc entry: "- key: value" or just "-"
+        if stripped.startswith("- "):
+            if current is not None:
+                docs.append(current)
+            current = {}
+            rest = stripped[2:].strip()
+            if rest:
+                _parse_device_field(current, rest)
+            continue
+
+        # Continuation field within current doc
+        if current is not None and ":" in stripped:
+            _parse_device_field(current, stripped)
+
+    if current is not None:
+        docs.append(current)
+
+    return docs
+
+
 def _parse_device_field(device: dict, field_str: str) -> None:
     """Parse a single key: value field into a device dict."""
     # Handle inline lists: key: [a, b, c]

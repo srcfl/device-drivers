@@ -57,6 +57,13 @@ rule may be right and the driver wrong, or the check itself may be wrong.
 - PV generation, meter export and battery/vehicle discharge are negative.
 - Report stable hardware identity early.
 - Do not emit stale cached telemetry as fresh.
+- Record the vendor documents a driver was decoded from — register map,
+  parameter changelog, API reference — in the manifest's `upstream_docs`, at
+  the most durable URL available. A weekly watcher opens a tracking issue when
+  one changes or disappears, so a driver that has fallen behind its source is
+  caught there rather than by a wrong value on a customer's site. A document
+  behind a login cannot be watched; reference it in a driver comment instead.
+  See `docs/WRITING-A-DRIVER.md`.
 - Keep Lua compatible with every runtime declared in the package recipe.
 - Package id, version, read-only state and target metadata must match the Lua
   `DRIVER` block.

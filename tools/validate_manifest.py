@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from manifest_parser import parse_yaml_simple, parse_tested_devices
+from manifest_parser import parse_yaml_simple, parse_tested_devices, parse_upstream_docs
 
 REQUIRED_FIELDS = ["name", "version", "tier", "protocol", "ders", "size_bytes",
                    "connectivity"]
@@ -46,6 +46,20 @@ SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 REQUIRED_DEVICE_FIELDS = {"manufacturer", "model_family"}
 VALID_DEVICE_FIELDS = {"manufacturer", "model_family", "model", "variants", "regions",
                         "firmware_versions", "min_driver_version", "notes"}
+
+# Upstream reference documents a driver was built against (register maps,
+# parameter changelogs, manuals). Their URLs are semi-persistent so a watcher
+# can poll them and flag a driver for review when the source moves.
+VALID_UPSTREAM_DOC_FIELDS = {"url", "title", "kind", "url_stability"}
+VALID_UPSTREAM_DOC_KINDS = {"changelog", "register_map", "manual", "api_docs",
+                            "firmware_notes", "other"}
+# How durable the URL is — does the manufacturer keep it put? It weighs how
+# loudly the watcher should complain when the link breaks.
+#   committed = manufacturer documents/promises the URL is permanent
+#   stable    = stable in practice, no explicit promise
+#   volatile  = known to rotate (dated or versioned links)
+#   unknown   = not assessed (also the default when the field is absent)
+VALID_URL_STABILITY = {"committed", "stable", "volatile", "unknown"}
 
 
 def validate_manifest(yaml_path: Path, drivers_dir: Path) -> list[str]:
@@ -159,6 +173,31 @@ def validate_manifest(yaml_path: Path, drivers_dir: Path) -> list[str]:
         # Check for unknown fields
         for key in device:
             if key not in VALID_DEVICE_FIELDS:
+                errors.append(f"{prefix}: unknown field '{key}'")
+
+    # Validate upstream_docs
+    docs = parse_upstream_docs(text)
+    for i, doc in enumerate(docs):
+        prefix = f"upstream_docs[{i}]"
+
+        url = doc.get("url", "")
+        if not url:
+            errors.append(f"{prefix}: missing required field 'url'")
+        elif not (url.startswith("http://") or url.startswith("https://")):
+            errors.append(f"{prefix}: url must be an http(s) URL, got '{url}'")
+
+        kind = doc.get("kind", "")
+        if kind and kind not in VALID_UPSTREAM_DOC_KINDS:
+            errors.append(f"{prefix}: kind '{kind}' is not valid "
+                          f"(expected: {', '.join(sorted(VALID_UPSTREAM_DOC_KINDS))})")
+
+        stability = doc.get("url_stability", "")
+        if stability and stability not in VALID_URL_STABILITY:
+            errors.append(f"{prefix}: url_stability '{stability}' is not valid "
+                          f"(expected: {', '.join(sorted(VALID_URL_STABILITY))})")
+
+        for key in doc:
+            if key not in VALID_UPSTREAM_DOC_FIELDS:
                 errors.append(f"{prefix}: unknown field '{key}'")
 
     return errors
