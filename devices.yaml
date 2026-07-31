@@ -990,7 +990,7 @@ manufacturers:
           - protocol: http
             driver: "nibe_local"
             version: "1.1.0"
-            ders: [meter]
+            ders: [heatpump]
             control: true
         firmware_versions: ""
         notes: "Read-only NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Observe-only — no control."
