@@ -268,7 +268,8 @@ def _lua_string_list(values: list[str]) -> str:
     return "{ " + ", ".join(_lua_string(value) for value in values) + " }"
 
 
-def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool) -> bytes:
+def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool,
+                  auth_post_path: str = "") -> bytes:
     """Add FTW metadata and the host-call polyfills older hosts lack.
 
     A driver the catalog marks control: true keeps its control functions. The
@@ -280,6 +281,15 @@ def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool) -> byte
     A driver that declares read_only in its own DRIVER table still gets the
     write guards: those are meters and telemetry gateways saying what they are,
     not a policy imposed on them.
+
+    `auth_post_path` is for a driver that can only read once it has signed in.
+    Over HTTP a POST is not evidence of actuation -- it is also how a driver
+    exchanges a refresh token -- so denying it outright would cost such a
+    driver every reading it takes. The exemption is scoped rather than trusted:
+    POST is permitted only to a URL ending in the declared path, and denied
+    everywhere else, so the flag enforces "this POST is authentication" instead
+    of merely asserting it. Matching the path rather than a whole URL survives
+    a site pointing the driver at its own base URL.
     """
     protocols = metadata.get("protocols", [])
     capabilities = metadata.get("capabilities", [])
@@ -313,11 +323,28 @@ def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool) -> byte
     # marks control: true keeps the control path it was ported with.
     write_guards = ""
     if read_only:
+        if auth_post_path:
+            # Sign in, then read. Anything else this driver tries to POST is
+            # refused exactly as if it had no exemption at all.
+            http_post_guard = (
+                "local __sourceful_ftw_http_post = host.http_post\n"
+                f"local __sourceful_ftw_auth_path = {_lua_string(auth_post_path)}\n"
+                "host.http_post = function(url, ...)\n"
+                "    local path = type(url) == \"string\" and url:match(\"^[^?]*\") or \"\"\n"
+                "    if path:sub(-#__sourceful_ftw_auth_path) == __sourceful_ftw_auth_path then\n"
+                "        return __sourceful_ftw_http_post(url, ...)\n"
+                "    end\n"
+                "    error(\"this driver declares itself read-only: "
+                "POST is allowed only for authentication\")\n"
+                "end\n"
+            )
+        else:
+            http_post_guard = "host.http_post = __sourceful_ftw_write_denied\n"
         write_guards = (
             "local function __sourceful_ftw_write_denied()\n"
             "    error(\"this driver declares itself read-only\")\n"
             "end\n"
-            "host.http_post = __sourceful_ftw_write_denied\n"
+            + http_post_guard +
             "host.modbus_write = __sourceful_ftw_write_denied\n"
             "host.modbus_write_multi = __sourceful_ftw_write_denied\n"
             "host.modbus_write_multiple = __sourceful_ftw_write_denied\n"
@@ -421,6 +448,17 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             r"^\s*read_only\s*=\s*true", body, re.MULTILINE
         ) is not None
 
+        # A read-only driver that has to sign in before it can read anything.
+        # It names the path its token exchange goes to, and the generated guard
+        # holds it to exactly that -- see _ftw_artifact.
+        auth_post_path = _string_field(body, "auth_post_path") if body else ""
+        if auth_post_path and not auth_post_path.startswith("/"):
+            raise RepositoryError(
+                f"{driver_id}: auth_post_path must be a path beginning with '/'")
+        if auth_post_path and not declares_read_only:
+            raise RepositoryError(
+                f"{driver_id}: auth_post_path only means anything with read_only")
+
         has_driver_command = "driver_command" in set(ENTRYPOINT_RE.findall(source))
 
         required_entrypoints = {"driver_init", "driver_poll"}
@@ -517,12 +555,19 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
                 if value:
                     metadata[output_name] = value
 
-        artifact = _ftw_artifact(raw, metadata, read_only=not controls)
+        if auth_post_path and not controls:
+            metadata["auth_post_path"] = auth_post_path
+
+        artifact = _ftw_artifact(raw, metadata, read_only=not controls,
+                                 auth_post_path=auth_post_path if not controls else "")
         if len(artifact) > MAX_DRIVER_BYTES:
             raise RepositoryError(f"{driver_id}: generated FTW artifact is too large")
 
         permissions = list(PROTOCOL_PERMISSIONS[protocol])
         if controls:
+            permissions += PROTOCOL_WRITE_PERMISSIONS[protocol]
+        elif auth_post_path:
+            # Read-only, but it cannot read a thing until it has signed in.
             permissions += PROTOCOL_WRITE_PERMISSIONS[protocol]
 
         entries.append(
@@ -622,7 +667,14 @@ def _validate_manifest(manifest: dict[str, Any]) -> None:
             for values in PROTOCOL_WRITE_PERMISSIONS.values()
             for permission in values
         }
-        if read_only and write_permissions.intersection(permissions):
+        # A read-only driver may hold exactly one write-capable permission, and
+        # only the one its declared sign-in needs: the artifact's guard confines
+        # that POST to auth_post_path, so the permission cannot reach further
+        # than the token exchange it was granted for.
+        allowed_write = set()
+        if metadata.get("auth_post_path"):
+            allowed_write = {"http.post"}
+        if read_only and write_permissions.intersection(permissions) - allowed_write:
             raise RepositoryError(f"{driver_id}: read-only driver has a write-capable permission")
         if driver.get("channel") not in {"beta", "stable"}:
             raise RepositoryError(f"{driver_id}: invalid channel")

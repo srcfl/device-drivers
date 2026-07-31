@@ -48,9 +48,18 @@ DRIVER = {
   id           = "myuplink",
   name         = "MyUplink Heat Pump (telemetry)",
   manufacturer = "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)",
-  version      = "1.0.0",
+  version      = "1.2.0",
   protocols    = { "http" },
   capabilities = { "apicreds" },
+  -- Says what the header, the description and driver_command have always
+  -- said. Without it the channel infers control from the mere presence of a
+  -- driver_command entrypoint and publishes this driver write-capable.
+  read_only    = true,
+  -- ...but it can read nothing until it has signed in, and it signs in with a
+  -- POST. The generated read-only guard allows POST only to a URL ending here
+  -- and refuses it everywhere else, so this narrows the exemption rather than
+  -- asserting it. A path, not a URL, because base_url is config-overridable.
+  auth_post_path = "/oauth/token",
   description  = "Read-only heat-pump telemetry via MyUplink Cloud REST API v2: compressor power + hot-water/indoor/outdoor temperatures. Observe-only — no control. OAuth: authorization-code + refresh-token (connect in Settings → Devices).",
   homepage     = "https://dev.myuplink.com",
   http_hosts   = { "api.myuplink.com" },
