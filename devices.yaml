@@ -542,7 +542,7 @@ manufacturers:
             driver: "solis_string"
             version: "1.1.1"
             ders: [pv]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Solis non-hybrid PV inverters via Modbus TCP."
   - name: "Growatt"
@@ -965,7 +965,7 @@ manufacturers:
             driver: "myuplink"
             version: "1.1.1"
             ders: [heatpump]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Read-only heat-pump telemetry via MyUplink Cloud REST API v2: compressor power + hot-water/indoor/outdoor temperatures. Observe-only — no control. OAuth: authorization-code + refresh-token (connect in Settings → Devices)."
   - name: "NES"
@@ -991,7 +991,7 @@ manufacturers:
             driver: "nibe_local"
             version: "1.1.1"
             ders: [heatpump]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Read-only NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Observe-only — no control."
   - name: "OpenEVSE"
@@ -1030,7 +1030,7 @@ manufacturers:
             driver: "pixii_pv"
             version: "0.3.0"
             ders: [pv, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Read-only Pixii telemetry: PV (external CTs) + grid meter (meter_w). Battery / SoC comes from the Modbus driver, not this one."
       - name: "PowerShaper"
@@ -1794,7 +1794,7 @@ manufacturers:
             driver: "tibber"
             version: "1.1.0"
             ders: [meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Tibber Pulse grid meter via GraphQL-transport-ws liveMeasurement stream."
   - name: "VARTA"

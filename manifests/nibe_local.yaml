@@ -6,7 +6,7 @@ protocol: http
 connectivity: local
 setup: [device_screen]
 ders: [heatpump]
-control: true
+control: false
 tested_devices:
   - manufacturer: "NIBE"
     model_family: "NIBE REST API S-series"

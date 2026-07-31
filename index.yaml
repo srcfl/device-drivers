@@ -375,7 +375,7 @@ drivers:
     connectivity: cloud
     setup: [vendor_portal]
     ders: [heatpump]
-    control: true
+    control: false
     size_bytes: 15278
     sha256: "d754fd4af96c2047f9d9e458a776ad8f10510569836618f4631dd70e2510f404"
   - name: "nibe_local"
@@ -385,7 +385,7 @@ drivers:
     connectivity: local
     setup: [device_screen]
     ders: [heatpump]
-    control: true
+    control: false
     size_bytes: 18227
     sha256: "b89177004a2eff5a5b60e2f275f584f079acf02876c049b231ba3170bb35ac50"
   - name: "opendtu"
@@ -468,7 +468,7 @@ drivers:
     protocol: mqtt
     connectivity: local
     ders: [pv, meter]
-    control: true
+    control: false
     size_bytes: 6692
     sha256: "d0901b6478e05b5cdf46fc2a9675700ba6008be2feb370be0ff7e87d2f1de883"
   - name: "saj"
@@ -631,7 +631,7 @@ drivers:
     protocol: modbus
     connectivity: local
     ders: [pv]
-    control: true
+    control: false
     size_bytes: 5784
     sha256: "3cfcf53653680dede7caf6173cee251efa3cf2c9ec46fdc16a89b9b526dceb7e"
   - name: "sonnen"
@@ -670,7 +670,7 @@ drivers:
     connectivity: cloud
     setup: [vendor_portal]
     ders: [meter]
-    control: true
+    control: false
     size_bytes: 12410
     sha256: "845ca59a775a3a4a4c27962454f14ba654fba0d1b905f24647c80db5c26a62ae"
   - name: "varta"
