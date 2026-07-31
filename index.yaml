@@ -331,15 +331,15 @@ drivers:
     size_bytes: 2193
     sha256: "517e086af899dc511c86b00460cd8ce052a8d4973edee8b018e5824d4b550d6e"
   - name: "heishamon"
-    version: "0.7.0"
+    version: "0.8.0"
     tier: core
     protocol: mqtt
     connectivity: local
     setup: [bridge]
     ders: [heatpump]
     control: true
-    size_bytes: 7932
-    sha256: "aed6707a656a7e4e17c5edd00e8d081ed485b580d078173c13bdad75d9ffcaac"
+    size_bytes: 9012
+    sha256: "4f0988e521a45045d359416c8cbe0185159cadd79d60156e0754df8726d4a2ec"
   - name: "hello"
     version: "1.1.2"
     tier: community
