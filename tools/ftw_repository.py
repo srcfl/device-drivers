@@ -107,6 +107,42 @@ def _semver_tuple(value: str) -> tuple[int, int, int]:
     return tuple(int(part) for part in match.groups())
 
 
+def _artifact_digest(entry: dict[str, Any]) -> str:
+    """The name a published artifact answers to.
+
+    The channel identifies a driver by the SHA-256 of the bytes it publishes,
+    which are the Lua source *and* the generated metadata header. Both the
+    release and the pull request check hash through here so neither can decide
+    a driver is unchanged the other would call changed.
+    """
+    return hashlib.sha256(entry["raw"]).hexdigest()
+
+
+def _version_collisions(
+    drivers: list[dict[str, Any]], previous_drivers: list[dict[str, Any]]
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    """Every driver whose artifact bytes moved without a higher version.
+
+    A published version names a set of bytes that runs on hardware, so the
+    channel refuses to republish different bytes under one it has already
+    shipped. That refusal is the whole rule, and it is stated here once: the
+    release enforces it while signing, `check_publication` enforces it on a
+    pull request, and a rule stated twice is a rule that drifts -- at which
+    point the check that exists to agree with the release stops agreeing.
+    """
+    previous_by_id = {driver["id"]: driver for driver in previous_drivers}
+    collisions = []
+    for driver in drivers:
+        prior = previous_by_id.get(driver["id"])
+        if (
+            prior
+            and prior["sha256"] != driver["sha256"]
+            and _semver_tuple(driver["version"]) <= _semver_tuple(prior["version"])
+        ):
+            collisions.append((driver, prior))
+    return collisions
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -874,7 +910,7 @@ def build_publication(
             "drivers": [],
         }
         for entry in configured:
-            digest = hashlib.sha256(entry["raw"]).hexdigest()
+            digest = _artifact_digest(entry)
             artifact_name = (
                 f"driver-{entry['id']}-v{entry['version']}-{digest[:16]}.lua"
             )
@@ -908,16 +944,13 @@ def build_publication(
                 (driver["id"], driver["version"], driver["sha256"])
                 for driver in manifest["drivers"]
             }
-            previous_current = {driver["id"]: driver for driver in previous["drivers"]}
-            for driver in manifest["drivers"]:
-                prior = previous_current.get(driver["id"])
-                if prior and prior["sha256"] != driver["sha256"] and _semver_tuple(
-                    driver["version"]
-                ) <= _semver_tuple(prior["version"]):
-                    raise RepositoryError(
-                        f"{driver['id']}: changed artifact needs a higher version than "
-                        f"{prior['version']}"
-                    )
+            collisions = _version_collisions(manifest["drivers"], previous["drivers"])
+            if collisions:
+                driver, prior = collisions[0]
+                raise RepositoryError(
+                    f"{driver['id']}: changed artifact needs a higher version than "
+                    f"{prior['version']}"
+                )
             history: list[dict[str, Any]] = []
             history_keys: set[tuple[str, str, str]] = set()
             for driver in [*previous["drivers"], *previous.get("history", [])]:
@@ -961,6 +994,79 @@ def build_publication(
     return manifest
 
 
+def check_publication(
+    *,
+    repo_root: Path,
+    config_path: Path,
+    previous_manifest_path: Path,
+    key_id: str,
+    expected_public_key_base64: str,
+) -> dict[str, Any]:
+    """Ask the release's question of a tree nobody has merged yet.
+
+    The version rule is the one release check no pull request could run, because
+    running it needed the signed channel -- so it ran on main, after the merge,
+    where a failure has already replaced the thing it was meant to guard. #53
+    merged green and broke the release that way: it corrected a manifest field
+    and read it as catalog-only, not knowing the signed artifact carries it.
+
+    Nothing about the question actually needs the signing key. The published
+    manifest is a release asset, its signature verifies with the public key, and
+    the bytes a driver would publish as come from the tree. So this builds the
+    artifacts in memory, signs nothing, and answers exactly what the release
+    would answer -- early enough to be a review comment rather than a red main.
+
+    Reports every colliding driver instead of the first. The release stops at
+    one because it has nothing else to do; someone fixing a branch wants the
+    whole list in one run.
+    """
+    configured = _load_channel(config_path, repo_root)
+    previous = verify_manifest(
+        previous_manifest_path,
+        key_id=key_id,
+        public_key_base64=expected_public_key_base64,
+    )
+    drivers = [
+        {
+            "id": entry["id"],
+            "version": entry["version"],
+            "sha256": _artifact_digest(entry),
+        }
+        for entry in configured
+    ]
+    previous_by_id = {driver["id"]: driver for driver in previous["drivers"]}
+    added = sorted(
+        driver["id"] for driver in drivers if driver["id"] not in previous_by_id
+    )
+    changed = sorted(
+        driver["id"]
+        for driver in drivers
+        if driver["id"] in previous_by_id
+        and previous_by_id[driver["id"]]["sha256"] != driver["sha256"]
+    )
+    collisions = _version_collisions(drivers, previous["drivers"])
+    if collisions:
+        lines = "\n".join(
+            f"  {driver['id']}: changed artifact needs a higher version than "
+            f"{prior['version']} (published) -- "
+            f"make bump-driver ID={driver['id']} LEVEL=patch"
+            for driver, prior in collisions
+        )
+        raise RepositoryError(
+            "the signed channel would refuse this tree:\n"
+            f"{lines}\n"
+            "A published version names a set of bytes, so changed bytes need a "
+            "new version. The signed artifact carries the manifest metadata as "
+            "well as the Lua source, so a manifest-only edit can move them."
+        )
+    return {
+        "published_commit": previous["commit"],
+        "drivers": len(drivers),
+        "added": added,
+        "changed": changed,
+    }
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -976,6 +1082,15 @@ def _parser() -> argparse.ArgumentParser:
     build.add_argument("--key-id", required=True)
     build.add_argument("--source-date-epoch", type=int, required=True)
     build.add_argument("--previous-manifest", type=Path)
+
+    check = subparsers.add_parser(
+        "check-versions",
+        help="check a tree against the published channel without signing anything",
+    )
+    check.add_argument("--repo-root", type=Path, default=ROOT)
+    check.add_argument("--config", type=Path, default=ROOT / "ftw-channel.json")
+    check.add_argument("--previous-manifest", type=Path, required=True)
+    check.add_argument("--key-id", required=True)
 
     verify = subparsers.add_parser("verify", help="verify a signed FTW publication")
     verify.add_argument("--manifest", type=Path, required=True)
@@ -1027,6 +1142,16 @@ def main() -> int:
                     args.previous_manifest.resolve() if args.previous_manifest else None
                 ),
             )
+            return 0
+        if args.command == "check-versions":
+            report = check_publication(
+                repo_root=args.repo_root.resolve(),
+                config_path=args.config.resolve(),
+                previous_manifest_path=args.previous_manifest.resolve(),
+                key_id=args.key_id,
+                expected_public_key_base64=public_key,
+            )
+            print(json.dumps(report, sort_keys=True))
             return 0
         if args.command == "verify-stable-promotion":
             report = verify_stable_promotion(
