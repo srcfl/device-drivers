@@ -53,6 +53,8 @@ def main():
             "version": data.get("version", "1.0.0"),
             "tier": data.get("tier", "community"),
             "protocol": data.get("protocol", ""),
+            "connectivity": data.get("connectivity", ""),
+            "setup": data.get("setup", []),
             "ders": data.get("ders", []),
             "control": data.get("control", False),
             "size_bytes": size_bytes,
@@ -68,6 +70,11 @@ def main():
         lines.append(f'    version: "{e["version"]}"')
         lines.append(f'    tier: {e["tier"]}')
         lines.append(f'    protocol: {e["protocol"]}' if e["protocol"] else '    protocol: ""')
+        lines.append(f'    connectivity: {e["connectivity"]}')
+        # Omitted rather than empty: no recorded setup requirement is not a
+        # claim that a device needs none.
+        if e["setup"]:
+            lines.append(f'    setup: {yaml_list_inline(e["setup"])}')
         lines.append(f'    ders: {yaml_list_inline(e["ders"])}')
         lines.append(f'    control: {"true" if e["control"] else "false"}')
         lines.append(f'    size_bytes: {e["size_bytes"]}')

@@ -3,6 +3,8 @@ version: "1.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
+connectivity: local
+setup: [installer]
 ders: [pv, meter]
 control: true
 tested_devices:

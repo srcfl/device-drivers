@@ -3,6 +3,7 @@ version: "2.0.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
+connectivity: local
 ders: [meter, pv, battery, v2x_charger]
 control: true
 tested_devices:

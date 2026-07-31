@@ -13,9 +13,29 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from manifest_parser import parse_yaml_simple, parse_tested_devices
 
-REQUIRED_FIELDS = ["name", "version", "tier", "protocol", "ders", "size_bytes"]
+REQUIRED_FIELDS = ["name", "version", "tier", "protocol", "ders", "size_bytes",
+                   "connectivity"]
 VALID_TIERS = {"core", "community", "oem"}
 VALID_PROTOCOLS = {"modbus", "mqtt", "serial", "standalone", "http", ""}
+# Where a driver talks while it runs, which is not what `protocol` says. Two
+# NIBE heat pumps ship as `protocol: http` and are opposites: nibe_local reads
+# the pump over the LAN, myuplink reads NIBE's cloud. An owner asking whether a
+# device survives an internet outage cannot answer that from the protocol.
+VALID_CONNECTIVITY = {"local", "cloud"}
+# What a human has to obtain once, and from whom, before the driver can connect
+# at all -- including when the driver itself never leaves the LAN. An absent
+# `setup` means nobody has recorded one, which is not the same as none; only
+# `[none]` claims a device needs nothing but an address.
+VALID_SETUP = {
+    "none",             # nothing beyond reaching the device on the network
+    "device_screen",    # enabled on the device's own display or keypad
+    "device_ui",        # enabled in the device's own local web interface
+    "vendor_app",       # requires the manufacturer's phone app
+    "vendor_portal",    # requires an account, API key or OAuth app from the vendor
+    "installer",        # requires installer-level access or a service partner
+    "vendor_approval",  # the manufacturer must enable it for this site on request
+    "bridge",           # requires separate hardware or firmware in between
+}
 # The DER types FTW's drivers actually emit. `ev` is a charger, `v2x_charger`
 # one that can also discharge, and `vehicle` the car itself rather than the
 # thing it plugs into. The catalog knew only the first four, so eight shipped
@@ -67,6 +87,30 @@ def validate_manifest(yaml_path: Path, drivers_dir: Path) -> list[str]:
                 errors.append(f"invalid DER type: '{der}' (expected: {', '.join(sorted(VALID_DERS))})")
     else:
         errors.append(f"ders must be a list, got: {type(ders).__name__}")
+
+    # Validate connectivity
+    connectivity = data.get("connectivity")
+    if connectivity is not None and connectivity not in VALID_CONNECTIVITY:
+        errors.append(
+            f"connectivity '{connectivity}' is not valid "
+            f"(expected: {', '.join(sorted(VALID_CONNECTIVITY))})")
+
+    # Validate setup. Absent is allowed and means unrecorded; an empty list is
+    # not, because it reads as "nothing required" without anyone saying so.
+    if "setup" in data:
+        setup = data["setup"]
+        if not isinstance(setup, list):
+            errors.append(f"setup must be a list, got: {type(setup).__name__}")
+        elif not setup:
+            errors.append("setup is empty: omit the field, or state [none]")
+        else:
+            for gate in setup:
+                if gate not in VALID_SETUP:
+                    errors.append(
+                        f"invalid setup requirement: '{gate}' "
+                        f"(expected: {', '.join(sorted(VALID_SETUP))})")
+            if "none" in setup and len(setup) > 1:
+                errors.append("setup 'none' cannot be combined with another requirement")
 
     # Validate size_bytes
     size = data.get("size_bytes", 0)

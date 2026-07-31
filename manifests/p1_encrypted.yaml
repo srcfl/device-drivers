@@ -3,6 +3,7 @@ version: "2.0.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: serial
+connectivity: local
 ders: [meter]
 control: false
 tested_devices:

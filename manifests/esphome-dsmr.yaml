@@ -3,6 +3,8 @@ version: "1.0.3"
 tier: community
 author: "FTW contributors"
 protocol: http
+connectivity: local
+setup: [bridge]
 ders: [meter]
 control: false
 tested_devices:

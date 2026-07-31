@@ -3,6 +3,7 @@ version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
+connectivity: local
 ders: [battery, meter, pv]
 control: true
 tested_devices:

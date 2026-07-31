@@ -3,6 +3,8 @@ version: "1.0.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
+connectivity: local
+setup: [bridge]
 ders: [pv, meter]
 control: false
 tested_devices:

@@ -3,6 +3,8 @@ version: "0.5.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
+connectivity: local
+setup: [bridge]
 ders: [heatpump]
 control: true
 tested_devices:
