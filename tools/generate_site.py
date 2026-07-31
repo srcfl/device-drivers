@@ -25,7 +25,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from manifest_parser import parse_tested_devices, parse_yaml_simple
+from manifest_parser import (
+    parse_tested_devices, parse_upstream_docs, parse_yaml_simple)
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO_URL = "https://github.com/srcfl/device-drivers"
@@ -52,6 +53,26 @@ TIER_LABELS = {
     "core": "Core",
     "community": "Community",
     "oem": "OEM",
+}
+# The vendor material a driver was decoded from. A reader checking whether a
+# register is still right needs the document itself, not the note that one
+# exists, so the manifest's URL is rendered as a link.
+DOC_KIND_LABELS = {
+    "changelog": "Changelog",
+    "register_map": "Register map",
+    "manual": "Manual",
+    "api_docs": "API docs",
+    "firmware_notes": "Firmware notes",
+    "other": "Document",
+}
+# url_stability describes the URL, not the registers behind it. Left as the bare
+# word, "stable" beside a link reads as a claim that the document's contents are
+# settled, which is the opposite of why the field exists.
+URL_STABILITY_LABELS = {
+    "committed": "Vendor commits to this URL",
+    "stable": "URL stable in practice",
+    "volatile": "URL known to rotate",
+    "unknown": "URL durability not assessed",
 }
 # A driver's own verification_status is the only hardware claim on the page, so
 # it is never flattened into a single "verified" mark. Most drivers are ported
@@ -168,6 +189,28 @@ def read_driver_source(path: Path) -> dict:
     return info
 
 
+def upstream_documents(text: str) -> list[dict]:
+    """The vendor documents a manifest declares, as the page will link them.
+
+    The scheme is checked here rather than assumed. `validate_manifest.py`
+    already holds these to `http(s)`, but that is a different tool run at a
+    different time, and this one turns the value into an `href` a reader
+    clicks — the one place where trusting the input is not free.
+    """
+    documents = []
+    for entry in parse_upstream_docs(text):
+        url = (entry.get("url") or "").strip()
+        if not re.match(r"^https?://", url, re.IGNORECASE):
+            continue
+        documents.append({
+            "url": url,
+            "title": (entry.get("title") or "").strip() or url,
+            "kind": entry.get("kind") or "other",
+            "url_stability": entry.get("url_stability") or "unknown",
+        })
+    return documents
+
+
 def collect_drivers() -> list[dict]:
     """Build one record per driver from the manifest, the source and the status."""
     support = json.loads(
@@ -231,6 +274,7 @@ def collect_drivers() -> list[dict]:
             "size_bytes": data.get("size_bytes", 0),
             "sha256": data.get("sha256", ""),
             "tested_devices": tested,
+            "upstream_docs": upstream_documents(text),
             "verification": verification,
             "hardware_verified": bool(
                 verification and verification["status"] in HARDWARE_VERIFIED),
@@ -275,6 +319,8 @@ def build_catalog() -> dict:
             "ders": DER_LABELS,
             "protocols": PROTOCOL_LABELS,
             "tiers": TIER_LABELS,
+            "doc_kinds": DOC_KIND_LABELS,
+            "url_stability": URL_STABILITY_LABELS,
         },
         "totals": {
             "drivers": len(drivers),
@@ -425,6 +471,12 @@ table.models .note { color: var(--muted); font-size: 12px; }
 .facts div { min-width: 0; }
 .facts dt { color: var(--muted); font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
 .facts dd { margin: 3px 0 0; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.docs { list-style: none; margin: 0; padding: 0; max-width: 88ch; }
+.docs li { padding: 9px 0; border-bottom: 1px dashed var(--line); }
+.docs li:last-child { border-bottom: 0; }
+.docs a { color: var(--signal); font-size: 13px; overflow-wrap: anywhere; }
+.docs .doc-meta { display: block; margin-top: 3px; color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.docs-note { max-width: 78ch; margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 .links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
 .links a { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 14px; border: 1px solid var(--ink); font-size: 13px; text-decoration: none; }
 .links a:hover { background: var(--ink); color: var(--cream); }
@@ -494,6 +546,8 @@ SCRIPT = r"""
   function derLabel(d) { return labels.ders[d] || d; }
   function protocolLabel(p) { return labels.protocols[p] || p; }
   function tierLabel(t) { return labels.tiers[t] || t; }
+  function docKindLabel(k) { return labels.doc_kinds[k] || k; }
+  function stabilityLabel(s) { return labels.url_stability[s] || s; }
   function bytes(n) { return n >= 1024 ? (n / 1024).toFixed(1) + " kB" : n + " B"; }
 
   // One flat haystack per driver so a search matches a model number or a
@@ -506,6 +560,7 @@ SCRIPT = r"""
       parts.push(dev.manufacturer, dev.model_family, dev.notes);
       parts.push(dev.variants.join(" "), dev.regions.join(" "));
     });
+    d.upstream_docs.forEach(function (doc) { parts.push(doc.title, docKindLabel(doc.kind)); });
     d.haystack = parts.join(" ").toLowerCase();
   });
 
@@ -557,6 +612,27 @@ SCRIPT = r"""
       "<th>Stable package</th><th>Note</th></tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 
+  // The vendor material the driver decodes. Reading a register map is how
+  // somebody checks whether this driver is still right about a device, and
+  // until now the page named 80 drivers without once saying where any of them
+  // came from.
+  function upstreamDocs(d) {
+    if (!d.upstream_docs.length) return "";
+    var items = d.upstream_docs.map(function (doc) {
+      return "<li>" +
+        '<a href="' + esc(doc.url) + '" rel="noopener nofollow">' + esc(doc.title) +
+          ' <span aria-hidden="true">↗</span></a>' +
+        '<span class="doc-meta">' + esc(docKindLabel(doc.kind)) + " &middot; " +
+          esc(stabilityLabel(doc.url_stability)) + "</span>" +
+      "</li>";
+    }).join("");
+    return '<p class="subhead">Vendor documents this driver was built from</p>' +
+      '<ul class="docs">' + items + "</ul>" +
+      '<p class="docs-note">Watched weekly: when one of these changes or stops resolving, ' +
+      "the repository opens an issue to review the driver against it. A change is a prompt " +
+      "to look, not evidence that this driver is wrong.</p>";
+  }
+
   function driverCard(d) {
     var ders = d.ders.map(function (x) { return '<span class="badge">' + esc(derLabel(x)) + "</span>"; }).join("");
     var control = d.control
@@ -606,6 +682,7 @@ SCRIPT = r"""
         verified +
         modelsTable(d) +
         targetsTable(d) +
+        upstreamDocs(d) +
         '<p class="subhead">Facts</p><dl class="facts">' + facts + "</dl>" +
         '<div class="links">' +
           '<a href="' + esc(d.source_url) + '" rel="noopener">Read the Lua source <span aria-hidden="true">↗</span></a>' +
