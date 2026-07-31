@@ -332,7 +332,7 @@ drivers:
     version: "1.1.1"
     tier: core
     protocol: http
-    ders: [heatpump]
+    ders: [meter]
     control: true
     size_bytes: 18227
     sha256: "b89177004a2eff5a5b60e2f275f584f079acf02876c049b231ba3170bb35ac50"
