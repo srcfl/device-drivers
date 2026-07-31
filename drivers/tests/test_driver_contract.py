@@ -72,12 +72,22 @@ class TestDriverContract:
             f"{driver_name}: should call host.set_make() in driver_init"
 
     def test_calls_emit_in_poll(self, driver_name):
-        """driver_poll should call host.emit()."""
+        """driver_poll should report something: a DER reading or metrics.
+
+        `host.emit` carries a DER reading and needs a DER type the host
+        understands. `heatpump` is in VALID_DERS, but no host has a heat-pump
+        reading type yet, so a heat-pump driver has nothing to emit and
+        reports temperatures and power through `host.emit_metric` instead.
+        Requiring `host.emit` of it would leave the author two options: emit
+        nothing, or claim to be a battery. Both are worse than a driver that
+        says what it measures.
+        """
         if driver_name == "hello":
             pytest.skip("hello driver is a demo-only driver")
         code = read_driver(driver_name)
-        assert 'host.emit(' in code, \
-            f"{driver_name}: should call host.emit() in driver_poll"
+        assert 'host.emit(' in code or 'host.emit_metric(' in code, \
+            f"{driver_name}: should call host.emit() or host.emit_metric() " \
+            f"in driver_poll"
 
     def test_no_forbidden_globals(self, driver_name):
         """Driver must not use forbidden sandbox-escaping functions."""

@@ -37,22 +37,36 @@ class TestMqttSubscription:
             f"not elsewhere"
         )
 
-    def test_subscription_topics_are_strings(self, driver_name):
-        """All mqtt_subscribe calls should use string literal topics."""
+    def test_subscription_topics_are_static(self, driver_name):
+        """A subscription topic must be decidable without running the driver.
+
+        A literal is the common case. A configurable prefix is the other one:
+        heishamon and ctek_hybrid both build the topic from a file-local set
+        in driver_init, because the broker prefix is the operator's to choose.
+        That stays reviewable — every part is in the file.
+
+        What this rejects is a topic taken from runtime data: an index, a
+        field or a call, which is how a driver ends up subscribing to whatever
+        a message told it to.
+        """
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
-        # Find all subscribe calls and verify they use string literals
         sub_calls = re.findall(
             r'host\.mqtt_subscribe\s*\(\s*(.+?)\s*\)',
             clean,
         )
 
         for call_arg in sub_calls:
-            # Should be a string literal (starts with ")
-            assert call_arg.strip().startswith('"'), (
-                f"{driver_name}: mqtt_subscribe should use string literal "
-                f"topic, found: {call_arg}"
+            arg = call_arg.strip()
+            static = re.fullmatch(
+                r'(?:"[^"]*"|[A-Za-z_]\w*)'
+                r'(?:\s*\.\.\s*(?:"[^"]*"|[A-Za-z_]\w*))*',
+                arg,
+            )
+            assert static, (
+                f"{driver_name}: mqtt_subscribe topic must be a literal or a "
+                f"concatenation of literals and file-local names, found: {arg}"
             )
 
 
