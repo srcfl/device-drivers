@@ -1,7 +1,7 @@
 name: "nibe_local"
 version: "1.1.1"
 tier: core
-author: "Sourceful Labs AB"
+author: "HuggeK with the help of Claude Code"
 protocol: http
 ders: [heatpump]
 control: true
@@ -13,6 +13,11 @@ tested_devices:
     firmware_versions: ""
     notes: "Read-only NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Observe-only — no control."
     min_driver_version: "1.0.0"
+upstream_docs:
+  - url: "https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf"
+    title: "NIBE S-series myUplink register/parameter changelog (nibe-n.pdf)"
+    kind: changelog
+    url_stability: stable
 min_host_version: "2.0.0"
 size_bytes: 18227
 dkb_id: "nibe_local"

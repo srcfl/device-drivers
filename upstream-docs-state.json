@@ -1,0 +1,31 @@
+{
+  "schema_version": "sourceful.upstream-docs-state/v1",
+  "docs": {
+    "myuplink::https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf": {
+      "driver": "myuplink",
+      "url": "https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf",
+      "title": "NIBE myUplink register/parameter changelog (nibe-n.pdf)",
+      "kind": "changelog",
+      "url_stability": "stable",
+      "sha256": "fa1186981a020f6c262cf35abd50fa447343cfaa16a4eedb018cb2525c00f221",
+      "content_length": 850716,
+      "first_seen": "2026-07-29T15:08:58+00:00",
+      "last_changed": "2026-07-29T15:08:58+00:00",
+      "consecutive_failures": 0,
+      "last_error": null
+    },
+    "nibe_local::https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf": {
+      "driver": "nibe_local",
+      "url": "https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf",
+      "title": "NIBE S-series myUplink register/parameter changelog (nibe-n.pdf)",
+      "kind": "changelog",
+      "url_stability": "stable",
+      "sha256": "fa1186981a020f6c262cf35abd50fa447343cfaa16a4eedb018cb2525c00f221",
+      "content_length": 850716,
+      "first_seen": "2026-07-29T15:08:58+00:00",
+      "last_changed": "2026-07-29T15:08:58+00:00",
+      "consecutive_failures": 0,
+      "last_error": null
+    }
+  }
+}

@@ -13,6 +13,11 @@ tested_devices:
     firmware_versions: ""
     notes: "Read-only heat-pump telemetry via MyUplink Cloud REST API v2: compressor power + hot-water/indoor/outdoor temperatures. Observe-only — no control. OAuth: authorization-code + refresh-token (connect in Settings → Devices)."
     min_driver_version: "1.0.0"
+upstream_docs:
+  - url: "https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf"
+    title: "NIBE myUplink register/parameter changelog (nibe-n.pdf)"
+    kind: changelog
+    url_stability: stable
 min_host_version: "2.0.0"
 size_bytes: 15278
 dkb_id: "myuplink"
