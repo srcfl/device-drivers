@@ -86,8 +86,8 @@ Catalog source is not proof that a target can install or run a driver.
 | mennekes | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | myuplink | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | myuplink | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| nibe_local | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| nibe_local | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| nibe_local | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| nibe_local | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | opendtu | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | opendtu | 1.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | opendtu_mqtt | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
