@@ -21,6 +21,11 @@ what, what scale it uses, which firmware lies, what the vendor documented
 wrongly. **Write that down in comments as you find it.** Nobody can re-derive
 it from the numbers later, and it is the reason this repository exists.
 
+**Write down where you got it, too.** The register map, the parameter
+changelog, the API reference you decoded the device from — record those in the
+manifest so the driver can be checked against them again later. See
+[Record what you decoded it from](#record-what-you-decoded-it-from).
+
 ## The five entry points
 
 | Function | When |
@@ -222,6 +227,46 @@ cp blueprint/BLUEPRINT.lua drivers/lua/mydevice.lua
 Then write `manifests/mydevice.yaml`. The manifest and the driver's own
 `DRIVER` table must agree on the version; `make bump-driver ID=mydevice` moves
 both.
+
+### Record what you decoded it from
+
+A driver is only ever as current as the vendor document it was written from,
+and that document does not hold still. A register renumbered, a parameter
+added, a scale corrected in a new revision — none of it announces itself. The
+driver goes on decoding the old map and reporting a plausible wrong number,
+and it is a human noticing on a real site months later that ends it.
+
+So record the documents you worked from, at the most durable URL you can find:
+
+```yaml
+upstream_docs:
+  - url: "https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf"
+    title: "NIBE S-series myUplink register/parameter changelog"
+    kind: changelog
+    url_stability: stable
+```
+
+Only `url` is required. `kind` is one of `changelog`, `register_map`,
+`manual`, `api_docs`, `firmware_notes`, `other`. `url_stability` says how much
+a broken link means — `committed` (the vendor promises the URL is permanent),
+`stable` (stable in practice), `volatile` (dated or versioned links that
+rotate), `unknown`. `spec/manifest-v2.md` has the full field reference.
+
+`.github/workflows/watch-upstream-docs.yml` fetches each URL weekly and opens
+a tracking issue when a document changes or disappears, so the driver gets
+re-read against the new material rather than quietly falling behind. It is
+descriptive metadata only: it never reaches `index.yaml` and changes nothing
+about how the driver installs or runs. `make watch-upstream-docs` runs the
+check locally without touching the baseline.
+
+Two things it cannot do. A document behind a login or a vendor portal is not
+fetchable — put that reference in a comment in the driver instead, where it
+still tells the next reader where to look. And detection is a hash of the
+bytes, so a rebuilt PDF can flag a change that isn't one; a flagged document
+is a prompt to look, not proof the registers moved.
+
+Only drivers that declare the field are watched. A driver with no entry is one
+nobody will be warned about.
 
 ```bash
 make test-driver ID=mydevice
