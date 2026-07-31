@@ -11,7 +11,7 @@ Each driver has a YAML manifest in `manifests/` that describes its metadata, cap
 | `tier` | string | Yes | One of: `core`, `community`, `oem` |
 | `author` | string | Yes (core) | Author name or organization |
 | `protocol` | string | Yes | `modbus`, `mqtt`, `serial`, `standalone`, or `""` |
-| `ders` | list | Yes | DER types: `pv`, `battery`, `meter`, `v2x_charger` |
+| `ders` | list | Yes | DER types the driver covers (see below) |
 | `control` | bool | Yes | Whether the driver supports EMS control commands |
 | `tested_devices` | list | No | Devices tested against (see below) |
 | `upstream_docs` | list | No | Vendor reference documents to watch for register/protocol changes (see below) |
@@ -24,6 +24,31 @@ Each driver has a YAML manifest in `manifests/` that describes its metadata, cap
 | `bytecode_signature` | string | No | Ed25519 signature of the bytecode hash |
 | `bytecode_size` | int | No | Size of the `.luac` bytecode file in bytes |
 | `changelog` | string | No | Version-specific release notes |
+
+## DER Types
+
+`ders` states which kinds of distributed energy resource a driver covers.
+
+| Value | Device |
+|-------|--------|
+| `pv` | Solar PV |
+| `battery` | Battery storage |
+| `meter` | Electricity meter |
+| `ev` | EV charger |
+| `v2x_charger` | Bidirectional (V2X) charger |
+| `heatpump` | Heat pump |
+| `vehicle` | Vehicle |
+
+It describes **the device, not the emit function used to report it.** A driver
+that reports a heat pump only through `host.emit_metric`, without ever calling
+`host.emit("heatpump", …)`, still declares `heatpump`: the field is how the
+catalog files a driver, and an owner looking for their pump searches by the
+device they own. Declaring the empty list files a driver under nothing, so it
+cannot be found by device type at all — that is for a driver which genuinely
+covers no DER, not for one whose telemetry is metrics-only.
+
+`ders` reaches the signed artifact as its `capabilities`, so changing it changes
+the published bytes and requires a version bump like any other source change.
 
 ## Tested Devices
 
