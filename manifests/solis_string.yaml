@@ -5,7 +5,7 @@ author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
 ders: [pv]
-control: true
+control: false
 tested_devices:
   - manufacturer: "Ginlong Solis"
     model_family: "Solis string inverter"

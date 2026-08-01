@@ -6,7 +6,7 @@ protocol: http
 connectivity: cloud
 setup: [vendor_portal]
 ders: [heatpump]
-control: true
+control: false
 tested_devices:
   - manufacturer: "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)"
     model_family: "MyUplink Heat Pump (telemetry)"
