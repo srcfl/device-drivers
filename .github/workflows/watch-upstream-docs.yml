@@ -108,6 +108,12 @@ jobs:
           accepts the new bytes as normal, and on its own says nothing about
           whether the registers a driver decodes by have moved.
 
+          **The required checks do not start on their own here.** A pull request
+          opened with `GITHUB_TOKEN` starts no workflow run, so this one arrives
+          with an empty status rollup. Close and reopen it to run them. The
+          `validate` run dispatched against the branch head is a verdict you can
+          read in the meantime -- GitHub does not count it toward the rollup.
+
           Opened by the `watch-upstream-docs` workflow.
           BODY
             gh pr create --base main --head "$BRANCH" \
@@ -116,7 +122,13 @@ jobs:
           fi
 
           # A pull request opened with GITHUB_TOKEN starts no workflow run, so
-          # the required checks would sit "Expected" forever and the proposal
-          # could never merge. workflow_dispatch is the documented exception:
-          # ask validate for a verdict on the head this proposal carries.
+          # nothing would run against this proposal at all. workflow_dispatch is
+          # the documented exception to that rule, so this asks validate for a
+          # verdict on the head the proposal carries -- which is worth having
+          # before a maintainer decides to spend attention on it.
+          #
+          # It does NOT turn the required checks green: a commit whose only
+          # check suite came from a dispatch has no status rollup, so branch
+          # protection still reads the proposal as blocked. Reopening it is what
+          # starts the checks that count. Measured on #67, not assumed.
           gh workflow run validate.yml --ref "$BRANCH"
