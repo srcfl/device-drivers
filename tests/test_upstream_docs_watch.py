@@ -143,3 +143,21 @@ def test_state_file_round_trips(tmp_path):
     write_state(path, docs)
     assert load_state(path) == docs
     assert load_state(tmp_path / "missing.json") == {}
+
+
+# The runner diffs the baseline it rewrites against the committed one and
+# proposes the difference. Written in the platform's line ending, a baseline
+# authored on Windows is 31 changed lines to Linux on a week when no watched
+# document moved -- a pull request that says nothing. Both halves are pinned:
+# what the tool writes, and what is committed.
+
+
+def test_state_file_is_written_with_lf_on_every_platform(tmp_path):
+    docs, _ = compute_updates({}, CURRENT, ok(SHA_A), "t0")
+    path = tmp_path / "upstream-docs-state.json"
+    write_state(path, docs)
+    assert b"\r" not in path.read_bytes()
+
+
+def test_committed_baseline_is_lf():
+    assert b"\r" not in (ROOT / "upstream-docs-state.json").read_bytes()

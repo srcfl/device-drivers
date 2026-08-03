@@ -293,7 +293,12 @@ def write_state(path: Path, docs: dict[str, dict]) -> None:
         "schema_version": SCHEMA_VERSION,
         "docs": {key: docs[key] for key in sorted(docs)},
     }
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    # Without newline="\n", text mode writes the platform's line ending. A
+    # baseline written on Windows then reads as a whole-file change to the
+    # Linux runner that rewrites it, and the watcher proposes 31 changed lines
+    # on a week when no watched document moved.
+    path.write_text(json.dumps(payload, indent=2) + "\n",
+                    encoding="utf-8", newline="\n")
 
 
 # ---- CLI ----------------------------------------------------------------

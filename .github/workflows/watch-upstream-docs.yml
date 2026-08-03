@@ -10,8 +10,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # commit the updated baseline
+  contents: write # push the baseline branch
   issues: write # open tracking issues
+  pull-requests: write # propose the updated baseline
+  actions: write # start validate on the proposal (see that step)
 
 concurrency:
   group: watch-upstream-docs
@@ -66,15 +68,55 @@ jobs:
             gh issue create --title "$title" --body-file "$RUNNER_TEMP/body.md" --label "$label"
           done
 
-      - name: Commit the updated baseline
+      # main is protected: a direct push is refused for the required checks it
+      # has not run, so the baseline could never advance and every week's run
+      # ended red. The baseline moves the same way anything else moves here --
+      # as a pull request. One branch, force-pushed: the baseline is a whole
+      # snapshot, so the newest proposal replaces the previous one rather than
+      # stacking on it.
+      - name: Propose the updated baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: upstream-docs-baseline
+          BOT_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
           set -euo pipefail
           if git diff --quiet -- upstream-docs-state.json; then
             echo "baseline unchanged"
             exit 0
           fi
+
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "$BOT_EMAIL"
           git add upstream-docs-state.json
-          git commit -m "chore(upstream-docs): update watched-document baseline [skip ci]"
-          git push
+          git commit -m "chore(upstream-docs): update watched-document baseline" \
+            -m "Signed-off-by: github-actions[bot] <$BOT_EMAIL>"
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+
+          existing="$(gh pr list --head "$BRANCH" --state open --json number \
+            --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            echo "refreshed the open proposal: #$existing"
+          else
+            cat > "$RUNNER_TEMP/pr-body.md" <<'BODY'
+          A watched upstream document moved, or a fetch failure changed its
+          count, so `upstream-docs-state.json` no longer describes what the
+          watcher sees. Merging this makes the new observation the baseline the
+          next run compares against.
+
+          Read the `upstream-doc` issues this run opened before merging: this
+          accepts the new bytes as normal, and on its own says nothing about
+          whether the registers a driver decodes by have moved.
+
+          Opened by the `watch-upstream-docs` workflow.
+          BODY
+            gh pr create --base main --head "$BRANCH" \
+              --title "chore(upstream-docs): update watched-document baseline" \
+              --body-file "$RUNNER_TEMP/pr-body.md"
+          fi
+
+          # A pull request opened with GITHUB_TOKEN starts no workflow run, so
+          # the required checks would sit "Expected" forever and the proposal
+          # could never merge. workflow_dispatch is the documented exception:
+          # ask validate for a verdict on the head this proposal carries.
+          gh workflow run validate.yml --ref "$BRANCH"
