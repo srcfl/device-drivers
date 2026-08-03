@@ -117,6 +117,7 @@ DRIVER = {
   tested_models = { "NIBE S735" },
   verification_status = "beta",
   config_secrets = { "password" },
+  write_capabilities = { "solar_pv" },
   connection_defaults = { port = 8443 },
 }
 
