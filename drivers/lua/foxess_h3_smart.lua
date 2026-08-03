@@ -19,21 +19,30 @@
 --
 -- The distinct H1/H3 (11000-range) register map lives in the separate
 -- `foxess` driver.
+--
+-- LOCAL CONTROL BUILD (operator's own risk, not the signed channel):
+-- battery dispatch through the vendor remote-control block. Vendor
+-- active power is discharge-positive; the site convention is
+-- charge-positive, so the setpoint is negated on the way out. Two
+-- dead-man's switches protect the inverter: the vendor-side timeout
+-- (46002, refreshed every poll) reverts it if this driver dies, and a
+-- driver-side lease releases remote control when the EMS stops sending
+-- commands. driver_default_mode releases control explicitly.
 
 DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.1.0",
+  version = "0.2.0",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
   capabilities = { "pv", "battery", "meter" },
-  description = "Fox ESS H3-Smart register map: 1K5-HI series and H3-Smart three-phase hybrids. Modbus-TCP port 502, unit 247.",
+  description = "Fox ESS H3-Smart register map: 1K5-HI series and H3-Smart three-phase hybrids. Modbus-TCP port 502, unit 247. Local control build: battery dispatch via the remote-control block.",
   authors = { "Sourceful Labs AB" },
   tested_models = { "1K5-HI-10-V1" },
   verification_status = "experimental",
-  read_only = true,
+  read_only = false,
 }
 
 PROTOCOL = "modbus"
@@ -46,7 +55,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.1.0",
+  version = "0.2.0",
   role = "inverter",
   requires = {},
   options = {},
@@ -88,7 +97,38 @@ local ENERGY_COUNT = 18
 local SOC_ADDR      = 37612
 local BAT_TEMP_ADDR = 37611
 
+-- Remote control block (single-register writes only for enable/timeout;
+-- the setpoint is one multi-register write, high word at 46003).
+local RC_ENABLE_ADDR  = 46001
+local RC_TIMEOUT_ADDR = 46002
+local RC_POWER_ADDR   = 46003
+local WORK_MODE_ADDR  = 49203
+local WORK_MODE_SELF_USE = 1
+
+-- The inverter reverts to its fallback work mode when the timeout
+-- expires without a refresh. Hardware-derived floor: the master
+-- processor samples the remote-control block slowly, and a 15 s
+-- session expired before it ever acted — writes landed, read back
+-- correctly, and did nothing. The FoxESS app's own force periods use
+-- these same registers with a period-length timeout. 60 s is long
+-- enough for the master to act and still reverts the inverter within
+-- a minute if this driver dies; the driver-side lease below is the
+-- tighter of the two guards.
+local RC_TIMEOUT_S = 60
+-- The driver-side lease: without a fresh battery command inside this
+-- window, release remote control rather than keep refreshing a stale
+-- setpoint forever.
+local RC_LEASE_MS = 60000
+
 local identity_reported = false
+
+-- Remote-control state. rc_enabled tracks whether *we* enabled it: the
+-- FoxESS app's own strategy periods use the same register, so a driver
+-- that did not enable remote control must never write the disable.
+local rc_enabled = false
+local rc_target_w = nil       -- site convention: positive = charge
+local rc_command_ms = 0
+local last_soc_fract = nil
 
 local function reg(regs, base, addr)
   return regs[addr - base + 1]
@@ -155,6 +195,42 @@ function driver_init(config)
   host.set_make("FoxESS")
 end
 
+local function write_setpoint(site_w)
+  -- Vendor sign: positive = discharge. Site: positive = charge.
+  local vendor = -site_w
+  -- Two's complement from the signed value directly. Adding 2^32 first
+  -- would be exact only where Lua numbers are doubles; Lua's modulo is
+  -- floored, so this yields the same two words while every operand
+  -- stays small enough for a single-precision host.
+  local hi = math.floor(vendor / 65536) % 65536
+  local lo = vendor % 65536
+  return pcall(host.write_registers, RC_POWER_ADDR, { hi, lo })
+end
+
+local function apply_remote_control(site_w)
+  if not rc_enabled then
+    -- Fallback first: if we vanish and the timeout fires, the inverter
+    -- lands in self-use rather than whatever mode was last configured.
+    local ok, mode = pcall(host.modbus_read, WORK_MODE_ADDR, 1, "holding")
+    if ok and mode and mode[1] ~= nil and mode[1] ~= WORK_MODE_SELF_USE then
+      pcall(host.write, WORK_MODE_ADDR, WORK_MODE_SELF_USE)
+    end
+    if not pcall(host.write, RC_TIMEOUT_ADDR, RC_TIMEOUT_S) then return false end
+    if not pcall(host.write, RC_ENABLE_ADDR, 1) then return false end
+    rc_enabled = true
+  end
+  local ok = write_setpoint(site_w)
+  return ok
+end
+
+local function release_remote_control()
+  rc_target_w = nil
+  if rc_enabled then
+    rc_enabled = false
+    pcall(host.write, RC_ENABLE_ADDR, 0)
+  end
+end
+
 function driver_poll()
   if not identity_reported then
     report_identity()
@@ -211,6 +287,7 @@ function driver_poll()
       local fract = soc[1] / 100
       if fract >= 0 and fract <= 1 then
         out.SoC_nom_fract = fract
+        last_soc_fract = fract
       end
     end
     local bat_temp = read(BAT_TEMP_ADDR, 1)
@@ -238,6 +315,18 @@ function driver_poll()
     host.emit("meter", out)
   end
 
+  -- Keep an active setpoint alive: the vendor timeout needs a
+  -- refresh every poll, and the lease releases control when the EMS
+  -- stops commanding instead of holding a stale target forever.
+  if rc_target_w ~= nil then
+    if host.millis() - rc_command_ms > RC_LEASE_MS then
+      host.log("info", "foxess_h3_smart: battery command lease expired; releasing remote control")
+      release_remote_control()
+    else
+      apply_remote_control(rc_target_w)
+    end
+  end
+
   return 5000
 end
 
@@ -245,13 +334,37 @@ function driver_command(action, value, context)
   if action == "init" or action == "deinit" then
     return true
   end
-  -- Read-only driver: every actuation is refused.
-  return false
+  if action ~= "battery" then
+    return "unsupported action: " .. tostring(action)
+  end
+  local power_w = tonumber(value)
+  if power_w == nil then
+    return "battery command needs a numeric power_w"
+  end
+  if power_w == 0 then
+    release_remote_control()
+    return true
+  end
+  -- Under remote control the inverter ignores its own Max SoC, so a
+  -- charge command into a full pack must be refused here.
+  if power_w > 0 and last_soc_fract ~= nil and last_soc_fract >= 0.99 then
+    return "battery is full; refusing forced charge"
+  end
+  rc_target_w = power_w
+  rc_command_ms = host.millis()
+  if not apply_remote_control(power_w) then
+    return "remote control write failed"
+  end
+  return true
 end
 
 function driver_default_mode()
-  -- Read-only driver: the safe state is to keep reading and command nothing.
+  -- Safe state: the inverter's own self-use logic. Release remote
+  -- control; if the write cannot go through, the vendor timeout
+  -- reverts the inverter on its own within RC_TIMEOUT_S.
+  release_remote_control()
 end
 
 function driver_cleanup()
+  release_remote_control()
 end
