@@ -1,0 +1,151 @@
+{
+  "schema_version": "sourceful.driver-package-source/v1",
+  "package_id": "com.sourceful.driver.foxess-h3-smart",
+  "version": "0.1.0",
+  "channel": "beta",
+  "display_name": "FoxESS H3-Smart / 1K5",
+  "identity": {
+    "schema": "sourceful.hardware-identity/v1",
+    "make": "driver_reported",
+    "serial": "driver_reported_when_available",
+    "host_fallbacks": [
+      "mac",
+      "endpoint"
+    ],
+    "persistent_state_owner": "host"
+  },
+  "source": {
+    "repository": "https://github.com/srcfl/device-drivers",
+    "path": "drivers/lua/foxess_h3_smart.lua"
+  },
+  "builder_id": "https://github.com/srcfl/device-drivers/blob/main/tools/driver_package.py",
+  "device_matches": [
+    {
+      "manufacturer": "Fox ESS",
+      "model_family": "1K5 (Three-Phase Hybrid)",
+      "variants": [
+        "1K5-HI-5-V1",
+        "1K5-HI-8-V1",
+        "1K5-HI-10-V1",
+        "1K5-HI-12-V1",
+        "1K5-HI-15-V1"
+      ],
+      "regions": []
+    },
+    {
+      "manufacturer": "Fox ESS",
+      "model_family": "H3-Smart",
+      "variants": [],
+      "regions": []
+    }
+  ],
+  "capabilities": {
+    "telemetry": [
+      "pv",
+      "battery",
+      "meter"
+    ],
+    "control": []
+  },
+  "permissions": [
+    "modbus.read"
+  ],
+  "telemetry": {
+    "schema": "sourceful.telemetry/v2",
+    "sign_convention": "sourceful.site-import-positive/v1",
+    "streams": [
+      {
+        "kind": "pv",
+        "power_field": "w",
+        "meaning": "PV generation is negative because it reduces site import."
+      },
+      {
+        "kind": "battery",
+        "power_field": "w",
+        "meaning": "Positive is charging and negative is discharging."
+      },
+      {
+        "kind": "meter",
+        "power_field": "w",
+        "meaning": "Positive is grid import and negative is grid export at the site boundary."
+      }
+    ]
+  },
+  "commands": [],
+  "read_only": true,
+  "default_mode": {
+    "strategy": "not_applicable",
+    "description": "Read-only driver."
+  },
+  "lease_policy": {
+    "required_for_control": false,
+    "expiry_action": "not_applicable"
+  },
+  "rollback": {
+    "strategy": "install_previous_verified_package",
+    "state_owner": "host",
+    "automatic": false
+  },
+  "compatibility": [
+    {
+      "target": "ftw-core",
+      "artifact_id": "ftw.lua51.source",
+      "host": {
+        "product": "ftw",
+        "min_version": "1.5.0",
+        "max_version_exclusive": "2.0.0"
+      },
+      "runtime": {
+        "name": "gopher-lua",
+        "semantics": "lua-5.1",
+        "version": "1.1.2",
+        "abi": "gopher-lua-source-v1",
+        "host_api": {
+          "profile": "sourceful.host/ftw-core/v1",
+          "min": 1,
+          "max": 1
+        }
+      },
+      "control_enabled": false
+    },
+    {
+      "target": "blixt-l1",
+      "artifact_id": "blixt.lua51.source",
+      "host": {
+        "product": "blixt-gateway",
+        "min_version": "0.1.0",
+        "max_version_exclusive": "1.0.0"
+      },
+      "runtime": {
+        "name": "luajit",
+        "semantics": "lua-5.1",
+        "version": "2.1",
+        "abi": "mlua-0.10-luajit21-source-v1",
+        "host_api": {
+          "profile": "sourceful.host/blixt-l1/v1",
+          "min": 1,
+          "max": 1
+        }
+      },
+      "control_enabled": false
+    }
+  ],
+  "artifact_inputs": [
+    {
+      "artifact_id": "ftw.lua51.source",
+      "target": "ftw-core",
+      "media_type": "application/vnd.sourceful.lua.source",
+      "input_path": "drivers/lua/foxess_h3_smart.lua",
+      "transform": "copy",
+      "extension": "lua"
+    },
+    {
+      "artifact_id": "blixt.lua51.source",
+      "target": "blixt-l1",
+      "media_type": "application/vnd.sourceful.lua.source",
+      "input_path": "drivers/lua/foxess_h3_smart.lua",
+      "transform": "copy",
+      "extension": "lua"
+    }
+  ]
+}
