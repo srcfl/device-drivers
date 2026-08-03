@@ -38,6 +38,31 @@ DRIVER = {
 
 PROTOCOL = "modbus"
 
+-- Blixt L1 loads a target-specific artifact from this same source and
+-- validates these promises at load time (tools/driver_package.py
+-- requires the table for the blixt-l1 target). `live` mirrors exactly
+-- what driver_poll emits; SoC, temperature and the energy counters are
+-- omitted from an emit when their block has given up, same as every
+-- other field here.
+DRIVER_MANIFEST = {
+  name = "foxess_h3_smart",
+  version = "0.1.0",
+  role = "inverter",
+  requires = {},
+  options = {},
+  provides = {
+    live = {
+      "pv.W", "pv.mppts", "pv.total_generation_Wh",
+      "battery.W", "battery.V", "battery.A",
+      "battery.SoC_nom_fract", "battery.temperature_C",
+      "meter.W", "meter.Hz",
+      "meter.L1_V", "meter.L2_V", "meter.L3_V",
+      "meter.total_import_Wh", "meter.total_export_Wh",
+    },
+    static = { "make" },
+  },
+}
+
 -- Model regs 30000..30015, serial regs 30016..30031, both ASCII.
 local MODEL_ADDR  = 30000
 -- One block covers inverter state through temperature:
@@ -214,6 +239,14 @@ function driver_poll()
   end
 
   return 5000
+end
+
+function driver_command(action, value, context)
+  if action == "init" or action == "deinit" then
+    return true
+  end
+  -- Read-only driver: every actuation is refused.
+  return false
 end
 
 function driver_default_mode()
