@@ -75,6 +75,7 @@ function host.reset()
     host._emitted = {}
     host._metrics = {}
     host._make    = nil
+    host._model   = nil
     host._sn      = nil
     host._logs    = {}
     host._errors  = {}
@@ -124,6 +125,11 @@ end
 function host.set_make(name)
     record_call("set_make", name)
     host._make = name
+end
+
+function host.set_model(model)
+    record_call("set_model", model)
+    host._model = model
 end
 
 function host.set_sn(serial_number)
@@ -394,6 +400,24 @@ end
 function host.decode_u32(hi, lo)
     record_call("decode_u32", hi, lo)
     return (hi & 0xFFFF) * 65536 + (lo & 0xFFFF)
+end
+
+-- ASCII out of `count` registers starting at 1-based `start`, two
+-- characters per register, high byte first. Trailing NULs and
+-- whitespace are stripped. Mirrors FTW's host.decode_string.
+function host.decode_string(regs, start, count)
+    record_call("decode_string", start, count)
+    start = start or 1
+    if start < 1 then start = 1 end
+    count = count or (#regs - start + 1)
+    local chars = {}
+    for i = 0, count - 1 do
+        local v = regs[start + i]
+        if type(v) ~= "number" then break end
+        chars[#chars + 1] = string.char(math.floor(v / 256) % 256, v % 256)
+    end
+    local s = table.concat(chars)
+    return (s:gsub("[%z%s]+$", ""))
 end
 
 function host.decode_u32_be(hi, lo)

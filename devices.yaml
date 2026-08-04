@@ -387,6 +387,17 @@ manufacturers:
         notes: "MQTT broker on the EnergyHub, port 1883 with default auth."
   - name: "Fox ESS"
     model_families:
+      - name: "1K5 (Three-Phase Hybrid)"
+        variants: [1K5-HI-10-V1, 1K5-HI-12-V1, 1K5-HI-15-V1, 1K5-HI-5-V1, 1K5-HI-8-V1]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "foxess_h3_smart"
+            version: "0.1.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Telemetry validated on 1K5-HI-10-V1 hardware: PV string power agrees with V*A, and pv + battery + load balances the grid CT. Read-only."
       - name: "AIO-H3 (All-in-One)"
         variants: [AIO-H3-10.0, AIO-H3-3.0, AIO-H3-5.0, AIO-H3-6.0, AIO-H3-8.0]
         regions: []
@@ -431,6 +442,17 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Community driver, untested"
+      - name: "H3-Smart"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "foxess_h3_smart"
+            version: "0.1.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Shares the 1K5 register map; not yet tested on H3-Smart hardware."
       - name: "KH Series"
         variants: [KH-3.0, KH-3.7, KH-5.0]
         regions: []
