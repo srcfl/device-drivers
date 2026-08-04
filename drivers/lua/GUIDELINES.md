@@ -142,7 +142,36 @@ read with fresh values while its hardware is unavailable. Say so with
 `host.set_device_fault(true, reason)` rather than letting the telemetry look
 healthy.
 
-### 8. Clean up on unload
+### 8. A hybrid inverter may have no battery
+
+Rule 7 is about a read that failed. This is the one where nothing failed: the
+device is healthy, every register answered, and there is still no battery.
+
+Hybrid inverters are sold both with storage and without it, under the same
+model number and the same register map, so a PV-only site is not an edge case —
+it is half the product line. The absence arrives differently per vendor: the
+ESS registers go silent, or answer zero, or answer `0xFFFF` / NaN, or fault.
+
+Fill each battery field only from a register that answered, and emit the DER
+only when at least one of them did:
+
+```lua
+local battery = {}
+if bat_regs then battery.w   = decode(bat_regs) end
+if soc_regs then battery.soc = decode(soc_regs) end
+
+if bat_regs or soc_regs then
+    host.emit("battery", battery)     -- silent when there is no pack
+end
+```
+
+Detect it; do not ask the operator to declare it and do not infer it from the
+model number. `soc = 0` is not "no battery" — it is an empty pack the planner
+can dispatch against, and it cannot be told apart from one that has just run
+flat. See *A hybrid inverter may have no battery* in
+[docs/WRITING-A-DRIVER.md](../../docs/WRITING-A-DRIVER.md).
+
+### 9. Clean up on unload
 
 ```lua
 function driver_cleanup()
