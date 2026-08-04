@@ -387,6 +387,17 @@ manufacturers:
         notes: "MQTT broker on the EnergyHub, port 1883 with default auth."
   - name: "Fox ESS"
     model_families:
+      - name: "1K5 (Three-Phase Hybrid)"
+        variants: [1K5-HI-10-V1, 1K5-HI-12-V1, 1K5-HI-15-V1, 1K5-HI-5-V1, 1K5-HI-8-V1]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "foxess_h3_smart"
+            version: "0.1.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Telemetry validated on 1K5-HI-10-V1 hardware: PV string power agrees with V*A, and pv + battery + load balances the grid CT. Read-only."
       - name: "AIO-H3 (All-in-One)"
         variants: [AIO-H3-10.0, AIO-H3-3.0, AIO-H3-5.0, AIO-H3-6.0, AIO-H3-8.0]
         regions: []
@@ -431,6 +442,17 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Community driver, untested"
+      - name: "H3-Smart"
+        variants: []
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "foxess_h3_smart"
+            version: "0.1.0"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Shares the 1K5 register map; not yet tested on H3-Smart hardware."
       - name: "KH Series"
         variants: [KH-3.0, KH-3.7, KH-5.0]
         regions: []
@@ -542,7 +564,7 @@ manufacturers:
             driver: "solis_string"
             version: "1.1.1"
             ders: [pv]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Solis non-hybrid PV inverters via Modbus TCP."
   - name: "Growatt"
@@ -963,9 +985,9 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "myuplink"
-            version: "1.1.0"
-            ders: []
-            control: true
+            version: "1.1.1"
+            ders: [heatpump]
+            control: false
         firmware_versions: ""
         notes: "Read-only heat-pump telemetry via MyUplink Cloud REST API v2: compressor power + hot-water/indoor/outdoor temperatures. Observe-only — no control. OAuth: authorization-code + refresh-token (connect in Settings → Devices)."
   - name: "NES"
@@ -990,7 +1012,7 @@ manufacturers:
           - protocol: http
             driver: "nibe_local"
             version: "1.2.0"
-            ders: [meter]
+            ders: [heatpump]
             control: true
         firmware_versions: ""
         notes: "NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Read-only by default; opt-in write path feeds the pump's native Solar PV surplus input (2107/2109)."
@@ -1030,7 +1052,7 @@ manufacturers:
             driver: "pixii_pv"
             version: "0.3.0"
             ders: [pv, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Read-only Pixii telemetry: PV (external CTs) + grid meter (meter_w). Battery / SoC comes from the Modbus driver, not this one."
       - name: "PowerShaper"
@@ -1722,7 +1744,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.6"
+            version: "1.5.7"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1733,7 +1755,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.6"
+            version: "1.5.7"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1744,7 +1766,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.6"
+            version: "1.5.7"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1755,7 +1777,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.6"
+            version: "1.5.7"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1766,7 +1788,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.6"
+            version: "1.5.7"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1794,7 +1816,7 @@ manufacturers:
             driver: "tibber"
             version: "1.1.0"
             ders: [meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Tibber Pulse grid meter via GraphQL-transport-ws liveMeasurement stream."
   - name: "VARTA"

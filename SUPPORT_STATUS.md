@@ -52,6 +52,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ferroamp_modbus | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | foxess | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | foxess | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| foxess_h3_smart | 0.1.0 | ftw-core | not_assessed | 0.1.0 | — | not_recorded | — | not_assessed | no |
+| foxess_h3_smart | 0.1.0 | blixt-l1 | not_assessed | 0.1.0 | — | not_recorded | — | not_assessed | no |
 | fronius | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius_api | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -84,8 +86,8 @@ Catalog source is not proof that a target can install or run a driver.
 | kstar | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | mennekes | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | mennekes | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| myuplink | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| myuplink | 1.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| myuplink | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| myuplink | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | nibe_local | 1.2.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | nibe_local | 1.2.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | opendtu | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -144,8 +146,8 @@ Catalog source is not proof that a target can install or run a driver.
 | solis_string | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sonnen | 2.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sonnen | 2.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| sungrow | 1.5.6 | ftw-core | observe_only_profile_blocked | 1.3.3 | 1.3.0 | exact_model_firmware_required | — | not_assessed | no |
-| sungrow | 1.5.6 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| sungrow | 1.5.7 | ftw-core | observe_only_profile_blocked | 1.3.3 | 1.3.0 | exact_model_firmware_required | — | not_assessed | no |
+| sungrow | 1.5.7 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | tesla_vehicle | 0.2.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | tesla_vehicle | 0.2.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | tibber | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

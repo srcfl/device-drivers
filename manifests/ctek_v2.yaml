@@ -3,6 +3,8 @@ version: "0.3.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
+connectivity: local
+setup: [device_ui]
 ders: [ev]
 control: true
 tested_devices:

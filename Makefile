@@ -7,8 +7,14 @@ ARTIFACT_DIR ?= .artifacts/$(ID)
 LEVEL ?= patch
 
 .PHONY: bootstrap new-driver test-driver package-driver check boundary \
+	refused-write-report absent-register-report \
 	sync-manifests bump-driver history ftw-baseline ftw-baseline-report \
-	host-api
+	host-api site watch-upstream-docs
+
+# Build the public driver catalog page into site/, exactly as GitHub Pages
+# publishes it. Open site/index.html to review a change before it ships.
+site:
+	uv run --frozen --extra package --extra dev python tools/generate_site.py --output site
 
 # Does any driver call a host function no host provides?
 host-api:
@@ -28,6 +34,13 @@ ftw-baseline-report:
 absent-register-report:
 	test -n "$(ID)"
 	./lua55 drivers/tests/lua_harness/absent_register_probe.lua . "drivers/lua/$(ID).lua"
+
+# Does this driver keep writing a register the device refuses? The watchdog
+# reaches driver_default_mode on a timer, so anything but a settled count
+# repeats for the life of the session.
+refused-write-report:
+	test -n "$(ID)"
+	./lua55 drivers/tests/lua_harness/refused_write_probe.lua . "drivers/lua/$(ID).lua"
 
 bootstrap:
 	uv sync --frozen --extra package --extra dev
@@ -53,6 +66,12 @@ boundary:
 # Rewrite sha256 and size_bytes in every manifest from the Lua source.
 sync-manifests:
 	uv run --frozen --extra package --extra dev python tools/sync_manifests.py
+
+# Fetch every manifest upstream_docs URL and report changes against the
+# baseline WITHOUT rewriting it. The scheduled watch-upstream-docs workflow
+# runs the same tool for real and opens a tracking issue on a change.
+watch-upstream-docs:
+	uv run --frozen --extra package --extra dev python tools/check_upstream_docs.py --dry-run
 
 # Raise a driver version in the manifest and the DRIVER table together.
 # Example: make bump-driver ID=sungrow LEVEL=patch

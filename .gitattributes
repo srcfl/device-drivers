@@ -1,0 +1,11 @@
+# The catalog files here are written by a tool and compared back byte for byte
+# -- `git diff --exit-code -- index.yaml`, and the watcher's committed baseline.
+# A checkout that hands a generator CRLF makes those comparisons fail on line
+# endings alone, on a tree where nothing actually changed. Keep them LF in the
+# working tree on every platform, so regenerating anywhere reads the same.
+*.json text eol=lf
+*.yaml text eol=lf
+*.md   text eol=lf
+*.lua  text eol=lf
+*.py   text eol=lf
+*.sh   text eol=lf

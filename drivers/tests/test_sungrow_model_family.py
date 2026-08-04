@@ -837,3 +837,184 @@ print("AFTER_CLEANUP " .. tostring(host._modbus_registers.holding[13049]))
         f"that clears it -- gating it on the family strands the device.")
     assert out["AFTER_CLEANUP"] == "0", (
         f"cleanup left EMS mode at {out['AFTER_CLEANUP']}, not 0")
+
+
+# --------------------------------------------------------------------------
+# The EMS block, and letting go of a write the device refuses
+#
+# An SG12RT in the field logged "self-consumption reset write failed: modbus
+# exception function=0x06" once per watchdog tick, forever. The startup reset,
+# the watchdog, cleanup and deinit all write 13049-13051, and nothing counted
+# how often the device said no.
+#
+# The obvious fix -- skip the writes when model_family is "string" -- is the
+# wrong one, and the last test here is why. Since 1.5.4 a zero-watt command is
+# accepted whatever the family and writes EMS mode 2, so a device the driver
+# calls "string" can be holding a forced state: a Sungrow hybrid shipped under
+# a device-type code classify_device_type has not been taught lands in exactly
+# that branch. The label does not separate the two cases. Whether the device
+# took the write does.
+# --------------------------------------------------------------------------
+
+# The SG12RT as its Diagnose panel described it: device type 9268 (0x2434),
+# no Sungrow meter wired, no hybrid block, and every EMS write refused.
+SG12RT_IN_THE_FIELD = '''
+host._modbus_registers.input[4999] = {9268}
+host._modbus_registers.input[5000] = {120}
+host._modbus_registers.input[5016] = {4000, 0}
+host._modbus_registers.input[5600] = {1500, 0}
+host._modbus_write_error = "modbus exception function=0x06 code=0x02"
+''' + fail_hybrid_block() + fail_battery_limit_block()
+
+
+def watchdog_ticks(device: str, ticks: int = 8) -> str:
+    return device + f'''
+dofile("{DRIVER}")
+driver_init({{}})
+local per_tick, defaulted = {{}}, {{}}
+for tick = 1, {ticks} do
+    host._modbus_write_attempts = 0
+    defaulted[#defaulted + 1] = tostring(driver_default_mode() == true)
+    per_tick[#per_tick + 1] = host._modbus_write_attempts
+end
+print("WRITES_PER_TICK " .. table.concat(per_tick, ","))
+print("DEFAULTED " .. table.concat(defaulted, ","))
+local warns = 0
+for _, line in ipairs(host._logs) do
+    if string.find(line, "self-consumption reset write failed", 1, true) then
+        warns = warns + 1
+    end
+end
+print("WARN_LINES " .. tostring(warns))
+'''
+
+
+def test_the_watchdog_stops_writing_a_block_the_device_refuses() -> None:
+    """The field report. It never stopped."""
+    out = run_lua(watchdog_ticks(SG12RT_IN_THE_FIELD))
+    per_tick = [int(n) for n in out["WRITES_PER_TICK"].split(",")]
+
+    assert per_tick[-1] == 0, (
+        f"the watchdog was still writing on the last tick: {per_tick}. On an "
+        f"inverter that answers 13049-13051 with a Modbus exception this "
+        f"repeats for the life of the session, once per tick.")
+    assert per_tick[-3:] == [0, 0, 0], f"it must stay stopped: {per_tick}"
+    assert int(out["WARN_LINES"]) <= 3, (
+        f"{out['WARN_LINES']} warn lines for one absent register block. The "
+        f"log is where an operator looks for the real fault, and this drowned "
+        f"it at one line per tick.")
+
+
+def test_giving_up_on_the_write_is_not_reported_as_failing_it() -> None:
+    """driver_default_mode is the host's evidence the device is safe.
+
+    While the driver is still attempting, a refused write is a real failure
+    and says so -- reporting success over a write that did not land is the
+    silent-failure shape #164 is about. What must not last is the failure:
+    once the driver has stopped attempting, there is nothing left to fail, and
+    a permanent false would have the watchdog escalate forever against an
+    inverter that never accepted a forced state in the first place.
+    """
+    out = run_lua(watchdog_ticks(SG12RT_IN_THE_FIELD))
+    defaulted = out["DEFAULTED"].split(",")
+
+    assert defaulted[-1] == "true", (
+        f"driver_default_mode answered {out['DEFAULTED']}. It still reports "
+        f"failure after it stopped trying, so the watchdog never settles.")
+    assert defaulted[-4:] == ["true"] * 4, (
+        f"it has to stay settled: {out['DEFAULTED']}")
+
+
+def test_the_startup_reset_is_always_attempted_at_least_once() -> None:
+    """A restart is exactly when a stale forced state has to be cleared.
+
+    The count lives in the process, so a fresh start always tries. Persisting
+    it would break the one case the startup reset exists for.
+    """
+    body = SG12RT_IN_THE_FIELD + f'''
+dofile("{DRIVER}")
+driver_init({{}})
+print("INIT_WRITES " .. tostring(host._modbus_write_attempts))
+'''
+    out = run_lua(body)
+
+    assert int(out["INIT_WRITES"]) >= 3, (
+        f"driver_init made {out['INIT_WRITES']} writes. A container that died "
+        f"mid-force leaves the inverter holding the last command, and this is "
+        f"the write that clears it.")
+
+
+def test_a_forced_state_this_driver_did_not_set_is_still_released() -> None:
+    """Why the guard counts refusals rather than reading model_family.
+
+    The startup reset exists because the inverter can be holding a forced
+    state this driver did not set -- a container that died mid-force, an older
+    driver version, iSolarCloud or another EMS on the same bus. None of those
+    care what classify_device_type decided.
+
+    This device is classified "string": 0x2434 is not a device-type code the
+    driver knows. Its EMS registers work anyway, and they are latched at mode
+    2. Gate the release on the family and it stays there. Count refusals and it
+    is cleared, because nothing here has ever refused a write.
+    """
+    body = '''
+host._modbus_registers.input[4999] = {9268}
+host._modbus_registers.input[5000] = {120}
+host._modbus_registers.input[5016] = {4000, 0}
+-- Latched by something that is not this driver.
+host._modbus_registers.holding[13049] = 2
+host._modbus_registers.holding[13050] = 0xAA
+host._modbus_registers.holding[13051] = 2000
+''' + f'''
+dofile("{DRIVER}")
+print("BEFORE " .. tostring(host._modbus_registers.holding[13049]))
+driver_init({{}})
+print("AFTER_INIT " .. tostring(host._modbus_registers.holding[13049]))
+for tick = 1, 5 do driver_default_mode() end
+print("AFTER_WATCHDOG " .. tostring(host._modbus_registers.holding[13049]))
+'''
+    out = run_lua(body)
+
+    assert out["BEFORE"] == "2", "the fixture has to start out forced"
+    assert out["AFTER_INIT"] == "0", (
+        f"startup left the inverter at EMS mode {out['AFTER_INIT']}. It "
+        f"accepts these registers and was holding a forced charge set by "
+        f"something else, which is the case this reset exists for -- and the "
+        f"case a family-based guard would skip.")
+    assert out["AFTER_WATCHDOG"] == "0", out
+
+
+def test_a_success_puts_the_release_back() -> None:
+    """Refusals are evidence, not a verdict.
+
+    A confirmed hybrid whose bus refuses three writes stops being written
+    unprompted, like any other device. One command that lands proves the block
+    is there and puts the release back at once, without waiting for a restart.
+    """
+    body = HEALTHY_HYBRID + f'''
+dofile("{DRIVER}")
+driver_init({{}})
+for poll = 1, 3 do pcall(driver_poll) end
+
+host._modbus_write_error = "modbus exception function=0x06 code=0x02"
+for tick = 1, 4 do driver_default_mode() end
+host._modbus_write_attempts = 0
+driver_default_mode()
+print("GAVE_UP " .. tostring(host._modbus_write_attempts == 0))
+
+-- The bus recovers and a battery command proves it.
+host._modbus_write_error = nil
+print("COMMAND_OK " .. tostring(driver_command("battery", 500, {{}}) == true))
+host._modbus_write_attempts = 0
+driver_default_mode()
+print("RESUMED_WRITES " .. tostring(host._modbus_write_attempts))
+'''
+    out = run_lua(body)
+
+    assert out["GAVE_UP"] == "true", "it must stop while the device refuses"
+    assert out["COMMAND_OK"] == "true", "a command always attempts"
+    assert int(out["RESUMED_WRITES"]) >= 3, (
+        f"the release stayed off after a write landed. One success is proof "
+        f"the block is there, and a driver that will not hand back a device it "
+        f"can hand back is the worse failure. A restart also re-probes, but "
+        f"waiting for one is not the answer when the evidence is already in.")

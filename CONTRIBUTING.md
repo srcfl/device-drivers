@@ -49,6 +49,30 @@ Raise the version whenever the Lua source changes. A version names a set of
 bytes that runs on hardware, so shipping two different drivers under one
 version leaves a site with no way to say which one it has.
 
+Raise it too when a manifest field the signed channel publishes changes, even
+though no Lua moved. The channel signs source and metadata as one artifact, so
+`ders`, `protocol` and the `manufacturer` and `model_family` of a
+`tested_devices` entry all reach the published bytes. Changing one under a
+version already released fails with `changed artifact needs a higher version`.
+
+The `signed channel accepts this tree` check answers that on every pull
+request, against the manifest the channel has actually published. To ask it
+yourself:
+
+```bash
+gh release download drivers-beta --repo srcfl/device-drivers \
+  --pattern manifest.json --dir /tmp/ftw
+FTW_DRIVER_SIGNING_PUBLIC_KEY=MX+j27UBkyM099hTyJlmMLK9qlTTDUJsaK/vH12fFKc= \
+  uv run --extra package python tools/ftw_repository.py check-versions \
+  --previous-manifest /tmp/ftw/manifest.json --key-id ftw-drivers-2026-01
+```
+
+It signs nothing and needs no secret. It names every driver that has to move
+and the command that moves it. Because it compares against the published
+channel rather than against `main`, a `main` that is itself unpublishable
+fails this check on unrelated pull requests too — that is the breakage
+surfacing, and it clears when `main` is fixed.
+
 ```bash
 make bump-driver ID=example LEVEL=patch
 ```

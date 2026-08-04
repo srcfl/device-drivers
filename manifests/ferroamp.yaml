@@ -3,6 +3,7 @@ version: "2.1.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
+connectivity: local
 ders: [battery, meter, pv]
 control: true
 tested_devices:

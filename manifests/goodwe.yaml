@@ -3,6 +3,8 @@ version: "2.1.1"
 tier: community
 author: "frekes81 and Sourceful contributors"
 protocol: modbus
+connectivity: local
+setup: [bridge]
 ders: [pv, battery, meter]
 control: false
 tested_devices: []
