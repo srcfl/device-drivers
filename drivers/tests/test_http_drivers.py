@@ -9,10 +9,20 @@ import pytest
 from conftest import (
     read_driver,
     get_http_drivers,
+    get_driver_connectivity,
     strip_lua_comments,
 )
 
 HTTP_DRIVERS = get_http_drivers()
+
+
+def skip_if_cloud(driver_name):
+    """Local URL rules do not describe a driver that calls a vendor cloud."""
+    if get_driver_connectivity(driver_name) == "cloud":
+        pytest.skip(
+            f"{driver_name}: cloud HTTP driver uses its vendor endpoint, "
+            "not a local config host"
+        )
 
 
 @pytest.mark.parametrize("driver_name", HTTP_DRIVERS)
@@ -20,7 +30,8 @@ class TestHttpPatterns:
     """Validate HTTP driver API usage patterns."""
 
     def test_constructs_base_url(self, driver_name):
-        """HTTP drivers should construct a base URL from config.host."""
+        """Local HTTP drivers should construct a base URL from config.host."""
+        skip_if_cloud(driver_name)
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
@@ -82,10 +93,11 @@ class TestHttpPatterns:
 
 @pytest.mark.parametrize("driver_name", HTTP_DRIVERS)
 class TestHttpUrlSafety:
-    """Validate URL construction safety."""
+    """Validate URL construction safety for local HTTP drivers."""
 
     def test_uses_http_scheme(self, driver_name):
-        """HTTP drivers should use http:// scheme (not https on constrained devices)."""
+        """Local HTTP drivers should use http://, not HTTPS."""
+        skip_if_cloud(driver_name)
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
@@ -96,7 +108,8 @@ class TestHttpUrlSafety:
         )
 
     def test_uses_config_port(self, driver_name):
-        """HTTP drivers should use config.port for the connection port."""
+        """Local HTTP drivers should use config.port for the connection port."""
+        skip_if_cloud(driver_name)
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 

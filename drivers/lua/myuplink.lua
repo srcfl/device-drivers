@@ -116,16 +116,24 @@ local function fetch_token()
         .. "&client_id=" .. url_encode(client_id)
         .. "&client_secret=" .. url_encode(client_secret)
         .. "&refresh_token=" .. url_encode(refresh_token)
-    local resp, err = host.http_post(
+    local post_ok, resp, err = pcall(host.http_post,
         BASE_URL .. "/oauth/token", body,
         { ["Content-Type"] = "application/x-www-form-urlencoded" })
+    if not post_ok then
+        host.log("error", "MyUplink: token refresh failed: " .. tostring(resp))
+        return false
+    end
     if err then
         host.log("error", "MyUplink: token refresh failed: " .. tostring(err))
         return false
     end
-    local data = host.json_decode(resp)
+    local decode_ok, data, decode_err = pcall(host.json_decode, resp)
+    if not decode_ok then
+        host.log("error", "MyUplink: invalid refresh response: " .. tostring(data))
+        return false
+    end
     if not data or not data.access_token then
-        host.log("error", "MyUplink: no access_token in refresh response")
+        host.log("error", "MyUplink: no access_token in refresh response: " .. tostring(decode_err))
         return false
     end
     access_token = data.access_token
@@ -156,10 +164,12 @@ end
 -- ---- API helpers ---------------------------------------------------------
 
 local function api_get(path)
-    local resp, err = host.http_get(BASE_URL .. path, auth_headers())
+    local get_ok, resp, err = pcall(host.http_get, BASE_URL .. path, auth_headers())
+    if not get_ok then return nil, tostring(resp) end
     if err then return nil, tostring(err) end
-    local data, derr = host.json_decode(resp)
-    if not data then return nil, tostring(derr) end
+    local decode_ok, data, derr = pcall(host.json_decode, resp)
+    if not decode_ok then return nil, tostring(data) end
+    if not data then return nil, tostring(derr or "empty JSON response") end
     return data, nil
 end
 

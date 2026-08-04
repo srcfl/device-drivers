@@ -71,13 +71,13 @@ class TestDriverContract:
         assert 'host.set_make(' in code, \
             f"{driver_name}: should call host.set_make() in driver_init"
 
-    def test_calls_emit_in_poll(self, driver_name):
-        """driver_poll should call host.emit()."""
+    def test_emits_in_poll(self, driver_name):
+        """driver_poll should emit DER data or a metric."""
         if driver_name == "hello":
             pytest.skip("hello driver is a demo-only driver")
         code = read_driver(driver_name)
-        assert 'host.emit(' in code, \
-            f"{driver_name}: should call host.emit() in driver_poll"
+        assert 'host.emit(' in code or 'host.emit_metric(' in code, \
+            f"{driver_name}: should call host.emit() or host.emit_metric() in driver_poll"
 
     def test_no_forbidden_globals(self, driver_name):
         """Driver must not use forbidden sandbox-escaping functions."""

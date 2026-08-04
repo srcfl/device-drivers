@@ -21,9 +21,9 @@ upstream_docs:
     kind: changelog
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 15874
+size_bytes: 16386
 dkb_id: "myuplink"
-sha256: "9a0917a31d29907155574b2eb6df89d1fba2431457e2608e64ea42b8fa24057b"
+sha256: "6074b70eb2bbe49481fcc59551d65474cb8129ae5370e9c1844c23b08a5f6fd6"
 signature: ""
 
 bytecode_sha256: ""
