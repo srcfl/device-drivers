@@ -437,16 +437,16 @@ function driver_poll()
       mppts[s] = nil
     end
 
-    local out = {}
-    out.W = -pv_w
-    out.mppts = mppts
+    local pv_out = {}
+    pv_out.W = -pv_w
+    pv_out.mppts = mppts
     if rated_w then
-      out.rated_w = rated_w
+      pv_out.rated_w = rated_w
     end
     -- Inverter heatsink temperature rides the pv stream, sungrow-style.
-    out.temp_c = host.decode_i16(reg(status, STATUS_ADDR, 39141)) * 0.1
+    pv_out.temp_c = host.decode_i16(reg(status, STATUS_ADDR, 39141)) * 0.1
     if energy then
-      out.total_generation_Wh = u32(energy, ENERGY_ADDR, 39601) * 10
+      pv_out.total_generation_Wh = u32(energy, ENERGY_ADDR, 39601) * 10
     end
     last_pv_w = pv_w
     local volts = 0
@@ -454,63 +454,63 @@ function driver_poll()
       if mppts[s].V > volts then volts = mppts[s].V end
     end
     last_pv_volts = volts
-    host.emit("pv", out)
+    host.emit("pv", pv_out)
   end
 
   -- ---- Battery ----
   -- Vendor sign: positive = discharge. Site convention: positive = charge.
   if power then
-    local out = {}
-    out.W = -i32(power, POWER_ADDR, 39237)
-    out.V = reg(power, POWER_ADDR, 39227) * 0.1
-    out.A = -i32(power, POWER_ADDR, 39228) * 0.001
+    local bat_out = {}
+    bat_out.W = -i32(power, POWER_ADDR, 39237)
+    bat_out.V = reg(power, POWER_ADDR, 39227) * 0.1
+    bat_out.A = -i32(power, POWER_ADDR, 39228) * 0.001
     local soc = read(SOC_ADDR, 1)
     if soc then
       local fract = soc[1] / 100
       if fract >= 0 and fract <= 1 then
-        out.SoC_nom_fract = fract
+        bat_out.SoC_nom_fract = fract
         last_soc_fract = fract
       end
     end
     local bat_temp = read(BAT_TEMP_ADDR, 1)
     if bat_temp then
-      out.temperature_C = host.decode_i16(bat_temp[1]) * 0.1
+      bat_out.temperature_C = host.decode_i16(bat_temp[1]) * 0.1
     end
     -- Lifetime counters live in the energy block this poll already
     -- read; added only when it answered (a zero would read as a reset
     -- meter).
     if energy then
-      out.total_charge_Wh    = u32(energy, ENERGY_ADDR, 39605) * 10
-      out.total_discharge_Wh = u32(energy, ENERGY_ADDR, 39609) * 10
+      bat_out.total_charge_Wh    = u32(energy, ENERGY_ADDR, 39605) * 10
+      bat_out.total_discharge_Wh = u32(energy, ENERGY_ADDR, 39609) * 10
     end
-    host.emit("battery", out)
+    host.emit("battery", bat_out)
   end
 
   -- ---- Meter ----
   -- Vendor sign: positive = export. Site convention: positive = import.
   if ct then
-    local out = {}
-    out.W = -i32(ct, CT_ADDR, CT_ADDR) * 0.1
+    local met_out = {}
+    met_out.W = -i32(ct, CT_ADDR, CT_ADDR) * 0.1
     if status then
-      out.Hz   = reg(status, STATUS_ADDR, 39139) * 0.01
-      out.L1_V = reg(status, STATUS_ADDR, 39123) * 0.1
-      out.L2_V = reg(status, STATUS_ADDR, 39124) * 0.1
-      out.L3_V = reg(status, STATUS_ADDR, 39125) * 0.1
+      met_out.Hz   = reg(status, STATUS_ADDR, 39139) * 0.01
+      met_out.L1_V = reg(status, STATUS_ADDR, 39123) * 0.1
+      met_out.L2_V = reg(status, STATUS_ADDR, 39124) * 0.1
+      met_out.L3_V = reg(status, STATUS_ADDR, 39125) * 0.1
       -- Per-phase CT power (site sign: import-positive), amps derived
       -- as W/V so the sign carries through — FTW's fuse bars read
       -- l1_a..l3_a signed, negative meaning export on that phase.
-      out.L1_W = -i32(ct, CT_ADDR, 38816) * 0.1
-      out.L2_W = -i32(ct, CT_ADDR, 38818) * 0.1
-      out.L3_W = -i32(ct, CT_ADDR, 38820) * 0.1
-      if out.L1_V > 0 then out.L1_A = out.L1_W / out.L1_V end
-      if out.L2_V > 0 then out.L2_A = out.L2_W / out.L2_V end
-      if out.L3_V > 0 then out.L3_A = out.L3_W / out.L3_V end
+      met_out.L1_W = -i32(ct, CT_ADDR, 38816) * 0.1
+      met_out.L2_W = -i32(ct, CT_ADDR, 38818) * 0.1
+      met_out.L3_W = -i32(ct, CT_ADDR, 38820) * 0.1
+      if met_out.L1_V > 0 then met_out.L1_A = met_out.L1_W / met_out.L1_V end
+      if met_out.L2_V > 0 then met_out.L2_A = met_out.L2_W / met_out.L2_V end
+      if met_out.L3_V > 0 then met_out.L3_A = met_out.L3_W / met_out.L3_V end
     end
     if energy then
-      out.total_import_Wh = u32(energy, ENERGY_ADDR, 39617) * 10
-      out.total_export_Wh = u32(energy, ENERGY_ADDR, 39613) * 10
+      met_out.total_import_Wh = u32(energy, ENERGY_ADDR, 39617) * 10
+      met_out.total_export_Wh = u32(energy, ENERGY_ADDR, 39613) * 10
     end
-    host.emit("meter", out)
+    host.emit("meter", met_out)
   end
 
   -- Fault codes 39067..39069 (already in the status read): any
