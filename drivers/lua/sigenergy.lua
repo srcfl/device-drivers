@@ -64,26 +64,41 @@ function driver_poll()
     -- =====================
     -- Battery Telemetry
     -- =====================
+    --
+    -- The ESS registers are the only ones here a Sigenergy plant can lack.
+    -- Every hybrid model in the range is sold without storage as well as with
+    -- it -- a Sigen PV M1-HYA commissioned PV-only is the case this was found
+    -- on -- and on such a plant 30014 and 30037 never answer.
+    --
+    -- Filling the fields with zero there does not report "no battery", it
+    -- reports an empty one: a pack sitting at 0% that can absorb charge. The
+    -- planner can then dispatch against storage that is not installed, and
+    -- driver_command("battery", ...) writes 40032/40034, which a plant with no
+    -- ESS does not implement. Zero is also indistinguishable from a real pack
+    -- that has just run flat, so nothing downstream can tell the two apart.
+    --
+    -- So each field is filled only from a register that answered, and the DER
+    -- is emitted only when at least one of them did. A plant with storage is
+    -- unaffected; a plant without one stops claiming a battery.
+
+    local battery = {}
 
     -- ESS Power: 30037-30038, S32, kW, gain 1000 (raw = watts)
     -- Sigenergy: >0 charging, <0 discharging → matches our convention
     local bat_regs = probe_read(30037, 2, "input")
-    local bat_w = 0
     if bat_regs then
-        bat_w = host.decode_i32_be(bat_regs[1], bat_regs[2])
+        battery.W = host.decode_i32_be(bat_regs[1], bat_regs[2])
     end
 
     -- ESS SOC: 30014, U16, %, gain 10
     local soc_regs = probe_read(30014, 1, "input")
-    local bat_soc = 0
     if soc_regs then
-        bat_soc = soc_regs[1] / 1000  -- gain 10 → percent, / 100 → fraction
+        battery.SoC_nom_fract = soc_regs[1] / 1000  -- gain 10 → percent, / 100 → fraction
     end
 
-    host.emit("battery", {
-        W   = bat_w,
-        SoC_nom_fract = bat_soc,
-    })
+    if bat_regs or soc_regs then
+        host.emit("battery", battery)
+    end
 
     -- =====================
     -- Meter Telemetry
