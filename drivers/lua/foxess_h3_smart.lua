@@ -105,7 +105,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.5.0",
+  version = "0.5.1",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
@@ -127,7 +127,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.5.0",
+  version = "0.5.1",
   role = "inverter",
   requires = {},
   options = {},
@@ -305,8 +305,15 @@ end
 -- the vendor AC setpoint. Returns vendor watts, or nil + reason.
 -- See the header for the model and every guard's justification.
 local function compute_vendor(battery_target_w)
-  if battery_target_w < 0 then
-    -- Discharge: PV at max, battery fills the difference.
+  if battery_target_w <= 0 then
+    -- Discharge, and HOLD-AT-ZERO: AC = pv - target, so target 0 pins
+    -- the battery at 0 with all PV flowing to house + grid. Zero must
+    -- be an enforced setpoint, not a release: this inverter's
+    -- uncommanded state is self-use, which absorbs the surplus into
+    -- the battery -- and a controller that commands 0, releases, and
+    -- watches native charging surge back gets a ~90 s limit cycle
+    -- (observed live 2026-08-05: steady 3 kW PV, battery saw-toothing
+    -- 250..2300 W against FTW's absorb ceiling).
     if last_pv_w == nil then
       return nil, "no PV reading yet"
     end
@@ -504,10 +511,9 @@ function driver_command(action, value, context)
   if power_w == nil then
     return "battery command needs a numeric power_w"
   end
-  if power_w == 0 then
-    release_remote_control()
-    return true
-  end
+  -- power_w == 0 is a real setpoint (hold the battery at zero), not a
+  -- release. Release happens on lease expiry and driver_default_mode.
+
   -- Under remote control the inverter ignores its own Max SoC, so a
   -- charge command into a full pack must be refused here.
   if power_w > 0 and last_soc_fract ~= nil and last_soc_fract >= 0.99 then
