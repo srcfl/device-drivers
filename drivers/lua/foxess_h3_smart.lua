@@ -105,7 +105,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.5.1",
+  version = "0.6.0",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
@@ -127,7 +127,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.5.1",
+  version = "0.6.0",
   role = "inverter",
   requires = {},
   options = {},
@@ -138,6 +138,8 @@ DRIVER_MANIFEST = {
       "battery.SoC_nom_fract", "battery.temperature_C",
       "meter.W", "meter.Hz",
       "meter.L1_V", "meter.L2_V", "meter.L3_V",
+      "meter.L1_W", "meter.L2_W", "meter.L3_W",
+      "meter.L1_A", "meter.L2_A", "meter.L3_A",
       "meter.total_import_Wh", "meter.total_export_Wh",
     },
     static = { "make" },
@@ -158,9 +160,11 @@ local POWER_COUNT = 20
 -- pv4 39285...
 local PV_ADDR  = 39279
 local PV_COUNT = 8
--- Grid CT total power, i32, 0.1 W units. Vendor sign: positive = export.
+-- Grid CT power, i32 pairs in 0.1 W units. Vendor sign: positive =
+-- export. Total at 38814; per-phase R/S/T at 38816/38818/38820 — the
+-- site meter's per-phase data feeds FTW's fuse bars.
 local CT_ADDR  = 38814
-local CT_COUNT = 2
+local CT_COUNT = 8
 -- Energy counters, u32 pairs in 0.01 kWh: solar 39601.., feed-in
 -- 39613.., grid consumption 39617...
 local ENERGY_ADDR  = 39601
@@ -469,6 +473,15 @@ function driver_poll()
       out.L1_V = reg(status, STATUS_ADDR, 39123) * 0.1
       out.L2_V = reg(status, STATUS_ADDR, 39124) * 0.1
       out.L3_V = reg(status, STATUS_ADDR, 39125) * 0.1
+      -- Per-phase CT power (site sign: import-positive), amps derived
+      -- as W/V so the sign carries through — FTW's fuse bars read
+      -- l1_a..l3_a signed, negative meaning export on that phase.
+      out.L1_W = -i32(ct, CT_ADDR, 38816) * 0.1
+      out.L2_W = -i32(ct, CT_ADDR, 38818) * 0.1
+      out.L3_W = -i32(ct, CT_ADDR, 38820) * 0.1
+      if out.L1_V > 0 then out.L1_A = out.L1_W / out.L1_V end
+      if out.L2_V > 0 then out.L2_A = out.L2_W / out.L2_V end
+      if out.L3_V > 0 then out.L3_A = out.L3_W / out.L3_V end
     end
     if energy then
       out.total_import_Wh = u32(energy, ENERGY_ADDR, 39617) * 10
