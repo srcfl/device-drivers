@@ -1,5 +1,5 @@
 name: "foxess_h3_smart"
-version: "0.1.0"
+version: "0.5.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -13,23 +13,23 @@ tested_devices:
     regions: []
     firmware_versions: ""
     notes: "Telemetry validated on 1K5-HI-10-V1 hardware: PV string power agrees with V*A, and pv + battery + load balances the grid CT. Read-only."
-    min_driver_version: "0.1.0"
+    min_driver_version: "0.5.1"
   - manufacturer: "Fox ESS"
     model_family: "H3-Smart"
     variants: []
     regions: []
     firmware_versions: ""
     notes: "Shares the 1K5 register map; not yet tested on H3-Smart hardware."
-    min_driver_version: "0.1.0"
+    min_driver_version: "0.5.1"
 upstream_docs:
   - url: "https://github.com/nathanmarlor/foxess_modbus"
     title: "nathanmarlor/foxess_modbus community register map (Inv.H3_SMART profile)"
     kind: register_map
     url_stability: stable
 min_host_version: "1.5.0"
-size_bytes: 8181
+size_bytes: 21080
 dkb_id: ""
-sha256: "102da78fe189a62bec0224a5a22fc27279abc15bc6ed69688bbcd50865fe49f2"
+sha256: "6ee467d19346dd621ea12cd6499ed7ecbb7135f879fabb8c71ecf803deb077a1"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
