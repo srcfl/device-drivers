@@ -21,9 +21,29 @@
 -- `foxess` driver.
 --
 -- LOCAL CONTROL BUILD (operator's own risk, not the signed channel):
--- battery dispatch through the vendor remote-control block. Vendor
--- active power is discharge-positive; the site convention is
--- charge-positive, so the setpoint is negated on the way out. Two
+-- battery dispatch through the vendor remote-control block.
+--
+-- The setpoint at 46003/46004 is the INVERTER'S AC ACTIVE POWER,
+-- export-positive. It is not battery power and not a grid-meter
+-- target. The inverter reaches the number by any means it has --
+-- curtailing PV, charging, or discharging -- bounded by what the
+-- battery can do at that moment.
+--
+-- Proved on hardware 2026-08-05 by an operator watching the roof:
+-- with a full battery in full sun, a "discharge 1000 W" command sent
+-- as a bare +500 made the inverter CURTAIL PV from 3191 W to ~600 W
+-- rather than discharge. It had done exactly as asked -- put 500 W on
+-- the AC side -- and with a full battery, throttling PV was the only
+-- way. The same model explains a 12-hour grid-import runaway (write
+-- -5000, inverter imports until the battery's charge ceiling) and why
+-- discharge appeared to work on 2026-08-03: PV was ~0 that evening, and
+-- the naive `vendor = -target` is correct exactly when PV is zero.
+--
+-- So a battery target must be translated:
+--   inverter_ac = pv_now - battery_target        (both magnitudes)
+-- PV is read fresh each poll. When PV is currently curtailed the first
+-- setpoint under-reaches, the inverter un-curtails, and the next poll
+-- corrects -- converging in a few ticks rather than integrating. Two
 -- dead-man's switches protect the inverter: the vendor-side timeout
 -- (46002, refreshed every poll) reverts it if this driver dies, and a
 -- driver-side lease releases remote control when the EMS stops sending
@@ -33,7 +53,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.2.0",
+  version = "0.4.0",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
@@ -55,7 +75,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.2.0",
+  version = "0.4.0",
   role = "inverter",
   requires = {},
   options = {},
@@ -129,6 +149,15 @@ local rc_enabled = false
 local rc_target_w = nil       -- site convention: positive = charge
 local rc_command_ms = 0
 local last_soc_fract = nil
+-- PV generation as a positive magnitude, from the last poll. The
+-- setpoint translation needs it; a command that arrives before the
+-- first PV reading is refused rather than guessed.
+local last_pv_w = nil
+
+-- Sanity bound on the computed setpoint: the translation subtracts two
+-- live values, and one bad sample should not ask this hardware for
+-- something absurd. Comfortably outside its ~10 kW rating both ways.
+local MAX_SETPOINT_W = 15000
 
 local function reg(regs, base, addr)
   return regs[addr - base + 1]
@@ -195,9 +224,18 @@ function driver_init(config)
   host.set_make("FoxESS")
 end
 
-local function write_setpoint(site_w)
-  -- Vendor sign: positive = discharge. Site: positive = charge.
-  local vendor = -site_w
+local function write_setpoint(battery_target_w)
+  -- inverter AC (export-positive) = pv - battery_target. Charging the
+  -- battery takes power off the AC side; discharging adds to it.
+  if last_pv_w == nil then
+    return false
+  end
+  local vendor = last_pv_w - battery_target_w
+  if vendor > MAX_SETPOINT_W then
+    vendor = MAX_SETPOINT_W
+  elseif vendor < -MAX_SETPOINT_W then
+    vendor = -MAX_SETPOINT_W
+  end
   -- Two's complement from the signed value directly. Adding 2^32 first
   -- would be exact only where Lua numbers are doubles; Lua's modulo is
   -- floored, so this yields the same two words while every operand
@@ -272,6 +310,7 @@ function driver_poll()
     if energy then
       out.total_generation_Wh = u32(energy, ENERGY_ADDR, 39601) * 10
     end
+    last_pv_w = pv_w
     host.emit("pv", out)
   end
 
