@@ -395,7 +395,7 @@ manufacturers:
             driver: "foxess_h3_smart"
             version: "0.5.1"
             ders: [pv, battery, meter]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Telemetry validated on 1K5-HI-10-V1 hardware: PV string power agrees with V*A, and pv + battery + load balances the grid CT. Read-only."
       - name: "AIO-H3 (All-in-One)"
@@ -450,7 +450,7 @@ manufacturers:
             driver: "foxess_h3_smart"
             version: "0.5.1"
             ders: [pv, battery, meter]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Shares the 1K5 register map; not yet tested on H3-Smart hardware."
       - name: "KH Series"

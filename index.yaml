@@ -228,7 +228,7 @@ drivers:
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
-    control: false
+    control: true
     size_bytes: 21080
     sha256: "6ee467d19346dd621ea12cd6499ed7ecbb7135f879fabb8c71ecf803deb077a1"
   - name: "fronius"

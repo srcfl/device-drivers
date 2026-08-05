@@ -680,7 +680,7 @@
       "targets": {
         "blixt-l1": {
           "candidate_package_version": "0.5.1",
-          "control_enabled": false,
+          "control_enabled": true,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
@@ -690,7 +690,7 @@
         },
         "ftw-core": {
           "candidate_package_version": "0.5.1",
-          "control_enabled": false,
+          "control_enabled": true,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
