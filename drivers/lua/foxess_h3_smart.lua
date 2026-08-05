@@ -21,9 +21,28 @@
 -- `foxess` driver.
 --
 -- LOCAL CONTROL BUILD (operator's own risk, not the signed channel):
--- battery dispatch through the vendor remote-control block. Vendor
--- active power is discharge-positive; the site convention is
--- charge-positive, so the setpoint is negated on the way out. Two
+-- battery dispatch through the vendor remote-control block.
+--
+-- The remote-control setpoint (46003/46004) is a GRID active-power
+-- setpoint, not a battery-power setpoint. Hardware proof, 2026-08-05:
+-- with the battery charging on PV surplus and the meter at -4 W, a
+-- "charge 500 W" command written straight through made the site import
+-- 590 W and the battery charge ~590 W *above* the surplus. The
+-- inverter had obeyed exactly what was asked of it: import 500 W.
+-- Discharge hid this for two days, because for discharge both readings
+-- move the grid the same way and the host's closed loop converged
+-- anyway.
+--
+-- So a battery target must be translated. Solving
+--   grid = load + battery + pv   (site convention, all signed)
+-- for the grid setpoint that yields the requested battery power, with
+-- load and pv cancelling out, leaves a form that needs no load
+-- measurement at all:
+--   desired_grid = grid_now + (battery_target - battery_now)
+-- and the vendor register is import-negative, so it receives
+-- -desired_grid. Each poll recomputes this from fresh readings, so PV
+-- and load drift correct themselves on the next tick rather than
+-- integrating. Two
 -- dead-man's switches protect the inverter: the vendor-side timeout
 -- (46002, refreshed every poll) reverts it if this driver dies, and a
 -- driver-side lease releases remote control when the EMS stops sending
@@ -33,7 +52,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.2.0",
+  version = "0.3.0",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
@@ -55,7 +74,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.2.0",
+  version = "0.3.0",
   role = "inverter",
   requires = {},
   options = {},
@@ -129,6 +148,18 @@ local rc_enabled = false
 local rc_target_w = nil       -- site convention: positive = charge
 local rc_command_ms = 0
 local last_soc_fract = nil
+-- Last polled site-convention readings, needed to translate a battery
+-- target into the grid setpoint the inverter actually accepts. nil
+-- until the first successful poll of each; a command that cannot be
+-- translated is refused rather than guessed.
+local last_grid_w = nil
+local last_bat_w = nil
+
+-- Sanity bound on the computed grid setpoint. The translation is a
+-- subtraction of two live readings, so one bad telemetry sample could
+-- otherwise ask the inverter for something absurd. Comfortably above
+-- this hardware's ~10 kW rating in both directions.
+local MAX_SETPOINT_W = 15000
 
 local function reg(regs, base, addr)
   return regs[addr - base + 1]
@@ -195,9 +226,19 @@ function driver_init(config)
   host.set_make("FoxESS")
 end
 
-local function write_setpoint(site_w)
-  -- Vendor sign: positive = discharge. Site: positive = charge.
-  local vendor = -site_w
+local function write_setpoint(battery_target_w)
+  -- Translate a battery target into the grid setpoint that produces it
+  -- under the conditions this driver last measured. See the header.
+  if last_grid_w == nil or last_bat_w == nil then
+    return false
+  end
+  local desired_grid = last_grid_w + (battery_target_w - last_bat_w)
+  local vendor = -desired_grid
+  if vendor > MAX_SETPOINT_W then
+    vendor = MAX_SETPOINT_W
+  elseif vendor < -MAX_SETPOINT_W then
+    vendor = -MAX_SETPOINT_W
+  end
   -- Two's complement from the signed value directly. Adding 2^32 first
   -- would be exact only where Lua numbers are doubles; Lua's modulo is
   -- floored, so this yields the same two words while every operand
@@ -294,6 +335,7 @@ function driver_poll()
     if bat_temp then
       out.temperature_C = host.decode_i16(bat_temp[1]) * 0.1
     end
+    last_bat_w = out.W
     host.emit("battery", out)
   end
 
@@ -312,6 +354,7 @@ function driver_poll()
       out.total_import_Wh = u32(energy, ENERGY_ADDR, 39617) * 10
       out.total_export_Wh = u32(energy, ENERGY_ADDR, 39613) * 10
     end
+    last_grid_w = out.W
     host.emit("meter", out)
   end
 
