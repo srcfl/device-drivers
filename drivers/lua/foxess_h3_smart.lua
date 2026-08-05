@@ -105,7 +105,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.6.0",
+  version = "0.7.0",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
@@ -127,7 +127,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.6.0",
+  version = "0.7.0",
   role = "inverter",
   requires = {},
   options = {},
@@ -136,6 +136,7 @@ DRIVER_MANIFEST = {
       "pv.W", "pv.mppts", "pv.total_generation_Wh",
       "battery.W", "battery.V", "battery.A",
       "battery.SoC_nom_fract", "battery.temperature_C",
+      "battery.total_charge_Wh", "battery.total_discharge_Wh",
       "meter.W", "meter.Hz",
       "meter.L1_V", "meter.L2_V", "meter.L3_V",
       "meter.L1_W", "meter.L2_W", "meter.L3_W",
@@ -204,6 +205,10 @@ local PV_VOLTS_DAYLIGHT   = 70
 local RC_LEASE_MS = 60000
 
 local identity_reported = false
+local rated_w = nil
+-- Device-fault latch: only raise/clear on a status block we actually
+-- read, and only write the host state on a change (mirrors sungrow).
+local fault_active = nil
 
 -- Remote-control state. rc_enabled tracks whether *we* enabled it: the
 -- FoxESS app's own strategy periods use the same register, so a driver
@@ -279,6 +284,12 @@ local function report_identity()
   host.set_model(model)
   if serial ~= "" then
     host.set_sn(serial)
+  end
+  -- Rated power straight from the family name: 1K5-HI-<kW>-V1.
+  local kw = model:match("^1K5%-HI%-(%d+)")
+  if kw then
+    rated_w = tonumber(kw) * 1000
+    pcall(host.set_rated_w, rated_w)
   end
   if not model:find("^1K5%-") and not model:find("^H3%-") then
     host.log("warn", "foxess_h3_smart: model '" .. model ..
@@ -429,6 +440,11 @@ function driver_poll()
     local out = {}
     out.W = -pv_w
     out.mppts = mppts
+    if rated_w then
+      out.rated_w = rated_w
+    end
+    -- Inverter heatsink temperature rides the pv stream, sungrow-style.
+    out.temp_c = host.decode_i16(reg(status, STATUS_ADDR, 39141)) * 0.1
     if energy then
       out.total_generation_Wh = u32(energy, ENERGY_ADDR, 39601) * 10
     end
@@ -460,6 +476,13 @@ function driver_poll()
     if bat_temp then
       out.temperature_C = host.decode_i16(bat_temp[1]) * 0.1
     end
+    -- Lifetime counters live in the energy block this poll already
+    -- read; added only when it answered (a zero would read as a reset
+    -- meter).
+    if energy then
+      out.total_charge_Wh    = u32(energy, ENERGY_ADDR, 39605) * 10
+      out.total_discharge_Wh = u32(energy, ENERGY_ADDR, 39609) * 10
+    end
     host.emit("battery", out)
   end
 
@@ -488,6 +511,34 @@ function driver_poll()
       out.total_export_Wh = u32(energy, ENERGY_ADDR, 39613) * 10
     end
     host.emit("meter", out)
+  end
+
+  -- Fault codes 39067..39069 (already in the status read): any
+  -- nonzero raises a device fault carrying the codes; all-zero clears.
+  -- Both transitions require a status block we actually read — a
+  -- failed read must neither raise nor clear.
+  if status then
+    local f1 = reg(status, STATUS_ADDR, 39067) or 0
+    local f2 = reg(status, STATUS_ADDR, 39068) or 0
+    local f3 = reg(status, STATUS_ADDR, 39069) or 0
+    local faulted = (f1 ~= 0 or f2 ~= 0 or f3 ~= 0)
+    if faulted and fault_active ~= true then
+      host.set_device_fault(true, string.format(
+        "inverter fault codes %d/%d/%d", f1, f2, f3))
+      fault_active = true
+    elseif not faulted and fault_active ~= false then
+      host.set_device_fault(false, "")
+      fault_active = false
+    end
+    -- Diagnostics for the metric browser: the values this week's
+    -- debugging kept needing and never had.
+    host.emit_metric("inverter_temp_c",
+      host.decode_i16(reg(status, STATUS_ADDR, 39141)) * 0.1)
+    host.emit_metric("foxess_inverter_state", reg(status, STATUS_ADDR, 39063) or -1)
+  end
+  host.emit_metric("foxess_rc_enabled", rc_enabled and 1 or 0)
+  if prev_vendor_w ~= nil then
+    host.emit_metric("foxess_rc_setpoint_w", prev_vendor_w)
   end
 
   -- Keep an active setpoint alive: the vendor timeout needs a
