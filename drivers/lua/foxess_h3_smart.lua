@@ -105,7 +105,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.7.0",
+  version = "0.7.1",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
@@ -127,7 +127,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.7.0",
+  version = "0.7.1",
   role = "inverter",
   requires = {},
   options = {},
@@ -199,6 +199,14 @@ local BAT_CHARGE_LIMIT_ADDR = 46018
 local CHARGE_BMS_MARGIN_W = 200
 local CHARGE_BMS_FLOOR_W  = 250
 local PV_VOLTS_DAYLIGHT   = 70
+-- The PV reading is DC-side; the AC terminals see ~3.5% less after
+-- conversion. Feeding raw DC PV into the AC setpoint demands more than
+-- PV can deliver and the inverter covers the gap from the battery — a
+-- steady ~-70 W drain at hold-zero that the site owner spotted
+-- (residual/PV ≈ 3.3% across hold samples, 2026-08-05). Derate PV to
+-- its AC-achievable value; recalibrate here if panels or firmware
+-- change the ratio.
+local PV_AC_EFF = 0.965
 -- The driver-side lease: without a fresh battery command inside this
 -- window, release remote control rather than keep refreshing a stale
 -- setpoint forever.
@@ -332,7 +340,7 @@ local function compute_vendor(battery_target_w)
     if last_pv_w == nil then
       return nil, "no PV reading yet"
     end
-    return last_pv_w - battery_target_w
+    return last_pv_w * PV_AC_EFF - battery_target_w
   end
   -- Charge: guard 1, the live BMS ceiling.
   local limit = read_battery_charge_limit_w()
@@ -348,7 +356,7 @@ local function compute_vendor(battery_target_w)
     if last_pv_w == nil then
       return nil, "no PV reading yet"
     end
-    return last_pv_w - p_eff
+    return last_pv_w * PV_AC_EFF - p_eff
   end
   return -p_eff
 end
