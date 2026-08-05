@@ -23,37 +23,89 @@
 -- LOCAL CONTROL BUILD (operator's own risk, not the signed channel):
 -- battery dispatch through the vendor remote-control block.
 --
+-- ============================ SEMANTICS ============================
 -- The setpoint at 46003/46004 is the INVERTER'S AC ACTIVE POWER,
 -- export-positive. It is not battery power and not a grid-meter
--- target. The inverter reaches the number by any means it has --
--- curtailing PV, charging, or discharging -- bounded by what the
--- battery can do at that moment.
+-- target. The inverter reaches the number by any means available --
+-- running PV, curtailing PV, charging, or discharging -- bounded by
+-- what the battery accepts at that moment.
 --
--- Proved on hardware 2026-08-05 by an operator watching the roof:
--- with a full battery in full sun, a "discharge 1000 W" command sent
--- as a bare +500 made the inverter CURTAIL PV from 3191 W to ~600 W
--- rather than discharge. It had done exactly as asked -- put 500 W on
--- the AC side -- and with a full battery, throttling PV was the only
--- way. The same model explains a 12-hour grid-import runaway (write
--- -5000, inverter imports until the battery's charge ceiling) and why
--- discharge appeared to work on 2026-08-03: PV was ~0 that evening, and
--- the naive `vendor = -target` is correct exactly when PV is zero.
+-- Hardware evidence behind this model (1K5-HI-10-V1, 2026-08-03/05),
+-- each once misdiagnosed before the model fell out:
+--   * write -5000 ("charge 5 kW" naively): imported 4.5 kW from the
+--     grid for 12 h against an idle plan -- import runs until the
+--     battery's charge ceiling, and imported power DISPLACES PV
+--     before adding to it;
+--   * write +500 with a full battery in full sun ("discharge 500"
+--     naively): the inverter CURTAILED PV 3191 W -> 600 W instead of
+--     discharging -- the operator saw the array throttle, which the
+--     meter data alone could not reveal;
+--   * bare `vendor = -target` appeared to work for discharge on
+--     2026-08-03 only because PV was ~0 that evening; the naive form
+--     is correct exactly when PV is zero.
+-- The same semantics are confirmed independently by the
+-- nathanmarlor/foxess_modbus remote-control implementation, whose
+-- comments describe the import-displaces-PV behaviour verbatim.
 --
--- So a battery target must be translated:
---   inverter_ac = pv_now - battery_target        (both magnitudes)
--- PV is read fresh each poll. When PV is currently curtailed the first
--- setpoint under-reaches, the inverter un-curtails, and the next poll
--- corrects -- converging in a few ticks rather than integrating. Two
--- dead-man's switches protect the inverter: the vendor-side timeout
--- (46002, refreshed every poll) reverts it if this driver dies, and a
--- driver-side lease releases remote control when the EMS stops sending
--- commands. driver_default_mode releases control explicitly.
-
+-- ========================== TRANSLATION ============================
+-- DISCHARGE (battery_target < 0), hardware-validated 2026-08-05
+-- (commanded -1000 in full sun: battery -1080, PV uncurtailed):
+--     vendor = pv_now + |battery_target|
+-- PV passes through at max; the battery fills the difference. The
+-- ~8% overshoot is DC->AC conversion loss (the AC side is what we
+-- set); the host's closed loop absorbs it.
+--
+-- CHARGE (battery_target > 0) is NOT a formula but a guarded one:
+-- imported power displaces PV first, and a naive setpoint spirals
+-- (curtailed PV -> lower reading -> deeper import). Guards, in order:
+--   1. BMS ceiling: read Pwr_limit_Bat_up (46018/46019) fresh at the
+--      command and on every refresh; effective charge is capped at
+--      that limit minus a 200 W margin. The margin is the reference
+--      implementation's finding: command right at the limit and the
+--      inverter clips PV while the battery takes ~50 W less than it
+--      could -- the gap is what lets PV fill in. Below a 250 W floor
+--      the battery is effectively refusing charge (full, cold, BMS
+--      hold): release remote control and report why, letting native
+--      self-use surplus-charge instead.
+--   2. Daylight split (PV string VOLTAGE >= 70 V -- voltage says the
+--      panels are awake even when power is ~0 at dawn; power says
+--      nothing at night):
+--        daylight: vendor = pv_now - p_eff   (import only appears
+--                  implicitly when p_eff exceeds live PV)
+--        night:    vendor = -p_eff           (pure import; nothing
+--                  to displace -- the reference does exactly this)
+--   3. Import/export crossing pause: when the computed setpoint
+--      changes sign between refreshes, write one cycle of 0 W first.
+--      Reference finding: crossing in one step can oscillate.
+--   4. Bounded worst case, documented deliberately: if the inverter
+--      chooses to curtail PV rather than charge (seen only with a
+--      full battery so far), the fresh-PV recomputation converges to
+--      import-only charging capped by guard 1 -- wasteful of PV but
+--      bounded; it cannot run away. If testing shows curtailment at
+--      healthy SoC too, the next step is the reference's P-loop on
+--      import power with battery-uptake feedback, not a bigger cap.
+--
+-- Divergence from the reference, on purpose: it swaps the fallback
+-- work mode per direction (FEED_IN_FIRST for discharge, BACK_UP for
+-- charge) to bias the inverter's behaviour if remote control drops.
+-- This driver keeps SELF_USE as the only fallback: it is the mode the
+-- operator runs, it never imports to the battery and never exports
+-- the battery, and a dead-man fallback should be boring.
+--
+-- ============================ SAFETY ===============================
+-- Two dead-man's switches: the vendor-side timeout (46002, refreshed
+-- every poll; must be >= 60 s -- the master samples this block slowly
+-- and a 15 s session expires unseen) and a driver-side 60 s command
+-- lease. driver_default_mode releases remote control explicitly.
+-- Charge is refused at SoC >= 99%: the inverter ignores its own Max
+-- SoC under remote control (reference finding, and this battery
+-- reached 100% under FTW charge on 2026-08-05).
+--
 DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.4.0",
+  version = "0.5.0",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
@@ -75,7 +127,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.4.0",
+  version = "0.5.0",
   role = "inverter",
   requires = {},
   options = {},
@@ -135,6 +187,13 @@ local WORK_MODE_SELF_USE = 1
 -- a minute if this driver dies; the driver-side lease below is the
 -- tighter of the two guards.
 local RC_TIMEOUT_S = 60
+-- Battery charge ceiling register (i32 pair, high word at 46018):
+-- how much the battery accepts right now, BMS included.
+local BAT_CHARGE_LIMIT_ADDR = 46018
+-- See the CHARGE section of the header for all three of these.
+local CHARGE_BMS_MARGIN_W = 200
+local CHARGE_BMS_FLOOR_W  = 250
+local PV_VOLTS_DAYLIGHT   = 70
 -- The driver-side lease: without a fresh battery command inside this
 -- window, release remote control rather than keep refreshing a stale
 -- setpoint forever.
@@ -153,6 +212,10 @@ local last_soc_fract = nil
 -- setpoint translation needs it; a command that arrives before the
 -- first PV reading is refused rather than guessed.
 local last_pv_w = nil
+-- Highest PV string voltage from the last poll: the daylight detector.
+local last_pv_volts = nil
+-- Last AC setpoint written, for the sign-crossing pause.
+local prev_vendor_w = nil
 
 -- Sanity bound on the computed setpoint: the translation subtracts two
 -- live values, and one bad sample should not ask this hardware for
@@ -224,18 +287,66 @@ function driver_init(config)
   host.set_make("FoxESS")
 end
 
-local function write_setpoint(battery_target_w)
-  -- inverter AC (export-positive) = pv - battery_target. Charging the
-  -- battery takes power off the AC side; discharging adds to it.
-  if last_pv_w == nil then
-    return false
+local function read_battery_charge_limit_w()
+  local regs = read(BAT_CHARGE_LIMIT_ADDR, 2)
+  if not regs then
+    return nil
   end
-  local vendor = last_pv_w - battery_target_w
+  -- Sign varies by model/firmware (the reference expects negative,
+  -- this hardware has read positive); the magnitude is the limit.
+  local v = math.abs(host.decode_i32_be(regs[1], regs[2]))
+  if v > 20000 then
+    return nil -- implausible for this hardware; treat as unreadable
+  end
+  return v
+end
+
+-- Translate a battery target (site convention, charge-positive) into
+-- the vendor AC setpoint. Returns vendor watts, or nil + reason.
+-- See the header for the model and every guard's justification.
+local function compute_vendor(battery_target_w)
+  if battery_target_w < 0 then
+    -- Discharge: PV at max, battery fills the difference.
+    if last_pv_w == nil then
+      return nil, "no PV reading yet"
+    end
+    return last_pv_w - battery_target_w
+  end
+  -- Charge: guard 1, the live BMS ceiling.
+  local limit = read_battery_charge_limit_w()
+  if limit == nil then
+    return nil, "battery charge limit unreadable"
+  end
+  if limit < CHARGE_BMS_FLOOR_W then
+    return nil, "battery is not accepting charge now"
+  end
+  local p_eff = math.min(battery_target_w, limit - CHARGE_BMS_MARGIN_W)
+  -- Guard 2: daylight by string voltage, not power.
+  if (last_pv_volts or 0) >= PV_VOLTS_DAYLIGHT then
+    if last_pv_w == nil then
+      return nil, "no PV reading yet"
+    end
+    return last_pv_w - p_eff
+  end
+  return -p_eff
+end
+
+local function write_setpoint(battery_target_w)
+  local vendor, why = compute_vendor(battery_target_w)
+  if vendor == nil then
+    return false, why
+  end
   if vendor > MAX_SETPOINT_W then
     vendor = MAX_SETPOINT_W
   elseif vendor < -MAX_SETPOINT_W then
     vendor = -MAX_SETPOINT_W
   end
+  -- Guard 3: one cycle of 0 W when crossing import/export.
+  if prev_vendor_w ~= nil and
+     ((prev_vendor_w > 0 and vendor < 0) or (prev_vendor_w < 0 and vendor > 0)) then
+    vendor = 0
+  end
+  prev_vendor_w = vendor
   -- Two's complement from the signed value directly. Adding 2^32 first
   -- would be exact only where Lua numbers are doubles; Lua's modulo is
   -- floored, so this yields the same two words while every operand
@@ -257,12 +368,12 @@ local function apply_remote_control(site_w)
     if not pcall(host.write, RC_ENABLE_ADDR, 1) then return false end
     rc_enabled = true
   end
-  local ok = write_setpoint(site_w)
-  return ok
+  return write_setpoint(site_w)
 end
 
 local function release_remote_control()
   rc_target_w = nil
+  prev_vendor_w = nil
   if rc_enabled then
     rc_enabled = false
     pcall(host.write, RC_ENABLE_ADDR, 0)
@@ -311,6 +422,11 @@ function driver_poll()
       out.total_generation_Wh = u32(energy, ENERGY_ADDR, 39601) * 10
     end
     last_pv_w = pv_w
+    local volts = 0
+    for s = 1, #mppts do
+      if mppts[s].V > volts then volts = mppts[s].V end
+    end
+    last_pv_volts = volts
     host.emit("pv", out)
   end
 
@@ -362,7 +478,15 @@ function driver_poll()
       host.log("info", "foxess_h3_smart: battery command lease expired; releasing remote control")
       release_remote_control()
     else
-      apply_remote_control(rc_target_w)
+      local ok, why = apply_remote_control(rc_target_w)
+      if not ok and why ~= nil then
+        -- The setpoint is no longer computable (battery stopped
+        -- accepting charge, PV reading lost). Holding the session
+        -- would freeze the last written value; native self-use is the
+        -- safer place to wait.
+        host.log("warn", "foxess_h3_smart: releasing remote control: " .. why)
+        release_remote_control()
+      end
     end
   end
 
@@ -391,8 +515,10 @@ function driver_command(action, value, context)
   end
   rc_target_w = power_w
   rc_command_ms = host.millis()
-  if not apply_remote_control(power_w) then
-    return "remote control write failed"
+  local ok, why = apply_remote_control(power_w)
+  if not ok then
+    rc_target_w = nil
+    return why or "remote control write failed"
   end
   return true
 end
