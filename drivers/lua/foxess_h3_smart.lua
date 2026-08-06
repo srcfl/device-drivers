@@ -20,8 +20,11 @@
 -- The distinct H1/H3 (11000-range) register map lives in the separate
 -- `foxess` driver.
 --
--- LOCAL CONTROL BUILD (operator's own risk, not the signed channel):
--- battery dispatch through the vendor remote-control block.
+-- CONTROL DRIVER: battery dispatch and PV curtailment through the
+-- vendor remote-control block. Ships through the signed channel with
+-- control intact (the catalog marks it control: true); it began as a
+-- local operator override and was hardware-validated in that role
+-- before publishing.
 --
 -- ============================ SEMANTICS ============================
 -- The setpoint at 46003/46004 is the INVERTER'S AC ACTIVE POWER,
@@ -128,15 +131,16 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.9.0",
+  version = "0.9.1",
   host_api_min = 1,
   host_api_max = 2,
   protocols = { "modbus" },
   capabilities = { "pv", "battery", "meter", "pv-curtail" },
-  description = "Fox ESS H3-Smart register map: 1K5-HI series and H3-Smart three-phase hybrids. Modbus-TCP port 502, unit 247. Local control build: battery dispatch via the remote-control block.",
+  description = "Fox ESS H3-Smart register map: 1K5-HI series and H3-Smart three-phase hybrids. Modbus-TCP port 502, unit 247. Battery dispatch and PV curtailment via the vendor remote-control block.",
   authors = { "Sourceful Labs AB" },
   tested_models = { "1K5-HI-10-V1" },
-  verification_status = "experimental",
+  verification_status = "production",
+  verification_notes = "Verified on 1K5-HI-10-V1 hardware over multi-day operation: telemetry (PV per-string, battery, per-phase grid CT, energy counters), battery dispatch in charge, discharge and hold, and PV curtailment. H3-Smart family shares the register map but has not been tested on H3-Smart hardware.",
   read_only = false,
 }
 
@@ -150,7 +154,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.9.0",
+  version = "0.9.1",
   role = "inverter",
   requires = {},
   options = {},
