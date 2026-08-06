@@ -646,41 +646,13 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
-      "driver_id": "foxess",
-      "package_id": null,
-      "targets": {
-        "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
-          "hil": "not_recorded",
-          "historical_signed_beta_version": null,
-          "legacy_parity": "not_assessed",
-          "note": "",
-          "stable_package_version": null,
-          "target_conformance": "not_assessed"
-        },
-        "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
-          "hil": "not_recorded",
-          "historical_signed_beta_version": null,
-          "legacy_parity": "not_assessed",
-          "note": "",
-          "stable_package_version": null,
-          "target_conformance": "not_assessed"
-        }
-      }
-    },
-    {
-      "catalog_source": true,
-      "catalog_version": "0.1.0",
+      "catalog_version": "0.9.0",
       "driver_id": "foxess_h3_smart",
       "package_id": "com.sourceful.driver.foxess-h3-smart",
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": "0.1.0",
-          "control_enabled": false,
+          "candidate_package_version": "0.9.0",
+          "control_enabled": true,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
@@ -689,8 +661,8 @@
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "0.1.0",
-          "control_enabled": false,
+          "candidate_package_version": "0.9.0",
+          "control_enabled": true,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
