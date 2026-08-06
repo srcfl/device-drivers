@@ -101,15 +101,38 @@
 -- SoC under remote control (reference finding, and this battery
 -- reached 100% under FTW charge on 2026-08-05).
 --
+-- ========================= PV CURTAILMENT ==========================
+-- `curtail` / `curtail_disable` ride the same remote-control block:
+-- this hardware has one validated lever, the AC setpoint, so a
+-- curtail cap is a CEILING on the inverter's AC output. Physics of a
+-- hybrid: PV beyond the cap charges the battery first (up to the live
+-- BMS limit) and genuine PV curtailment begins only past that --
+-- hardware-proven 2026-08-05, when a full battery plus an AC setpoint
+-- below production curtailed the array 3191 W -> 600 W. That ordering
+-- is what the host's negative-export guard wants: export never
+-- exceeds cap minus house load, and energy is stored, not thrown
+-- away, whenever the battery has room. Consequences, documented
+-- rather than hidden:
+--   * a cap ABOVE current PV holds the battery at zero (the hold
+--     formula is the ceiling's floor) where native self-use would
+--     have charged -- the planner only sends binding caps and the
+--     manual hold is bounded at 30 min, so this is accepted;
+--   * at night there is no PV to cap and an AC=0 hold would block
+--     self-use discharge, so a curtail-only session stands down while
+--     the cap stays armed; it re-engages at first daylight;
+--   * a battery command and a cap compose as min(): the battery may
+--     charge above its commanded target while the cap binds (the
+--     inverter balances into it), bounded by the BMS ceiling.
+--
 DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.7.2",
+  version = "0.8.0",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
-  capabilities = { "pv", "battery", "meter" },
+  capabilities = { "pv", "battery", "meter", "pv-curtail" },
   description = "Fox ESS H3-Smart register map: 1K5-HI series and H3-Smart three-phase hybrids. Modbus-TCP port 502, unit 247. Local control build: battery dispatch via the remote-control block.",
   authors = { "Sourceful Labs AB" },
   tested_models = { "1K5-HI-10-V1" },
@@ -127,7 +150,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.7.2",
+  version = "0.8.0",
   role = "inverter",
   requires = {},
   options = {},
@@ -228,6 +251,11 @@ local fault_active = nil
 local rc_enabled = false
 local rc_target_w = nil       -- site convention: positive = charge
 local rc_command_ms = 0
+-- PV curtail cap (AC-output ceiling, W). nil = none. Armed by the
+-- `curtail` action; only honoured when the operator opted in via
+-- supports_pv_curtail (the host injects _supports_pv_curtail).
+local pv_curtail_enabled = false
+local curtail_cap_w = nil
 local last_soc_fract = nil
 -- PV generation as a positive magnitude, from the last poll. The
 -- setpoint translation needs it; a command that arrives before the
@@ -312,6 +340,7 @@ end
 
 function driver_init(config)
   host.set_make("FoxESS")
+  pv_curtail_enabled = config ~= nil and config._supports_pv_curtail == true
 end
 
 local function read_battery_charge_limit_w()
@@ -370,6 +399,13 @@ local function write_setpoint(battery_target_w)
   if vendor == nil then
     return false, why
   end
+  -- Whole watts: the PV derate makes vendor fractional, and the word
+  -- split below assumes an integer (a fractional low word reaches the
+  -- host as a float and only works because Go coerces it).
+  vendor = math.floor(vendor + 0.5)
+  if curtail_cap_w ~= nil and vendor > curtail_cap_w then
+    vendor = curtail_cap_w
+  end
   if vendor > MAX_SETPOINT_W then
     vendor = MAX_SETPOINT_W
   elseif vendor < -MAX_SETPOINT_W then
@@ -412,6 +448,27 @@ local function release_remote_control()
     rc_enabled = false
     pcall(host.write, RC_ENABLE_ADDR, 0)
   end
+end
+
+-- The effective battery target for the RC session, or nil when no
+-- session should be active right now. A curtail-only session holds
+-- the battery at zero under the cap's ceiling -- daylight only (see
+-- the curtailment header section).
+local function session_target()
+  if rc_target_w ~= nil then
+    return rc_target_w
+  end
+  if curtail_cap_w ~= nil and (last_pv_volts or 0) >= PV_VOLTS_DAYLIGHT then
+    return 0
+  end
+  return nil
+end
+
+-- Full stand-down: cap disarmed too. Lease expiry, default mode and
+-- cleanup land here -- a dead EMS must not leave a cap armed.
+local function release_all()
+  curtail_cap_w = nil
+  release_remote_control()
 end
 
 function driver_poll()
@@ -556,21 +613,31 @@ function driver_poll()
   -- Keep an active setpoint alive: the vendor timeout needs a
   -- refresh every poll, and the lease releases control when the EMS
   -- stops commanding instead of holding a stale target forever.
-  if rc_target_w ~= nil then
+  local refresh_target = session_target()
+  if refresh_target ~= nil then
     if host.millis() - rc_command_ms > RC_LEASE_MS then
-      host.log("info", "foxess_h3_smart: battery command lease expired; releasing remote control")
-      release_remote_control()
+      host.log("info", "foxess_h3_smart: command lease expired; releasing remote control")
+      release_all()
     else
-      local ok, why = apply_remote_control(rc_target_w)
+      local ok, why = apply_remote_control(refresh_target)
       if not ok and why ~= nil then
         -- The setpoint is no longer computable (battery stopped
         -- accepting charge, PV reading lost). Holding the session
         -- would freeze the last written value; native self-use is the
         -- safer place to wait.
         host.log("warn", "foxess_h3_smart: releasing remote control: " .. why)
-        release_remote_control()
+        release_all()
       end
     end
+  elseif rc_enabled then
+    -- An armed cap with nothing to do right now (curtail-only session
+    -- after dark): stand the RC session down but keep the cap armed
+    -- so first daylight re-engages it.
+    release_remote_control()
+  end
+
+  if curtail_cap_w ~= nil then
+    host.emit_metric("foxess_pv_curtail_cap_w", curtail_cap_w)
   end
 
   return 5000
@@ -578,6 +645,35 @@ end
 
 function driver_command(action, value, context)
   if action == "init" or action == "deinit" then
+    return true
+  end
+  if action == "curtail" then
+    if not pv_curtail_enabled then
+      return "curtail not enabled; set supports_pv_curtail: true in the driver's config"
+    end
+    local cap = tonumber(value)
+    if cap == nil then
+      return "curtail command needs a numeric power_w"
+    end
+    curtail_cap_w = math.abs(cap)
+    rc_command_ms = host.millis()
+    local target = session_target()
+    if target ~= nil then
+      local ok, why = apply_remote_control(target)
+      if not ok then
+        curtail_cap_w = nil
+        return why or "remote control write failed"
+      end
+    end
+    return true
+  end
+  if action == "curtail_disable" then
+    curtail_cap_w = nil
+    if rc_target_w ~= nil then
+      apply_remote_control(rc_target_w)
+    else
+      release_remote_control()
+    end
     return true
   end
   if action ~= "battery" then
@@ -609,9 +705,9 @@ function driver_default_mode()
   -- Safe state: the inverter's own self-use logic. Release remote
   -- control; if the write cannot go through, the vendor timeout
   -- reverts the inverter on its own within RC_TIMEOUT_S.
-  release_remote_control()
+  release_all()
 end
 
 function driver_cleanup()
-  release_remote_control()
+  release_all()
 end
