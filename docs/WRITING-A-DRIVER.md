@@ -184,6 +184,71 @@ apart from a real one afterwards.
 - A field that did not answer is left out.
 - A stream whose defining reading did not answer is not emitted.
 
+## A hybrid inverter may have no battery
+
+The rule above bounds the *reads*. This is what to do with the answer.
+
+*Never fabricate* covers a read that failed. This is the case where nothing
+failed: the device is healthy, every register you asked for came back, and the
+battery still is not there.
+
+Nearly every hybrid inverter is sold in two configurations — with storage and
+without it. Same model number, same firmware, same register map; one site has a
+pack on the DC bus and the next has bare terminals. The SG12RT further up is
+this same fact arriving as an outage instead of as a wrong number. A PV-only
+commissioning is not a fault and not an edge case. It is half the product line.
+
+How the absence reaches you is vendor-specific, and you cannot pick one and
+assume the rest:
+
+- the ESS registers stop answering at all (Sigenergy)
+- they answer, with a plain zero
+- they answer with a not-present sentinel — `0xFFFF`, `0x7FFFFFFF`, NaN.
+  `sma` and `solis` already carry helpers for exactly this
+- the read comes back a Modbus exception
+
+**The rule.** Fill each battery field only from a register that answered, and
+emit the `battery` DER only when at least one of them did.
+
+```lua
+local battery = {}
+if bat_regs then battery.w   = decode(bat_regs) end
+if soc_regs then battery.soc = decode(soc_regs) end
+
+if bat_regs or soc_regs then
+    host.emit("battery", battery)
+end
+```
+
+Three things this is not:
+
+- **Not a model-number check.** The same model code covers both
+  configurations, and a hybrid shipped under a device-type code you have not
+  been taught still has to work. The device knows. Read it.
+- **Not a config flag.** `skip_battery` and friends are a reasonable
+  *override* for a dev rig, but they are the wrong primary mechanism: they
+  only work when somebody already knew to set them, and the site nobody told
+  the driver about is exactly the one that reports wrong. Detect first, and
+  let config override.
+- **Not a `ders` change.** `ders` says what the driver can produce, not what
+  one site has. Leave `battery` in it — it also reaches the signed artifact,
+  so removing it costs a version for nothing.
+
+**Why a zero is worse than silence here.** `soc = 0` does not read as "no
+battery". It reads as an empty pack that can absorb charge — so the planner can
+dispatch against storage that is not installed, and every resulting write lands
+on a register the plant does not implement. It is also indistinguishable from a
+real pack that has just run flat, so nothing downstream can separate the two
+afterwards.
+
+A screen of the catalog when this was written: 24 drivers emit both `pv` and
+`battery`, and 20 of them emit the battery DER with no guard on whether any
+battery register answered. Two of those 20 (`ferroamp`, `zap`) gate it on
+configuration or on API discovery instead — better than nothing, still not
+detection. The rest default their fields to zero and emit regardless; that was
+spot-checked by hand on `goodwe`, `growatt`, `kostal`, `huawei` and `foxess`.
+`sigenergy` 1.1.3 is the worked example of the fix.
+
 ## Numbers
 
 Two bugs have shipped here that both look like nothing:

@@ -149,6 +149,13 @@ def main() -> int:
 
     fresh = build()
     existing = load_existing()
+    # A driver removed from the catalog keeps its published record: the
+    # history is the channel's memory of bytes that ran on hardware, not
+    # a mirror of what the catalog currently offers. Only rewriting a
+    # recorded version is a mutation; carrying one forward is the point.
+    for driver_id, versions in existing.get("drivers", {}).items():
+        if driver_id not in fresh["drivers"]:
+            fresh["drivers"][driver_id] = versions
     mutations, additions = compare(existing, fresh)
 
     if mutations:

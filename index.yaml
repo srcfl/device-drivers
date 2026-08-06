@@ -100,7 +100,7 @@ drivers:
     size_bytes: 4749
     sha256: "7ebfe010a41f380885b59976d1a4a6d27db4abec08844cd3c553d4cf754e6aa3"
   - name: "ctek"
-    version: "0.3.1"
+    version: "0.3.2"
     tier: core
     protocol: modbus
     connectivity: local
@@ -108,7 +108,7 @@ drivers:
     ders: [ev]
     control: true
     size_bytes: 14921
-    sha256: "34cf0492da22354658ae1bfa71cb3e72f94623740d12792d3f2f9ebd9daa709e"
+    sha256: "a1c2cf0c7c543952214175ace3e957e2e8ecb9de760c1f73b2981d6c5bbf6c1a"
   - name: "ctek_hybrid"
     version: "0.3.1"
     tier: core
@@ -120,7 +120,7 @@ drivers:
     size_bytes: 27291
     sha256: "1104d42fe705d43220b2ae282bc2a00d2b713a03b82e6d18fd1c6db17c747d02"
   - name: "ctek_v2"
-    version: "0.3.1"
+    version: "0.3.2"
     tier: core
     protocol: modbus
     connectivity: local
@@ -128,7 +128,7 @@ drivers:
     ders: [ev]
     control: true
     size_bytes: 12072
-    sha256: "81b4a0862a6d0928d3e3781e3955916638cb2015306a61baa0a344cd611d10e2"
+    sha256: "186d1e7b2009cd34c2b58a1e29fea5fbdd3b5a896722d41108b77ed6ec7fd3dd"
   - name: "deye"
     version: "2.1.1"
     tier: core
@@ -148,7 +148,7 @@ drivers:
     size_bytes: 4054
     sha256: "4a2cd1efb4a5583468ce897ebd88a000e348917295c40210e86ecf834c0ba543"
   - name: "easee_cloud"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: core
     protocol: http
     connectivity: cloud
@@ -187,7 +187,7 @@ drivers:
     size_bytes: 3545
     sha256: "fdf3c3cae6ca45f9b546a97cf16a34b047172293711db2dfa759286f065d77c8"
   - name: "ferroamp"
-    version: "2.1.0"
+    version: "2.1.1"
     tier: core
     protocol: mqtt
     connectivity: local
@@ -213,24 +213,15 @@ drivers:
     control: true
     size_bytes: 14450
     sha256: "8be39a1d41b18b1e12fb9b669e6fe11c93775abfdb4f41338f9dc79fe66fd2d9"
-  - name: "foxess"
-    version: "1.1.1"
-    tier: community
-    protocol: modbus
-    connectivity: local
-    ders: [pv, battery, meter]
-    control: false
-    size_bytes: 6933
-    sha256: "c998df936f95c2c183d027fbf5fc297e1c551b53b81da370c06d03f397959933"
   - name: "foxess_h3_smart"
-    version: "0.1.0"
+    version: "0.9.2"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
-    control: false
-    size_bytes: 8181
-    sha256: "102da78fe189a62bec0224a5a22fc27279abc15bc6ed69688bbcd50865fe49f2"
+    control: true
+    size_bytes: 33859
+    sha256: "5a99134a748d9c244983714a7d5ded5821a75a4c6c65178e26355939637fcf45"
   - name: "fronius"
     version: "2.1.1"
     tier: core
@@ -388,7 +379,7 @@ drivers:
     size_bytes: 15278
     sha256: "d754fd4af96c2047f9d9e458a776ad8f10510569836618f4631dd70e2510f404"
   - name: "nibe_local"
-    version: "1.1.1"
+    version: "1.1.2"
     tier: core
     protocol: http
     connectivity: local
@@ -535,14 +526,14 @@ drivers:
     size_bytes: 4376
     sha256: "1c5ae9906a5f19e39a38ef79be1fb6aed19092b1f99305a8503ea09882a8b6d4"
   - name: "sigenergy"
-    version: "1.1.2"
+    version: "1.1.3"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 4841
-    sha256: "e2b903b6e3f616a1b49b8e6a0fbff6997415e8f80e5e14af9adcba0a866c7fcc"
+    size_bytes: 5837
+    sha256: "cf16fd07b4b55c04be72ddc46f4b75b8279512fa7871aea71e19762d73caa32f"
   - name: "sma"
     version: "2.1.1"
     tier: core
@@ -654,16 +645,16 @@ drivers:
     size_bytes: 6158
     sha256: "92163e4356b895e16b0205e849aa42a2dcea0d799f8cc6bcbce60b5e2cd92285"
   - name: "sungrow"
-    version: "1.5.7"
+    version: "1.5.8"
     tier: core
     protocol: modbus
     connectivity: local
     ders: [battery, meter, pv]
     control: true
     size_bytes: 48889
-    sha256: "b549ad08470d6fe1600c3dec2eff8fc972dbb87aded9f15181cfa598b4b4ac42"
+    sha256: "a11ddc8de433c527a3d63cd014d243b09f3393ee3afa9b8e1594d4de8de37562"
   - name: "tesla_vehicle"
-    version: "0.2.0"
+    version: "0.2.1"
     tier: core
     protocol: http
     connectivity: local
@@ -719,7 +710,7 @@ drivers:
     size_bytes: 2842
     sha256: "1c0362e0a25f1fe297de838a85089eb7676b25e78a7d6d1d03ccea1258b94403"
   - name: "zap"
-    version: "2.0.1"
+    version: "2.0.2"
     tier: core
     protocol: http
     connectivity: local
