@@ -120,8 +120,8 @@ Catalog source is not proof that a target can install or run a driver.
 | shelly | 1.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | siemens_pac | 1.0.5 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | siemens_pac | 1.0.5 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| sigenergy | 1.1.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| sigenergy | 1.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| sigenergy | 1.1.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| sigenergy | 1.1.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sma | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sma | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | sma_pv | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
