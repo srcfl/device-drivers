@@ -105,7 +105,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.7.1",
+  version = "0.7.2",
   host_api_min = 1,
   host_api_max = 1,
   protocols = { "modbus" },
@@ -127,7 +127,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.7.1",
+  version = "0.7.2",
   role = "inverter",
   requires = {},
   options = {},
@@ -199,14 +199,18 @@ local BAT_CHARGE_LIMIT_ADDR = 46018
 local CHARGE_BMS_MARGIN_W = 200
 local CHARGE_BMS_FLOOR_W  = 250
 local PV_VOLTS_DAYLIGHT   = 70
--- The PV reading is DC-side; the AC terminals see ~3.5% less after
--- conversion. Feeding raw DC PV into the AC setpoint demands more than
--- PV can deliver and the inverter covers the gap from the battery — a
--- steady ~-70 W drain at hold-zero that the site owner spotted
--- (residual/PV ≈ 3.3% across hold samples, 2026-08-05). Derate PV to
--- its AC-achievable value; recalibrate here if panels or firmware
--- change the ratio.
-local PV_AC_EFF = 0.965
+-- The PV reading is DC-side; the AC terminals see less after
+-- conversion, and feeding raw DC PV into the AC setpoint makes the
+-- inverter cover the gap from the battery. Two hardware calibration
+-- points on this unit's efficiency curve (residual at held zero):
+--   2026-08-05: -70 W at 2455 W PV, factor 1.0   -> eta ~ 0.972
+--   2026-08-06: +71 W at 4025 W PV, factor 0.965 -> eta ~ 0.983
+-- Efficiency rises with load, so one constant cannot zero both ends;
+-- 0.977 keeps the residual within ~+/-25 W across the daytime range,
+-- erring toward a few watts of charge (benign) in strong sun rather
+-- than a steady drain. Recalibrate from held-zero residuals if panels
+-- or firmware change.
+local PV_AC_EFF = 0.977
 -- The driver-side lease: without a fresh battery command inside this
 -- window, release remote control rather than keep refreshing a stale
 -- setpoint forever.
