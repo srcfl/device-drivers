@@ -213,15 +213,6 @@ drivers:
     control: true
     size_bytes: 14450
     sha256: "8be39a1d41b18b1e12fb9b669e6fe11c93775abfdb4f41338f9dc79fe66fd2d9"
-  - name: "foxess"
-    version: "1.1.1"
-    tier: community
-    protocol: modbus
-    connectivity: local
-    ders: [pv, battery, meter]
-    control: false
-    size_bytes: 6933
-    sha256: "c998df936f95c2c183d027fbf5fc297e1c551b53b81da370c06d03f397959933"
   - name: "foxess_h3_smart"
     version: "0.9.0"
     tier: community

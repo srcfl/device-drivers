@@ -35,7 +35,6 @@ local DRIVER_SPECS = {
     sofar            = { protocol = "modbus", ders = {"pv", "battery", "meter"} },
     growatt          = { protocol = "modbus", ders = {"pv", "battery", "meter"} },
     solax            = { protocol = "modbus", ders = {"pv", "battery", "meter"} },
-    foxess           = { protocol = "modbus", ders = {"pv", "battery", "meter"} },
     kostal           = { protocol = "modbus", ders = {"pv", "battery", "meter"} },
     kstar            = { protocol = "modbus", ders = {"pv", "battery", "meter"} },
     alphaess         = { protocol = "modbus", ders = {"pv", "battery", "meter"} },

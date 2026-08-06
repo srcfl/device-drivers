@@ -398,50 +398,6 @@ manufacturers:
             control: true
         firmware_versions: ""
         notes: "Telemetry and battery control validated on 1K5-HI-10-V1 hardware: PV string power agrees with V*A, pv + battery + load balances the grid CT, and battery dispatch through the remote-control block is validated in charge, discharge and hold."
-      - name: "AIO-H3 (All-in-One)"
-        variants: [AIO-H3-10.0, AIO-H3-3.0, AIO-H3-5.0, AIO-H3-6.0, AIO-H3-8.0]
-        regions: []
-        protocols:
-          - protocol: modbus
-            driver: "foxess"
-            version: "1.1.1"
-            ders: [pv, battery, meter]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
-      - name: "H1 (Single-Phase Hybrid)"
-        variants: [H1-3.0, H1-3.7, H1-4.6, H1-5.0, H1-6.0]
-        regions: []
-        protocols:
-          - protocol: modbus
-            driver: "foxess"
-            version: "1.1.1"
-            ders: [pv, battery, meter]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
-      - name: "H3 (Three-Phase Hybrid)"
-        variants: [H3-10.0, H3-12.0, H3-5.0, H3-6.0, H3-8.0]
-        regions: []
-        protocols:
-          - protocol: modbus
-            driver: "foxess"
-            version: "1.1.1"
-            ders: [pv, battery, meter]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
-      - name: "H3 PRO"
-        variants: [H3-PRO-10.0, H3-PRO-15.0, H3-PRO-20.0]
-        regions: []
-        protocols:
-          - protocol: modbus
-            driver: "foxess"
-            version: "1.1.1"
-            ders: [pv, battery, meter]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
       - name: "H3-Smart"
         variants: []
         regions: []
@@ -453,17 +409,6 @@ manufacturers:
             control: true
         firmware_versions: ""
         notes: "Shares the 1K5 register map; not yet tested on H3-Smart hardware."
-      - name: "KH Series"
-        variants: [KH-3.0, KH-3.7, KH-5.0]
-        regions: []
-        protocols:
-          - protocol: modbus
-            driver: "foxess"
-            version: "1.1.1"
-            ders: [pv, battery, meter]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
   - name: "Fronius"
     model_families:
       - name: "Fronius Primo (Classic)"
