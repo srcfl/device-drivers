@@ -1,0 +1,27 @@
+name: "ftw_plant"
+version: "0.1.0"
+tier: core
+author: "Sourceful Labs AB"
+protocol: http
+connectivity: local
+setup: [none]
+ders: [battery]
+control: true
+tested_devices:
+  - manufacturer: "Sourceful"
+    model_family: "ftw-plant module"
+    variants: [sim-pcs]
+    regions: []
+    firmware_versions: ""
+    notes: "Verified against the ftw-plant module and sim-pcs; no multi-rack hardware validation yet."
+    min_driver_version: "0.1.0"
+min_host_version: "2.1.0"
+size_bytes: 7754
+dkb_id: ""
+sha256: "d49cdb6cfdd825c31254eeb2f0092b1cce0025c870c521468c59993a55bf15ba"
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "Initial driver: bridges the ftw-plant multi-rack battery module /v1 contract into one aggregate controllable battery."
