@@ -111,7 +111,7 @@ end
 
 local function http_post_json(path, payload_table)
     local payload = host.json_encode(payload_table)
-    local ok, body, err = pcall(host.http_post, base_url .. path, payload, "application/json")
+    local ok, body, err = pcall(host.http_post, base_url .. path, payload)
     if not ok or not body then
         return nil, tostring(err or body)
     end

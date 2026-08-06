@@ -16,9 +16,9 @@ tested_devices:
     notes: "Verified against the ftw-plant module and sim-pcs; no multi-rack hardware validation yet."
     min_driver_version: "0.1.0"
 min_host_version: "2.1.0"
-size_bytes: 7754
+size_bytes: 7734
 dkb_id: ""
-sha256: "d49cdb6cfdd825c31254eeb2f0092b1cce0025c870c521468c59993a55bf15ba"
+sha256: "ef9e917fa85f0377b999693fa381a682f2500d7105ec5e75950a7e7b535ce34a"
 signature: ""
 
 bytecode_sha256: ""
