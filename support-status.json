@@ -310,7 +310,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.1",
+      "catalog_version": "0.3.2",
       "driver_id": "ctek",
       "package_id": null,
       "targets": {
@@ -366,7 +366,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.1",
+      "catalog_version": "0.3.2",
       "driver_id": "ctek_v2",
       "package_id": null,
       "targets": {
@@ -450,7 +450,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "easee_cloud",
       "package_id": null,
       "targets": {
@@ -562,7 +562,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.0",
+      "catalog_version": "2.1.1",
       "driver_id": "ferroamp",
       "package_id": null,
       "targets": {
@@ -646,12 +646,12 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.9.1",
+      "catalog_version": "0.9.2",
       "driver_id": "foxess_h3_smart",
       "package_id": "com.sourceful.driver.foxess-h3-smart",
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": "0.9.1",
+          "candidate_package_version": "0.9.2",
           "control_enabled": true,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
@@ -661,7 +661,7 @@
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "0.9.1",
+          "candidate_package_version": "0.9.2",
           "control_enabled": true,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
@@ -1150,7 +1150,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "nibe_local",
       "package_id": null,
       "targets": {
@@ -1962,7 +1962,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.5.7",
+      "catalog_version": "1.5.8",
       "driver_id": "sungrow",
       "package_id": "com.sourceful.driver.sungrow",
       "targets": {
@@ -1990,7 +1990,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.0",
+      "catalog_version": "0.2.1",
       "driver_id": "tesla_vehicle",
       "package_id": null,
       "targets": {
@@ -2158,7 +2158,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.0.1",
+      "catalog_version": "2.0.2",
       "driver_id": "zap",
       "package_id": null,
       "targets": {

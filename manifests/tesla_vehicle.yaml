@@ -1,5 +1,5 @@
 name: "tesla_vehicle"
-version: "0.2.0"
+version: "0.2.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
