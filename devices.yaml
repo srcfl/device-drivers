@@ -393,11 +393,11 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.7.0"
+            version: "0.7.2"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
-        notes: "Telemetry validated on 1K5-HI-10-V1 hardware: PV string power agrees with V*A, and pv + battery + load balances the grid CT. Read-only."
+        notes: "Telemetry and battery control validated on 1K5-HI-10-V1 hardware: PV string power agrees with V*A, pv + battery + load balances the grid CT, and battery dispatch through the remote-control block is validated in charge, discharge and hold."
       - name: "AIO-H3 (All-in-One)"
         variants: [AIO-H3-10.0, AIO-H3-3.0, AIO-H3-5.0, AIO-H3-6.0, AIO-H3-8.0]
         regions: []
@@ -448,7 +448,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.7.0"
+            version: "0.7.2"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
