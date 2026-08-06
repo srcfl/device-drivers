@@ -1,5 +1,5 @@
 name: "nibe_local"
-version: "1.1.1"
+version: "1.1.2"
 tier: core
 author: "HuggeK with the help of Claude Code"
 protocol: http

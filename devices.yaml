@@ -170,7 +170,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "ctek"
-            version: "0.3.1"
+            version: "0.3.2"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -181,7 +181,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "ctek_v2"
-            version: "0.3.1"
+            version: "0.3.2"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -325,7 +325,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "easee_cloud"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -375,7 +375,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "ferroamp"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
           - protocol: modbus
@@ -393,7 +393,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.9.1"
+            version: "0.9.2"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
@@ -404,7 +404,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.9.1"
+            version: "0.9.2"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
@@ -956,7 +956,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "nibe_local"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [heatpump]
             control: false
         firmware_versions: ""
@@ -1676,7 +1676,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "zap"
-            version: "2.0.1"
+            version: "2.0.2"
             ders: [meter, pv, battery, v2x_charger]
             control: true
         firmware_versions: ""
@@ -1689,7 +1689,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.7"
+            version: "1.5.8"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1700,7 +1700,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.7"
+            version: "1.5.8"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1711,7 +1711,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.7"
+            version: "1.5.8"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1722,7 +1722,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.7"
+            version: "1.5.8"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1733,7 +1733,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.7"
+            version: "1.5.8"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1746,7 +1746,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "tesla_vehicle"
-            version: "0.2.0"
+            version: "0.2.1"
             ders: [vehicle]
             control: true
         firmware_versions: ""

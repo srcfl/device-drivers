@@ -131,7 +131,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.9.1",
+  version = "0.9.2",
   host_api_min = 1,
   host_api_max = 2,
   protocols = { "modbus" },
@@ -154,7 +154,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.9.1",
+  version = "0.9.2",
   role = "inverter",
   requires = {},
   options = {},
