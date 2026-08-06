@@ -1,7 +1,7 @@
 {
   "schema_version": "sourceful.driver-package-source/v1",
   "package_id": "com.sourceful.driver.foxess-h3-smart",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "channel": "beta",
   "display_name": "FoxESS H3-Smart / 1K5",
   "identity": {
@@ -93,8 +93,8 @@
   "read_only": false,
   "default_mode": {
     "strategy": "vendor_autonomous",
-    "description": "Release the vendor remote-control session; the inverter reverts to native self-use within its 60 s timeout.",
-    "entrypoint": "driver_default_mode"
+    "description": "Write the remote-control disable and read it back; the inverter runs native self-use, and the vendor-side 60 s timeout reverts it even if the write cannot land.",
+    "entrypoint": "driver_default_mode_v2"
   },
   "lease_policy": {
     "required_for_control": true,
@@ -120,11 +120,11 @@
         "name": "gopher-lua",
         "semantics": "lua-5.1",
         "version": "1.1.2",
-        "abi": "gopher-lua-source-v1",
+        "abi": "gopher-lua-source-v2",
         "host_api": {
-          "profile": "sourceful.host/ftw-core/v1",
-          "min": 1,
-          "max": 1
+          "profile": "sourceful.host/ftw-core/v2",
+          "min": 2,
+          "max": 2
         }
       },
       "control_enabled": true
@@ -141,11 +141,11 @@
         "name": "luajit",
         "semantics": "lua-5.1",
         "version": "2.1",
-        "abi": "mlua-0.10-luajit21-source-v1",
+        "abi": "mlua-0.10-luajit21-source-v2",
         "host_api": {
-          "profile": "sourceful.host/blixt-l1/v1",
-          "min": 1,
-          "max": 1
+          "profile": "sourceful.host/blixt-l1/v2",
+          "min": 2,
+          "max": 2
         }
       },
       "control_enabled": true

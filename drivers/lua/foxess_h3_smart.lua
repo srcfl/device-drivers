@@ -128,9 +128,9 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.8.0",
+  version = "0.9.0",
   host_api_min = 1,
-  host_api_max = 1,
+  host_api_max = 2,
   protocols = { "modbus" },
   capabilities = { "pv", "battery", "meter", "pv-curtail" },
   description = "Fox ESS H3-Smart register map: 1K5-HI series and H3-Smart three-phase hybrids. Modbus-TCP port 502, unit 247. Local control build: battery dispatch via the remote-control block.",
@@ -150,7 +150,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.8.0",
+  version = "0.9.0",
   role = "inverter",
   requires = {},
   options = {},
@@ -394,6 +394,25 @@ local function compute_vendor(battery_target_w)
   return -p_eff
 end
 
+-- The host's write bindings return an error string on failure and
+-- nothing on success -- they do not raise. pcall alone therefore
+-- reports success for a failed write; both layers must be checked.
+local function checked_write(addr, value)
+  local ok, err = pcall(host.write, addr, value)
+  if ok and err == nil then
+    return true
+  end
+  return false, tostring(err)
+end
+
+local function checked_write_multi(addr, values)
+  local ok, err = pcall(host.write_registers, addr, values)
+  if ok and err == nil then
+    return true
+  end
+  return false, tostring(err)
+end
+
 local function write_setpoint(battery_target_w)
   local vendor, why = compute_vendor(battery_target_w)
   if vendor == nil then
@@ -423,7 +442,7 @@ local function write_setpoint(battery_target_w)
   -- stays small enough for a single-precision host.
   local hi = math.floor(vendor / 65536) % 65536
   local lo = vendor % 65536
-  return pcall(host.write_registers, RC_POWER_ADDR, { hi, lo })
+  return checked_write_multi(RC_POWER_ADDR, { hi, lo })
 end
 
 local function apply_remote_control(site_w)
@@ -432,10 +451,10 @@ local function apply_remote_control(site_w)
     -- lands in self-use rather than whatever mode was last configured.
     local ok, mode = pcall(host.modbus_read, WORK_MODE_ADDR, 1, "holding")
     if ok and mode and mode[1] ~= nil and mode[1] ~= WORK_MODE_SELF_USE then
-      pcall(host.write, WORK_MODE_ADDR, WORK_MODE_SELF_USE)
+      checked_write(WORK_MODE_ADDR, WORK_MODE_SELF_USE)
     end
-    if not pcall(host.write, RC_TIMEOUT_ADDR, RC_TIMEOUT_S) then return false end
-    if not pcall(host.write, RC_ENABLE_ADDR, 1) then return false end
+    if not checked_write(RC_TIMEOUT_ADDR, RC_TIMEOUT_S) then return false end
+    if not checked_write(RC_ENABLE_ADDR, 1) then return false end
     rc_enabled = true
   end
   return write_setpoint(site_w)
@@ -446,7 +465,7 @@ local function release_remote_control()
   prev_vendor_w = nil
   if rc_enabled then
     rc_enabled = false
-    pcall(host.write, RC_ENABLE_ADDR, 0)
+    checked_write(RC_ENABLE_ADDR, 0)
   end
 end
 
@@ -710,4 +729,97 @@ end
 
 function driver_cleanup()
   release_all()
+end
+
+-- ====================== CONTROL V2 ENTRYPOINTS =====================
+-- Called only by a control-v2 host running the signed package; the v1
+-- entrypoints above remain for local operator builds. What changes
+-- under v2, all host-enforced:
+--   * every command runs inside a bounded write scope, and the result
+--     must PROVE itself: "applied" requires at least one acknowledged
+--     write plus a readback that the host itself observed;
+--   * default mode must always write the release and read it back.
+--     The v1 courtesy -- skip the disable when this driver did not
+--     enable the session -- cannot be proven to the host, so the
+--     signed package owns register 46001 outright. Operators running
+--     FoxESS-app schedule periods must not enable managed control;
+--     the local v1 build keeps the courtesy.
+--   * results are structured tables, not booleans; codes are stable
+--     tokens the fleet can aggregate.
+
+local function v2_readback_setpoint()
+  local ok, regs = pcall(host.modbus_read, RC_POWER_ADDR, 2, "holding")
+  if ok and regs and regs[1] ~= nil then
+    return host.decode_i32_be(regs[1], regs[2])
+  end
+  return nil
+end
+
+function driver_command_v2(cmd)
+  local settled_state = rc_enabled and "controlled" or "unchanged"
+  local command = cmd and (cmd.command or cmd.runtime_action)
+  if command ~= "battery" then
+    return { status = "rejected", code = "undeclared_command",
+             message = "command not implemented: " .. tostring(command),
+             device_state = settled_state }
+  end
+  local power_w = cmd.inputs and tonumber(cmd.inputs.power_w)
+  if power_w == nil then
+    return { status = "rejected", code = "missing_input",
+             message = "battery command needs numeric inputs.power_w",
+             device_state = settled_state }
+  end
+  if power_w > 0 and last_soc_fract ~= nil and last_soc_fract >= 0.99 then
+    return { status = "rejected", code = "battery_full",
+             message = "battery is full; refusing forced charge",
+             device_state = settled_state }
+  end
+  rc_target_w = power_w
+  rc_command_ms = host.millis()
+  local ok, why = apply_remote_control(power_w)
+  if not ok then
+    rc_target_w = nil
+    return { status = "failed", code = "write_failed",
+             message = why or "remote control write failed",
+             device_state = "unknown" }
+  end
+  local verify = v2_readback_setpoint()
+  if verify == nil or prev_vendor_w == nil or verify ~= prev_vendor_w then
+    return { status = "failed", code = "readback_mismatch",
+             message = "setpoint readback " .. tostring(verify) ..
+               " does not match written " .. tostring(prev_vendor_w),
+             device_state = "unknown" }
+  end
+  return {
+    status = "applied", code = "ok",
+    message = "battery " .. power_w .. " W held as AC setpoint " .. verify .. " W",
+    device_state = "controlled",
+    evidence = { "write_ack", "readback" },
+    applied = { power_w = power_w, vendor_setpoint_w = verify },
+  }
+end
+
+function driver_default_mode_v2(info)
+  rc_target_w = nil
+  curtail_cap_w = nil
+  prev_vendor_w = nil
+  rc_enabled = false
+  local wrote, why = checked_write(RC_ENABLE_ADDR, 0)
+  if not wrote then
+    return { status = "failed", code = "write_failed",
+             message = "remote-control disable not written (" ..
+               tostring(why) .. "); vendor timeout reverts within " ..
+               RC_TIMEOUT_S .. " s",
+             device_state = "unknown" }
+  end
+  local ok, regs = pcall(host.modbus_read, RC_ENABLE_ADDR, 1, "holding")
+  if not ok or not regs or regs[1] ~= 0 then
+    return { status = "failed", code = "readback_mismatch",
+             message = "remote-control enable register did not read back 0",
+             device_state = "unknown" }
+  end
+  return { status = "defaulted", code = "ok",
+           message = "remote control released; inverter in native self-use",
+           device_state = "default",
+           evidence = { "write_ack", "readback" } }
 end
