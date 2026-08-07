@@ -6,7 +6,12 @@ See spec/driver-contract.md for the full specification.
 
 import re
 import pytest
-from conftest import read_driver, get_driver_names, strip_lua_comments
+from conftest import (
+    read_driver,
+    read_manifest,
+    get_driver_names,
+    strip_lua_comments,
+)
 
 DRIVERS = get_driver_names()
 
@@ -72,12 +77,32 @@ class TestDriverContract:
             f"{driver_name}: should call host.set_make() in driver_init"
 
     def test_calls_emit_in_poll(self, driver_name):
-        """driver_poll should call host.emit()."""
+        """driver_poll should report each declared DER through host.emit.
+
+        `host.emit` carries a DER reading and needs a DER type the host
+        understands. Heat-pump and schema-less drivers have no matching
+        reading type, so they may report only through `host.emit_metric`.
+        Metrics remain diagnostic data for every schema-backed DER.
+        """
         if driver_name == "hello":
             pytest.skip("hello driver is a demo-only driver")
         code = read_driver(driver_name)
-        assert 'host.emit(' in code, \
-            f"{driver_name}: should call host.emit() in driver_poll"
+        if 'host.emit(' in code:
+            return
+
+        manifest = read_manifest(driver_name)
+        match = re.search(r"^ders:\s*\[([^]]*)\]\s*$", manifest, re.MULTILINE)
+        assert match, f"{driver_name}: cannot parse manifest ders"
+        ders = {
+            item.strip().strip("'\"")
+            for item in match.group(1).split(",")
+            if item.strip()
+        }
+        metric_only = not ders or ders == {"heatpump"}
+        assert metric_only and 'host.emit_metric(' in code, (
+            f"{driver_name}: declares {sorted(ders)} and must call host.emit(); "
+            f"only heat-pump or schema-less drivers may report metrics only"
+        )
 
     def test_no_forbidden_globals(self, driver_name):
         """Driver must not use forbidden sandbox-escaping functions."""
