@@ -1,5 +1,6 @@
 /.artifacts/
 /.venv/
+/site/
 /lua55
 /luac55
 /.pytest_cache/

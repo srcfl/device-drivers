@@ -1,8 +1,9 @@
 name: "sungrow"
-version: "1.5.6"
+version: "1.5.8"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
+connectivity: local
 ders: [battery, meter, pv]
 control: true
 tested_devices:
@@ -42,9 +43,9 @@ tested_devices:
     notes: "Commercial/industrial three-phase string inverter. Needs 1.5.3: 1.2.1 stopped polling the SH battery registers this family does not answer, and 1.5.3 refuses a battery dispatch instead of writing them. A zero-watt command is still written on every family from 1.5.4 -- it is the release, and on a model without the registers it fails harmlessly."
     min_driver_version: "1.5.3"
 min_host_version: "2.0.0"
-size_bytes: 44846
+size_bytes: 48889
 dkb_id: "sungrow_sh_rt"
-sha256: "8f350fc209f7231139c23bc336695b6e00267fb4b3618e26c754c77fd3ac7e7d"
+sha256: "a11ddc8de433c527a3d63cd014d243b09f3393ee3afa9b8e1594d4de8de37562"
 signature: ""
 
 bytecode_sha256: ""

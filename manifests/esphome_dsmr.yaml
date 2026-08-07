@@ -3,6 +3,8 @@ version: "1.0.3"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
+connectivity: local
+setup: [bridge]
 ders: [meter]
 control: true
 tested_devices:

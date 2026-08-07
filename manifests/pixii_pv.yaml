@@ -3,8 +3,9 @@ version: "0.3.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
+connectivity: local
 ders: [pv, meter]
-control: true
+control: false
 tested_devices:
   - manufacturer: "Pixii"
     model_family: "Pixii PowerShaper (PV + meter)"

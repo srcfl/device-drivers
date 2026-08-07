@@ -1,8 +1,10 @@
 name: "ctek_v2"
-version: "0.3.1"
+version: "0.3.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
+connectivity: local
+setup: [device_ui]
 ders: [ev]
 control: true
 tested_devices:
@@ -16,7 +18,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 12072
 dkb_id: "ctek_v2"
-sha256: "81b4a0862a6d0928d3e3781e3955916638cb2015306a61baa0a344cd611d10e2"
+sha256: "186d1e7b2009cd34c2b58a1e29fea5fbdd3b5a896722d41108b77ed6ec7fd3dd"
 signature: ""
 
 bytecode_sha256: ""

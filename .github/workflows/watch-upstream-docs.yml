@@ -1,0 +1,134 @@
+name: watch-upstream-docs
+
+# Weekly, fetch every manifest `upstream_docs` URL, diff it against the committed
+# baseline (upstream-docs-state.json), and open a tracking issue when a watched
+# document changes or goes missing. See tools/check_upstream_docs.py.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write # push the baseline branch
+  issues: write # open tracking issues
+  pull-requests: write # propose the updated baseline
+  actions: write # start validate on the proposal (see that step)
+
+concurrency:
+  group: watch-upstream-docs
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+
+      - name: Fetch and diff watched documents
+        run: |
+          uv run --no-sync python tools/check_upstream_docs.py \
+            --changes-out "$RUNNER_TEMP/upstream-doc-changes.json"
+
+      - name: Open a tracking issue for each change
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGES: ${{ runner.temp }}/upstream-doc-changes.json
+        run: |
+          set -euo pipefail
+          count="$(jq 'length' "$CHANGES")"
+          echo "alerts: $count"
+          if [ "$count" -eq 0 ]; then exit 0; fi
+
+          # Ensure the labels exist (no-op if they already do).
+          gh label create upstream-doc-changed --color d93f0b \
+            --description "A watched upstream document changed" 2>/dev/null || true
+          gh label create upstream-doc-unreachable --color b60205 \
+            --description "A watched upstream document could not be fetched" 2>/dev/null || true
+
+          for i in $(seq 0 $((count - 1))); do
+            title="$(jq -r ".[$i].issue_title" "$CHANGES")"
+            label="$(jq -r ".[$i].label" "$CHANGES")"
+            jq -r ".[$i].issue_body" "$CHANGES" > "$RUNNER_TEMP/body.md"
+
+            # Notify once: if an open issue with this exact title already
+            # exists, this change (or this outage) has already been reported.
+            existing="$(gh issue list --state open --search "$title in:title" \
+              --json title | jq --arg t "$title" '[.[] | select(.title == $t)] | length')"
+            if [ "$existing" -gt 0 ]; then
+              echo "already open, skipping: $title"
+              continue
+            fi
+
+            echo "opening: $title"
+            gh issue create --title "$title" --body-file "$RUNNER_TEMP/body.md" --label "$label"
+          done
+
+      # main is protected: a direct push is refused for the required checks it
+      # has not run, so the baseline could never advance and every week's run
+      # ended red. The baseline moves the same way anything else moves here --
+      # as a pull request. One branch, force-pushed: the baseline is a whole
+      # snapshot, so the newest proposal replaces the previous one rather than
+      # stacking on it.
+      - name: Propose the updated baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: upstream-docs-baseline
+          BOT_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- upstream-docs-state.json; then
+            echo "baseline unchanged"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "$BOT_EMAIL"
+          git add upstream-docs-state.json
+          git commit -m "chore(upstream-docs): update watched-document baseline" \
+            -m "Signed-off-by: github-actions[bot] <$BOT_EMAIL>"
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+
+          existing="$(gh pr list --head "$BRANCH" --state open --json number \
+            --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            echo "refreshed the open proposal: #$existing"
+          else
+            cat > "$RUNNER_TEMP/pr-body.md" <<'BODY'
+          A watched upstream document moved, or a fetch failure changed its
+          count, so `upstream-docs-state.json` no longer describes what the
+          watcher sees. Merging this makes the new observation the baseline the
+          next run compares against.
+
+          Read the `upstream-doc` issues this run opened before merging: this
+          accepts the new bytes as normal, and on its own says nothing about
+          whether the registers a driver decodes by have moved.
+
+          **The required checks do not start on their own here.** A pull request
+          opened with `GITHUB_TOKEN` starts no workflow run, so this one arrives
+          with an empty status rollup. Close and reopen it to run them. The
+          `validate` run dispatched against the branch head is a verdict you can
+          read in the meantime -- GitHub does not count it toward the rollup.
+
+          Opened by the `watch-upstream-docs` workflow.
+          BODY
+            gh pr create --base main --head "$BRANCH" \
+              --title "chore(upstream-docs): update watched-document baseline" \
+              --body-file "$RUNNER_TEMP/pr-body.md"
+          fi
+
+          # A pull request opened with GITHUB_TOKEN starts no workflow run, so
+          # nothing would run against this proposal at all. workflow_dispatch is
+          # the documented exception to that rule, so this asks validate for a
+          # verdict on the head the proposal carries -- which is worth having
+          # before a maintainer decides to spend attention on it.
+          #
+          # It does NOT turn the required checks green: a commit whose only
+          # check suite came from a dispatch has no status rollup, so branch
+          # protection still reads the proposal as blocked. Reopening it is what
+          # starts the checks that count. Measured on #67, not assumed.
+          gh workflow run validate.yml --ref "$BRANCH"

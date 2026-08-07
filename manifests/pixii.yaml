@@ -3,6 +3,7 @@ version: "2.1.3"
 tier: core
 author: "Sourceful Labs AB and community contributors"
 protocol: modbus
+connectivity: local
 ders: [battery, meter]
 control: false
 tested_devices:

@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow-shx",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.5.6",
+  version      = "1.5.8",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -149,6 +149,65 @@ end
 local function known_to_have_no_battery()
     return model_family == "string"
 end
+
+----------------------------------------------------------------------------
+-- The EMS control block, 13049-13051
+--
+-- The write-side twin of the register probe below, and it needs the same
+-- rule: absence has to be proved, and once proved, stop paying for it.
+--
+-- An SG string inverter rejects every write here with a Modbus exception. The
+-- driver retried three of them at startup and three more on every watchdog
+-- tick for the life of the session -- an SG12RT logged "self-consumption reset
+-- write failed" once per tick, indefinitely, while it was already offline for
+-- an unrelated reason.
+--
+-- Deliberately NOT gated on model_family, which is the obvious fix and the
+-- wrong one. The startup reset exists because the inverter can be holding a
+-- forced state this driver did not set: a container that died mid-force, an
+-- older driver version, iSolarCloud or another EMS on the same bus. None of
+-- those care what classify_device_type decided, and a hybrid shipped under a
+-- device-type code this driver has not been taught is classified "string".
+-- Skipping the release on the label would leave exactly that inverter forced,
+-- with nothing left that writes mode 0 back.
+--
+-- What separates the two cases is not the label but whether the device took
+-- the write. One that rejects it cannot be holding a forced state, so there is
+-- nothing to release. One that accepts it can, and keeps its release.
+--
+-- This also stops the question being re-argued. Whether a zero-watt command
+-- reaches the EMS block has now been settled in both directions inside a
+-- single day -- 1.5.4 opened it, 1.5.6 closed it again. The rule here does not
+-- depend on that answer.
+--
+-- Three failures rather than one for the same reason the read probe uses
+-- three: a busy bus is not proof. A restart clears the count, so the startup
+-- reset is always attempted at least once -- which is the case it exists for.
+local EMS_WRITE_ATTEMPTS = 3
+local ems_write_failures = 0
+
+-- True while the EMS block is still worth writing unprompted.
+local function ems_block_worth_writing()
+    return ems_write_failures < EMS_WRITE_ATTEMPTS
+end
+
+-- Record what the device did with one EMS operation. Counts the operation,
+-- not each of its three registers: the trio goes out together and fails
+-- together, so one rejected trio is one piece of evidence.
+local function note_ems_write(write_err)
+    if write_err == nil then
+        ems_write_failures = 0
+        return
+    end
+    ems_write_failures = ems_write_failures + 1
+    if ems_write_failures == EMS_WRITE_ATTEMPTS then
+        host.log("info", "Sungrow: the EMS control block rejected "
+            .. ems_write_failures .. " writes in a row; treating it as absent "
+            .. "and no longer writing it unprompted")
+    end
+end
+
+----------------------------------------------------------------------------
 
 -- A register that answers on one model and not another. Absence has to be
 -- proved: a single timeout or a busy bus must not silence a register for the
@@ -806,6 +865,10 @@ function set_battery_power(power_w)
     local cmd_err = host.modbus_write(13050, want_cmd)   -- 2. charge/discharge cmd
     local power_err = host.modbus_write(13051, watts)    -- 3. power setpoint
     local write_err = first_write_error(mode_err, cmd_err, power_err)
+    -- A command always attempts, however many times the block has refused
+    -- before: only the unprompted paths give up. But the outcome still counts,
+    -- and a success here clears the count and puts the release back.
+    note_ems_write(write_err)
     if write_err then
         host.log("warn", "Sungrow: force command write failed: " .. write_err)
         return false
@@ -846,6 +909,9 @@ function set_battery_idle()
     local cmd_err = host.modbus_write(13050, 0xCC)   -- stop forced charge/discharge
     local power_err = host.modbus_write(13051, 0)    -- zero power setpoint
     local write_err = first_write_error(mode_err, cmd_err, power_err)
+    -- Reached by a zero-watt command, which 1.5.4 accepts on every family.
+    -- It still attempts; the count only decides the unprompted paths.
+    note_ems_write(write_err)
     if write_err then
         host.log("warn", "Sungrow: idle write failed: " .. write_err)
         return false
@@ -868,7 +934,21 @@ function set_battery_idle()
 end
 
 -- Return to self-consumption mode (safe default)
+--
+-- Four paths reach this with no command in sight: driver_init's startup reset,
+-- the watchdog, driver_cleanup and the deinit action. The watchdog is the one
+-- that runs on a timer forever, so this is where a device that refuses the
+-- write has to be let go of.
 function set_self_consumption()
+    -- Nothing to hand back on a device that has refused this block three
+    -- times: a write it rejects cannot have latched a forced state. Report the
+    -- default as held rather than failed -- the watchdog reads a false as the
+    -- safe state being unreachable and escalates, which is the wrong answer
+    -- for an inverter that was never under control to begin with.
+    if not ems_block_worth_writing() then
+        return true
+    end
+
     -- Stop first, clear the stale power setpoint, then hand control back to
     -- the inverter. This makes the post-restart state deterministic instead
     -- of leaving e.g. mode=0/cmd=CC/power=880W latched in diagnostics.
@@ -876,6 +956,7 @@ function set_self_consumption()
     local power_err = host.modbus_write(13051, 0)
     local mode_err = host.modbus_write(13049, 0)
     local write_err = first_write_error(cmd_err, power_err, mode_err)
+    note_ems_write(write_err)
     if write_err then
         host.log("warn", "Sungrow: self-consumption reset write failed: " .. write_err)
         return false

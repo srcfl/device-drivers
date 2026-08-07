@@ -1,8 +1,9 @@
 name: "ferroamp"
-version: "2.1.0"
+version: "2.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
+connectivity: local
 ders: [battery, meter, pv]
 control: true
 tested_devices:

@@ -10,6 +10,46 @@ permissions:
   contents: read
 
 jobs:
+  # The release refuses to republish changed artifact bytes under a version it
+  # has already published. That rule used to be reachable only from the release,
+  # which runs on main after the merge -- so a pull request that broke it merged
+  # green and took the channel down afterwards. Nothing about asking the
+  # question needs the signing key, so it is asked here instead.
+  channel-preflight:
+    name: signed channel accepts this tree
+    runs-on: ubuntu-latest
+    env:
+      FTW_DRIVER_KEY_ID: ftw-drivers-2026-01
+      FTW_DRIVER_SIGNING_PUBLIC_KEY: MX+j27UBkyM099hTyJlmMLK9qlTTDUJsaK/vH12fFKc=
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen --extra package --extra dev
+      # A public release asset and a public key: a fork's pull request can read
+      # both, and neither is a secret this workflow could leak.
+      - name: Download the published channel manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          published="${RUNNER_TEMP}/ftw-driver-published"
+          mkdir -p "${published}"
+          if ! gh release view drivers-beta --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "drivers-beta has never been published; no versions to collide with."
+            exit 0
+          fi
+          gh release download drivers-beta --repo "${GITHUB_REPOSITORY}" \
+            --pattern manifest.json --dir "${published}" --clobber
+          echo "FTW_DRIVER_PUBLISHED_MANIFEST=${published}/manifest.json" >> "${GITHUB_ENV}"
+      - name: Would the signed channel publish this tree?
+        if: env.FTW_DRIVER_PUBLISHED_MANIFEST != ''
+        run: >-
+          uv run --no-sync python tools/ftw_repository.py check-versions
+          --previous-manifest "${FTW_DRIVER_PUBLISHED_MANIFEST}"
+          --key-id "${FTW_DRIVER_KEY_ID}"
+
   public-boundary:
     runs-on: ubuntu-latest
     steps:

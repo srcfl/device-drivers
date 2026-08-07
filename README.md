@@ -9,6 +9,21 @@ Device Support may later consume an exact public commit to build packages for
 other products or a higher support level. It does not own a second editable
 copy of the source and is not FTW's normal driver source.
 
+## Browse the catalog
+
+**[Every driver, and what stands behind it →](https://srcfl.github.io/device-drivers/)**
+
+The catalog page is generated from this repository and republished on every push
+to `main`, so it cannot fall behind the source. The manifests supply versions,
+tiers, protocols and tested models; each Lua source supplies its own description
+and verification record. Search by manufacturer or model number, filter by device
+type or protocol, or take the whole catalog as
+[drivers.json](https://srcfl.github.io/device-drivers/drivers.json).
+
+Being listed is not an install claim. The page states the same evidence the
+repository does, including how few drivers have been confirmed against physical
+hardware.
+
 ## Contribute a driver
 
 Start from **[`blueprint/BLUEPRINT.lua`](blueprint/BLUEPRINT.lua)**. It is a

@@ -21,6 +21,11 @@ what, what scale it uses, which firmware lies, what the vendor documented
 wrongly. **Write that down in comments as you find it.** Nobody can re-derive
 it from the numbers later, and it is the reason this repository exists.
 
+**Write down where you got it, too.** The register map, the parameter
+changelog, the API reference you decoded the device from — record those in the
+manifest so the driver can be checked against them again later. See
+[Record what you decoded it from](#record-what-you-decoded-it-from).
+
 ## The five entry points
 
 | Function | When |
@@ -106,6 +111,55 @@ A new driver must be clean. The drivers that already carried this debt when it
 was first measured are listed in `absent-register-baseline.json`, and that file
 may only shrink.
 
+## The same rule for writes
+
+A device can refuse a write as easily as it can fail a read, and one path
+writes without anyone asking: `driver_default_mode()`. The host calls it on
+lease expiry, on the telemetry watchdog, on shutdown. Nothing there can say no,
+so a driver that writes whatever the device answers goes on writing for the
+life of the session, one log line per tick.
+
+Count refusals the way you count missed reads, and stop:
+
+```lua
+local WRITE_ATTEMPTS = 3
+local write_failures = 0
+
+local function block_worth_writing()
+    return write_failures < WRITE_ATTEMPTS
+end
+
+local function note_write(err)
+    if err == nil or err == "" then
+        write_failures = 0   -- one success proves the register is there
+    else
+        write_failures = write_failures + 1
+    end
+end
+```
+
+Three rather than one, for the same reason as reads: a busy bus is not proof.
+The count lives in the process, so a restart always tries once — which is what
+the startup reset is for. A single success clears it, so firmware that gains
+the register is picked up without waiting for a restart.
+
+Do not gate this on the model instead. The device can be holding a state your
+driver did not set — a container that died mid-command, an older driver
+version, another EMS on the same bus — and a model label tells you nothing
+about that. Whether the device took the write does.
+
+Once it has given up, report the default as held rather than failed. A
+permanent `false` has the watchdog escalate against a device that was never
+under control.
+
+```bash
+make refused-write-report ID=example
+```
+
+`drivers/tests/test_refused_write_settles.py` holds every driver to this, with
+`refused-write-baseline.json` recording what already shipped. `sungrow` is the
+worked example, and the only one clean when this was first measured.
+
 ## Sign convention
 
 **Positive watts flow into the site.** Every driver, every device, no
@@ -129,6 +183,71 @@ apart from a real one afterwards.
 
 - A field that did not answer is left out.
 - A stream whose defining reading did not answer is not emitted.
+
+## A hybrid inverter may have no battery
+
+The rule above bounds the *reads*. This is what to do with the answer.
+
+*Never fabricate* covers a read that failed. This is the case where nothing
+failed: the device is healthy, every register you asked for came back, and the
+battery still is not there.
+
+Nearly every hybrid inverter is sold in two configurations — with storage and
+without it. Same model number, same firmware, same register map; one site has a
+pack on the DC bus and the next has bare terminals. The SG12RT further up is
+this same fact arriving as an outage instead of as a wrong number. A PV-only
+commissioning is not a fault and not an edge case. It is half the product line.
+
+How the absence reaches you is vendor-specific, and you cannot pick one and
+assume the rest:
+
+- the ESS registers stop answering at all (Sigenergy)
+- they answer, with a plain zero
+- they answer with a not-present sentinel — `0xFFFF`, `0x7FFFFFFF`, NaN.
+  `sma` and `solis` already carry helpers for exactly this
+- the read comes back a Modbus exception
+
+**The rule.** Fill each battery field only from a register that answered, and
+emit the `battery` DER only when at least one of them did.
+
+```lua
+local battery = {}
+if bat_regs then battery.w   = decode(bat_regs) end
+if soc_regs then battery.soc = decode(soc_regs) end
+
+if bat_regs or soc_regs then
+    host.emit("battery", battery)
+end
+```
+
+Three things this is not:
+
+- **Not a model-number check.** The same model code covers both
+  configurations, and a hybrid shipped under a device-type code you have not
+  been taught still has to work. The device knows. Read it.
+- **Not a config flag.** `skip_battery` and friends are a reasonable
+  *override* for a dev rig, but they are the wrong primary mechanism: they
+  only work when somebody already knew to set them, and the site nobody told
+  the driver about is exactly the one that reports wrong. Detect first, and
+  let config override.
+- **Not a `ders` change.** `ders` says what the driver can produce, not what
+  one site has. Leave `battery` in it — it also reaches the signed artifact,
+  so removing it costs a version for nothing.
+
+**Why a zero is worse than silence here.** `soc = 0` does not read as "no
+battery". It reads as an empty pack that can absorb charge — so the planner can
+dispatch against storage that is not installed, and every resulting write lands
+on a register the plant does not implement. It is also indistinguishable from a
+real pack that has just run flat, so nothing downstream can separate the two
+afterwards.
+
+A screen of the catalog when this was written: 24 drivers emit both `pv` and
+`battery`, and 20 of them emit the battery DER with no guard on whether any
+battery register answered. Two of those 20 (`ferroamp`, `zap`) gate it on
+configuration or on API discovery instead — better than nothing, still not
+detection. The rest default their fields to zero and emit regardless; that was
+spot-checked by hand on `goodwe`, `growatt`, `kostal`, `huawei` and `foxess`.
+`sigenergy` 1.1.3 is the worked example of the fix.
 
 ## Numbers
 
@@ -173,6 +292,46 @@ cp blueprint/BLUEPRINT.lua drivers/lua/mydevice.lua
 Then write `manifests/mydevice.yaml`. The manifest and the driver's own
 `DRIVER` table must agree on the version; `make bump-driver ID=mydevice` moves
 both.
+
+### Record what you decoded it from
+
+A driver is only ever as current as the vendor document it was written from,
+and that document does not hold still. A register renumbered, a parameter
+added, a scale corrected in a new revision — none of it announces itself. The
+driver goes on decoding the old map and reporting a plausible wrong number,
+and it is a human noticing on a real site months later that ends it.
+
+So record the documents you worked from, at the most durable URL you can find:
+
+```yaml
+upstream_docs:
+  - url: "https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf"
+    title: "NIBE S-series myUplink register/parameter changelog"
+    kind: changelog
+    url_stability: stable
+```
+
+Only `url` is required. `kind` is one of `changelog`, `register_map`,
+`manual`, `api_docs`, `firmware_notes`, `other`. `url_stability` says how much
+a broken link means — `committed` (the vendor promises the URL is permanent),
+`stable` (stable in practice), `volatile` (dated or versioned links that
+rotate), `unknown`. `spec/manifest-v2.md` has the full field reference.
+
+`.github/workflows/watch-upstream-docs.yml` fetches each URL weekly and opens
+a tracking issue when a document changes or disappears, so the driver gets
+re-read against the new material rather than quietly falling behind. It is
+descriptive metadata only: it never reaches `index.yaml` and changes nothing
+about how the driver installs or runs. `make watch-upstream-docs` runs the
+check locally without touching the baseline.
+
+Two things it cannot do. A document behind a login or a vendor portal is not
+fetchable — put that reference in a comment in the driver instead, where it
+still tells the next reader where to look. And detection is a hash of the
+bytes, so a rebuilt PDF can flag a change that isn't one; a flagged document
+is a prompt to look, not proof the registers moved.
+
+Only drivers that declare the field are watched. A driver with no entry is one
+nobody will be warned about.
 
 ```bash
 make test-driver ID=mydevice
