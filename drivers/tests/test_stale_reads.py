@@ -28,6 +28,13 @@ def test_mqtt_driver_does_not_emit_cached_data_on_idle_poll(driver_name):
     run_lua("drivers/tests/lua_harness/test_mqtt_stale.lua", driver_name)
 
 
+def test_heishamon_power_freshness_is_not_extended_by_other_topics():
+    run_lua(
+        "drivers/tests/lua_harness/test_heishamon_power_freshness.lua",
+        "heishamon",
+    )
+
+
 @pytest.mark.parametrize("app", ["ProEM", "MiniPMG3", "Plus2PM"])
 def test_shelly_poll_emits_nothing_when_all_reads_fail(app):
     run_lua("drivers/tests/lua_harness/test_shelly_failures.lua", app)
