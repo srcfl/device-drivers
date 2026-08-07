@@ -338,8 +338,8 @@ drivers:
     setup: [bridge]
     ders: [heatpump]
     control: true
-    size_bytes: 9012
-    sha256: "4f0988e521a45045d359416c8cbe0185159cadd79d60156e0754df8726d4a2ec"
+    size_bytes: 9405
+    sha256: "1dd1f98ff970750331f1ed6c683684ea2bf723f3bf7bcca07f3353acfcc5ffd3"
   - name: "hello"
     version: "1.1.2"
     tier: community
