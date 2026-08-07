@@ -16,9 +16,9 @@ tested_devices:
     notes: "Panasonic Aquarea H/J/K/L/M-series heat pump via Heishamon MQTT bridge. Controls Zone 1 heat curve offset (Z1_Heat_Request_Temp) in range -3..+3 °C."
     min_driver_version: "0.4.0"
 min_host_version: "2.0.0"
-size_bytes: 8065
+size_bytes: 8458
 dkb_id: "heishamon"
-sha256: "410f947f4eca8c4ab1436604c1cdc879a94057b7f9e345fb7cc8c07e70517dc9"
+sha256: "c5bb882d0dfba3f566cfe13a91e46fa361e02a64b1a249e133de2ec0366188ac"
 signature: ""
 
 bytecode_sha256: ""

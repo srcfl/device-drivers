@@ -61,6 +61,7 @@ local target_temp    = nil
 local z1_offset      = nil
 local power_w        = nil
 local last_msg_ts    = 0
+local last_power_ts  = 0
 local STALE_AFTER_MS = 60000
 
 -- Config (overridable via config.yaml)
@@ -123,8 +124,9 @@ function driver_poll()
                 z1_offset   = val
                 last_msg_ts = now
             elseif msg.topic == base_topic .. "/main/" .. power_topic then
-                power_w     = val
-                last_msg_ts = now
+                power_w       = val
+                last_power_ts = now
+                last_msg_ts   = now
             end
         end
     end
@@ -139,6 +141,12 @@ function driver_poll()
         target_temp  = nil
         z1_offset    = nil
         power_w      = nil
+        last_power_ts = 0
+    elseif last_power_ts > 0 and (now - last_power_ts) > STALE_AFTER_MS then
+        host.log("warn", "Heishamon: no power reading for "
+            .. tostring(STALE_AFTER_MS) .. " ms — power stale")
+        power_w       = nil
+        last_power_ts = 0
     end
 
     -- Emit metrics. Names are the ones FTW's heating view reads: it finds a
@@ -204,4 +212,6 @@ function driver_cleanup()
     inlet_temp   = nil
     target_temp  = nil
     z1_offset    = nil
+    power_w      = nil
+    last_power_ts = 0
 end
