@@ -131,7 +131,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.9.2",
+  version = "0.9.3",
   host_api_min = 1,
   host_api_max = 2,
   protocols = { "modbus" },
@@ -140,6 +140,8 @@ DRIVER = {
   authors = { "Sourceful Labs AB" },
   tested_models = { "1K5-HI-10-V1" },
   verification_status = "production",
+  verified_by = { "Leitet@1K5-HI-10-V1:4d" },
+  verified_at = "2026-08-06",
   verification_notes = "Verified on 1K5-HI-10-V1 hardware over multi-day operation: telemetry (PV per-string, battery, per-phase grid CT, energy counters), battery dispatch in charge, discharge and hold, and PV curtailment. H3-Smart family shares the register map but has not been tested on H3-Smart hardware.",
   read_only = false,
 }
@@ -154,7 +156,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.9.2",
+  version = "0.9.3",
   role = "inverter",
   requires = {},
   options = {},
