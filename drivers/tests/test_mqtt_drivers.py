@@ -14,6 +14,51 @@ from conftest import (
 
 MQTT_DRIVERS = get_mqtt_drivers()
 
+_TOPIC_PART = r'(?:(?:"(?:\\.|[^"\\])*")|(?:[A-Za-z_]\w*))'
+_TOPIC_EXPRESSION = re.compile(
+    rf'{_TOPIC_PART}(?:\s*\.\.\s*{_TOPIC_PART})*'
+)
+
+
+def _file_local_names(code):
+    """Return names declared before the first function in a Lua file."""
+    first_function = re.search(
+        r'^\s*(?:local\s+)?function\b',
+        code,
+        re.MULTILINE,
+    )
+    preamble = code[:first_function.start()] if first_function else code
+    return set(re.findall(
+        r'^\s*local\s+([A-Za-z_]\w*)\s*=',
+        preamble,
+        re.MULTILINE,
+    ))
+
+
+def _is_static_topic_expression(arg, file_local_names):
+    """Accept literals and concatenations of declared file-local names."""
+    if not _TOPIC_EXPRESSION.fullmatch(arg):
+        return False
+    without_strings = re.sub(r'"(?:\\.|[^"\\])*"', '', arg)
+    names = set(re.findall(r'\b[A-Za-z_]\w*\b', without_strings))
+    return names <= file_local_names
+
+
+@pytest.mark.parametrize(
+    ("arg", "file_local_names", "expected"),
+    [
+        ('"fixed/#"', set(), True),
+        ('BASE_TOPIC .. "/#"', {"BASE_TOPIC"}, True),
+        ('topic', set(), False),
+        ('BASE_TOPIC .. topic', {"BASE_TOPIC"}, False),
+        ('msg.topic', set(), False),
+        ('make_topic()', {"make_topic"}, False),
+    ],
+)
+def test_static_topic_expression_requires_file_local_names(
+        arg, file_local_names, expected):
+    assert _is_static_topic_expression(arg, file_local_names) is expected
+
 
 @pytest.mark.parametrize("driver_name", MQTT_DRIVERS)
 class TestMqttSubscription:
@@ -37,22 +82,33 @@ class TestMqttSubscription:
             f"not elsewhere"
         )
 
-    def test_subscription_topics_are_strings(self, driver_name):
-        """All mqtt_subscribe calls should use string literal topics."""
+    def test_subscription_topics_are_static(self, driver_name):
+        """A subscription topic must be decidable without running the driver.
+
+        A literal is the common case. A file-local constant or configurable
+        prefix is the other one. Function-local names do not qualify because
+        they can come from a received message.
+
+        What this rejects is a topic taken from runtime data: an index, a
+        field or a call, which is how a driver ends up subscribing to whatever
+        a message told it to.
+        """
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
+        file_names = _file_local_names(clean)
 
-        # Find all subscribe calls and verify they use string literals
         sub_calls = re.findall(
             r'host\.mqtt_subscribe\s*\(\s*(.+?)\s*\)',
             clean,
         )
 
         for call_arg in sub_calls:
-            # Should be a string literal (starts with ")
-            assert call_arg.strip().startswith('"'), (
-                f"{driver_name}: mqtt_subscribe should use string literal "
-                f"topic, found: {call_arg}"
+            arg = call_arg.strip()
+            static = _is_static_topic_expression(arg, file_names)
+            assert static, (
+                f"{driver_name}: mqtt_subscribe topic must be a literal or a "
+                f"concatenation of literals and declared file-local names, "
+                f"found: {arg}"
             )
 
 
