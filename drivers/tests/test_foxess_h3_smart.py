@@ -70,6 +70,8 @@ def fixture_registers() -> str:
         39237: bat_w_hi, 39238: bat_w_lo,
         # energy counters, u32 pairs in 0.01 kWh
         39601: _i32_regs(123456)[0], 39602: _i32_regs(123456)[1],
+        39605: _i32_regs(500000)[0], 39606: _i32_regs(500000)[1],
+        39609: _i32_regs(400000)[0], 39610: _i32_regs(400000)[1],
         39613: _i32_regs(111111)[0], 39614: _i32_regs(111111)[1],
         39617: _i32_regs(654321)[0], 39618: _i32_regs(654321)[1],
         # BMS singles
@@ -81,7 +83,8 @@ def fixture_registers() -> str:
         "host._modbus_registers.holding[39279] = "
         + _lua_list([0, 3121, 0, 3475, 0, 0, 0, 0]),
         "host._modbus_registers.holding[38814] = "
-        + _lua_list(_i32_regs(CT_RAW)),
+        + _lua_list(_i32_regs(CT_RAW) + _i32_regs(6310)
+                    + _i32_regs(-2500) + _i32_regs(8000)),
     ]
     lines += [
         f"host._modbus_registers.holding[{addr}] = {value}"
@@ -125,12 +128,17 @@ if bat then
     print("BAT_A " .. bat.A)
     print("BAT_SOC " .. tostring(bat.SoC_nom_fract))
     print("BAT_TEMP " .. tostring(bat.temperature_C))
+    print("BAT_CHG_WH " .. tostring(bat.total_charge_Wh))
+    print("BAT_DIS_WH " .. tostring(bat.total_discharge_Wh))
 end
 if met then
     print("MET_W " .. met.W)
     print("MET_HZ " .. tostring(met.Hz))
     print("MET_L1V " .. tostring(met.L1_V))
     print("MET_IMPORT_WH " .. tostring(met.total_import_Wh))
+    print("MET_L1W " .. tostring(met.L1_W))
+    print("MET_L2W " .. tostring(met.L2_W))
+    print("MET_L1A " .. tostring(met.L1_A))
     print("MET_EXPORT_WH " .. tostring(met.total_export_Wh))
 end
 print("MAKE " .. tostring(host._make))
@@ -174,6 +182,14 @@ def test_capture_reproduces_in_site_convention():
     assert math.isclose(float(out["MET_HZ"]), 49.99, rel_tol=1e-5)
     assert math.isclose(float(out["MET_L1V"]), 235.2, rel_tol=1e-5)
     assert float(out["MET_IMPORT_WH"]) == 6543210
+    # Per-phase CT: vendor export-positive flips to site import-positive,
+    # and amps carry the phase power's sign (negative = export).
+    assert math.isclose(float(out["MET_L1W"]), -631, rel_tol=1e-4)
+    assert math.isclose(float(out["MET_L2W"]), 250, rel_tol=1e-4)
+    assert float(out["MET_L1A"]) < 0
+    # Battery lifetime counters ride the same energy block.
+    assert float(out["BAT_CHG_WH"]) == 5000000
+    assert float(out["BAT_DIS_WH"]) == 4000000
     assert float(out["MET_EXPORT_WH"]) == 1111110
 
 

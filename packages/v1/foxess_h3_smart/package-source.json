@@ -1,7 +1,7 @@
 {
   "schema_version": "sourceful.driver-package-source/v1",
   "package_id": "com.sourceful.driver.foxess-h3-smart",
-  "version": "0.1.0",
+  "version": "0.9.3",
   "channel": "beta",
   "display_name": "FoxESS H3-Smart / 1K5",
   "identity": {
@@ -45,10 +45,13 @@
       "battery",
       "meter"
     ],
-    "control": []
+    "control": [
+      "battery"
+    ]
   },
   "permissions": [
-    "modbus.read"
+    "modbus.read",
+    "modbus.write"
   ],
   "telemetry": {
     "schema": "sourceful.telemetry/v2",
@@ -71,15 +74,33 @@
       }
     ]
   },
-  "commands": [],
-  "read_only": true,
+  "commands": [
+    {
+      "id": "battery",
+      "capability": "battery",
+      "runtime_action": "battery",
+      "inputs": [
+        {
+          "name": "power_w",
+          "type": "number",
+          "unit": "W",
+          "required": true
+        }
+      ],
+      "description": "Battery power setpoint, translated to the vendor AC active-power register (AC = PV - target)."
+    }
+  ],
+  "read_only": false,
   "default_mode": {
-    "strategy": "not_applicable",
-    "description": "Read-only driver."
+    "strategy": "vendor_autonomous",
+    "description": "Write the remote-control disable and read it back; the inverter runs native self-use, and the vendor-side 60 s timeout reverts it even if the write cannot land.",
+    "entrypoint": "driver_default_mode_v2"
   },
   "lease_policy": {
-    "required_for_control": false,
-    "expiry_action": "not_applicable"
+    "required_for_control": true,
+    "expiry_action": "return_to_default",
+    "heartbeat_interval_seconds": 5,
+    "max_duration_seconds": 60
   },
   "rollback": {
     "strategy": "install_previous_verified_package",
@@ -99,14 +120,14 @@
         "name": "gopher-lua",
         "semantics": "lua-5.1",
         "version": "1.1.2",
-        "abi": "gopher-lua-source-v1",
+        "abi": "gopher-lua-source-v2",
         "host_api": {
-          "profile": "sourceful.host/ftw-core/v1",
-          "min": 1,
-          "max": 1
+          "profile": "sourceful.host/ftw-core/v2",
+          "min": 2,
+          "max": 2
         }
       },
-      "control_enabled": false
+      "control_enabled": true
     },
     {
       "target": "blixt-l1",
@@ -120,14 +141,14 @@
         "name": "luajit",
         "semantics": "lua-5.1",
         "version": "2.1",
-        "abi": "mlua-0.10-luajit21-source-v1",
+        "abi": "mlua-0.10-luajit21-source-v2",
         "host_api": {
-          "profile": "sourceful.host/blixt-l1/v1",
-          "min": 1,
-          "max": 1
+          "profile": "sourceful.host/blixt-l1/v2",
+          "min": 2,
+          "max": 2
         }
       },
-      "control_enabled": false
+      "control_enabled": true
     }
   ],
   "artifact_inputs": [

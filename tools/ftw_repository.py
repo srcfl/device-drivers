@@ -528,6 +528,26 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
         # this: a meter saying what it is outranks an entrypoint it may only
         # have inherited from a shared source.
         controls = has_driver_command and not declares_read_only
+        # The DRIVER block's verification claim reaches the artifact only
+        # when it is one the review actually gated: a driver declaring
+        # production or beta made a checkable statement that a reviewer
+        # accepted, so the channel repeats it (with the driver's own notes
+        # when present). Anything else -- absent, experimental, or a value
+        # outside the vocabulary -- keeps the conservative default, which
+        # also keeps every already-published untested driver's bytes
+        # unchanged.
+        default_verification_notes = (
+            "Signed community source; check the catalog for current hardware evidence."
+        )
+        declared_verification = _string_field(body, "verification_status") if body else ""
+        if declared_verification in ("production", "beta"):
+            verification_status = declared_verification
+            verification_notes = (
+                _string_field(body, "verification_notes") or default_verification_notes
+            )
+        else:
+            verification_status = "experimental"
+            verification_notes = default_verification_notes
         metadata: dict[str, Any] = {
             "path": logical_path,
             "filename": filename,
@@ -540,10 +560,8 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             "read_only": not controls,
             "protocols": [protocol] if protocol and protocol != "standalone" else [],
             "capabilities": capabilities,
-            "verification_status": "experimental",
-            "verification_notes": (
-                "Signed community source; check the catalog for current hardware evidence."
-            ),
+            "verification_status": verification_status,
+            "verification_notes": verification_notes,
         }
         if manufacturer:
             metadata["manufacturer"] = manufacturer

@@ -1,5 +1,5 @@
 name: "sungrow"
-version: "1.5.7"
+version: "1.5.8"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -45,7 +45,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 48889
 dkb_id: "sungrow_sh_rt"
-sha256: "b549ad08470d6fe1600c3dec2eff8fc972dbb87aded9f15181cfa598b4b4ac42"
+sha256: "a11ddc8de433c527a3d63cd014d243b09f3393ee3afa9b8e1594d4de8de37562"
 signature: ""
 
 bytecode_sha256: ""
