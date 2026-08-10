@@ -1,6 +1,19 @@
 {
   "schema_version": "sourceful.upstream-docs-state/v1",
   "docs": {
+    "foxess_h3_smart::https://github.com/nathanmarlor/foxess_modbus": {
+      "driver": "foxess_h3_smart",
+      "url": "https://github.com/nathanmarlor/foxess_modbus",
+      "title": "nathanmarlor/foxess_modbus community register map (Inv.H3_SMART profile)",
+      "kind": "register_map",
+      "url_stability": "stable",
+      "sha256": "2e5d2bcb90b5c6d5c496dd6d592a109ec78d66d2259976d37a0fd3d12abb76e7",
+      "content_length": 302520,
+      "first_seen": "2026-08-10T06:44:29+00:00",
+      "last_changed": "2026-08-10T06:44:29+00:00",
+      "consecutive_failures": 0,
+      "last_error": null
+    },
     "myuplink::https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf": {
       "driver": "myuplink",
       "url": "https://www.nibe.eu/webdav/files/myuplink_changelog/nibe-n.pdf",
