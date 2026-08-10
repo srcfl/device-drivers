@@ -140,6 +140,11 @@ function host.set_model(model)
     host._model = model
 end
 
+function host.set_rated_w(watts)
+    record_call("set_rated_w", watts)
+    host._rated_w = watts
+end
+
 function host.set_sn(serial_number)
     record_call("set_sn", serial_number)
     host._sn = serial_number
