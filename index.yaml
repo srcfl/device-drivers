@@ -716,8 +716,8 @@ drivers:
     connectivity: local
     ders: [meter]
     control: false
-    size_bytes: 14947
-    sha256: "76658fb305ccb7ee3c3288b45d554c55b88552c5ca09e74fbc5148fc6ebd8448"
+    size_bytes: 14932
+    sha256: "4438eef6f79695c0c26e8b7c1df91c7f0d8ae5b62ea506c9dcea8e0fbf36376f"
   - name: "zaptec"
     version: "1.0.1"
     tier: community

@@ -218,9 +218,7 @@ local function other_resources_message(extras)
     if type(extras) ~= "table" or #extras == 0 then return nil end
     local names = table.concat(extras, ", ")
     return "Zap also lists a " .. names
-        .. ". Add "
-        .. names
-        .. " in FTW with its own driver. This Zap driver is the P1/HAN meter only."
+        .. ". Add those devices in FTW with their own drivers. This Zap driver is the P1/HAN meter only."
 end
 
 local function apply_discovery(selected_meter, extras)
