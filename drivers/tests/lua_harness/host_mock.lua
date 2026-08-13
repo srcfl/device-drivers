@@ -44,6 +44,10 @@ host._modbus_registers = {  -- { holding = {[addr]={reg1,...}}, input = {[addr]=
     input   = {},
 }
 host._http_responses = {}   -- { [full_url] = response_body_string }
+host._http_patches   = {}   -- ordered list of {url=..., body=..., headers=...}
+host._http_patch_responses = {}  -- { [url_or_substring] = response_body_string }
+host._http_patch_error = nil     -- set to an error string to fail PATCHes
+host._poll_interval_ms = nil     -- last value passed to set_poll_interval
 host._mqtt_buffer    = {}   -- list of {topic=..., payload=...}
 host._p1_data        = nil  -- P1 telegram table or nil
 host._modbus_write_error = nil
@@ -83,6 +87,10 @@ function host.reset()
     host._fault_reason = ""
     host._modbus_registers = { holding = {}, input = {} }
     host._http_responses = {}
+    host._http_patches   = {}
+    host._http_patch_responses = {}
+    host._http_patch_error = nil
+    host._poll_interval_ms = nil
     host._mqtt_buffer    = {}
     host._p1_data        = nil
     host._modbus_write_error = nil
@@ -146,6 +154,13 @@ function host.set_device_fault(faulted, reason)
     record_call("set_device_fault", faulted, reason)
     host._faulted = faulted == true
     host._fault_reason = reason or ""
+end
+
+-- Both hosts provide this and spec/host-api-profile.json allows it; drivers
+-- promoted from FTW call it during driver_init.
+function host.set_poll_interval(interval_ms)
+    record_call("set_poll_interval", interval_ms)
+    host._poll_interval_ms = interval_ms
 end
 
 -- One diagnostic value outside the DER schema. Both hosts provide this and
@@ -349,6 +364,29 @@ function host.http_get(url)
         end
     end
     error("http_get: no mock response for URL: " .. tostring(url))
+end
+
+-- FTW's host.http_patch(url, body, headers) → (body, nil) or (nil, err).
+-- Every PATCH is recorded in host._http_patches so tests can assert exactly
+-- what a driver tried to write; responses come from
+-- host._http_patch_responses (exact URL match, then substring match, then a
+-- default "modified" body — the NIBE-style per-point success string).
+function host.http_patch(url, body, headers)
+    record_call("http_patch", url, body, headers)
+    -- Recorded BEFORE the error injection so tests can always assert what a
+    -- driver attempted to write, even on the forced-failure path.
+    table.insert(host._http_patches, {url = url, body = body, headers = headers})
+    if host._http_patch_error then
+        return nil, host._http_patch_error
+    end
+    local resp = host._http_patch_responses[url]
+    if resp then return resp end
+    for pattern_url, r in pairs(host._http_patch_responses) do
+        if string.find(url, pattern_url, 1, true) then
+            return r
+        end
+    end
+    return '[{"status":"modified"}]'
 end
 
 ---------------------------------------------------------------------------

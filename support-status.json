@@ -1150,7 +1150,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.2",
+      "catalog_version": "1.2.0",
       "driver_id": "nibe_local",
       "package_id": null,
       "targets": {

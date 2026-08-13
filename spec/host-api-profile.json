@@ -57,6 +57,7 @@
         "http": [
           "http_get",
           "http_post",
+          "http_patch",
           "https_get",
           "https_post",
           "json_decode"
@@ -84,6 +85,7 @@
         "transport": [
           "http_get",
           "http_post",
+          "http_patch",
           "mqtt_pub",
           "mqtt_publish",
           "mqtt_sub",
