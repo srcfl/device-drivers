@@ -158,8 +158,8 @@ Catalog source is not proof that a target can install or run a driver.
 | victron_mqtt | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | wallbox | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | wallbox | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| zap | 2.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| zap | 2.0.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| zap | 3.0.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| zap | 3.0.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | zaptec | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | zaptec | 1.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | zuidwijk_p1 | 1.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

@@ -710,14 +710,14 @@ drivers:
     size_bytes: 2842
     sha256: "1c0362e0a25f1fe297de838a85089eb7676b25e78a7d6d1d03ccea1258b94403"
   - name: "zap"
-    version: "2.0.2"
+    version: "3.0.0"
     tier: core
     protocol: http
     connectivity: local
-    ders: [meter, pv, battery, v2x_charger]
-    control: true
-    size_bytes: 30514
-    sha256: "735c50fa54e678e7a75c04e4e284a43b3cd9a8e9656e994785c6776789a777a4"
+    ders: [meter]
+    control: false
+    size_bytes: 14947
+    sha256: "76658fb305ccb7ee3c3288b45d554c55b88552c5ca09e74fbc5148fc6ebd8448"
   - name: "zaptec"
     version: "1.0.1"
     tier: community

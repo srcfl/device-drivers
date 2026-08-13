@@ -1676,11 +1676,11 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "zap"
-            version: "2.0.2"
-            ders: [meter, pv, battery, v2x_charger]
-            control: true
+            version: "3.0.0"
+            ders: [meter]
+            control: false
         firmware_versions: ""
-        notes: "Official Sourceful Zap local-API integration for meter, PV, battery and V2X telemetry; safe leased control is pending firmware support."
+        notes: "P1/HAN site meter from a Sourceful Zap. Inverters, batteries and chargers found on Zap must be added in FTW with their own drivers."
   - name: "Sungrow"
     model_families:
       - name: "SG-CX (Three-Phase Commercial)"

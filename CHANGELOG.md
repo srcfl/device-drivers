@@ -7,6 +7,9 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Changed
+- **zap** 3.0.0 — **Zap is the P1/HAN site meter for FTW, nothing else.** The previous driver ingested every PV, battery and V2X DER attached to the gateway. That let people add an inverter to Zap and then pull it into FTW through Zap as a proxy, which is unnecessary and not recommended. The driver now reads the P1/HAN meter only. If Zap also lists an inverter, battery or charger, it logs that and tells the operator to add those devices in FTW with their own drivers. `disable_pv` / `disable_battery` / `disable_v2x` go away because those DERs are no longer read. Sites that used Zap as the only path for an inverter or battery will lose that telemetry until they add the native FTW driver.
+
 ### Removed
 - **`foxess` (H1/H3 11000-range map) — removed untested.** Every tested_devices entry said "Community driver, untested", and no hardware has ever validated the map. This is not a clean supersession: `foxess_h3_smart` covers the 1K5-HI and H3-Smart families, not the H1 / H3 / H3-PRO / AIO-H3 families the old driver claimed — those lose their only, unvalidated, listing. The removal is still right on this vendor's hardware behaviour: a Fox ESS inverter answers unknown registers with silence, so a wrong-map driver produces no error, only timeouts — a real 1K5 answered none of the 11000-range map, and the catalog offering it anyway cost that operator a full "device not supported" detour. A catalog that reports what is known must not list a map nobody has seen answer. H1-range coverage can return the way H3-Smart did: a driver written against hardware someone actually has.
 
