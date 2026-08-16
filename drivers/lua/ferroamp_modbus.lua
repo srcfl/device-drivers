@@ -5,7 +5,6 @@
 -- Port notes (FTW v2.1 API drift vs hugin):
 --   host.log(msg)                 → host.log("info", msg)
 --   host.decode_f32               → inline IEEE-754 (decode_f32_be, word-swap helper)
---   host.modbus_write_multiple(…) → host.modbus_write_multi(…)
 --
 -- Port: 502, Unit ID: 1 (default)
 -- Float format: IEEE 754, word-swapped (low word at lower address)
@@ -24,15 +23,16 @@ DRIVER = {
   id           = "ferroamp-modbus",
   name         = "Ferroamp EnergyHub (Modbus)",
   manufacturer = "Ferroamp",
-  version      = "2.1.1",
+  version      = "2.1.2",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
-  description  = "Ferroamp EnergyHub XL via Modbus TCP (alternative transport to drivers/ferroamp.lua).",
+  read_only    = true,
+  description  = "Read-only Ferroamp EnergyHub XL telemetry over Modbus TCP. Use the MQTT driver for battery control.",
   homepage     = "https://ferroamp.com",
   authors      = { "FTW contributors" },
   tested_models = { "EnergyHub XL" },
   verification_status = "experimental",
-  verification_notes = "Ported from sourceful-hugin. Read-only telemetry; control still goes through drivers/ferroamp.lua (MQTT). Not yet verified against live hardware.",
+  verification_notes = "Ported from sourceful-hugin. Read-only telemetry; control stays on the hardware-verified MQTT driver. The former Modbus 0 W command selected auto mode instead of holding zero and was not verified on hardware.",
   connection_defaults = {
     port    = 502,
     unit_id = 1,
@@ -77,42 +77,6 @@ local function decode_f32_ws_at(regs, idx)
     local hi = regs[idx + 1]
     if lo == nil or hi == nil then return 0 end
     return decode_f32_be(hi, lo)
-end
-
--- Encode a float32 to a word-swapped uint16 pair for Modbus holding
--- register writes. Returns {lo_word, hi_word} suitable for
--- host.modbus_write_multi. Treats non-finite inputs as 0.
-local function encode_f32_ws(value)
-    if value == 0 or value ~= value then return { 0, 0 } end  -- zero or NaN
-
-    local sign = 0
-    if value < 0 then
-        sign = 0x80000000
-        value = -value
-    end
-
-    -- Normalise to [1, 2) and track the exponent.
-    local exp = 127
-    if value >= 2 then
-        while value >= 2 do
-            value = value / 2
-            exp = exp + 1
-            if exp >= 255 then return { 0, 0 } end  -- overflow → zero
-        end
-    elseif value < 1 then
-        while value < 1 do
-            value = value * 2
-            exp = exp - 1
-            if exp <= 0 then return { 0, 0 } end    -- underflow → zero
-        end
-    end
-
-    local mantissa = math.floor((value - 1) * 0x800000 + 0.5)
-    local bits = sign + exp * 0x800000 + mantissa
-    local hi = math.floor(bits / 0x10000)
-    local lo = bits % 0x10000
-
-    return { lo, hi }  -- word-swapped: lo first, hi second
 end
 
 ----------------------------------------------------------------------------
@@ -294,78 +258,20 @@ function driver_poll()
 end
 
 ----------------------------------------------------------------------------
--- Control
+-- Read-only boundary
 ----------------------------------------------------------------------------
 
--- Battery mode at holding 6000 (uint16), power ref at holding 6064 (float32).
--- Ferroamp: Mode 0 = default/auto, Mode 1 = power-mode
--- Power ref: negative kW = charge, positive kW = discharge
---
--- Curtailment via grid power control: holding 8010 (enable), 8012 (limit W, f32),
--- 8016 (apply).
---
--- EMS convention (our side): positive power_w = charge, negative = discharge.
-function driver_command(action, power_w, cmd)
-    if action == "init" then
-        return true
-
-    elseif action == "battery" then
-        if power_w == 0 then
-            -- Zero setpoint: release to auto mode instead of holding the
-            -- inverter in forced-zero power mode.
-            host.modbus_write(6000, 0)  -- auto mode
-            host.log("debug", "Ferroamp Modbus: battery ref 0 → auto mode")
-            return true
-        end
-        -- Site convention: positive power_w = charge
-        -- Ferroamp: negative kW = charge → negate, convert W to kW
-        local ref_kw = -power_w / 1000
-        host.modbus_write_multi(6064, encode_f32_ws(ref_kw))
-        host.modbus_write(6000, 1)  -- power mode
-        host.log("debug", "Ferroamp Modbus: battery ref " .. tostring(ref_kw) .. " kW")
-        return true
-
-    elseif action == "curtail" then
-        -- Limit export to |power_w| watts
-        host.modbus_write(8010, 1)  -- enable export limit
-        host.modbus_write_multi(8012, encode_f32_ws(math.abs(power_w)))
-        host.modbus_write(8016, 1)  -- apply
-        host.log("debug", "Ferroamp Modbus: export limit " .. tostring(math.abs(power_w)) .. " W")
-        return true
-
-    elseif action == "curtail_disable" then
-        host.modbus_write(8010, 0)  -- disable export limit
-        host.modbus_write(8016, 1)  -- apply
-        return true
-
-    elseif action == "deinit" then
-        -- Restore auto mode and remove export limits
-        host.modbus_write(6000, 0)
-        host.modbus_write(8010, 0)
-        host.modbus_write(8016, 1)
-        return true
-    end
+-- The Modbus write map has not passed HIL acceptance, and its former 0 W path
+-- selected auto mode instead of holding the battery at zero. That violates
+-- Core's battery command contract. Keep this transport strictly telemetry-only;
+-- the Ferroamp MQTT driver owns the verified control path.
+function driver_command(_action, _power_w, _cmd)
     return false
 end
 
--- Watchdog fallback: revert to autonomous self-consumption (mode 0).
--- Matches drivers/ferroamp.lua's "auto" command for the MQTT variant.
 function driver_default_mode()
-    host.log("info", "Ferroamp Modbus: watchdog → auto / self-consumption")
-    local err = host.modbus_write(6000, 0)
-    if err ~= nil and err ~= "" then
-        host.log("warn", "Ferroamp Modbus: watchdog auto failed: " .. tostring(err))
-        return false
-    end
-    return true
+    -- Read-only: the driver never took control, so there is nothing to release.
 end
 
 function driver_cleanup()
-    -- Return to auto on shutdown so the device doesn't stay in a forced mode.
-    local err = host.modbus_write(6000, 0)
-    if err ~= nil and err ~= "" then
-        host.log("warn", "Ferroamp Modbus: cleanup auto failed: " .. tostring(err))
-        return false
-    end
-    return true
 end
