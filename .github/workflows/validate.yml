@@ -104,6 +104,19 @@ jobs:
               --output-dir "/tmp/device-driver-candidates/$id"
           done
 
+  # The sign-off certifies authored content, so this asks it of the commits that
+  # carry some, and skips merge commits.
+  #
+  # A pull request that falls behind main has to be brought up to date before it
+  # can merge, and the merge commit GitHub's "Update branch" button writes has no
+  # Signed-off-by trailer. Counting it made a stale pull request unmergeable
+  # until someone force-pushed a trailer onto a commit they did not write, which
+  # nobody can do on a fork this repository cannot push to. That deadlocked #65
+  # and, before it, a0d5d73 on the same branch.
+  #
+  # The trade-off is that a conflict resolved inside a merge commit is content
+  # this check no longer sees. That is the same line the upstream DCO app draws,
+  # and the reviewable content still arrives on the authored commits either side.
   dco:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -122,7 +135,11 @@ jobs:
               echo "Missing Signed-off-by: $commit" >&2
               missing=1
             fi
-          done < <(git rev-list "$BASE_SHA..$HEAD_SHA")
+          done < <(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA")
+          if [ "$missing" -ne 0 ]; then
+            echo "Sign off with 'git commit -s', or add the trailer to the commits above" >&2
+            echo "with 'git rebase --signoff $BASE_SHA' and force-push." >&2
+          fi
           exit "$missing"
 
   history-secret-scan:
