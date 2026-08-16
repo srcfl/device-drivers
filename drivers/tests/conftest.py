@@ -137,6 +137,15 @@ def read_manifest(name):
         return f.read()
 
 
+def get_driver_connectivity(name):
+    """Return the manifest's local/cloud connectivity classification."""
+    import re
+
+    match = re.search(r'^connectivity:\s*(\S+)', read_manifest(name), re.MULTILINE)
+    assert match, f"{name}: manifest has no connectivity field"
+    return match.group(1).strip('"')
+
+
 def get_driver_names():
     """Get all driver names for parametrization."""
     files = glob.glob(os.path.join(DRIVERS_DIR, "*.lua"))

@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from ftw_repository import (  # noqa: E402
     RepositoryError,
+    _load_channel,
     build_publication,
     canonical_json,
     check_publication,
@@ -263,6 +264,16 @@ def test_manifest_requires_exact_canonical_envelope_bytes(
         (
             lambda driver: driver.update(
                 read_only=True, control_enabled=False, permissions=["modbus.write"]
+            ),
+            "read-only driver has a write-capable permission",
+        ),
+        # http.post is the one write permission a read-only driver may hold,
+        # and only when its metadata declares the sign-in it was granted for.
+        # Undeclared, it is refused like any other write path.
+        (
+            lambda driver: driver.update(
+                read_only=True, control_enabled=False,
+                permissions=["http.get", "http.post"],
             ),
             "read-only driver has a write-capable permission",
         ),
@@ -683,3 +694,77 @@ def test_a_driver_that_declares_read_only_keeps_its_write_guards(
     assert sdm630["permissions"] == ["modbus.read"]
     assert sdm630["read_only"] is True
     assert sdm630["control_enabled"] is False
+
+
+def test_a_read_only_driver_may_still_sign_in(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    """Reading after authenticating is still reading.
+
+    myuplink cannot actuate anything -- driver_command refuses every command it
+    is handed -- but it reads nothing until it has exchanged a refresh token,
+    and it exchanges it with a POST. Denying that POST would have cost a
+    read-only driver every reading it takes, so read-only would have been
+    unusable for the drivers that most obviously deserve it.
+    """
+    manifest, output = build(tmp_path, keypair)
+    myuplink = next(d for d in manifest["drivers"] if d["id"] == "myuplink")
+    artifact = (output / Path(myuplink["url"]).name).read_text()
+
+    assert myuplink["read_only"] is True
+    assert myuplink["control_enabled"] is False
+    assert myuplink["metadata"]["auth_post_path"] == "/oauth/token"
+    assert "http.post" in myuplink["permissions"]
+
+    # The exemption is scoped, not a hole: POST reaches the real host function
+    # only for a URL ending in the declared path.
+    assert 'local __sourceful_ftw_auth_path = "/oauth/token"' in artifact
+    assert "path:sub(-#__sourceful_ftw_auth_path) == __sourceful_ftw_auth_path" in artifact
+    assert "POST is allowed only for authentication" in artifact
+    # Everything else a read-only driver must not do is still refused.
+    for denied in ("modbus_write", "modbus_write_multi", "mqtt_publish", "serial_write"):
+        assert f"host.{denied} = __sourceful_ftw_write_denied" in artifact
+
+
+def test_signing_in_is_declared_or_it_does_not_happen(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    """A read-only driver that declares nothing keeps the blanket denial."""
+    manifest, output = build(tmp_path, keypair)
+    exempt = []
+    for driver in manifest["drivers"]:
+        if not driver["read_only"]:
+            continue
+        artifact = (output / Path(driver["url"]).name).read_text()
+        if "host.http_post = __sourceful_ftw_write_denied" not in artifact:
+            exempt.append(driver["id"])
+        else:
+            assert "auth_post_path" not in driver["metadata"], driver["id"]
+            assert "http.post" not in driver["permissions"], driver["id"]
+    assert exempt == ["myuplink"], f"unexpected drivers allowed to POST: {exempt}"
+
+
+def test_auth_post_path_must_be_a_path_and_must_mean_something(
+    tmp_path: Path
+) -> None:
+    """Two ways to declare it wrongly, both refused while building."""
+    repo, config_path = single_driver_repo(tmp_path, "myuplink")
+    source = repo / "drivers" / "lua" / "myuplink.lua"
+    original = source.read_text(encoding="utf-8")
+
+    # A whole URL rather than a path: the guard matches on the path, so a URL
+    # here would silently never match and the driver could not sign in.
+    source.write_text(
+        original.replace('auth_post_path = "/oauth/token"',
+                         'auth_post_path = "https://api.myuplink.com/oauth/token"'),
+        encoding="utf-8")
+    with pytest.raises(RepositoryError, match="must be a path beginning with"):
+        _load_channel(config_path, repo)
+
+    # Declared on a driver that is not read-only, where it exempts nothing.
+    source.write_text(
+        original.replace("  read_only    = true,\n", ""), encoding="utf-8")
+    with pytest.raises(RepositoryError, match="only means anything with read_only"):
+        _load_channel(config_path, repo)
+
+    source.write_text(original, encoding="utf-8")
