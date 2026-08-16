@@ -741,6 +741,22 @@ DRIVER = {
 
 
 @pytest.mark.parametrize(
+    "comment",
+    (
+        "-- line comment\n  ",
+        "--[[ block comment ]] ",
+        "--[=[ long block comment ]=] ",
+    ),
+)
+def test_controls_field_skips_comments_before_assignment(comment: str) -> None:
+    body = f'''\
+  controls {comment}= {{ {{ id = "set_limit" }} }},
+'''
+
+    assert _lua_has_top_level_field(body, "controls")
+
+
+@pytest.mark.parametrize(
     "scoped_decoy",
     (
         'local function helper()\n  DRIVER = { id = "function" }\nend\n',
@@ -763,9 +779,18 @@ def test_driver_locator_skips_block_scoped_decoys(scoped_decoy: str) -> None:
     assert _lua_has_top_level_field(body, "controls")
 
 
+@pytest.mark.parametrize(
+    "controls_assignment_comment",
+    (
+        "-- line comment\n  ",
+        "--[[ block comment ]] ",
+        "--[=[ long block comment ]=] ",
+    ),
+)
 @pytest.mark.skipif(not (ROOT / "lua55").exists(), reason="run make check to build ./lua55")
 def test_evaluated_controls_survive_source_scope(
     tmp_path: Path,
+    controls_assignment_comment: str,
 ) -> None:
     repo, config_path = single_driver_repo(tmp_path, "sungrow")
     source = repo / "drivers" / "lua" / "sungrow.lua"
@@ -805,7 +830,7 @@ local declared_controls = {
             '  connection_defaults = {\n'
             '    controls = { { id = "nested_control" } },\n'
             '  },\n'
-            "  controls = declared_controls,\n",
+            f"  controls {controls_assignment_comment}= declared_controls,\n",
         ),
         encoding="utf-8",
     )

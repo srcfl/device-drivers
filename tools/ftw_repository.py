@@ -190,6 +190,20 @@ def _lua_skip_comment_or_string(source: str, start: int) -> int | None:
     return None
 
 
+def _lua_skip_whitespace_and_comments(source: str, start: int) -> int:
+    """Return the next Lua token after whitespace and comments."""
+    cursor = start
+    while True:
+        while cursor < len(source) and source[cursor].isspace():
+            cursor += 1
+        if not source.startswith("--", cursor):
+            return cursor
+        skipped = _lua_skip_comment_or_string(source, cursor)
+        if skipped is None:
+            return cursor
+        cursor = skipped
+
+
 def _lua_named_table_body(source: str, name: str) -> str | None:
     table_depth = 0
     block_depth = 0
@@ -288,9 +302,7 @@ def _lua_has_top_level_field(body: str, name: str) -> bool:
             while end < len(body) and (body[end].isalnum() or body[end] == "_"):
                 end += 1
             if body[i:end] == name:
-                assignment = end
-                while assignment < len(body) and body[assignment].isspace():
-                    assignment += 1
+                assignment = _lua_skip_whitespace_and_comments(body, end)
                 if body[assignment:assignment + 1] == "=" and body[
                     assignment + 1:assignment + 2
                 ] != "=":
