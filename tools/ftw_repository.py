@@ -268,8 +268,13 @@ def _lua_string_list(values: list[str]) -> str:
     return "{ " + ", ".join(_lua_string(value) for value in values) + " }"
 
 
-def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool,
-                  auth_post_path: str = "") -> bytes:
+def _ftw_artifact(
+    raw: bytes,
+    metadata: dict[str, Any],
+    read_only: bool,
+    auth_post_path: str = "",
+    controls_body: str | None = None,
+) -> bytes:
     """Add FTW metadata and the host-call polyfills older hosts lack.
 
     A driver the catalog marks control: true keeps its control functions. The
@@ -317,6 +322,8 @@ def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool,
             fields.append(f"    {name} = {_lua_string(value)},")
     if tested_models:
         fields.append(f"    tested_models = {_lua_string_list(tested_models)},")
+    if controls_body is not None:
+        fields.append("    controls = {" + controls_body + "},")
 
     # A driver that declares itself read-only keeps the guards: those are
     # meters and telemetry gateways stating what they are. A driver the catalog
@@ -576,8 +583,16 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
         if auth_post_path and not controls:
             metadata["auth_post_path"] = auth_post_path
 
-        artifact = _ftw_artifact(raw, metadata, read_only=not controls,
-                                 auth_post_path=auth_post_path if not controls else "")
+        controls_body = (
+            _lua_named_table_body(body, "controls") if body and controls else None
+        )
+        artifact = _ftw_artifact(
+            raw,
+            metadata,
+            read_only=not controls,
+            auth_post_path=auth_post_path if not controls else "",
+            controls_body=controls_body,
+        )
         if len(artifact) > MAX_DRIVER_BYTES:
             raise RepositoryError(f"{driver_id}: generated FTW artifact is too large")
 

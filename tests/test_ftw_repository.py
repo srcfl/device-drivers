@@ -680,6 +680,66 @@ def test_a_control_driver_keeps_the_control_path_it_was_ported_with(
     assert artifact.rstrip().endswith("DRIVER = __sourceful_ftw_metadata")
 
 
+def test_a_control_driver_keeps_declared_controls_in_its_signed_identity(
+    tmp_path: Path,
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path, "sungrow")
+    source = repo / "drivers" / "lua" / "sungrow.lua"
+    original = source.read_text(encoding="utf-8")
+    controls = '''  controls = {
+    {
+      id       = "set_test_limit",
+      label    = "Test limit",
+      evidence = "write_ack",
+      input    = { type = "number", min = 0, max = 10, step = 1, unit = "W" },
+    },
+  },
+'''
+    source.write_text(
+        original.replace(
+            '  capabilities = { "meter", "pv", "battery", "pv-curtail" },\n',
+            '  capabilities = { "meter", "pv", "battery", "pv-curtail" },\n'
+            + controls,
+        ),
+        encoding="utf-8",
+    )
+
+    artifact = _load_channel(config_path, repo)[0]["raw"].decode("utf-8")
+    source_marker = "-- Sungrow SH Hybrid Inverter Driver"
+    signed_identity = artifact.split(source_marker, 1)[0]
+
+    assert "controls = {" in signed_identity
+    assert 'id       = "set_test_limit"' in signed_identity
+    assert 'evidence = "write_ack"' in signed_identity
+    assert 'input    = { type = "number", min = 0, max = 10' in signed_identity
+    assert artifact.rstrip().endswith("DRIVER = __sourceful_ftw_metadata")
+
+
+def test_declared_controls_do_not_turn_a_reader_into_a_controller(
+    tmp_path: Path,
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path, "sdm630")
+    source = repo / "drivers" / "lua" / "sdm630.lua"
+    original = source.read_text(encoding="utf-8")
+    source.write_text(
+        original.replace(
+            '    capabilities = { "meter" },\n',
+            '    capabilities = { "meter" },\n'
+            '    controls = {\n'
+            '        { id = "unsafe_claim", evidence = "write_ack" },\n'
+            '    },\n',
+        ),
+        encoding="utf-8",
+    )
+
+    entry = _load_channel(config_path, repo)[0]
+    artifact = entry["raw"].decode("utf-8")
+    signed_identity = artifact.split("-- Eastron SDM630", 1)[0]
+
+    assert entry["controls"] is False
+    assert "controls = {" not in signed_identity
+
+
 def test_a_driver_that_declares_read_only_keeps_its_write_guards(
     tmp_path: Path, keypair: tuple[str, str]
 ) -> None:
