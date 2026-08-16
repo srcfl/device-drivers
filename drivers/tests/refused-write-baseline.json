@@ -21,8 +21,6 @@
   "drivers": {
     "atmoce": 1,
     "deye": 1,
-    "ferroamp_modbus": 1,
-    "huawei": 1,
     "pixii": 1,
     "sigenergy": 1,
     "solaredge": 1,

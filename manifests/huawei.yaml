@@ -1,11 +1,11 @@
 name: "huawei"
-version: "2.1.1"
+version: "2.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
 ders: [battery, meter, pv]
-control: true
+control: false
 tested_devices:
   - manufacturer: "Huawei"
     model_family: "SUN2000 (Single-Phase)"
@@ -43,9 +43,9 @@ tested_devices:
     notes: "C&I aggregator gateway, Modbus TCP server"
     min_driver_version: "1.3.0"
 min_host_version: "2.0.0"
-size_bytes: 15257
+size_bytes: 13084
 dkb_id: "huawei_sun2000"
-sha256: "0bfdeadf96fc9076d7214f5b751886984f049efde59a9a7c8cb6c01928702aa5"
+sha256: "050ae3f17acd59e1d3b39aeb0d0246ebe55e75e9e0207f4e7029edfc821152f9"
 signature: ""
 
 bytecode_sha256: ""
