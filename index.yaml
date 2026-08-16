@@ -211,8 +211,8 @@ drivers:
     connectivity: local
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 11099
-    sha256: "0c9f7a817335976aeb45725048006e0b40abd51347d418d0047292c2071e1fe1"
+    size_bytes: 11190
+    sha256: "c5b0ed1bb867b93861406740832a329454195f90f580d8f032b7777b54959996"
   - name: "foxess_h3_smart"
     version: "0.9.3"
     tier: community
@@ -321,8 +321,8 @@ drivers:
     connectivity: local
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 12993
-    sha256: "4ad38826b000fdef0bedd77f1c18aaaffb097abade94c48506b789d0d45ec224"
+    size_bytes: 13084
+    sha256: "050ae3f17acd59e1d3b39aeb0d0246ebe55e75e9e0207f4e7029edfc821152f9"
   - name: "janitza"
     version: "1.0.5"
     tier: community

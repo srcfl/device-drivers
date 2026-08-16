@@ -15,9 +15,9 @@ tested_devices:
     notes: "Modbus TCP must be enabled by Ferroamp support. Port 502, Unit ID 1. Word-swapped float32."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 11099
+size_bytes: 11190
 dkb_id: "ferroamp_modbus"
-sha256: "0c9f7a817335976aeb45725048006e0b40abd51347d418d0047292c2071e1fe1"
+sha256: "c5b0ed1bb867b93861406740832a329454195f90f580d8f032b7777b54959996"
 signature: ""
 
 bytecode_sha256: ""
