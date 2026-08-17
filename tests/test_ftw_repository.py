@@ -757,6 +757,30 @@ def test_controls_field_skips_comments_before_assignment(comment: str) -> None:
 
 
 @pytest.mark.parametrize(
+    "driver_assignment_comment",
+    (
+        "-- line comment\n  ",
+        "--[[ block comment ]] ",
+        "--[=[ long block comment ]=] ",
+    ),
+)
+def test_driver_locator_skips_comments_around_assignment(
+    driver_assignment_comment: str,
+) -> None:
+    source = f'''DRIVER {driver_assignment_comment}= {{
+  id = "real",
+  controls = {{ {{ id = "set_limit" }} }},
+}}
+'''
+
+    body = _lua_named_table_body(source, "DRIVER")
+
+    assert body is not None
+    assert 'id = "real"' in body
+    assert _lua_has_top_level_field(body, "controls")
+
+
+@pytest.mark.parametrize(
     "scoped_decoy",
     (
         'local function helper()\n  DRIVER = { id = "function" }\nend\n',

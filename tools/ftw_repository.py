@@ -240,17 +240,13 @@ def _lua_named_table_body(source: str, name: str) -> str | None:
             if table_depth != 0 or block_depth != 0 or word != name:
                 i = end
                 continue
-            assignment = end
-            while assignment < len(source) and source[assignment].isspace():
-                assignment += 1
+            assignment = _lua_skip_whitespace_and_comments(source, end)
             if source[assignment:assignment + 1] != "=" or source[
                 assignment + 1:assignment + 2
             ] == "=":
                 i = end
                 continue
-            start = assignment + 1
-            while start < len(source) and source[start].isspace():
-                start += 1
+            start = _lua_skip_whitespace_and_comments(source, assignment + 1)
             if source[start:start + 1] != "{":
                 i = end
                 continue
