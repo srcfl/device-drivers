@@ -48,8 +48,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ferroamp | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ferroamp_dc2_v2x | 2.1.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ferroamp_dc2_v2x | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| ferroamp_modbus | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| ferroamp_modbus | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| ferroamp_modbus | 2.1.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| ferroamp_modbus | 2.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | foxess_h3_smart | 0.9.3 | ftw-core | not_assessed | 0.9.3 | — | not_recorded | — | not_assessed | yes |
 | foxess_h3_smart | 0.9.3 | blixt-l1 | not_assessed | 0.9.3 | — | not_recorded | — | not_assessed | yes |
 | fronius | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -72,8 +72,8 @@ Catalog source is not proof that a target can install or run a driver.
 | heishamon | 0.5.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hello | 1.1.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hello | 1.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| huawei | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| huawei | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| huawei | 2.1.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| huawei | 2.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | janitza | 1.0.5 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | janitza | 1.0.5 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

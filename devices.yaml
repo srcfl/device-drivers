@@ -380,9 +380,9 @@ manufacturers:
             control: true
           - protocol: modbus
             driver: "ferroamp_modbus"
-            version: "2.1.1"
+            version: "2.1.2"
             ders: [battery, meter, pv]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "MQTT broker on the EnergyHub, port 1883 with default auth."
   - name: "Fox ESS"
@@ -663,9 +663,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.1"
+            version: "2.1.2"
             ders: [battery, meter, pv]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "High-voltage lithium battery modules (5/10/15 kWh)"
       - name: "SUN2000 (Single-Phase)"
@@ -674,9 +674,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.1"
+            version: "2.1.2"
             ders: [battery, meter, pv]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Single-phase residential inverter"
       - name: "SUN2000 (Three-Phase Commercial)"
@@ -685,9 +685,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.1"
+            version: "2.1.2"
             ders: [battery, meter, pv]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Three-phase commercial string inverter"
       - name: "SUN2000 (Three-Phase Residential)"
@@ -696,9 +696,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.1"
+            version: "2.1.2"
             ders: [battery, meter, pv]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Three-phase residential inverter, tested with SUN2000-10KTL-M1"
       - name: "SmartLogger"
@@ -707,9 +707,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.1"
+            version: "2.1.2"
             ders: [battery, meter, pv]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "C&I aggregator gateway, Modbus TCP server"
   - name: "Iskraemeco"

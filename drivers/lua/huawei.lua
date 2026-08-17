@@ -23,15 +23,16 @@ DRIVER = {
   id           = "huawei-sun2000",
   name         = "Huawei SUN2000 Hybrid Inverter",
   manufacturer = "Huawei",
-  version      = "2.1.1",
+  version      = "2.1.2",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
-  description  = "Huawei SUN2000 hybrid inverters with LUNA2000 battery via Modbus TCP.",
+  read_only    = true,
+  description  = "Huawei SUN2000 hybrid inverter telemetry with LUNA2000 battery via Modbus TCP. Read-only until a held-zero command is verified on hardware.",
   homepage     = "https://solar.huawei.com",
   authors      = { "FTW contributors" },
   tested_models = { "SUN2000L1", "SUN2000-LUNA2000" },
   verification_status = "experimental",
-  verification_notes = "Ported from a reference implementation. Not yet verified against live hardware on a FTW site.",
+  verification_notes = "Ported from a reference implementation. No model or firmware HIL record exists for the former control path. Its 0 W command wrote stop-forcible-mode, which releases the inverter to self-consumption instead of holding zero. Control stays disabled until a named SUN2000/LUNA2000 model and firmware prove held zero and a safe release.",
   connection_defaults = {
     port    = 502,
     unit_id = 1,
@@ -45,15 +46,6 @@ local sn_read = false
 ----------------------------------------------------------------------------
 -- Helpers
 ----------------------------------------------------------------------------
-
--- Write a U32 value split across two consecutive holding registers (BE).
--- Used for forcible charge/discharge power targets (watts).
-local function write_u32(addr, val)
-    val = math.floor(math.abs(val))
-    local hi = math.floor(val / 65536)
-    local lo = val % 65536
-    host.modbus_write_multi(addr, { hi, lo })
-end
 
 -- Decode a 10-register ASCII string (20 bytes, big-endian packing).
 -- Skips bytes outside printable ASCII.
@@ -336,80 +328,23 @@ function driver_poll()
 end
 
 ----------------------------------------------------------------------------
--- Battery control
+-- Read-only boundary
 ----------------------------------------------------------------------------
 
--- Battery control command handler.
--- Site convention: positive power_w = charge, negative = discharge, 0 = idle.
--- Huawei forcible-mode registers (all holding):
---   47086: working mode (2 = maximise self-consumption)
---   47100: forcible charge/discharge command (0=stop, 1=charge, 2=discharge)
---   47083: forcible charge/discharge period (minutes; must be re-sent each command)
---   47246: forcible-mode kind (0 = duration-based)
---   47247-47248: forcible charge power (U32, watts)
---   47249-47250: forcible discharge power (U32, watts)
-function driver_command(action, power_w, cmd)
-    if action == "init" then
-        -- Duration-based forcible mode, 24 h cap so we don't need to re-arm often.
-        host.modbus_write(47246, 0)
-        host.modbus_write(47083, 1440)
-        return true
-    elseif action == "battery" then
-        return set_battery_power(power_w)
-    elseif action == "curtail" then
-        -- Force charge to absorb excess PV.
-        write_u32(47247, math.abs(power_w))
-        host.modbus_write(47083, 1440)
-        host.modbus_write(47100, 1)
-        host.log("debug", "Huawei: curtail (force charge) " .. tostring(math.abs(power_w)) .. "W")
-        return true
-    elseif action == "curtail_disable" then
-        host.modbus_write(47100, 0)
-        host.log("debug", "Huawei: curtail_disable")
-        return true
-    elseif action == "deinit" then
-        return set_self_consumption()
-    end
+-- A 0 W Huawei forcible command is a release to the inverter's native
+-- self-consumption mode, not a held battery setpoint. Core uses 0 W as an
+-- enforceable hold, so exposing the former write path made an idle/export slot
+-- look controlled while the inverter could still absorb PV on its own.
+-- Keep every command inert until a real SUN2000/LUNA2000 rig proves a distinct
+-- held-zero sequence and its safe default.
+function driver_command(_action, _power_w, _cmd)
     return false
 end
 
--- Drive the battery to a specific setpoint.
--- power_w > 0: forcible charge at power_w W
--- power_w < 0: forcible discharge at |power_w| W
--- power_w = 0: stop forcible mode (device resumes self-consumption).
-function set_battery_power(power_w)
-    if power_w > 0 then
-        write_u32(47247, power_w)
-        host.modbus_write(47083, 1440)
-        host.modbus_write(47100, 1)
-        host.log("debug", "Huawei: force charge " .. tostring(power_w) .. "W")
-    elseif power_w < 0 then
-        write_u32(47249, math.abs(power_w))
-        host.modbus_write(47083, 1440)
-        host.modbus_write(47100, 2)
-        host.log("debug", "Huawei: force discharge " .. tostring(math.abs(power_w)) .. "W")
-    else
-        host.modbus_write(47100, 0)
-        host.log("debug", "Huawei: stop forcible mode")
-    end
-    return true
-end
-
--- Revert to autonomous self-consumption (safe default).
-function set_self_consumption()
-    host.modbus_write(47100, 0)  -- stop forcible mode
-    host.modbus_write(47086, 2)  -- maximise self-consumption
-    host.log("debug", "Huawei: self-consumption mode")
-    return true
-end
-
--- Watchdog fallback: always revert to autonomous self-consumption.
 function driver_default_mode()
-    host.log("info", "Huawei: watchdog -> reverting to self-consumption")
-    set_self_consumption()
+    -- Read-only: the driver never took control, so there is nothing to release.
 end
 
 function driver_cleanup()
-    set_self_consumption()
     sn_read = false
 end

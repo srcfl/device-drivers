@@ -618,7 +618,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.1",
+      "catalog_version": "2.1.2",
       "driver_id": "ferroamp_modbus",
       "package_id": null,
       "targets": {
@@ -954,7 +954,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.1",
+      "catalog_version": "2.1.2",
       "driver_id": "huawei",
       "package_id": null,
       "targets": {
