@@ -23,6 +23,9 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from ftw_repository import (  # noqa: E402
     RepositoryError,
+    _ftw_artifact,
+    _lua_has_top_level_field,
+    _lua_named_table_body,
     _load_channel,
     build_publication,
     canonical_json,
@@ -675,9 +678,253 @@ def test_a_control_driver_keeps_the_control_path_it_was_ported_with(
     assert sungrow["permissions"] == ["modbus.read", "modbus.write"]
     assert sungrow["read_only"] is False
     assert sungrow["control_enabled"] is True
-    # The signed identity is still reasserted after the source loads, so a
-    # driver cannot rename itself into another driver's slot.
+    # The signed identity is reasserted after the source loads, so a driver
+    # without declared controls keeps the published artifact bytes unchanged.
     assert artifact.rstrip().endswith("DRIVER = __sourceful_ftw_metadata")
+    entry = next(
+        entry for entry in _load_channel(ROOT / "ftw-channel.json", ROOT)
+        if entry["id"] == "sungrow"
+    )
+    expected = _ftw_artifact(
+        (ROOT / "drivers" / "lua" / "sungrow.lua").read_bytes(),
+        entry["metadata"],
+        read_only=False,
+    ).decode("utf-8")
+    assert artifact == expected
+
+
+def test_nested_or_commented_controls_do_not_change_a_control_artifact(
+    tmp_path: Path,
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path, "sungrow")
+    source = repo / "drivers" / "lua" / "sungrow.lua"
+    source.write_text(
+        source.read_text(encoding="utf-8").replace(
+            '  capabilities = { "meter", "pv", "battery", "pv-curtail" },\n',
+            '  capabilities = { "meter", "pv", "battery", "pv-curtail" },\n'
+            '  -- controls = { { id = "commented_control" } },\n'
+            '  --[[ controls = { { id = "block_comment_control" } } ]]\n'
+            '  --[=[ controls = { { id = "long_block_comment_control" } } ]=]\n'
+            '  connection_defaults = {\n'
+            '    controls = { { id = "nested_control" } },\n'
+            '  },\n',
+        ),
+        encoding="utf-8",
+    )
+
+    entry = _load_channel(config_path, repo)[0]
+    expected = _ftw_artifact(
+        source.read_bytes(), entry["metadata"], read_only=False
+    )
+
+    assert entry["controls"] is True
+    assert entry["raw"] == expected
+    assert "__sourceful_ftw_controls" not in entry["raw"].decode("utf-8")
+
+
+def test_driver_locator_skips_non_module_decoys() -> None:
+    source = '''-- DRIVER = { id = "commented" }
+--[=[ DRIVER = { id = "long-commented" } ]=]
+local example = "DRIVER = { id = 'quoted' }"
+local nested = { DRIVER = { id = "nested" } }
+DRIVER = {
+  id = "real",
+  controls = { { id = "set_limit" } },
+}
+'''
+
+    body = _lua_named_table_body(source, "DRIVER")
+
+    assert body is not None
+    assert 'id = "real"' in body
+    assert _lua_has_top_level_field(body, "controls")
+
+
+@pytest.mark.parametrize(
+    "comment",
+    (
+        "-- line comment\n  ",
+        "--[[ block comment ]] ",
+        "--[=[ long block comment ]=] ",
+    ),
+)
+def test_controls_field_skips_comments_before_assignment(comment: str) -> None:
+    body = f'''\
+  controls {comment}= {{ {{ id = "set_limit" }} }},
+'''
+
+    assert _lua_has_top_level_field(body, "controls")
+
+
+@pytest.mark.parametrize(
+    "driver_assignment_comment",
+    (
+        "-- line comment\n  ",
+        "--[[ block comment ]] ",
+        "--[=[ long block comment ]=] ",
+    ),
+)
+def test_driver_locator_skips_comments_around_assignment(
+    driver_assignment_comment: str,
+) -> None:
+    source = f'''DRIVER {driver_assignment_comment}= {{
+  id = "real",
+  controls = {{ {{ id = "set_limit" }} }},
+}}
+'''
+
+    body = _lua_named_table_body(source, "DRIVER")
+
+    assert body is not None
+    assert 'id = "real"' in body
+    assert _lua_has_top_level_field(body, "controls")
+
+
+@pytest.mark.parametrize(
+    "scoped_decoy",
+    (
+        'local function helper()\n  DRIVER = { id = "function" }\nend\n',
+        'do\n  local hidden = true\n  DRIVER = { id = "block" }\nend\n',
+        'if false then\n  DRIVER = { id = "if" }\nend\n',
+        'repeat\n  DRIVER = { id = "repeat" }\nuntil true\n',
+    ),
+)
+def test_driver_locator_skips_block_scoped_decoys(scoped_decoy: str) -> None:
+    source = scoped_decoy + '''DRIVER = {
+  id = "real",
+  controls = { { id = "set_limit" } },
+}
+'''
+
+    body = _lua_named_table_body(source, "DRIVER")
+
+    assert body is not None
+    assert 'id = "real"' in body
+    assert _lua_has_top_level_field(body, "controls")
+
+
+@pytest.mark.parametrize(
+    "controls_assignment_comment",
+    (
+        "-- line comment\n  ",
+        "--[[ block comment ]] ",
+        "--[=[ long block comment ]=] ",
+    ),
+)
+@pytest.mark.skipif(not (ROOT / "lua55").exists(), reason="run make check to build ./lua55")
+def test_evaluated_controls_survive_source_scope(
+    tmp_path: Path,
+    controls_assignment_comment: str,
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path, "sungrow")
+    source = repo / "drivers" / "lua" / "sungrow.lua"
+    original = source.read_text(encoding="utf-8")
+    decoys = '''-- DRIVER = { id = "commented_driver" }
+local example = "DRIVER = { id = 'quoted_driver' }"
+local function helper()
+  DRIVER = { id = "function_driver" }
+end
+do
+  local hidden = true
+  DRIVER = { id = "block_driver" }
+end
+
+'''
+    controls = '''local MINIMUM = -3
+local SPAN = 13
+local type = false
+local declared_controls = {
+  {
+    id       = "set_test_limit",
+    label    = "Test limit",
+    evidence = "write_ack",
+    input    = { type = "number", min = MINIMUM, max = MINIMUM + SPAN, step = 1, unit = "W" },
+  },
+}
+
+'''
+    source_with_controls = decoys + original.replace(
+        "DRIVER = {\n", controls + "DRIVER = {\n"
+    )
+    source.write_text(
+        source_with_controls.replace(
+            '  capabilities = { "meter", "pv", "battery", "pv-curtail" },\n',
+            '  capabilities = { "meter", "pv", "battery", "pv-curtail" },\n'
+            '  -- controls = { { id = "commented_control" } },\n'
+            '  connection_defaults = {\n'
+            '    controls = { { id = "nested_control" } },\n'
+            '  },\n'
+            f"  controls {controls_assignment_comment}= declared_controls,\n",
+        ),
+        encoding="utf-8",
+    )
+
+    artifact = _load_channel(config_path, repo)[0]["raw"].decode("utf-8")
+    source_marker = "-- Sungrow SH Hybrid Inverter Driver"
+    prefix, source_and_suffix = artifact.split(source_marker, 1)
+    source_body, suffix = source_and_suffix.rsplit(
+        "-- Reassert the signed FTW identity after source load.", 1
+    )
+
+    assert "nested_control" not in prefix
+    assert "commented_control" not in prefix
+    assert "MINIMUM" not in prefix
+    assert "nested_control" in source_body
+    assert source_body.index("local MINIMUM") < source_body.index("DRIVER = {")
+    assert "declared_controls" in source_body
+    assert "local type = false" in source_body
+    assert "DRIVER.controls = __sourceful_ftw_controls" in suffix
+    assert "local __sourceful_ftw_controls" in suffix
+    assert suffix.index("local __sourceful_ftw_controls") < suffix.index(
+        "DRIVER = __sourceful_ftw_metadata"
+    )
+
+    artifact_path = tmp_path / "sungrow.lua"
+    artifact_path.write_text(artifact, encoding="utf-8")
+    runtime = subprocess.run(
+        [
+            str(ROOT / "lua55"),
+            "-e",
+            "\n".join(
+                (
+                    "host = { log = function() end }",
+                    f"dofile({json.dumps(str(artifact_path))})",
+                    'assert(DRIVER.controls[1].id == "set_test_limit")',
+                    "assert(DRIVER.controls[1].input.min == -3)",
+                    "assert(DRIVER.controls[1].input.max == 10)",
+                )
+            ),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert runtime.returncode == 0, runtime.stderr
+
+
+def test_declared_controls_do_not_turn_a_reader_into_a_controller(
+    tmp_path: Path,
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path, "sdm630")
+    source = repo / "drivers" / "lua" / "sdm630.lua"
+    original = source.read_text(encoding="utf-8")
+    source.write_text(
+        original.replace(
+            '    capabilities = { "meter" },\n',
+            '    capabilities = { "meter" },\n'
+            '    controls = {\n'
+            '        { id = "unsafe_claim", evidence = "write_ack" },\n'
+            '    },\n',
+        ),
+        encoding="utf-8",
+    )
+
+    entry = _load_channel(config_path, repo)[0]
+    artifact = entry["raw"].decode("utf-8")
+    signed_identity = artifact.split("-- Eastron SDM630", 1)[0]
+
+    assert entry["controls"] is False
+    assert "controls = {" not in signed_identity
 
 
 def test_a_driver_that_declares_read_only_keeps_its_write_guards(

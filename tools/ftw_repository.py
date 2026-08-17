@@ -160,38 +160,153 @@ def _write_bytes(path: Path, data: bytes) -> None:
     temporary.replace(path)
 
 
-def _lua_named_table_body(source: str, name: str) -> str | None:
-    match = re.search(rf"\b{re.escape(name)}\s*=\s*\{{", source)
-    if not match:
-        return None
-    start = match.end() - 1
-    depth = 0
-    quote: str | None = None
-    i = start
-    while i < len(source):
-        char = source[i]
-        if quote:
-            if char == "\\":
+def _lua_skip_comment_or_string(source: str, start: int) -> int | None:
+    """Return the index after a Lua comment or string starting at ``start``."""
+    if source.startswith("--", start):
+        content_start = start + 2
+        long = re.match(r"\[(=*)\[", source[content_start:])
+        if long:
+            close = "]" + long.group(1) + "]"
+            end = source.find(close, content_start + len(long.group(0)))
+            return len(source) if end < 0 else end + len(close)
+        newline = source.find("\n", content_start)
+        return len(source) if newline < 0 else newline + 1
+    if source[start] in {'"', "'"}:
+        quote = source[start]
+        i = start + 1
+        while i < len(source):
+            if source[i] == "\\":
                 i += 2
                 continue
-            if char == quote:
-                quote = None
+            if source[i] == quote:
+                return i + 1
+            i += 1
+        return len(source)
+    long = re.match(r"\[(=*)\[", source[start:])
+    if long:
+        close = "]" + long.group(1) + "]"
+        end = source.find(close, start + len(long.group(0)))
+        return len(source) if end < 0 else end + len(close)
+    return None
+
+
+def _lua_skip_whitespace_and_comments(source: str, start: int) -> int:
+    """Return the next Lua token after whitespace and comments."""
+    cursor = start
+    while True:
+        while cursor < len(source) and source[cursor].isspace():
+            cursor += 1
+        if not source.startswith("--", cursor):
+            return cursor
+        skipped = _lua_skip_comment_or_string(source, cursor)
+        if skipped is None:
+            return cursor
+        cursor = skipped
+
+
+def _lua_named_table_body(source: str, name: str) -> str | None:
+    table_depth = 0
+    block_depth = 0
+    i = 0
+    while i < len(source):
+        skipped = _lua_skip_comment_or_string(source, i)
+        if skipped is not None:
+            i = skipped
+            continue
+        char = source[i]
+        if char == "{":
+            table_depth += 1
             i += 1
             continue
-        if source.startswith("--", i):
-            newline = source.find("\n", i + 2)
-            i = len(source) if newline < 0 else newline + 1
+        if char == "}":
+            table_depth -= 1
+            i += 1
             continue
-        if char in {'"', "'"}:
-            quote = char
-        elif char == "{":
-            depth += 1
-        elif char == "}":
-            depth -= 1
-            if depth == 0:
-                return source[start + 1 : i]
+        if char.isalpha() or char == "_":
+            end = i + 1
+            while end < len(source) and (
+                source[end].isalnum() or source[end] == "_"
+            ):
+                end += 1
+            word = source[i:end]
+            if word in {"function", "do", "if", "repeat"}:
+                block_depth += 1
+                i = end
+                continue
+            if word in {"end", "until"}:
+                block_depth = max(0, block_depth - 1)
+                i = end
+                continue
+            if table_depth != 0 or block_depth != 0 or word != name:
+                i = end
+                continue
+            assignment = _lua_skip_whitespace_and_comments(source, end)
+            if source[assignment:assignment + 1] != "=" or source[
+                assignment + 1:assignment + 2
+            ] == "=":
+                i = end
+                continue
+            start = _lua_skip_whitespace_and_comments(source, assignment + 1)
+            if source[start:start + 1] != "{":
+                i = end
+                continue
+
+            table_depth = 0
+            cursor = start
+            while cursor < len(source):
+                skipped = _lua_skip_comment_or_string(source, cursor)
+                if skipped is not None:
+                    cursor = skipped
+                    continue
+                if source[cursor] == "{":
+                    table_depth += 1
+                elif source[cursor] == "}":
+                    table_depth -= 1
+                    if table_depth == 0:
+                        return source[start + 1 : cursor]
+                cursor += 1
+            return None
         i += 1
     return None
+
+
+def _lua_has_top_level_field(body: str, name: str) -> bool:
+    """Whether a Lua table body assigns ``name`` outside nested tables.
+
+    The signed artifact must retain a driver's resolved controls only when the
+    DRIVER table itself declares them. Comments and nested helper tables may
+    use the same word, but they are not driver metadata.
+    """
+    depth = 0
+    i = 0
+    while i < len(body):
+        skipped = _lua_skip_comment_or_string(body, i)
+        if skipped is not None:
+            i = skipped
+            continue
+        char = body[i]
+        if char == "{":
+            depth += 1
+            i += 1
+            continue
+        if char == "}":
+            depth -= 1
+            i += 1
+            continue
+        if depth == 0 and (char.isalpha() or char == "_"):
+            end = i + 1
+            while end < len(body) and (body[end].isalnum() or body[end] == "_"):
+                end += 1
+            if body[i:end] == name:
+                assignment = _lua_skip_whitespace_and_comments(body, end)
+                if body[assignment:assignment + 1] == "=" and body[
+                    assignment + 1:assignment + 2
+                ] != "=":
+                    return True
+            i = end
+            continue
+        i += 1
+    return False
 
 
 def _string_field(body: str, name: str, *, required: bool = False) -> str:
@@ -268,8 +383,13 @@ def _lua_string_list(values: list[str]) -> str:
     return "{ " + ", ".join(_lua_string(value) for value in values) + " }"
 
 
-def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool,
-                  auth_post_path: str = "") -> bytes:
+def _ftw_artifact(
+    raw: bytes,
+    metadata: dict[str, Any],
+    read_only: bool,
+    auth_post_path: str = "",
+    preserve_controls: bool = False,
+) -> bytes:
     """Add FTW metadata and the host-call polyfills older hosts lack.
 
     A driver the catalog marks control: true keeps its control functions. The
@@ -317,7 +437,6 @@ def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool,
             fields.append(f"    {name} = {_lua_string(value)},")
     if tested_models:
         fields.append(f"    tested_models = {_lua_string_list(tested_models)},")
-
     # A driver that declares itself read-only keeps the guards: those are
     # meters and telemetry gateways stating what they are. A driver the catalog
     # marks control: true keeps the control path it was ported with.
@@ -352,13 +471,17 @@ def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool,
             "host.mqtt_publish = __sourceful_ftw_write_denied\n"
             "host.serial_write = __sourceful_ftw_write_denied\n"
         )
+    builtin_type_capture = (
+        "local __sourceful_ftw_builtin_type = type\n" if preserve_controls else ""
+    )
     prefix = (
         "-- Generated by tools/ftw_repository.py from the public source and catalog.\n"
         "-- Metadata and host-call polyfills; control follows the catalog.\n"
         "local __sourceful_ftw_metadata = {\n"
         + "\n".join(fields)
         + "\n}\n"
-        "DRIVER = __sourceful_ftw_metadata\n"
+        + builtin_type_capture
+        + "DRIVER = __sourceful_ftw_metadata\n"
         + write_guards
         + "local __sourceful_ftw_log = host.log\n"
         "host.log = function(level, message)\n"
@@ -387,7 +510,23 @@ def _ftw_artifact(raw: bytes, metadata: dict[str, Any], read_only: bool,
     # Reassert the identity the artifact was signed under. A driver must not be
     # able to rename itself by assigning DRIVER at the end of its own source.
     # The control entrypoints are the driver's own, and stay that way.
-    suffix = "\n-- Reassert the signed FTW identity after source load.\nDRIVER = __sourceful_ftw_metadata\n"
+    suffix = "\n-- Reassert the signed FTW identity after source load.\n"
+    if preserve_controls:
+        # The driver may build controls from locals or expressions declared
+        # before DRIVER. Capture the evaluated top-level field after the
+        # source runs instead of copying source text into this earlier scope.
+        suffix += (
+            "local __sourceful_ftw_controls = "
+            "__sourceful_ftw_builtin_type(DRIVER) == \"table\" "
+            "and DRIVER.controls or nil\n"
+        )
+    suffix += "DRIVER = __sourceful_ftw_metadata\n"
+    if preserve_controls:
+        suffix += (
+            "if __sourceful_ftw_controls ~= nil then\n"
+            "    DRIVER.controls = __sourceful_ftw_controls\n"
+            "end\n"
+        )
     if read_only:
         suffix += (
             "function driver_command(action, value, context) return false end\n"
@@ -447,6 +586,9 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
         declares_read_only = bool(body) and re.search(
             r"^\s*read_only\s*=\s*true", body, re.MULTILINE
         ) is not None
+        declares_controls = body is not None and _lua_has_top_level_field(
+            body, "controls"
+        )
 
         # A read-only driver that has to sign in before it can read anything.
         # It names the path its token exchange goes to, and the generated guard
@@ -576,8 +718,13 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
         if auth_post_path and not controls:
             metadata["auth_post_path"] = auth_post_path
 
-        artifact = _ftw_artifact(raw, metadata, read_only=not controls,
-                                 auth_post_path=auth_post_path if not controls else "")
+        artifact = _ftw_artifact(
+            raw,
+            metadata,
+            read_only=not controls,
+            auth_post_path=auth_post_path if not controls else "",
+            preserve_controls=controls and declares_controls,
+        )
         if len(artifact) > MAX_DRIVER_BYTES:
             raise RepositoryError(f"{driver_id}: generated FTW artifact is too large")
 
