@@ -7,6 +7,16 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Spec
+
+- `spec/host-api-profile.json`: add the Blixt L1 control-headroom emit keys
+  `battery.available_charge_W` / `available_discharge_W` and
+  `inverter.available_import_W` / `available_export_W` (read verbatim by the
+  L1 arbitrator clamp — no lowercase fallback), and document that `inverter`
+  is a reporting stream of a battery/hybrid driver rather than a DER type.
+  Emit-type tests now accept the `inverter` stream without requiring it in
+  `ders`.
+
 ### Changed
 - **`huawei` 2.1.2 and `ferroamp_modbus` 2.1.2 are now telemetry-only.** Both drivers exposed battery control without a hardware-verified way to hold 0 W: Huawei's stop command returned the inverter to self-consumption, and Ferroamp Modbus selected auto mode. FTW uses 0 W as an enforced battery hold, so either path could let native charging continue during an idle plan slot. The Lua boundary now refuses every command and performs no writes during command, default or cleanup. Huawei control can return after a SUN2000/LUNA2000 test proves held charge, discharge and zero plus a safe release. Ferroamp control remains available through the hardware-verified MQTT driver; its Modbus path needs the same proof before it can write again.
 - **zap** 3.0.0 — **Zap is the P1/HAN site meter for FTW, nothing else.** The previous driver ingested every PV, battery and V2X DER attached to the gateway. That let people add an inverter to Zap and then pull it into FTW through Zap as a proxy, which is unnecessary and not recommended. The driver now reads the P1/HAN meter only. If Zap also lists an inverter, battery or charger, it logs that and tells the operator to add those devices in FTW with their own drivers. `disable_pv` / `disable_battery` / `disable_v2x` go away because those DERs are no longer read. Sites that used Zap as the only path for an inverter or battery will lose that telemetry until they add the native FTW driver.

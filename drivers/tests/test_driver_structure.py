@@ -222,7 +222,10 @@ class TestVariableScoping:
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
-        valid_types = valid_ders()
+        # `inverter` is a reporting stream, not a DER (spec/host-api-profile.json
+        # emit_keys.streams_vs_ders): a battery/hybrid driver emits its AC stage
+        # there while still declaring ders: [battery].
+        valid_types = valid_ders() | {"inverter"}
         emit_matches = re.findall(r'host\.emit\s*\(\s*"(\w+)"', clean)
 
         for der_type in emit_matches:
