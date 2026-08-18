@@ -32,6 +32,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ctek_hybrid | 0.3.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ctek_v2 | 0.3.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ctek_v2 | 0.3.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| deye-svk | 0.2.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| deye-svk | 0.2.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | deye | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | deye | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | easee | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

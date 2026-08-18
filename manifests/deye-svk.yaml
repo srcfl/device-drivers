@@ -1,0 +1,26 @@
+name: "deye-svk"
+version: "0.2.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+connectivity: local
+ders: [battery]
+control: true
+tested_devices:
+  - manufacturer: "Deye"
+    model_family: "SUN-xK-SG0xLP3 / HP3 hybrid"
+    variants: [SUN-12K-SG04LP3, SUN-50K-SG01HP3]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Lean SvK sibling of deye; validated on Deye SvK bench under Blixt L1."
+    min_driver_version: "0.2.0"
+min_host_version: "2.0.0"
+size_bytes: 24784
+dkb_id: "deye-svk"
+sha256: "cdc4edf84578e3c03093fb15e4954ce6ccaeabfceb439568203c13b684fb73f7"
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "Migrate from the Blixt L1 device-support registry (deye-svk@0.2.0)."

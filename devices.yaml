@@ -282,6 +282,17 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Three-phase hybrid, supports LV and HV variants with runtime detection"
+      - name: "SUN-xK-SG0xLP3 / HP3 hybrid"
+        variants: [SUN-12K-SG04LP3, SUN-50K-SG01HP3]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "deye-svk"
+            version: "0.2.0"
+            ders: [battery]
+            control: true
+        firmware_versions: ""
+        notes: "Lean SvK sibling of deye; validated on Deye SvK bench under Blixt L1."
   - name: "ESPHome"
     model_families:
       - name: "DSMR web_server v3 P1 reader"

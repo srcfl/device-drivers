@@ -7,6 +7,16 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Added
+
+- **deye-svk** 0.2.0 — Deye three-phase hybrid via Modbus RTU — lean single-read SvK fast-poll variant with the deye@2.4.4 Remote Mode control path verbatim. Migrated from the Blixt L1 device-support
+  registry: catalog header added above the existing `DRIVER_MANIFEST`,
+  canonical `W` emit keys, bounded per-block retry on poll reads, no
+  telemetry emitted on bus loss, portable write-result check, and a
+  bounded unprompted `driver_default_mode` (explicit `deinit` always
+  attempts the safe revert). Control path unchanged. Community tier,
+  `control_enabled: false` until the control-v2 gates are met.
+
 ### Spec
 
 - `spec/host-api-profile.json`: add the Blixt L1 control-headroom emit keys
