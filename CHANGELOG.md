@@ -7,6 +7,16 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Added
+
+- **50-125k-svk-slew** 0.1.11 — Solis S6 50-125 kW C&I hybrid via Modbus RTU — SvK battery control with configurable deactivation slew (activation immediate: FFR C-tier 0.70 s). angry-tea, FFR + FCR-D validated. Migrated from the Blixt L1 device-support
+  registry: catalog header added above the existing `DRIVER_MANIFEST`,
+  canonical `W` emit keys, bounded per-block retry on poll reads, no
+  telemetry emitted on bus loss, portable write-result check, and a
+  bounded unprompted `driver_default_mode` (explicit `deinit` always
+  attempts the safe revert). Control path unchanged. Community tier,
+  `control_enabled: false` until the control-v2 gates are met.
+
 ### Spec
 
 - `spec/host-api-profile.json`: add the Blixt L1 control-headroom emit keys

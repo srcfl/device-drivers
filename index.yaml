@@ -1,5 +1,14 @@
 version: 1
 drivers:
+  - name: "50-125k-svk-slew"
+    version: "0.1.11"
+    tier: community
+    protocol: modbus
+    connectivity: local
+    ders: [battery]
+    control: true
+    size_bytes: 38204
+    sha256: "6abaa69bb4640c17651c6d00e02dfd6abcab305315567681ae0a2dfc956b7d9c"
   - name: "abb_meter"
     version: "1.0.6"
     tier: community
