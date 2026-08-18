@@ -304,7 +304,16 @@ def test_signed_manifest_rejects_unsafe_runtime_fields(
     _, output = build(tmp_path, keypair)
     manifest_path = output / "manifest.json"
     envelope = json.loads(manifest_path.read_text())
-    change(envelope["payload"]["drivers"][0])
+    # Every mutation below starts from a read-only entry (grant a write
+    # permission, flip metadata.read_only, …). Pick one explicitly rather
+    # than trusting drivers[0]: the catalog sorts by id, and a control
+    # driver whose id happens to sort first would make these mutations
+    # trip a different, earlier check than the one being tested.
+    read_only_driver = next(
+        driver for driver in envelope["payload"]["drivers"]
+        if driver["read_only"] and driver["permissions"] == ["modbus.read"]
+    )
+    change(read_only_driver)
     private_key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(keypair[0]))
     envelope["signature"] = base64.b64encode(
         private_key.sign(canonical_json(envelope["payload"]))
