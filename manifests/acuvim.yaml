@@ -1,0 +1,26 @@
+name: "acuvim"
+version: "0.4.1"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+connectivity: local
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "Accuenergy"
+    model_family: "Acuvim II"
+    variants: [Acuvim II]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Three-phase revenue-grade meter; POI meter on Blixt L1 sites (angry-tea)."
+    min_driver_version: "0.4.1"
+min_host_version: "2.0.0"
+size_bytes: 18301
+dkb_id: "acuvim"
+sha256: "cfe0bbd3c797f0b3e9341dc18a12513375f5155e1b047a44d141f0b62dc3033f"
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "Migrate from the Blixt L1 device-support registry (acuvim@0.4.1)."

@@ -54,6 +54,15 @@ drivers:
     control: false
     size_bytes: 3412
     sha256: "e3607864140b8d92fcaa175d066b8f3315c49065755f8cb1bb5b8a3f075cfaa9"
+  - name: "acuvim"
+    version: "0.4.1"
+    tier: community
+    protocol: modbus
+    connectivity: local
+    ders: [meter]
+    control: false
+    size_bytes: 18301
+    sha256: "cfe0bbd3c797f0b3e9341dc18a12513375f5155e1b047a44d141f0b62dc3033f"
   - name: "alfen"
     version: "1.0.4"
     tier: community
