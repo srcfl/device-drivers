@@ -47,7 +47,8 @@
         "modbus": [
           "modbus_read",
           "write",
-          "write_registers"
+          "write_registers",
+          "write_fc06"
         ],
         "mqtt": [
           "mqtt_messages",
@@ -201,5 +202,11 @@
       "reason": "@srcful/data-models has no agreed v2x_charger shape, and Blixt has no v2x driver to take the naming from. The 13 chargers here keep the short keys until one exists; guessing a schema would be worse than saying it is undecided."
     },
     "streams_vs_ders": "inverter is an emit STREAM, not a DER type: a battery or hybrid driver reports its AC stage (W, per-phase, rated_W, available_import_W / available_export_W headroom) on host.emit(\"inverter\", ...) while the device itself is declared as ders: [battery] (or [battery, pv]). Blixt L1 feeds the headroom keys into its arbitrator clamp and reads them by exact name — they have no lowercase fallback."
+  },
+  "write_result_semantics": {
+    "ftw-core": "returns error string on failure, nothing on success; never raises",
+    "blixt-l1": "returns true on success; raises (mlua error) on Modbus exception/timeout",
+    "portable_check": "local ok, res = pcall(host.write, a, v); failed = (not ok) or (res ~= nil and res ~= true)",
+    "note": "host.write is FC06 on ftw-core but FC16(count=1) on blixt-l1 (Deye ignores FC06 on some ranges); blixt-l1 adds host.write_fc06 for true FC06."
   }
 }

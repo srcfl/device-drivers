@@ -16,6 +16,11 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
   is a reporting stream of a battery/hybrid driver rather than a DER type.
   Emit-type tests now accept the `inverter` stream without requiring it in
   `ders`.
+- `spec/host-api.md` / `spec/host-api-profile.json`: add `host.write_fc06`
+  (Blixt L1) and document that `host.write` is FC16(count=1) on Blixt L1 but
+  FC06 on FTW, and that the two hosts report a failed write differently (FTW
+  returns an error string, Blixt raises) — with the portable check a driver
+  targeting both must use.
 
 ### Changed
 - **`huawei` 2.1.2 and `ferroamp_modbus` 2.1.2 are now telemetry-only.** Both drivers exposed battery control without a hardware-verified way to hold 0 W: Huawei's stop command returned the inverter to self-consumption, and Ferroamp Modbus selected auto mode. FTW uses 0 W as an enforced battery hold, so either path could let native charging continue during an idle plan slot. The Lua boundary now refuses every command and performs no writes during command, default or cleanup. Huawei control can return after a SUN2000/LUNA2000 test proves held charge, discharge and zero plus a safe release. Ferroamp control remains available through the hardware-verified MQTT driver; its Modbus path needs the same proof before it can write again.

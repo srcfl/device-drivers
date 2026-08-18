@@ -94,10 +94,42 @@ Read `count` consecutive registers starting at `address`. `kind` is `"holding"` 
 Returns: 1-indexed Lua table of uint16 values, or `nil, error_string` on failure.
 
 ### `host.write(address, value)`
-Write a single holding register (FC06). Returns `true`/`false`.
+Write a single holding register. On FTW this is FC06. **On Blixt L1 it is
+FC16 with count = 1** — Deye firmware silently ignores FC06 on some ranges,
+so the Blixt host always uses FC16 for single-register writes and offers
+`host.write_fc06` for the few registers that need a true FC06.
+
+### `host.write_fc06(address, value)` *(Blixt L1)*
+True FC06 write-single-register, opt-in per register for devices whose
+firmware treats FC06 and FC16 differently. Not available on FTW.
 
 ### `host.write_registers(address, values_table)`
-Write consecutive holding registers (FC16). Returns `true`/`false`.
+Write consecutive holding registers (FC16).
+
+### Write results differ between hosts — check both
+
+The two hosts report a failed write differently, and a driver that
+targets both must handle both:
+
+* **FTW** returns an error string on failure and nothing on success; it
+  never raises. `pcall` alone therefore reports success for a failed
+  write.
+* **Blixt L1** returns `true` on success and **raises** (an mlua error,
+  caught by `pcall`) on a Modbus exception or timeout.
+
+Portable pattern:
+
+```lua
+local ok, res = pcall(host.write_registers, addr, values)
+if not ok or res ~= nil and res ~= true then
+  -- failed: `res` is the error (string on FTW, error object on Blixt)
+end
+```
+
+The test harness (`drivers/tests/lua_harness/host_mock.lua`) uses the FTW
+convention, so a Blixt-only driver that trusts `pcall`'s `ok` will read a
+mocked refusal as a successful write. Drivers migrating from Blixt L1
+should adopt the portable check before relying on the write-side tests.
 
 ## MQTT
 
