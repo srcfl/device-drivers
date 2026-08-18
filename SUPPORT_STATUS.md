@@ -4,6 +4,8 @@ Catalog source is not proof that a target can install or run a driver.
 
 | Driver | Catalog | Target | Conformance | Candidate | Signed beta | HIL | Stable | Legacy parity | Control |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 50-125k-svk-ac-slew | 0.2.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| 50-125k-svk-ac-slew | 0.2.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | abb_meter | 1.0.6 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | abb_meter | 1.0.6 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | abb_terra | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
