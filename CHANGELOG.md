@@ -7,6 +7,16 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Added
+
+- **konja-261-svk** 0.3.0 — Konja Power MG-series 261 kWh / 125 kW C&I BESS (MG500 EMS + Enjoy Power PCS) via Modbus TCP :1502 — SvK FCR/FFR test driver, 20 Hz poll. Migrated from the Blixt L1 device-support
+  registry: catalog header added above the existing `DRIVER_MANIFEST`,
+  canonical `W` emit keys, bounded per-block retry on poll reads, no
+  telemetry emitted on bus loss, portable write-result check, and a
+  bounded unprompted `driver_default_mode` (explicit `deinit` always
+  attempts the safe revert). Control path unchanged. Community tier,
+  `control_enabled: false` until the control-v2 gates are met.
+
 ### Spec
 
 - `spec/host-api-profile.json`: add the Blixt L1 control-headroom emit keys

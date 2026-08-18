@@ -828,6 +828,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Community driver, untested"
+  - name: "Konja Power"
+    model_families:
+      - name: "MG series"
+        variants: [MG-261]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "konja-261-svk"
+            version: "0.3.0"
+            ders: [battery, meter]
+            control: true
+        firmware_versions: ""
+        notes: "C&I BESS via MG500 EMS Modbus TCP :1502; SvK FCR/FFR test driver on Blixt L1."
   - name: "Kostal"
     model_families:
       - name: "PIKO IQ"
