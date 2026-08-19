@@ -282,6 +282,17 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Three-phase hybrid, supports LV and HV variants with runtime detection"
+      - name: "SUN-xK-SG0xLP3 / HP3 hybrid"
+        variants: [SUN-12K-SG04LP3, SUN-50K-SG01HP3]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "deye-svk"
+            version: "0.2.0"
+            ders: [battery]
+            control: true
+        firmware_versions: ""
+        notes: "Lean SvK sibling of deye; validated on Deye SvK bench under Blixt L1."
   - name: "ESPHome"
     model_families:
       - name: "DSMR web_server v3 P1 reader"
@@ -1659,6 +1670,27 @@ manufacturers:
             control: true
         firmware_versions: ""
         notes: "Three-phase hybrid, tested"
+      - name: "S6-GC3P 50-125K"
+        variants: [S6-GC3P100K, S6-GC3P125K, S6-GC3P50K]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "50-125k-svk-ac-slew"
+            version: "0.2.3"
+            ders: [battery]
+            control: true
+          - protocol: modbus
+            driver: "50-125k-svk-slew"
+            version: "0.1.11"
+            ders: [battery]
+            control: true
+          - protocol: modbus
+            driver: "50-125k-svk"
+            version: "0.2.2"
+            ders: [battery]
+            control: true
+        firmware_versions: ""
+        notes: "AC-stage variant (44284/85) of 50-125k-svk-slew; PV shares the AC stage."
       - name: "S6-GR3P (Three-Phase String)"
         variants: [S6-GR3P10K, S6-GR3P5K, S6-GR3P6K, S6-GR3P8K]
         regions: [EU]

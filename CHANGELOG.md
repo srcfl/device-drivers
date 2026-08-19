@@ -10,6 +10,10 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 ### Added
 
 - **konja-261-svk** 0.3.0 — Konja Power MG-series 261 kWh / 125 kW C&I BESS (MG500 EMS + Enjoy Power PCS) via Modbus TCP :1502 — SvK FCR/FFR test driver, 20 Hz poll. Migrated from the Blixt L1 device-support
+- **deye-svk** 0.2.0 — Deye three-phase hybrid via Modbus RTU — lean single-read SvK fast-poll variant with the deye@2.4.4 Remote Mode control path verbatim. Migrated from the Blixt L1 device-support
+- **50-125k-svk-ac-slew** 0.2.3 — Solis S6 50-125 kW C&I hybrid — AC-stage variant of the slew driver (writes 44284/85; PV shares the AC stage). Migrated from the Blixt L1 device-support
+- **50-125k-svk-slew** 0.1.11 — Solis S6 50-125 kW C&I hybrid via Modbus RTU — SvK battery control with configurable deactivation slew (activation immediate: FFR C-tier 0.70 s). angry-tea, FFR + FCR-D validated. Migrated from the Blixt L1 device-support
+- **50-125k-svk** 0.2.2 — Solis S6 50-125 kW C&I hybrid via Modbus RTU — SvK fast-frequency battery control (no slew); the base driver the slew variants derive from. angry-tea (FFR §4.2.2 latency runs). Migrated from the Blixt L1 device-support
   registry: catalog header added above the existing `DRIVER_MANIFEST`,
   canonical `W` emit keys, bounded per-block retry on poll reads, no
   telemetry emitted on bus loss, portable write-result check, and a
