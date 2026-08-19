@@ -86,6 +86,8 @@ Catalog source is not proof that a target can install or run a driver.
 | janitza | 1.0.5 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| konja-261-svk | 0.3.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| konja-261-svk | 0.3.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | kostal | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | kostal | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | kstar | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

@@ -377,6 +377,15 @@ drivers:
     control: false
     size_bytes: 4620
     sha256: "8c8f2685dbd9a67b422c134c9d1afc53d073233f0b2c10cca75c8b30fefaad91"
+  - name: "konja-261-svk"
+    version: "0.3.0"
+    tier: community
+    protocol: modbus
+    connectivity: local
+    ders: [battery, meter]
+    control: true
+    size_bytes: 93328
+    sha256: "a0f160718663edf74c880f44caa0b06d5ad4d5d0abc34921667de28c14b7c294"
   - name: "kostal"
     version: "2.1.1"
     tier: community
