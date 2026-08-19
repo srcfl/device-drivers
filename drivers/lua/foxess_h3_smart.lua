@@ -67,9 +67,25 @@
 --      implementation's finding: command right at the limit and the
 --      inverter clips PV while the battery takes ~50 W less than it
 --      could -- the gap is what lets PV fill in. Below a 250 W floor
---      the battery is effectively refusing charge (full, cold, BMS
---      hold): release remote control and report why, letting native
---      self-use surplus-charge instead.
+--      the response depends on whether the inverter can be believed:
+--        daylight: the inverter is awake, the refusal is real (full,
+--                  cold, BMS hold) -- release and report why; native
+--                  self-use surplus-charges better than a fight.
+--        night:    the inverter sleeps in standby and its master
+--                  samples the RC block slowly, so the limit register
+--                  still shows the sleeping value right after session
+--                  enable. Refusing here re-releases the session and
+--                  the inverter never wakes -- the loop that made
+--                  grid charging never work at night (found
+--                  2026-09-08: 5 h of refusals, 10% SoC, 20 C pack,
+--                  while the unguarded v0.2.0 had night-imported
+--                  happily, and the reference drives the session
+--                  continuously rather than gate on first read).
+--                  Instead: accept the command, hold AC = 0 (no
+--                  import, session keeps the inverter awake), re-read
+--                  the limit every poll, apply the true setpoint when
+--                  it wakes, give up only after a 3 min patience
+--                  window (a genuine cold/fault hold).
 --   2. Daylight split (PV string VOLTAGE >= 70 V -- voltage says the
 --      panels are awake even when power is ~0 at dawn; power says
 --      nothing at night):
@@ -131,7 +147,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.9.3",
+  version = "0.9.4",
   host_api_min = 1,
   host_api_max = 2,
   protocols = { "modbus" },
@@ -156,7 +172,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.9.3",
+  version = "0.9.4",
   role = "inverter",
   requires = {},
   options = {},
@@ -227,6 +243,11 @@ local BAT_CHARGE_LIMIT_ADDR = 46018
 -- See the CHARGE section of the header for all three of these.
 local CHARGE_BMS_MARGIN_W = 200
 local CHARGE_BMS_FLOOR_W  = 250
+-- How long a night charge may hold at 0 W waiting for the sleeping
+-- BMS limit to come alive before the refusal is treated as genuine.
+-- The RC block is sampled slowly by the inverter master (the same
+-- fact behind the 60 s timeout floor), so seconds are not enough.
+local CHARGE_WAKE_PATIENCE_MS = 180000
 local PV_VOLTS_DAYLIGHT   = 70
 -- The PV reading is DC-side; the AC terminals see less after
 -- conversion, and feeding raw DC PV into the AC setpoint makes the
@@ -257,6 +278,9 @@ local fault_active = nil
 local rc_enabled = false
 local rc_target_w = nil       -- site convention: positive = charge
 local rc_command_ms = 0
+-- millis when a charge first found the BMS limit below the floor at
+-- night; nil when no charge is waiting. See CHARGE_WAKE_PATIENCE_MS.
+local charge_wake_since = nil
 -- PV curtail cap (AC-output ceiling, W). nil = none. Armed by the
 -- `curtail` action; only honoured when the operator opted in via
 -- supports_pv_curtail (the host injects _supports_pv_curtail).
@@ -387,7 +411,24 @@ local function compute_vendor(battery_target_w)
     return nil, "battery charge limit unreadable"
   end
   if limit < CHARGE_BMS_FLOOR_W then
-    return nil, "battery is not accepting charge now"
+    -- Daylight: the inverter is awake, so a floor-level limit is a
+    -- real refusal (full, cold, BMS hold) -- release and let native
+    -- self-use surplus-charge instead.
+    if (last_pv_volts or 0) >= PV_VOLTS_DAYLIGHT then
+      return nil, "battery is not accepting charge now"
+    end
+    -- Night: the inverter has been in standby and its master samples
+    -- the RC block slowly, so Pwr_limit_Bat_up still reports the
+    -- sleeping value right after the session enable. Failing here
+    -- releases the session and puts the inverter straight back to
+    -- sleep -- the loop that made grid charging never work at night
+    -- (discovered 2026-09-08: five hours of refusals at 10% SoC with
+    -- a 20 C battery, while the unguarded build had night-imported
+    -- happily). Hold AC = 0 instead: no import, no discharge, session
+    -- alive; every poll re-reads the limit and the real setpoint
+    -- follows the moment the BMS wakes. The patience window in the
+    -- refresh path bounds how long a genuine refusal can hold this.
+    return 0, "waiting for the BMS charge limit to wake", true
   end
   local p_eff = math.min(battery_target_w, limit - CHARGE_BMS_MARGIN_W)
   -- Guard 2: daylight by string voltage, not power.
@@ -419,8 +460,10 @@ local function checked_write_multi(addr, values)
   return false, tostring(err)
 end
 
+-- Returns ok, why, pending. `pending` is true when a night charge is
+-- holding at 0 W waiting for the BMS limit (see compute_vendor).
 local function write_setpoint(battery_target_w)
-  local vendor, why = compute_vendor(battery_target_w)
+  local vendor, why, pending = compute_vendor(battery_target_w)
   if vendor == nil then
     return false, why
   end
@@ -448,7 +491,11 @@ local function write_setpoint(battery_target_w)
   -- stays small enough for a single-precision host.
   local hi = math.floor(vendor / 65536) % 65536
   local lo = vendor % 65536
-  return checked_write_multi(RC_POWER_ADDR, { hi, lo })
+  local ok, werr = checked_write_multi(RC_POWER_ADDR, { hi, lo })
+  if not ok then
+    return false, werr
+  end
+  return true, why, pending
 end
 
 local function apply_remote_control(site_w)
@@ -469,6 +516,7 @@ end
 local function release_remote_control()
   rc_target_w = nil
   prev_vendor_w = nil
+  charge_wake_since = nil
   if rc_enabled then
     rc_enabled = false
     checked_write(RC_ENABLE_ADDR, 0)
@@ -634,6 +682,14 @@ function driver_poll()
   if prev_vendor_w ~= nil then
     host.emit_metric("foxess_rc_setpoint_w", prev_vendor_w)
   end
+  -- The BMS charge ceiling as a time series: the 2026-09-08 night of
+  -- refused charging was undiagnosable precisely because this value
+  -- was only ever read inside command paths. One extra register pair
+  -- per poll buys the ability to see the BMS's mood remotely.
+  local bms_limit = read_battery_charge_limit_w()
+  if bms_limit ~= nil then
+    host.emit_metric("foxess_bms_charge_limit_w", bms_limit)
+  end
 
   -- Keep an active setpoint alive: the vendor timeout needs a
   -- refresh every poll, and the lease releases control when the EMS
@@ -644,7 +700,7 @@ function driver_poll()
       host.log("info", "foxess_h3_smart: command lease expired; releasing remote control")
       release_all()
     else
-      local ok, why = apply_remote_control(refresh_target)
+      local ok, why, pending = apply_remote_control(refresh_target)
       if not ok and why ~= nil then
         -- The setpoint is no longer computable (battery stopped
         -- accepting charge, PV reading lost). Holding the session
@@ -652,6 +708,19 @@ function driver_poll()
         -- safer place to wait.
         host.log("warn", "foxess_h3_smart: releasing remote control: " .. why)
         release_all()
+      elseif pending then
+        if charge_wake_since == nil then
+          charge_wake_since = host.millis()
+        elseif host.millis() - charge_wake_since > CHARGE_WAKE_PATIENCE_MS then
+          -- The session has been alive for the whole window and the
+          -- BMS still refuses: this is a genuine hold (cold, fault),
+          -- not standby lag. Native self-use is the place to wait.
+          host.log("warn", "foxess_h3_smart: BMS charge limit stayed below " ..
+            CHARGE_BMS_FLOOR_W .. " W past the wake window; releasing remote control")
+          release_all()
+        end
+      else
+        charge_wake_since = nil
       end
     end
   elseif rc_enabled then
@@ -718,10 +787,18 @@ function driver_command(action, value, context)
   end
   rc_target_w = power_w
   rc_command_ms = host.millis()
-  local ok, why = apply_remote_control(power_w)
+  local ok, why, pending = apply_remote_control(power_w)
   if not ok then
     rc_target_w = nil
     return why or "remote control write failed"
+  end
+  if pending then
+    if charge_wake_since == nil then
+      charge_wake_since = host.millis()
+      host.log("info", "foxess_h3_smart: charge accepted; holding 0 W while the BMS charge limit wakes")
+    end
+  else
+    charge_wake_since = nil
   end
   return true
 end
@@ -782,7 +859,7 @@ function driver_command_v2(cmd)
   end
   rc_target_w = power_w
   rc_command_ms = host.millis()
-  local ok, why = apply_remote_control(power_w)
+  local ok, why, pending = apply_remote_control(power_w)
   if not ok then
     rc_target_w = nil
     return { status = "failed", code = "write_failed",
@@ -796,6 +873,22 @@ function driver_command_v2(cmd)
                " does not match written " .. tostring(prev_vendor_w),
              device_state = "unknown" }
   end
+  if pending then
+    -- Night charge against a sleeping BMS limit: the 0 W hold is
+    -- written and verified, the session keeps the inverter awake, and
+    -- the real setpoint follows from the refresh path when the limit
+    -- wakes. "accepted", not "applied" -- the charge has not happened.
+    if charge_wake_since == nil then
+      charge_wake_since = host.millis()
+    end
+    return {
+      status = "accepted", code = "charge_pending_bms_wake",
+      message = "holding 0 W while the BMS charge limit wakes; charge follows on refresh",
+      device_state = "controlled",
+      evidence = { "write_ack", "readback" },
+    }
+  end
+  charge_wake_since = nil
   return {
     status = "applied", code = "ok",
     message = "battery " .. power_w .. " W held as AC setpoint " .. verify .. " W",

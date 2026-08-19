@@ -214,14 +214,14 @@ drivers:
     size_bytes: 11190
     sha256: "c5b0ed1bb867b93861406740832a329454195f90f580d8f032b7777b54959996"
   - name: "foxess_h3_smart"
-    version: "0.9.3"
+    version: "0.9.4"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
     control: true
-    size_bytes: 33935
-    sha256: "e7ab001ceb7e460fbe44439502e1546ee9eba3e9d8b0ba9de07cebd2400d7bfe"
+    size_bytes: 38826
+    sha256: "a5bb5ef96b09bd85847aadf38be1914119819ba01ebe2dcfd79441bdbba59855"
   - name: "fronius"
     version: "2.1.1"
     tier: core
