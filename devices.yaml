@@ -1655,6 +1655,16 @@ manufacturers:
             version: "0.2.3"
             ders: [battery]
             control: true
+          - protocol: modbus
+            driver: "50-125k-svk-slew"
+            version: "0.1.11"
+            ders: [battery]
+            control: true
+          - protocol: modbus
+            driver: "50-125k-svk"
+            version: "0.2.2"
+            ders: [battery]
+            control: true
         firmware_versions: ""
         notes: "AC-stage variant (44284/85) of 50-125k-svk-slew; PV shares the AC stage."
       - name: "S6-GR3P (Three-Phase String)"

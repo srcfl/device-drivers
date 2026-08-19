@@ -1,0 +1,26 @@
+name: "50-125k-svk"
+version: "0.2.2"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+connectivity: local
+ders: [battery]
+control: true
+tested_devices:
+  - manufacturer: "Solis"
+    model_family: "S6-GC3P 50-125K"
+    variants: [S6-GC3P50K, S6-GC3P100K, S6-GC3P125K]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Base SvK driver; slew variants derive from it."
+    min_driver_version: "0.2.2"
+min_host_version: "2.0.0"
+size_bytes: 25342
+dkb_id: "50-125k-svk"
+sha256: "82e6932296bd2af4edcfedf58bbf96802dd95d657d3b2b9d884ce3682f4646dd"
+signature: ""
+
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "Migrate from the Blixt L1 device-support registry (50-125k-svk@0.2.2)."
