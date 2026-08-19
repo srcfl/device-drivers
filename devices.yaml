@@ -1655,6 +1655,11 @@ manufacturers:
             version: "0.1.11"
             ders: [battery]
             control: true
+          - protocol: modbus
+            driver: "50-125k-svk"
+            version: "0.2.2"
+            ders: [battery]
+            control: true
         firmware_versions: ""
         notes: "Solis 10 kW / 50 kWh BESS test site (angry-tea) — FFR + FCR-D validated under Blixt L1."
       - name: "S6-GR3P (Three-Phase String)"
