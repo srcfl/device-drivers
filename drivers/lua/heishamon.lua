@@ -38,7 +38,7 @@ DRIVER = {
   id           = "heishamon",
   name         = "Panasonic Aquarea (Heishamon)",
   manufacturer = "Panasonic",
-  version      = "0.6.0",
+  version      = "0.7.0",
   protocols    = { "mqtt" },
   capabilities = { "heatpump" },
   description  = "Panasonic Aquarea H/J/K/L/M-series heat pump via Heishamon MQTT bridge. Controls Zone 1 heat curve offset (Z1_Heat_Request_Temp) in range -3..+3 °C.",
@@ -49,6 +49,25 @@ DRIVER = {
   verified_by = { "Rolf (Runneval)" },
   verified_at = "2026-06-21",
   verification_notes = "Tested on WH-SXC09H3E8 (H-series) with Heishamon Large v4.1.6 on ESP32. MQTT via core-mosquitto on HA Green. Live metrics confirmed. Offset control verified via Z1_Heat_Request_Temp.",
+  -- What an operator may command, in terms a host UI can render without
+  -- knowing this driver. The bounds are the defaults below; min_offset and
+  -- max_offset can narrow them in config, and driver_command clamps to
+  -- whichever is tighter, so a narrowed site is safe — its UI just offers a
+  -- couple of steps that land on the configured limit.
+  --
+  -- evidence is write_ack, not readback: apply_offset returns as soon as the
+  -- publish succeeds. The pump does echo the value back on
+  -- main/Z1_Heat_Request_Temp, but that arrives on a later poll and nothing
+  -- here waits for it or compares it. Claiming readback would tell a host
+  -- the setting was confirmed when all we know is that a message left.
+  controls = {
+    {
+      id       = "set_heat_curve_offset",
+      label    = "Heat curve offset",
+      evidence = "write_ack",
+      input    = { type = "number", min = -3, max = 3, step = 1, unit = "°C" },
+    },
+  },
 }
 
 PROTOCOL = "mqtt"

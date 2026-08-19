@@ -78,8 +78,8 @@ Catalog source is not proof that a target can install or run a driver.
 | growatt | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hardybarth | 1.0.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hardybarth | 1.0.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| heishamon | 0.6.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| heishamon | 0.6.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| heishamon | 0.7.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| heishamon | 0.7.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hello | 1.1.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | hello | 1.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | huawei | 2.1.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
