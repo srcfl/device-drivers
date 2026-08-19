@@ -1,5 +1,14 @@
 version: 1
 drivers:
+  - name: "50-125k-svk-ac-slew"
+    version: "0.2.3"
+    tier: community
+    protocol: modbus
+    connectivity: local
+    ders: [battery]
+    control: true
+    size_bytes: 41105
+    sha256: "1c92a83c49781d3302e905c0d5029306fb32edc045263e8773ecf9a0a1dc1e08"
   - name: "50-125k-svk-slew"
     version: "0.1.11"
     tier: community
