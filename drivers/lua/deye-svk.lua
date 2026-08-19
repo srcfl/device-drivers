@@ -64,7 +64,7 @@ DRIVER = {
     id = "deye-svk",
     name = "Deye SUN hybrid — lean SvK fast-poll variant",
     manufacturer = "Deye",
-    version = "0.2.0",
+    version = "0.2.1",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -72,7 +72,7 @@ DRIVER = {
     authors = { "David and Blixt L1 contributors", "Sourceful contributors" },
     tested_models = { "SUN-12K-SG04LP3", "SUN-50K-SG01HP3" },
     verification_status = "experimental",
-    verification_notes = "Migrated from the Blixt L1 device-support registry; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
+    verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         unit_id = 1, baud_rate = 9600,
     },
@@ -80,7 +80,7 @@ DRIVER = {
 
 DRIVER_MANIFEST = {
     name    = "deye-svk",
-    version = "0.2.0",
+    version = "0.2.1",
     role    = "battery",   -- hybrid inverter is treated as a battery asset
 
     -- Same requires/options as deye@2.4.4 so an existing Deye device

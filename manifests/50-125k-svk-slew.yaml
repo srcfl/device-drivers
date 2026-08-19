@@ -1,5 +1,5 @@
 name: "50-125k-svk-slew"
-version: "0.1.11"
+version: "0.1.12"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -12,15 +12,15 @@ tested_devices:
     variants: [S6-GC3P50K, S6-GC3P100K, S6-GC3P125K]
     regions: [EU]
     firmware_versions: ""
-    notes: "Solis 10 kW / 50 kWh BESS test site (angry-tea) — FFR + FCR-D validated under Blixt L1."
+    notes: "Solis 10 kW / 50 kWh BESS test site — FFR + FCR-D validated under Blixt L1."
     min_driver_version: "0.1.11"
 min_host_version: "2.0.0"
-size_bytes: 38204
+size_bytes: 38227
 dkb_id: "50-125k-svk-slew"
-sha256: "6abaa69bb4640c17651c6d00e02dfd6abcab305315567681ae0a2dfc956b7d9c"
+sha256: "43da75072cd54b0e0165b7070e51f6ea5ff6c0ec3572c27ea8871c590755caf2"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Migrate from the Blixt L1 device-support registry (50-125k-svk-slew@0.1.11)."
+changelog: "Migrate from the Blixt L1 driver source (50-125k-svk-slew@0.1.11)."

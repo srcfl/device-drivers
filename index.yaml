@@ -1,32 +1,32 @@
 version: 1
 drivers:
   - name: "50-125k-svk-ac-slew"
+    version: "0.2.4"
+    tier: community
+    protocol: modbus
+    connectivity: local
+    ders: [battery]
+    control: true
+    size_bytes: 41128
+    sha256: "db00b11c9bb22e94dbed47f4fd1699e011b4fbd8cd389278365f843b07b5081c"
+  - name: "50-125k-svk-slew"
+    version: "0.1.12"
+    tier: community
+    protocol: modbus
+    connectivity: local
+    ders: [battery]
+    control: true
+    size_bytes: 38227
+    sha256: "43da75072cd54b0e0165b7070e51f6ea5ff6c0ec3572c27ea8871c590755caf2"
+  - name: "50-125k-svk"
     version: "0.2.3"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery]
     control: true
-    size_bytes: 41105
-    sha256: "1c92a83c49781d3302e905c0d5029306fb32edc045263e8773ecf9a0a1dc1e08"
-  - name: "50-125k-svk-slew"
-    version: "0.1.11"
-    tier: community
-    protocol: modbus
-    connectivity: local
-    ders: [battery]
-    control: true
-    size_bytes: 38204
-    sha256: "6abaa69bb4640c17651c6d00e02dfd6abcab305315567681ae0a2dfc956b7d9c"
-  - name: "50-125k-svk"
-    version: "0.2.2"
-    tier: community
-    protocol: modbus
-    connectivity: local
-    ders: [battery]
-    control: true
-    size_bytes: 25342
-    sha256: "82e6932296bd2af4edcfedf58bbf96802dd95d657d3b2b9d884ce3682f4646dd"
+    size_bytes: 25341
+    sha256: "052e51a0d4da51f9a48bddc0ab6684474bbe7988a9cefdf768b4d669dad0e40f"
   - name: "abb_meter"
     version: "1.0.6"
     tier: community
@@ -55,14 +55,14 @@ drivers:
     size_bytes: 3412
     sha256: "e3607864140b8d92fcaa175d066b8f3315c49065755f8cb1bb5b8a3f075cfaa9"
   - name: "acuvim"
-    version: "0.4.1"
+    version: "0.4.2"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [meter]
     control: false
-    size_bytes: 18301
-    sha256: "cfe0bbd3c797f0b3e9341dc18a12513375f5155e1b047a44d141f0b62dc3033f"
+    size_bytes: 18291
+    sha256: "221f3733028fa0c9e82f8c83622bf8fe778454985fa06243007238a41ea0ddd0"
   - name: "alfen"
     version: "1.0.4"
     tier: community
@@ -166,14 +166,14 @@ drivers:
     size_bytes: 12072
     sha256: "186d1e7b2009cd34c2b58a1e29fea5fbdd3b5a896722d41108b77ed6ec7fd3dd"
   - name: "deye-svk"
-    version: "0.2.0"
+    version: "0.2.1"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery]
     control: true
-    size_bytes: 24784
-    sha256: "cdc4edf84578e3c03093fb15e4954ce6ccaeabfceb439568203c13b684fb73f7"
+    size_bytes: 24774
+    sha256: "e4b0637ddb91a4e4ee375125d166e93a86fac97a0ded64e062a7bd39f026e2a6"
   - name: "deye"
     version: "2.1.1"
     tier: core
@@ -387,14 +387,14 @@ drivers:
     size_bytes: 4620
     sha256: "8c8f2685dbd9a67b422c134c9d1afc53d073233f0b2c10cca75c8b30fefaad91"
   - name: "konja-261-svk"
-    version: "0.3.0"
+    version: "0.3.1"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery, meter]
     control: true
-    size_bytes: 93328
-    sha256: "a0f160718663edf74c880f44caa0b06d5ad4d5d0abc34921667de28c14b7c294"
+    size_bytes: 93318
+    sha256: "dcd2eccbccc9e97f24c63f6a65a3498b8441f249ae9a17b5268a97bd8b34bdb5"
   - name: "kostal"
     version: "2.1.1"
     tier: community

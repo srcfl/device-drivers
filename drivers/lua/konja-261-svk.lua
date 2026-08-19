@@ -148,7 +148,7 @@ DRIVER = {
     id = "konja-261-svk",
     name = "Konja MG 261 kWh / 125 kW C&I BESS (SvK)",
     manufacturer = "Konja Power",
-    version = "0.3.0",
+    version = "0.3.1",
     protocols = { "modbus" },
     capabilities = { "battery", "meter" },
     read_only = false,
@@ -156,7 +156,7 @@ DRIVER = {
     authors = { "David and Blixt L1 contributors", "Sourceful contributors" },
     tested_models = { "MG-261" },
     verification_status = "experimental",
-    verification_notes = "Migrated from the Blixt L1 device-support registry; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
+    verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         port = 1502, unit_id = 1,
     },
@@ -164,7 +164,7 @@ DRIVER = {
 
 DRIVER_MANIFEST = {
     name    = "konja-261-svk",
-    version = "0.3.0",
+    version = "0.3.1",
     role    = "battery",
 
     -- 20 Hz. SvK FFR §2 Tabell 5 wants 0.1 s logging resolution and

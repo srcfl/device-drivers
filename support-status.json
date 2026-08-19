@@ -2,7 +2,7 @@
   "drivers": [
     {
       "catalog_source": true,
-      "catalog_version": "0.2.3",
+      "catalog_version": "0.2.4",
       "driver_id": "50-125k-svk-ac-slew",
       "package_id": null,
       "targets": {
@@ -30,7 +30,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.1.11",
+      "catalog_version": "0.1.12",
       "driver_id": "50-125k-svk-slew",
       "package_id": null,
       "targets": {
@@ -58,7 +58,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.2",
+      "catalog_version": "0.2.3",
       "driver_id": "50-125k-svk",
       "package_id": null,
       "targets": {
@@ -170,7 +170,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.4.1",
+      "catalog_version": "0.4.2",
       "driver_id": "acuvim",
       "package_id": null,
       "targets": {
@@ -506,7 +506,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.0",
+      "catalog_version": "0.2.1",
       "driver_id": "deye-svk",
       "package_id": null,
       "targets": {
@@ -1178,7 +1178,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.0",
+      "catalog_version": "0.3.1",
       "driver_id": "konja-261-svk",
       "package_id": null,
       "targets": {
