@@ -156,9 +156,9 @@ DRIVER = {
   authors = { "Sourceful Labs AB" },
   tested_models = { "1K5-HI-10-V1" },
   verification_status = "production",
-  verified_by = { "Leitet@1K5-HI-10-V1:4d" },
-  verified_at = "2026-08-06",
-  verification_notes = "Verified on 1K5-HI-10-V1 hardware over multi-day operation: telemetry (PV per-string, battery, per-phase grid CT, energy counters), battery dispatch in charge, discharge and hold, and PV curtailment. H3-Smart family shares the register map but has not been tested on H3-Smart hardware.",
+  verified_by = { "Leitet@1K5-HI-10-V1:4d", "Leitet@1K5-HI-10-V1:night-charge" },
+  verified_at = "2026-09-08",
+  verification_notes = "Verified on 1K5-HI-10-V1 hardware over multi-day operation: telemetry (PV per-string, battery, per-phase grid CT, energy counters), battery dispatch in charge, discharge and hold, and PV curtailment. Night grid charging verified 2026-09-08 21:22 CEST (dark, SoC 54%): commanded +2000 W, battery ramped -774 to +1939 W in 65 s and held; the standby wake-pending path did not need to engage (inverter was actively discharging, BMS limit live) and is covered by the harness; foxess_bms_charge_limit_w records the limit whenever standby recurs. H3-Smart family shares the register map but has not been tested on H3-Smart hardware.",
   read_only = false,
 }
 
