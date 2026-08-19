@@ -9,6 +9,10 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Added
 
+- **acuvim** 0.4.1 — Accuenergy Acuvim II three-phase revenue-grade meter,
+  migrated from the Blixt L1 device-support registry (POI meter on Blixt
+  SvK sites). One bundled FC03 float32 block + a bounded probe of the
+  0x4048 energy block; emits canonical `meter.W`.
 - **konja-261-svk** 0.3.0 — Konja Power MG-series 261 kWh / 125 kW C&I BESS (MG500 EMS + Enjoy Power PCS) via Modbus TCP :1502 — SvK FCR/FFR test driver, 20 Hz poll. Migrated from the Blixt L1 device-support
 - **deye-svk** 0.2.0 — Deye three-phase hybrid via Modbus RTU — lean single-read SvK fast-poll variant with the deye@2.4.4 Remote Mode control path verbatim. Migrated from the Blixt L1 device-support
 - **50-125k-svk-ac-slew** 0.2.3 — Solis S6 50-125 kW C&I hybrid — AC-stage variant of the slew driver (writes 44284/85; PV shares the AC stage). Migrated from the Blixt L1 device-support

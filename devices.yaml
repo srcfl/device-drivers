@@ -59,6 +59,19 @@ manufacturers:
             control: true
         firmware_versions: ""
         notes: "Standalone gateway module"
+  - name: "Accuenergy"
+    model_families:
+      - name: "Acuvim II"
+        variants: [Acuvim II]
+        regions: [EU]
+        protocols:
+          - protocol: modbus
+            driver: "acuvim"
+            version: "0.4.1"
+            ders: [meter]
+            control: false
+        firmware_versions: ""
+        notes: "Three-phase revenue-grade meter; POI meter on Blixt L1 sites (angry-tea)."
   - name: "Acrel"
     model_families:
       - name: "DTSD Series"

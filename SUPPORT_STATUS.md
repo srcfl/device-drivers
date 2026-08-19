@@ -16,6 +16,8 @@ Catalog source is not proof that a target can install or run a driver.
 | abb_terra | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | acrel | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | acrel | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| acuvim | 0.4.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| acuvim | 0.4.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | alfen | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | alfen | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | alphaess | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
