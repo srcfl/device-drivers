@@ -14,6 +14,15 @@ tested_devices:
     firmware_versions: ""
     notes: "Three-phase revenue-grade meter; POI meter on Blixt L1 sites (angry-tea)."
     min_driver_version: "0.4.1"
+upstream_docs:
+  - url: "https://www.accuenergy.com/wp-content/uploads/Acuvim-II-Power-Meter-User-Manual-1040E1303.pdf"
+    title: "Accuenergy Acuvim II Power Meter User Manual (1040E1303)"
+    kind: manual
+    url_stability: stable
+  - url: "https://www.accuenergy.com/wp-content/uploads/Acuvim-II-V3-Modbus-map-v1.07.xlsx"
+    title: "Accuenergy Acuvim II Modbus map v1.07"
+    kind: register_map
+    url_stability: volatile
 min_host_version: "2.0.0"
 size_bytes: 18301
 dkb_id: "acuvim"
