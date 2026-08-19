@@ -277,6 +277,10 @@ class TestManifestDriverConsistency:
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
         emitted_ders = set(re.findall(r'host\.emit\s*\(\s*"(\w+)"', clean))
+        # `inverter` is the AC-stage reporting stream of a battery/hybrid
+        # driver, not a device the manifest declares (see
+        # spec/host-api-profile.json emit_keys.streams_vs_ders).
+        emitted_ders.discard("inverter")
 
         if not emitted_ders:
             pytest.skip(f"{driver_name}: no emit calls found (may use variable)")
