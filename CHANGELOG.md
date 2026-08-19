@@ -1,5 +1,13 @@
 # Changelog
 
+## heishamon 0.7.0
+
+Declare the existing `set_heat_curve_offset` control: −3…+3 °C, in steps
+of 1 °C. The evidence is `write_ack`: a successful MQTT publish does not
+confirm the pump's setting. The command, its bounds and its default mode
+keep their existing behavior. This metadata change does not depend on the
+power-telemetry proposal in #60.
+
 ## vag_vehicle 0.2.1
 
 Show only a VIN's last four characters in log lines (`****1234`). Logs get pasted into public issues, and a full VIN reached srcfl/device-drivers#143 that way. Every log call goes through one masking function, so API errors that quote a URL with the VIN are masked too. The driver still uses the full VIN for API calls and as its serial.
