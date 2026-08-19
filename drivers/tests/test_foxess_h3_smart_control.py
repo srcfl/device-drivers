@@ -156,3 +156,71 @@ print("V1_RESULT " .. tostring(r))
     assert out["V1_RESULT"] == "true"
     assert out["RC_ENABLE"] == "1"
     assert setpoint(out) == round(PV_W * EFF)
+
+
+NIGHT = """
+host._modbus_registers.holding[39070] = 550
+host._modbus_registers.holding[39072] = 480
+pcall(driver_poll)
+"""
+
+
+def test_night_charge_with_sleeping_bms_holds_and_waits():
+    """A sleeping BMS limit must not fail the command — that released
+    the session and put the inverter back to sleep, the loop that made
+    grid charging never work at night (2026-09-08)."""
+    out = drive(NIGHT + """
+host._modbus_registers.holding[46018] = {0, 0}
+local r = driver_command("battery", 2000)
+print("V1_RESULT " .. tostring(r))
+""")
+    assert out["V1_RESULT"] == "true"       # accepted, not refused
+    assert out["RC_ENABLE"] == "1"          # session stays up
+    assert setpoint(out) == 0               # holding, not importing
+
+
+def test_night_charge_applies_when_bms_wakes():
+    out = drive(NIGHT + """
+host._modbus_registers.holding[46018] = {0, 0}
+driver_command("battery", 2000)
+host._modbus_registers.holding[46018] = {0, 6000}
+pcall(driver_poll)
+print("MARK done")
+""")
+    # limit awake: night import setpoint = -(min(2000, 6000-200))
+    assert setpoint(out) == -2000
+    assert out["RC_ENABLE"] == "1"
+
+
+def test_night_charge_gives_up_after_patience_window():
+    out = drive(NIGHT + """
+host._modbus_registers.holding[46018] = {0, 0}
+driver_command("battery", 2000)
+host._millis_step = 200000
+pcall(driver_poll)
+pcall(driver_poll)
+print("MARK done")
+""")
+    assert out["RC_ENABLE"] == "0"          # released: genuine refusal
+
+
+def test_daylight_low_limit_still_refuses():
+    out = drive("""
+host._modbus_registers.holding[46018] = {0, 0}
+local r = driver_command("battery", 2000)
+print("V1_RESULT " .. tostring(r))
+""")
+    assert "not accepting charge" in out["V1_RESULT"]
+
+
+def test_v2_night_charge_pending_is_accepted_not_applied():
+    out = drive(NIGHT + """
+host._modbus_registers.holding[46018] = {0, 0}
+show(driver_command_v2({ command = "battery",
+                         inputs = { power_w = 2000 } }))
+""")
+    assert out["STATUS"] == "accepted"
+    assert out["CODE"] == "charge_pending_bms_wake"
+    assert out["STATE"] == "controlled"
+    assert out["EVIDENCE"] == "write_ack,readback"
+    assert setpoint(out) == 0
