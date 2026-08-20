@@ -176,7 +176,7 @@ print("V1_RESULT " .. tostring(r))
 """)
     assert out["V1_RESULT"] == "true"       # accepted, not refused
     assert out["RC_ENABLE"] == "1"          # session stays up
-    assert setpoint(out) == 0               # holding, not importing
+    assert setpoint(out) == -200            # probe import, not full charge
 
 
 def test_night_charge_applies_when_bms_wakes():
@@ -208,7 +208,7 @@ def test_daylight_low_limit_holds_and_waits():
     """0.9.5: the limit register follows battery ACTIVITY, not
     capability — an idle battery dozes off in daylight too (observed
     at 11-14% SoC with the sun up). Pending is universal: hold the
-    battery at zero (AC = pv so PV passes) and wait."""
+    probe gently (AC = pv - 200) and wait."""
     out = drive("""
 host._modbus_registers.holding[46018] = {0, 0}
 local r = driver_command("battery", 2000)
@@ -216,7 +216,7 @@ print("V1_RESULT " .. tostring(r))
 """)
     assert out["V1_RESULT"] == "true"
     assert out["RC_ENABLE"] == "1"
-    assert setpoint(out) == round(PV_W * EFF)  # battery-zero hold
+    assert setpoint(out) == round(PV_W * EFF) - 200  # probe under PV pass-through
 
 
 def test_daylight_charge_applies_when_bms_wakes():
@@ -253,4 +253,4 @@ show(driver_command_v2({ command = "battery",
     assert out["CODE"] == "charge_pending_bms_wake"
     assert out["STATE"] == "controlled"
     assert out["EVIDENCE"] == "write_ack,readback"
-    assert setpoint(out) == 0
+    assert setpoint(out) == -200  # the probe, not the full charge

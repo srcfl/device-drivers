@@ -67,25 +67,26 @@
 --      implementation's finding: command right at the limit and the
 --      inverter clips PV while the battery takes ~50 W less than it
 --      could -- the gap is what lets PV fill in. Below a 250 W floor
---      the charge is accepted as PENDING, day or night: hold the
---      battery at zero (night: AC = 0; daylight: AC = pv, so PV
---      passes to house + grid), keep the session alive, re-read the
---      limit every poll, apply the true setpoint the moment it rises,
---      give up after a 3 min patience window (a genuine full / cold /
+--      the charge is accepted as PENDING, day or night: command a
+--      gentle CHARGE_PROBE_W charge (night: AC = -probe; daylight:
+--      AC = pv - probe), keep the session alive, re-read the limit
+--      every poll, apply the true setpoint the moment it rises, give
+--      up after a 3 min patience window (a genuine full / cold /
 --      fault hold; native self-use then serves better than a fight).
---      Why pending instead of refusing: the limit register follows
---      the battery's ACTIVITY, not its capability. A battery that has
---      sat idle dozes off and reports no headroom until a session
---      asks and waits. Refusing re-releases the session, so nothing
---      ever asks -- the loop behind two hardware incidents on the
---      same 1K5: grid charging never worked at night (2026-08-18/19:
---      5 h of refusals at 10% SoC, 20 C pack, while the unguarded
---      v0.2.0 had night-imported happily), and 0.9.4's night-only fix
---      left the same refusal loop in DAYLIGHT with the battery idle
---      at the SoC floor under weak PV (two incidents 2026-08-19/20,
---      SoC 11-14%, battery 0 W, limit below floor with the sun up).
---      The reference implementation avoids the entire class by never
---      gating on a first read -- it drives the session continuously.
+--      Why a probe instead of refusing or waiting: the limit register
+--      follows power FLOW, not capability. A pack that has sat idle
+--      dozes off and reports no headroom until current actually
+--      moves. Refusing re-releases the session so nothing ever asks
+--      (the loop behind grid charging never working at night,
+--      2026-08-18/19: 5 h of refusals at 10% SoC, 20 C pack), a
+--      night-only fix left the identical loop in daylight with the
+--      battery idle at the SoC floor (2026-08-19/20, SoC 11-14%,
+--      sun up), and a polite held-at-zero session proved insufficient
+--      on hardware (metric: 12+ min of flat-0 limit across held
+--      sessions). The unguarded v0.2.0 charged 4.5 kW from this
+--      exact idle state just by asking -- asking is the wake-up call.
+--      The reference avoids the entire class by never gating on a
+--      first read; the probe keeps its spirit and our ceiling guard.
 --   2. Daylight split (PV string VOLTAGE >= 70 V -- voltage says the
 --      panels are awake even when power is ~0 at dawn; power says
 --      nothing at night):
@@ -248,6 +249,14 @@ local CHARGE_BMS_FLOOR_W  = 250
 -- The RC block is sampled slowly by the inverter master (the same
 -- fact behind the 60 s timeout floor), so seconds are not enough.
 local CHARGE_WAKE_PATIENCE_MS = 180000
+-- The wake stimulus. Pwr_limit_Bat_up follows power FLOW, not intent:
+-- metric data (2026-08-20, 12+ min flat 0 across held sessions at the
+-- SoC floor) shows a session that asks for nothing never wakes the
+-- pack, while the unguarded v0.2.0 charged 4.5 kW from this exact
+-- idle state just by asking. A 200 W probe is below the refusal floor
+-- and harmless to a genuinely full pack; the full setpoint still
+-- waits for the register to actually rise.
+local CHARGE_PROBE_W = 200
 local PV_VOLTS_DAYLIGHT   = 70
 -- The PV reading is DC-side; the AC terminals see less after
 -- conversion, and feeding raw DC PV into the AC setpoint makes the
@@ -426,9 +435,11 @@ local function compute_vendor(battery_target_w)
       if last_pv_w == nil then
         return nil, "no PV reading yet"
       end
-      return last_pv_w * PV_AC_EFF, "waiting for the BMS charge limit to wake", true
+      return last_pv_w * PV_AC_EFF - CHARGE_PROBE_W,
+        "probing " .. CHARGE_PROBE_W .. " W while the BMS charge limit wakes", true
     end
-    return 0, "waiting for the BMS charge limit to wake", true
+    return -CHARGE_PROBE_W,
+      "probing " .. CHARGE_PROBE_W .. " W while the BMS charge limit wakes", true
   end
   local p_eff = math.min(battery_target_w, limit - CHARGE_BMS_MARGIN_W)
   -- Guard 2: daylight by string voltage, not power.
@@ -883,7 +894,7 @@ function driver_command_v2(cmd)
     end
     return {
       status = "accepted", code = "charge_pending_bms_wake",
-      message = "holding 0 W while the BMS charge limit wakes; charge follows on refresh",
+      message = "probing " .. CHARGE_PROBE_W .. " W while the BMS charge limit wakes; full charge follows on refresh",
       device_state = "controlled",
       evidence = { "write_ack", "readback" },
     }
