@@ -967,7 +967,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "myuplink"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [heatpump]
             control: false
         firmware_versions: ""
@@ -993,7 +993,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "nibe_local"
-            version: "1.1.2"
+            version: "1.1.3"
             ders: [heatpump]
             control: false
         firmware_versions: ""

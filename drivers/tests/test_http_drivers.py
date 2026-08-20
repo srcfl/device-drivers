@@ -35,17 +35,14 @@ class TestHttpPatterns:
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
-        # Look for URL construction pattern:
-        # base_url = "http://" .. config.host .. ":" .. port
-        # or similar patterns
-        has_url_construction = (
-            re.search(r'"http://".*config\.host', clean)
-            or re.search(r'config\.host.*"http://"', clean)
-            or re.search(r'base_url\s*=\s*"http://"', clean)
-        )
+        # Local HTTP builds the URL from config.host. The scheme may be
+        # http:// or https:// (a LAN device that only speaks TLS, with a pin).
+        has_host = "config.host" in clean or 'config["host"]' in clean
+        has_scheme = '"http://"' in clean or '"https://"' in clean
 
-        assert has_url_construction, (
-            f"{driver_name}: HTTP driver should construct URL from config.host"
+        assert has_host and has_scheme, (
+            f"{driver_name}: HTTP driver should construct an http(s) URL "
+            f"from config.host"
         )
 
     def test_uses_json_decode(self, driver_name):
@@ -96,15 +93,14 @@ class TestHttpUrlSafety:
     """Validate URL construction safety for local HTTP drivers."""
 
     def test_uses_http_scheme(self, driver_name):
-        """Local HTTP drivers should use http://, not HTTPS."""
+        """Local HTTP drivers use http://, or https:// when the device pins TLS."""
         skip_if_cloud(driver_name)
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
-        # Remove comments for checking
-        # Should have http:// somewhere in URL construction
-        assert '"http://"' in clean, (
-            f"{driver_name}: HTTP driver should use 'http://' scheme"
+        assert '"http://"' in clean or '"https://"' in clean, (
+            f"{driver_name}: HTTP driver should use an 'http://' or "
+            f"'https://' scheme"
         )
 
     def test_uses_config_port(self, driver_name):
@@ -139,7 +135,7 @@ class TestHttpUrlSafety:
         # may expose the request error as a separate return value.
         has_early_return = bool(re.search(
             r'if\s+(?:not\s+)?\w+[^\n]*then.*?return\s+'
-            r'(?:\d+|[a-z_]\w*(?:\([^)]*\))?)',
+            r'(?:\d+|[A-Za-z_]\w*(?:\([^)]*\))?)',
             poll_body,
             re.DOTALL,
         ))

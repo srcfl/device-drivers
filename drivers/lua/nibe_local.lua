@@ -57,9 +57,12 @@ DRIVER = {
   id           = "nibe-local",
   name         = "NIBE REST API S-series",
   manufacturer = "NIBE",
-  version      = "1.0.0",
+  version      = "1.1.3",
   protocols    = { "http" },
   capabilities = { "apicreds" },
+  -- Without this the channel infers control from driver_command and
+  -- publishes a write-capable artifact. The command path refuses every call.
+  read_only    = true,
   description  = "Read-only NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Observe-only — no control.",
   homepage     = "https://www.nibe.eu",
   authors      = { "HuggeK", "FTW contributors" },
@@ -94,20 +97,21 @@ local last_emitted = {}
 -- The BULK of telemetry is metadata-driven (every point self-describes its
 -- unit + divisor), so reading any S-series pump needs NO per-model code. The
 -- only model-specific knobs are the handful of STABLE headline aliases
--- (hp_power_w, hp_outdoor_temp_c, …) that web/heating.js + the thermal twin
--- read by fixed name. Each maps to a local-API variableId, resolved per pump
+-- (hp_power_w, hp_outdoor_temp_c, …) that hosts read by fixed name. Each
+-- maps to a local-API variableId, resolved per pump
 -- in priority order: explicit config override > model profile > generic
 -- S-series default.
 
--- Logical headline -> { config override key, emitted metric name, watts? }.
+-- Logical headline -> { config override key, emitted metric name, watts?, wh? }.
 local HEADLINES = {
     { key = "power",   cfg = "param_power_id",           name = "hp_power_w",            watts = true },
     { key = "used",    cfg = "param_used_id",            name = "hp_used_power_w",       watts = true },
     { key = "hw",      cfg = "param_hw_temp_id",         name = "hp_hw_top_temp_c" },
     { key = "indoor",  cfg = "param_indoor_temp_id",     name = "hp_indoor_temp_c" },
     { key = "outdoor", cfg = "param_outdoor_temp_id",    name = "hp_outdoor_temp_c" },
-    { key = "econs",   cfg = "param_energy_consumed_id", name = "hp_energy_consumed_kwh" },
-    { key = "eprod",   cfg = "param_energy_produced_id", name = "hp_energy_produced_kwh" },
+    -- Name stays _kwh so existing series keys do not move. Unit at emit is Wh.
+    { key = "econs",   cfg = "param_energy_consumed_id", name = "hp_energy_consumed_kwh", wh = true },
+    { key = "eprod",   cfg = "param_energy_produced_id", name = "hp_energy_produced_kwh", wh = true },
     { key = "dm",      cfg = "param_degree_minutes_id",  name = "hp_degree_minutes" },
 }
 
@@ -179,11 +183,28 @@ local function sanitize_metric_name(title, id)
     return "hp_" .. s
 end
 
--- Watts normalisation for the power headline metrics: some models report
--- compressor power in kW, others in W. Emit W either way.
+-- Fold vendor unit strings so "kW " / "KW" still convert. Empty → already SI.
+local function fold_unit(unit)
+    if type(unit) ~= "string" then return "" end
+    unit = unit:gsub("^%s+", "")
+    unit = unit:gsub("%s+$", "")
+    return string.lower(unit)
+end
+
+-- kW → W. Unknown non-empty units keep their vendor string so we do not
+-- relabel a missed kilowatt reading as watts.
 local function to_watts(value, unit)
-    if unit == "kW" then return value * 1000.0, "W" end
-    return value, (unit ~= "" and unit or "W")
+    local folded = fold_unit(unit)
+    if folded == "kw" then return value * 1000.0, "W" end
+    if folded == "w" or folded == "" then return value, "W" end
+    return value, unit
+end
+
+local function to_wh(value, unit)
+    local folded = fold_unit(unit)
+    if folded == "kwh" then return value * 1000.0, "Wh" end
+    if folded == "wh" or folded == "" then return value, "Wh" end
+    return value, unit
 end
 
 -- The NIBE Modbus register id for a point (metadata.modbusRegisterID), formatted
@@ -222,7 +243,7 @@ local function build_canon(profile, config)
     CANON = {}
     for _, h in ipairs(HEADLINES) do
         local id = s(config[h.cfg]) or s(profile[h.key]) or s(PROFILES.default[h.key])
-        if id then CANON[id] = { name = h.name, watts = h.watts } end
+        if id then CANON[id] = { name = h.name, watts = h.watts, wh = h.wh } end
     end
 end
 
@@ -248,10 +269,12 @@ local function auth_headers()
 end
 
 local function api_get(path)
-    local resp, err = host.http_get(base_url .. path, auth_headers())
+    local get_ok, resp, err = pcall(host.http_get, base_url .. path, auth_headers())
+    if not get_ok then return nil, tostring(resp) end
     if err then return nil, tostring(err) end
-    local data = host.json_decode(resp)
-    if not data then return nil, "json decode failed" end
+    local decode_ok, data, derr = pcall(host.json_decode, resp)
+    if not decode_ok then return nil, tostring(data) end
+    if not data then return nil, tostring(derr or "json decode failed") end
     return data, nil
 end
 
@@ -390,7 +413,12 @@ function driver_poll()
                 name = name .. "_" .. tostring(id)
             end
             local value = scaled
-            if canon and canon.watts then value, unit = to_watts(scaled, unit) end
+            local folded = fold_unit(unit)
+            if folded == "kw" or folded == "w" or (canon and canon.watts) then
+                value, unit = to_watts(scaled, unit)
+            elseif folded == "kwh" or folded == "wh" or (canon and canon.wh) then
+                value, unit = to_wh(scaled, unit)
+            end
 
             -- Stable headline series retain one-minute resolution. The bulk
             -- map records transitions plus an hourly complete snapshot.

@@ -9,6 +9,8 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Changed
 
+- **`nibe_local` 1.1.3** — heat-pump diagnostic metrics convert vendor kW/kWh to W/Wh at emit (case and surrounding spaces folded, so `kW ` still converts). Headline names `hp_energy_consumed_kwh` and `hp_energy_produced_kwh` stay so existing series keys do not move; the unit field is Wh. `DRIVER.read_only = true` so the signed artifact matches the observe-only command path. HTTP GET and JSON decode wrap in `pcall`.
+- **`myuplink` 1.2.1** — bulk kW/kWh points and the `hp_power_w` headline convert to W/Wh at emit. There are no `hp_energy_*_kwh` headlines; energy, if the pump reports it, is a sanitized bulk name with unit Wh.
 - **acuvim** 0.4.2, **50-125k-svk** 0.2.3, **50-125k-svk-slew** 0.1.12,
   **50-125k-svk-ac-slew** 0.2.4, **deye-svk** 0.2.1, **konja-261-svk** 0.3.1 —
   comments and metadata only: remove references to internal services and
