@@ -1,5 +1,5 @@
 name: "acuvim"
-version: "0.4.1"
+version: "0.4.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -12,7 +12,7 @@ tested_devices:
     variants: [Acuvim II]
     regions: [EU]
     firmware_versions: ""
-    notes: "Three-phase revenue-grade meter; POI meter on Blixt L1 sites (angry-tea)."
+    notes: "Three-phase revenue-grade meter; POI meter on Blixt L1 sites."
     min_driver_version: "0.4.1"
 upstream_docs:
   - url: "https://www.accuenergy.com/wp-content/uploads/Acuvim-II-Power-Meter-User-Manual-1040E1303.pdf"
@@ -24,12 +24,12 @@ upstream_docs:
     kind: register_map
     url_stability: volatile
 min_host_version: "2.0.0"
-size_bytes: 18301
+size_bytes: 18291
 dkb_id: "acuvim"
-sha256: "cfe0bbd3c797f0b3e9341dc18a12513375f5155e1b047a44d141f0b62dc3033f"
+sha256: "221f3733028fa0c9e82f8c83622bf8fe778454985fa06243007238a41ea0ddd0"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Migrate from the Blixt L1 device-support registry (acuvim@0.4.1)."
+changelog: "Migrate from the Blixt L1 driver source (acuvim@0.4.1)."

@@ -4,20 +4,20 @@ Catalog source is not proof that a target can install or run a driver.
 
 | Driver | Catalog | Target | Conformance | Candidate | Signed beta | HIL | Stable | Legacy parity | Control |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 50-125k-svk-ac-slew | 0.2.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| 50-125k-svk-ac-slew | 0.2.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| 50-125k-svk-slew | 0.1.11 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| 50-125k-svk-slew | 0.1.11 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| 50-125k-svk | 0.2.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| 50-125k-svk | 0.2.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| 50-125k-svk-ac-slew | 0.2.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| 50-125k-svk-ac-slew | 0.2.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| 50-125k-svk-slew | 0.1.12 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| 50-125k-svk-slew | 0.1.12 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| 50-125k-svk | 0.2.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| 50-125k-svk | 0.2.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | abb_meter | 1.0.6 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | abb_meter | 1.0.6 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | abb_terra | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | abb_terra | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | acrel | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | acrel | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| acuvim | 0.4.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| acuvim | 0.4.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| acuvim | 0.4.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| acuvim | 0.4.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | alfen | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | alfen | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | alphaess | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -40,8 +40,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ctek_hybrid | 0.3.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ctek_v2 | 0.3.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ctek_v2 | 0.3.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| deye-svk | 0.2.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| deye-svk | 0.2.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| deye-svk | 0.2.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| deye-svk | 0.2.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | deye | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | deye | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | easee | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
@@ -88,8 +88,8 @@ Catalog source is not proof that a target can install or run a driver.
 | janitza | 1.0.5 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | keba | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| konja-261-svk | 0.3.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| konja-261-svk | 0.3.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| konja-261-svk | 0.3.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| konja-261-svk | 0.3.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | kostal | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | kostal | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | kstar | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

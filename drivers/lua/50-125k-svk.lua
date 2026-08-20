@@ -3,7 +3,7 @@
 --
 -- This is a LEAN sibling of solis_50_125k.lua. The control path
 -- (Remote Control V1: arm 44280, setpoint 44282-83, safe-revert) is
--- VERBATIM from that driver — proven on real hardware (angry-tea,
+-- VERBATIM from that driver — proven on real hardware (Blixt L1 test site,
 -- tracks ±10 kW cleanly). The ONLY change is driver_poll: it has been
 -- stripped to the minimum needed to score FFR / FCR-D/N truthfully.
 --
@@ -64,7 +64,7 @@ DRIVER = {
     id = "50-125k-svk",
     name = "Solis S6 50-125 kW C&I hybrid (SvK)",
     manufacturer = "Solis",
-    version = "0.2.2",
+    version = "0.2.3",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -72,7 +72,7 @@ DRIVER = {
     authors = { "David and Blixt L1 contributors", "Sourceful contributors" },
     tested_models = { "S6-GC3P50K", "S6-GC3P100K", "S6-GC3P125K" },
     verification_status = "experimental",
-    verification_notes = "Migrated from the Blixt L1 device-support registry; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
+    verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         unit_id = 1, baud_rate = 9600,
     },
@@ -80,7 +80,7 @@ DRIVER = {
 
 DRIVER_MANIFEST = {
     name    = "50-125k-svk",
-    version = "0.2.2",
+    version = "0.2.3",
     role    = "battery",
 
     requires = {

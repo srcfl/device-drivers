@@ -21,7 +21,7 @@
 -- NO inbuilt slew rate — when the test runner sends `battery 0` after
 -- an FFR activation, the inverter snaps the AC output 10 kW → 0 in
 -- ~13 ms, giving |dP/dt| ≈ 800 %/s. That's a 40× spec violation, and
--- it failed every kort-uthållighet test on angry-tea 2026-06-05.
+-- it failed every kort-uthållighet test on the Blixt L1 test site 2026-06-05.
 --
 -- This driver enforces the spec at the **driver level** so the test
 -- runner doesn't have to know about it — the lua decides when to
@@ -75,7 +75,7 @@ DRIVER = {
     id = "50-125k-svk-slew",
     name = "Solis S6 50-125 kW C&I hybrid (SvK, slew-limited)",
     manufacturer = "Solis",
-    version = "0.1.11",
+    version = "0.1.12",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -83,7 +83,7 @@ DRIVER = {
     authors = { "David and Blixt L1 contributors", "Sourceful contributors" },
     tested_models = { "S6-GC3P50K", "S6-GC3P100K", "S6-GC3P125K" },
     verification_status = "experimental",
-    verification_notes = "Migrated from the Blixt L1 device-support registry; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
+    verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         unit_id = 1, baud_rate = 9600,
     },
@@ -91,7 +91,7 @@ DRIVER = {
 
 DRIVER_MANIFEST = {
     name    = "50-125k-svk-slew",
-    version = "0.1.11",
+    version = "0.1.12",
     role    = "battery",
 
     requires = {
@@ -320,7 +320,7 @@ local function write_seq(label, writes)
         -- from the original Solis driver and added ~80 ms to every
         -- setpoint dispatch — fatal for FFR §4.2.2 ramp ±50 mHz
         -- (≙ ±250 ms @ 0.2 Hz/s). 10 ms is well above the spec
-        -- minimum and proven safe on the angry-tea bench.
+        -- minimum and proven safe on the Blixt L1 test bench.
         host.sleep(10)
     end
     host.log("[" .. label .. "] OK")
@@ -373,7 +373,7 @@ end
 -- which silently overrode the no-slew default (100 000 %/s) and
 -- forced every FCR-D / FCR-N deactivation through a ~2.5 kW/s tail,
 -- failing FCR-D 8.0 §3.1.2 Req 4 (deact energy ≤ 2.5 s × ΔP_ss_theo).
--- See angry-tea 2026-06-09 capture
+-- See the Blixt L1 test-site capture of 2026-06-09
 -- `sourceful_solis_fcrd_..._20260609T061544Z`.
 local MAX_BUDGET_ELAPSED_MS = 1000
 

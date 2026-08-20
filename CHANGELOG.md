@@ -7,18 +7,25 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Changed
+
+- **acuvim** 0.4.2, **50-125k-svk** 0.2.3, **50-125k-svk-slew** 0.1.12,
+  **50-125k-svk-ac-slew** 0.2.4, **deye-svk** 0.2.1, **konja-261-svk** 0.3.1 —
+  comments and metadata only: remove references to internal services and
+  test-site names from `verification_notes`, manifest notes and source
+  comments. No behaviour change.
+
 ### Added
 
 - **acuvim** 0.4.1 — Accuenergy Acuvim II three-phase revenue-grade meter,
-  migrated from the Blixt L1 device-support registry (POI meter on Blixt
+  migrated from the Blixt L1 driver source (POI meter on Blixt
   SvK sites). One bundled FC03 float32 block + a bounded probe of the
   0x4048 energy block; emits canonical `meter.W`.
-- **konja-261-svk** 0.3.0 — Konja Power MG-series 261 kWh / 125 kW C&I BESS (MG500 EMS + Enjoy Power PCS) via Modbus TCP :1502 — SvK FCR/FFR test driver, 20 Hz poll. Migrated from the Blixt L1 device-support
-- **deye-svk** 0.2.0 — Deye three-phase hybrid via Modbus RTU — lean single-read SvK fast-poll variant with the deye@2.4.4 Remote Mode control path verbatim. Migrated from the Blixt L1 device-support
-- **50-125k-svk-ac-slew** 0.2.3 — Solis S6 50-125 kW C&I hybrid — AC-stage variant of the slew driver (writes 44284/85; PV shares the AC stage). Migrated from the Blixt L1 device-support
-- **50-125k-svk-slew** 0.1.11 — Solis S6 50-125 kW C&I hybrid via Modbus RTU — SvK battery control with configurable deactivation slew (activation immediate: FFR C-tier 0.70 s). angry-tea, FFR + FCR-D validated. Migrated from the Blixt L1 device-support
-- **50-125k-svk** 0.2.2 — Solis S6 50-125 kW C&I hybrid via Modbus RTU — SvK fast-frequency battery control (no slew); the base driver the slew variants derive from. angry-tea (FFR §4.2.2 latency runs). Migrated from the Blixt L1 device-support
-  registry: catalog header added above the existing `DRIVER_MANIFEST`,
+- **konja-261-svk** 0.3.0 — Konja Power MG-series 261 kWh / 125 kW C&I BESS (MG500 EMS + Enjoy Power PCS) via Modbus TCP :1502 — SvK FCR/FFR test driver, 20 Hz poll. Migrated from the Blixt L1 driver source; catalog header, canonical emit keys, bounded poll-read retry, no telemetry on bus loss, portable write check and bounded unprompted default mode added — control path unchanged. Community tier, `control_enabled: false`.
+- **deye-svk** 0.2.0 — Deye three-phase hybrid via Modbus RTU — lean single-read SvK fast-poll variant with the deye@2.4.4 Remote Mode control path verbatim. Migrated from the Blixt L1 driver source; catalog header, canonical emit keys, bounded poll-read retry, no telemetry on bus loss, portable write check and bounded unprompted default mode added — control path unchanged. Community tier, `control_enabled: false`.
+- **50-125k-svk-ac-slew** 0.2.3 — Solis S6 50-125 kW C&I hybrid — AC-stage variant of the slew driver (writes 44284/85; PV shares the AC stage). Migrated from the Blixt L1 driver source; catalog header, canonical emit keys, bounded poll-read retry, no telemetry on bus loss, portable write check and bounded unprompted default mode added — control path unchanged. Community tier, `control_enabled: false`.
+- **50-125k-svk-slew** 0.1.11 — Solis S6 50-125 kW C&I hybrid via Modbus RTU — SvK battery control with configurable deactivation slew (activation immediate: FFR C-tier 0.70 s). FFR + FCR-D validated on a Blixt L1 test site. Migrated from the Blixt L1 driver source; catalog header, canonical emit keys, bounded poll-read retry, no telemetry on bus loss, portable write check and bounded unprompted default mode added — control path unchanged. Community tier, `control_enabled: false`.
+- **50-125k-svk** 0.2.2 — Solis S6 50-125 kW C&I hybrid via Modbus RTU — SvK fast-frequency battery control (no slew); the base driver the slew variants derive from. FFR §4.2.2 latency runs on a Blixt L1 test site. Migrated from the Blixt L1 driver source: catalog header added above the existing `DRIVER_MANIFEST`,
   canonical `W` emit keys, bounded per-block retry on poll reads, no
   telemetry emitted on bus loss, portable write-result check, and a
   bounded unprompted `driver_default_mode` (explicit `deinit` always
