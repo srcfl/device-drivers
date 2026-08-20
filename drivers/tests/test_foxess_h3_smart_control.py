@@ -168,7 +168,7 @@ pcall(driver_poll)
 def test_night_charge_with_sleeping_bms_holds_and_waits():
     """A sleeping BMS limit must not fail the command — that released
     the session and put the inverter back to sleep, the loop that made
-    grid charging never work at night (2026-09-08)."""
+    grid charging never work at night (2026-08-18/19)."""
     out = drive(NIGHT + """
 host._modbus_registers.holding[46018] = {0, 0}
 local r = driver_command("battery", 2000)
@@ -204,13 +204,43 @@ print("MARK done")
     assert out["RC_ENABLE"] == "0"          # released: genuine refusal
 
 
-def test_daylight_low_limit_still_refuses():
+def test_daylight_low_limit_holds_and_waits():
+    """0.9.5: the limit register follows battery ACTIVITY, not
+    capability — an idle battery dozes off in daylight too (observed
+    at 11-14% SoC with the sun up). Pending is universal: hold the
+    battery at zero (AC = pv so PV passes) and wait."""
     out = drive("""
 host._modbus_registers.holding[46018] = {0, 0}
 local r = driver_command("battery", 2000)
 print("V1_RESULT " .. tostring(r))
 """)
-    assert "not accepting charge" in out["V1_RESULT"]
+    assert out["V1_RESULT"] == "true"
+    assert out["RC_ENABLE"] == "1"
+    assert setpoint(out) == round(PV_W * EFF)  # battery-zero hold
+
+
+def test_daylight_charge_applies_when_bms_wakes():
+    out = drive("""
+host._modbus_registers.holding[46018] = {0, 0}
+driver_command("battery", 2000)
+host._modbus_registers.holding[46018] = {0, 6000}
+pcall(driver_poll)
+print("MARK done")
+""")
+    # limit awake: daylight vendor = pv * eff - target
+    assert setpoint(out) == round(PV_W * EFF) - 2000
+
+
+def test_daylight_pending_gives_up_after_patience_window():
+    out = drive("""
+host._modbus_registers.holding[46018] = {0, 0}
+driver_command("battery", 2000)
+host._millis_step = 200000
+pcall(driver_poll)
+pcall(driver_poll)
+print("MARK done")
+""")
+    assert out["RC_ENABLE"] == "0"          # released: genuine refusal
 
 
 def test_v2_night_charge_pending_is_accepted_not_applied():

@@ -67,25 +67,25 @@
 --      implementation's finding: command right at the limit and the
 --      inverter clips PV while the battery takes ~50 W less than it
 --      could -- the gap is what lets PV fill in. Below a 250 W floor
---      the response depends on whether the inverter can be believed:
---        daylight: the inverter is awake, the refusal is real (full,
---                  cold, BMS hold) -- release and report why; native
---                  self-use surplus-charges better than a fight.
---        night:    the inverter sleeps in standby and its master
---                  samples the RC block slowly, so the limit register
---                  still shows the sleeping value right after session
---                  enable. Refusing here re-releases the session and
---                  the inverter never wakes -- the loop that made
---                  grid charging never work at night (found
---                  2026-09-08: 5 h of refusals, 10% SoC, 20 C pack,
---                  while the unguarded v0.2.0 had night-imported
---                  happily, and the reference drives the session
---                  continuously rather than gate on first read).
---                  Instead: accept the command, hold AC = 0 (no
---                  import, session keeps the inverter awake), re-read
---                  the limit every poll, apply the true setpoint when
---                  it wakes, give up only after a 3 min patience
---                  window (a genuine cold/fault hold).
+--      the charge is accepted as PENDING, day or night: hold the
+--      battery at zero (night: AC = 0; daylight: AC = pv, so PV
+--      passes to house + grid), keep the session alive, re-read the
+--      limit every poll, apply the true setpoint the moment it rises,
+--      give up after a 3 min patience window (a genuine full / cold /
+--      fault hold; native self-use then serves better than a fight).
+--      Why pending instead of refusing: the limit register follows
+--      the battery's ACTIVITY, not its capability. A battery that has
+--      sat idle dozes off and reports no headroom until a session
+--      asks and waits. Refusing re-releases the session, so nothing
+--      ever asks -- the loop behind two hardware incidents on the
+--      same 1K5: grid charging never worked at night (2026-08-18/19:
+--      5 h of refusals at 10% SoC, 20 C pack, while the unguarded
+--      v0.2.0 had night-imported happily), and 0.9.4's night-only fix
+--      left the same refusal loop in DAYLIGHT with the battery idle
+--      at the SoC floor under weak PV (two incidents 2026-08-19/20,
+--      SoC 11-14%, battery 0 W, limit below floor with the sun up).
+--      The reference implementation avoids the entire class by never
+--      gating on a first read -- it drives the session continuously.
 --   2. Daylight split (PV string VOLTAGE >= 70 V -- voltage says the
 --      panels are awake even when power is ~0 at dawn; power says
 --      nothing at night):
@@ -147,7 +147,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.9.4",
+  version = "0.9.5",
   host_api_min = 1,
   host_api_max = 2,
   protocols = { "modbus" },
@@ -172,7 +172,7 @@ PROTOCOL = "modbus"
 -- other field here.
 DRIVER_MANIFEST = {
   name = "foxess_h3_smart",
-  version = "0.9.4",
+  version = "0.9.5",
   role = "inverter",
   requires = {},
   options = {},
@@ -411,23 +411,23 @@ local function compute_vendor(battery_target_w)
     return nil, "battery charge limit unreadable"
   end
   if limit < CHARGE_BMS_FLOOR_W then
-    -- Daylight: the inverter is awake, so a floor-level limit is a
-    -- real refusal (full, cold, BMS hold) -- release and let native
-    -- self-use surplus-charge instead.
+    -- PENDING, day or night: the limit register follows the battery's
+    -- ACTIVITY, not its capability -- an idle battery dozes off and
+    -- reports no headroom until a session asks and waits. Refusing
+    -- releases the session so nothing ever asks: that loop made grid
+    -- charging never work at night (2026-08-18/19), and the night-only
+    -- 0.9.4 fix left the identical loop in daylight with the battery
+    -- idle at the SoC floor under weak PV (2026-08-19/20, SoC 11-14%,
+    -- battery 0 W, sun up). Hold the battery at zero instead -- night:
+    -- AC = 0; daylight: AC = pv, so PV passes to house + grid -- keep
+    -- the session alive, re-read every poll, and let the refresh
+    -- path's patience window bound a genuine full/cold/fault hold.
     if (last_pv_volts or 0) >= PV_VOLTS_DAYLIGHT then
-      return nil, "battery is not accepting charge now"
+      if last_pv_w == nil then
+        return nil, "no PV reading yet"
+      end
+      return last_pv_w * PV_AC_EFF, "waiting for the BMS charge limit to wake", true
     end
-    -- Night: the inverter has been in standby and its master samples
-    -- the RC block slowly, so Pwr_limit_Bat_up still reports the
-    -- sleeping value right after the session enable. Failing here
-    -- releases the session and puts the inverter straight back to
-    -- sleep -- the loop that made grid charging never work at night
-    -- (discovered 2026-09-08: five hours of refusals at 10% SoC with
-    -- a 20 C battery, while the unguarded build had night-imported
-    -- happily). Hold AC = 0 instead: no import, no discharge, session
-    -- alive; every poll re-reads the limit and the real setpoint
-    -- follows the moment the BMS wakes. The patience window in the
-    -- refresh path bounds how long a genuine refusal can hold this.
     return 0, "waiting for the BMS charge limit to wake", true
   end
   local p_eff = math.min(battery_target_w, limit - CHARGE_BMS_MARGIN_W)
@@ -682,7 +682,7 @@ function driver_poll()
   if prev_vendor_w ~= nil then
     host.emit_metric("foxess_rc_setpoint_w", prev_vendor_w)
   end
-  -- The BMS charge ceiling as a time series: the 2026-09-08 night of
+  -- The BMS charge ceiling as a time series: the 2026-08-18/19 night of
   -- refused charging was undiagnosable precisely because this value
   -- was only ever read inside command paths. One extra register pair
   -- per poll buys the ability to see the BMS's mood remotely.

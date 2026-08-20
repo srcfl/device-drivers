@@ -60,8 +60,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ferroamp_dc2_v2x | 2.1.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ferroamp_modbus | 2.1.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | ferroamp_modbus | 2.1.2 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| foxess_h3_smart | 0.9.4 | ftw-core | not_assessed | 0.9.4 | — | not_recorded | — | not_assessed | yes |
-| foxess_h3_smart | 0.9.4 | blixt-l1 | not_assessed | 0.9.4 | — | not_recorded | — | not_assessed | yes |
+| foxess_h3_smart | 0.9.5 | ftw-core | not_assessed | 0.9.5 | — | not_recorded | — | not_assessed | yes |
+| foxess_h3_smart | 0.9.5 | blixt-l1 | not_assessed | 0.9.5 | — | not_recorded | — | not_assessed | yes |
 | fronius | 2.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | fronius_api | 1.0.2 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
