@@ -161,6 +161,14 @@ print("V1_RESULT " .. tostring(r))
 NIGHT = """
 host._modbus_registers.holding[39070] = 550
 host._modbus_registers.holding[39072] = 480
+host._modbus_registers.holding[39237] = 0
+host._modbus_registers.holding[39238] = 0
+pcall(driver_poll)
+"""
+
+IDLE_BAT = """
+host._modbus_registers.holding[39237] = 0
+host._modbus_registers.holding[39238] = 0
 pcall(driver_poll)
 """
 
@@ -168,7 +176,7 @@ pcall(driver_poll)
 def test_night_charge_with_sleeping_bms_holds_and_waits():
     """A sleeping BMS limit must not fail the command — that released
     the session and put the inverter back to sleep, the loop that made
-    grid charging never work at night (2026-09-08)."""
+    grid charging never work at night (2026-08-18/19)."""
     out = drive(NIGHT + """
 host._modbus_registers.holding[46018] = {0, 0}
 local r = driver_command("battery", 2000)
@@ -176,7 +184,7 @@ print("V1_RESULT " .. tostring(r))
 """)
     assert out["V1_RESULT"] == "true"       # accepted, not refused
     assert out["RC_ENABLE"] == "1"          # session stays up
-    assert setpoint(out) == 0               # holding, not importing
+    assert setpoint(out) == -200            # probe import, not full charge
 
 
 def test_night_charge_applies_when_bms_wakes():
@@ -192,25 +200,57 @@ print("MARK done")
     assert out["RC_ENABLE"] == "1"
 
 
+PATIENCE_CYCLES = """
+for _ = 1, 3 do
+  host._millis_counter = host._millis_counter + 70000
+  driver_command("battery", 2000)
+  pcall(driver_poll)
+end
+print("MARK done")
+"""
+
+
 def test_night_charge_gives_up_after_patience_window():
     out = drive(NIGHT + """
 host._modbus_registers.holding[46018] = {0, 0}
 driver_command("battery", 2000)
-host._millis_step = 200000
-pcall(driver_poll)
-pcall(driver_poll)
-print("MARK done")
-""")
+""" + PATIENCE_CYCLES)
     assert out["RC_ENABLE"] == "0"          # released: genuine refusal
 
 
-def test_daylight_low_limit_still_refuses():
-    out = drive("""
+def test_daylight_low_limit_holds_and_waits():
+    """0.9.5: the limit register follows battery ACTIVITY, not
+    capability — an idle battery dozes off in daylight too (observed
+    at 11-14% SoC with the sun up). Pending is universal: hold the
+    probe gently (AC = pv - 200) and wait."""
+    out = drive(IDLE_BAT + """
 host._modbus_registers.holding[46018] = {0, 0}
 local r = driver_command("battery", 2000)
 print("V1_RESULT " .. tostring(r))
 """)
-    assert "not accepting charge" in out["V1_RESULT"]
+    assert out["V1_RESULT"] == "true"
+    assert out["RC_ENABLE"] == "1"
+    assert setpoint(out) == round(PV_W * EFF) - 200  # probe under PV pass-through
+
+
+def test_daylight_charge_applies_when_bms_wakes():
+    out = drive(IDLE_BAT + """
+host._modbus_registers.holding[46018] = {0, 0}
+driver_command("battery", 2000)
+host._modbus_registers.holding[46018] = {0, 6000}
+pcall(driver_poll)
+print("MARK done")
+""")
+    # limit awake: daylight vendor = pv * eff - target
+    assert setpoint(out) == round(PV_W * EFF) - 2000
+
+
+def test_daylight_pending_gives_up_after_patience_window():
+    out = drive(IDLE_BAT + """
+host._modbus_registers.holding[46018] = {0, 0}
+driver_command("battery", 2000)
+""" + PATIENCE_CYCLES)
+    assert out["RC_ENABLE"] == "0"          # released: genuine refusal
 
 
 def test_v2_night_charge_pending_is_accepted_not_applied():
@@ -223,4 +263,56 @@ show(driver_command_v2({ command = "battery",
     assert out["CODE"] == "charge_pending_bms_wake"
     assert out["STATE"] == "controlled"
     assert out["EVIDENCE"] == "write_ack,readback"
-    assert setpoint(out) == 0
+    assert setpoint(out) == -200  # the probe, not the full charge
+
+
+def _bat_charging(w):
+    """Registers for a battery charging at `w` (vendor: negative)."""
+    raw = (-w) & 0xFFFFFFFF
+    return (f"host._modbus_registers.holding[39237] = {raw >> 16}\n"
+            f"host._modbus_registers.holding[39238] = {raw & 0xFFFF}\n")
+
+
+def test_pending_ramps_on_measured_uptake_with_dead_register():
+    """2026-08-20 hardware finding: the pack charges at the probe level
+    while the limit register stays flat 0 — capability must be read
+    from measured uptake, one step per poll."""
+    out = drive(NIGHT + """
+host._modbus_registers.holding[46018] = {0, 0}
+driver_command("battery", 2000)
+""" + _bat_charging(210) + """
+pcall(driver_poll)
+print("SP1_HI " .. tostring(host._modbus_registers.holding[46003]))
+print("SP1_LO " .. tostring(host._modbus_registers.holding[46004]))
+""" + _bat_charging(650) + """
+pcall(driver_poll)
+print("MARK done")
+""")
+    sp1 = (int(out["SP1_HI"]) << 16) | int(out["SP1_LO"])
+    sp1 = sp1 - (1 << 32) if sp1 >= (1 << 31) else sp1
+    assert sp1 == -700                     # probe followed -> one step up
+    assert setpoint(out) == -1200          # still following -> next step
+    assert out["RC_ENABLE"] == "1"
+
+
+def test_pending_ramp_decays_when_uptake_stalls():
+    out = drive(NIGHT + """
+host._modbus_registers.holding[46018] = {0, 0}
+driver_command("battery", 2000)
+""" + _bat_charging(210) + """
+pcall(driver_poll)
+""" + _bat_charging(650) + """
+pcall(driver_poll)
+""" + _bat_charging(100) + """
+pcall(driver_poll)
+print("MARK done")
+""")
+    assert setpoint(out) == -700           # 1200 decays one step, no reset
+
+
+def test_pending_with_uptake_never_times_out():
+    out = drive(NIGHT + """
+host._modbus_registers.holding[46018] = {0, 0}
+driver_command("battery", 2000)
+""" + _bat_charging(210) + PATIENCE_CYCLES)
+    assert out["RC_ENABLE"] == "1"         # charging = success in progress
