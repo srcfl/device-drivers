@@ -67,11 +67,11 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "acuvim"
-            version: "0.4.1"
+            version: "0.4.2"
             ders: [meter]
             control: false
         firmware_versions: ""
-        notes: "Three-phase revenue-grade meter; POI meter on Blixt L1 sites (angry-tea)."
+        notes: "Three-phase revenue-grade meter; POI meter on Blixt L1 sites."
   - name: "Acrel"
     model_families:
       - name: "DTSD Series"
@@ -301,7 +301,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye-svk"
-            version: "0.2.0"
+            version: "0.2.1"
             ders: [battery]
             control: true
         firmware_versions: ""
@@ -860,7 +860,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "konja-261-svk"
-            version: "0.3.0"
+            version: "0.3.1"
             ders: [battery, meter]
             control: true
         firmware_versions: ""
@@ -1689,17 +1689,17 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "50-125k-svk-ac-slew"
-            version: "0.2.3"
+            version: "0.2.4"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk-slew"
-            version: "0.1.11"
+            version: "0.1.12"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk"
-            version: "0.2.2"
+            version: "0.2.3"
             ders: [battery]
             control: true
         firmware_versions: ""

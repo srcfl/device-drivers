@@ -106,7 +106,7 @@ DRIVER = {
     id = "acuvim",
     name = "Accuenergy Acuvim II meter",
     manufacturer = "Accuenergy",
-    version = "0.4.1",
+    version = "0.4.2",
     protocols = { "modbus" },
     capabilities = { "meter" },
     read_only = true,
@@ -114,7 +114,7 @@ DRIVER = {
     authors = { "David and Blixt L1 contributors", "Sourceful contributors" },
     tested_models = { "Acuvim II" },
     verification_status = "experimental",
-    verification_notes = "Migrated from the Blixt L1 device-support registry; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
+    verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         port = 502, unit_id = 1,
     },
@@ -122,7 +122,7 @@ DRIVER = {
 
 DRIVER_MANIFEST = {
     name    = "acuvim",
-    version = "0.4.1",
+    version = "0.4.2",
     role    = "meter",
 
     requires = {},

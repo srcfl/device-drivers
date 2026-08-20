@@ -1,5 +1,5 @@
 name: "50-125k-svk"
-version: "0.2.2"
+version: "0.2.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,12 +15,12 @@ tested_devices:
     notes: "Base SvK driver; slew variants derive from it."
     min_driver_version: "0.2.2"
 min_host_version: "2.0.0"
-size_bytes: 25342
+size_bytes: 25341
 dkb_id: "50-125k-svk"
-sha256: "82e6932296bd2af4edcfedf58bbf96802dd95d657d3b2b9d884ce3682f4646dd"
+sha256: "052e51a0d4da51f9a48bddc0ab6684474bbe7988a9cefdf768b4d669dad0e40f"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Migrate from the Blixt L1 device-support registry (50-125k-svk@0.2.2)."
+changelog: "Migrate from the Blixt L1 driver source (50-125k-svk@0.2.2)."
