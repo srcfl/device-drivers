@@ -417,7 +417,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.9.3"
+            version: "0.9.4"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
@@ -428,7 +428,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.9.3"
+            version: "0.9.4"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
