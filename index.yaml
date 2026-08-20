@@ -265,8 +265,8 @@ drivers:
     connectivity: local
     ders: [pv, battery, meter]
     control: true
-    size_bytes: 39467
-    sha256: "64b9dad43541ef0ec4c4708fb8cd586cf995fd48b689938241409599dfb3969f"
+    size_bytes: 41341
+    sha256: "8d2775354a1716dee9b03aedef0b8415bafa94e60271e2eced24cecde03964aa"
   - name: "fronius"
     version: "2.1.1"
     tier: core

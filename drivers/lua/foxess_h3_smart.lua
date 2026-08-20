@@ -249,14 +249,24 @@ local CHARGE_BMS_FLOOR_W  = 250
 -- The RC block is sampled slowly by the inverter master (the same
 -- fact behind the 60 s timeout floor), so seconds are not enough.
 local CHARGE_WAKE_PATIENCE_MS = 180000
--- The wake stimulus. Pwr_limit_Bat_up follows power FLOW, not intent:
--- metric data (2026-08-20, 12+ min flat 0 across held sessions at the
--- SoC floor) shows a session that asks for nothing never wakes the
--- pack, while the unguarded v0.2.0 charged 4.5 kW from this exact
--- idle state just by asking. A 200 W probe is below the refusal floor
--- and harmless to a genuinely full pack; the full setpoint still
--- waits for the register to actually rise.
+-- The wake stimulus, and the uptake ramp behind it. Hardware findings
+-- on the discovering 1K5 (2026-08-20 morning, via the limit metric):
+-- a session that asks for nothing never wakes the pack (12+ min of
+-- flat-0 limit across held-at-zero sessions), and the register stays
+-- flat 0 EVEN WHILE the pack demonstrably charges at the probe level
+-- -- in the idle-at-floor state the register is simply dead, while
+-- the pack itself takes whatever is asked (the unguarded v0.2.0
+-- imported 4.5 kW from this exact state). So: probe with a gentle
+-- charge, and when the pack provably follows, ramp the request on
+-- MEASURED UPTAKE -- the guard the header's charge section always
+-- named as the next step. The register path still takes over the
+-- moment Pwr_limit_Bat_up actually rises.
 local CHARGE_PROBE_W = 200
+-- Ramp step per poll while escalating on uptake, and the fraction of
+-- the current request the pack must be following for the ramp (or the
+-- request itself) to be trusted.
+local CHARGE_RAMP_STEP_W = 500
+local CHARGE_FOLLOW_FRACTION = 0.5
 local PV_VOLTS_DAYLIGHT   = 70
 -- The PV reading is DC-side; the AC terminals see less after
 -- conversion, and feeding raw DC PV into the AC setpoint makes the
@@ -287,9 +297,15 @@ local fault_active = nil
 local rc_enabled = false
 local rc_target_w = nil       -- site convention: positive = charge
 local rc_command_ms = 0
--- millis when a charge first found the BMS limit below the floor at
--- night; nil when no charge is waiting. See CHARGE_WAKE_PATIENCE_MS.
+-- millis when a charge first found the BMS limit below the floor;
+-- nil when no charge is waiting. See CHARGE_WAKE_PATIENCE_MS.
 local charge_wake_since = nil
+-- The uptake ramp's current request (W) while the limit register is
+-- dead; nil when not ramping. Grows by CHARGE_RAMP_STEP_W per poll
+-- while the measured battery charge keeps following.
+local charge_ramp_w = nil
+-- Battery power from the last poll, site convention (+ = charging).
+local last_bat_w = nil
 -- PV curtail cap (AC-output ceiling, W). nil = none. Armed by the
 -- `curtail` action; only honoured when the operator opted in via
 -- supports_pv_curtail (the host injects _supports_pv_curtail).
@@ -431,15 +447,28 @@ local function compute_vendor(battery_target_w)
     -- AC = 0; daylight: AC = pv, so PV passes to house + grid -- keep
     -- the session alive, re-read every poll, and let the refresh
     -- path's patience window bound a genuine full/cold/fault hold.
+    -- Uptake ramp: the pack following the current request is the
+    -- capability signal the dead register cannot give. Grow the
+    -- request one step per poll while it follows; fall back to the
+    -- probe when it stops.
+    local request = CHARGE_PROBE_W
+    local following = (last_bat_w or 0) >= (charge_ramp_w or CHARGE_PROBE_W) * CHARGE_FOLLOW_FRACTION
+    if following then
+      request = math.min(battery_target_w, (charge_ramp_w or CHARGE_PROBE_W) + CHARGE_RAMP_STEP_W)
+    else
+      -- Decay one step rather than reset: the inverter can lag a poll
+      -- behind a raised request, and a full reset would saw-tooth.
+      request = math.max(CHARGE_PROBE_W, (charge_ramp_w or CHARGE_PROBE_W) - CHARGE_RAMP_STEP_W)
+    end
+    charge_ramp_w = request
+    local why = "probing " .. request .. " W while the BMS charge limit sleeps"
     if (last_pv_volts or 0) >= PV_VOLTS_DAYLIGHT then
       if last_pv_w == nil then
         return nil, "no PV reading yet"
       end
-      return last_pv_w * PV_AC_EFF - CHARGE_PROBE_W,
-        "probing " .. CHARGE_PROBE_W .. " W while the BMS charge limit wakes", true
+      return last_pv_w * PV_AC_EFF - request, why, true
     end
-    return -CHARGE_PROBE_W,
-      "probing " .. CHARGE_PROBE_W .. " W while the BMS charge limit wakes", true
+    return -request, why, true
   end
   local p_eff = math.min(battery_target_w, limit - CHARGE_BMS_MARGIN_W)
   -- Guard 2: daylight by string voltage, not power.
@@ -528,6 +557,7 @@ local function release_remote_control()
   rc_target_w = nil
   prev_vendor_w = nil
   charge_wake_since = nil
+  charge_ramp_w = nil
   if rc_enabled then
     rc_enabled = false
     checked_write(RC_ENABLE_ADDR, 0)
@@ -615,6 +645,7 @@ function driver_poll()
   if power then
     local bat_out = {}
     bat_out.W = -i32(power, POWER_ADDR, 39237)
+    last_bat_w = bat_out.W
     bat_out.V = reg(power, POWER_ADDR, 39227) * 0.1
     bat_out.A = -i32(power, POWER_ADDR, 39228) * 0.001
     local soc = read(SOC_ADDR, 1)
@@ -720,6 +751,11 @@ function driver_poll()
         host.log("warn", "foxess_h3_smart: releasing remote control: " .. why)
         release_all()
       elseif pending then
+        if (last_bat_w or 0) >= CHARGE_PROBE_W * CHARGE_FOLLOW_FRACTION then
+          -- The pack is charging: pending-with-uptake is success in
+          -- progress, not a refusal to time out.
+          charge_wake_since = host.millis()
+        end
         if charge_wake_since == nil then
           charge_wake_since = host.millis()
         elseif host.millis() - charge_wake_since > CHARGE_WAKE_PATIENCE_MS then
@@ -732,6 +768,7 @@ function driver_poll()
         end
       else
         charge_wake_since = nil
+        charge_ramp_w = nil
       end
     end
   elseif rc_enabled then
@@ -806,7 +843,7 @@ function driver_command(action, value, context)
   if pending then
     if charge_wake_since == nil then
       charge_wake_since = host.millis()
-      host.log("info", "foxess_h3_smart: charge accepted; holding 0 W while the BMS charge limit wakes")
+      host.log("info", "foxess_h3_smart: charge accepted as pending; " .. tostring(why))
     end
   else
     charge_wake_since = nil
