@@ -351,6 +351,29 @@ function host.http_get(url)
     error("http_get: no mock response for URL: " .. tostring(url))
 end
 
+function host.http_post(url, body, headers)
+    record_call("http_post", url, body, headers)
+    local resp = host._http_responses[url]
+    if resp then
+        return resp
+    end
+    for pattern_url, posted in pairs(host._http_responses) do
+        if string.find(url, pattern_url, 1, true) then
+            return posted
+        end
+    end
+    error("http_post: no mock response for URL: " .. tostring(url))
+end
+
+function host.set_poll_interval(interval_ms)
+    record_call("set_poll_interval", interval_ms)
+end
+
+function host.persist_secret(key, value)
+    record_call("persist_secret", key, value)
+    return true
+end
+
 ---------------------------------------------------------------------------
 -- Serial functions
 ---------------------------------------------------------------------------

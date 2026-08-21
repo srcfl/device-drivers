@@ -1,5 +1,5 @@
 name: "deye-svk"
-version: "0.2.0"
+version: "0.2.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,12 +15,12 @@ tested_devices:
     notes: "Lean SvK sibling of deye; validated on Deye SvK bench under Blixt L1."
     min_driver_version: "0.2.0"
 min_host_version: "2.0.0"
-size_bytes: 24784
+size_bytes: 24774
 dkb_id: "deye-svk"
-sha256: "cdc4edf84578e3c03093fb15e4954ce6ccaeabfceb439568203c13b684fb73f7"
+sha256: "e4b0637ddb91a4e4ee375125d166e93a86fac97a0ded64e062a7bd39f026e2a6"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Migrate from the Blixt L1 device-support registry (deye-svk@0.2.0)."
+changelog: "Migrate from the Blixt L1 driver source (deye-svk@0.2.0)."

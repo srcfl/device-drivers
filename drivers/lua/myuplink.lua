@@ -48,7 +48,7 @@ DRIVER = {
   id           = "myuplink",
   name         = "MyUplink Heat Pump (telemetry)",
   manufacturer = "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)",
-  version      = "1.2.0",
+  version      = "1.2.1",
   protocols    = { "http" },
   capabilities = { "apicreds" },
   -- Says what the header, the description and driver_command have always
@@ -222,6 +222,30 @@ local function scale_value(raw, unit)
     return raw
 end
 
+-- Fold vendor unit strings so "kW " / "KW" still convert. Empty → already SI.
+local function fold_unit(unit)
+    if type(unit) ~= "string" then return "" end
+    unit = unit:gsub("^%s+", "")
+    unit = unit:gsub("%s+$", "")
+    return string.lower(unit)
+end
+
+-- kW → W. Unknown non-empty units keep their vendor string so we do not
+-- relabel a missed kilowatt reading as watts.
+local function to_watts(value, unit)
+    local folded = fold_unit(unit)
+    if folded == "kw" then return value * 1000.0, "W" end
+    if folded == "w" or folded == "" then return value, "W" end
+    return value, unit
+end
+
+local function to_wh(value, unit)
+    local folded = fold_unit(unit)
+    if folded == "kwh" then return value * 1000.0, "Wh" end
+    if folded == "wh" or folded == "" then return value, "Wh" end
+    return value, unit
+end
+
 -- Turn a MyUplink parameterName into a stable snake_case metric name,
 -- prefixed hp_. Non-ASCII and punctuation collapse to single underscores;
 -- empty names fall back to the parameterId.
@@ -323,9 +347,9 @@ function driver_poll()
     if by_id[PARAM_POWER] then
         local raw = tonumber(by_id[PARAM_POWER].value) or 0
         -- MyUplink points report the unit in "parameterUnit" (not "unit").
-        local unit = by_id[PARAM_POWER].parameterUnit or by_id[PARAM_POWER].unit
-        local power_w = (unit == "kW") and raw * 1000 or raw
-        host.emit_metric("hp_power_w", power_w, "W")
+        local unit = by_id[PARAM_POWER].parameterUnit or by_id[PARAM_POWER].unit or ""
+        local power_w, out_unit = to_watts(raw, unit)
+        host.emit_metric("hp_power_w", power_w, out_unit)
     end
     if by_id[PARAM_HW_TEMP]      then host.emit_metric("hp_hw_top_temp_c",  decode_temp(by_id[PARAM_HW_TEMP])      or 0, "°C") end
     if by_id[PARAM_INDOOR_TEMP]  then host.emit_metric("hp_indoor_temp_c",  decode_temp(by_id[PARAM_INDOOR_TEMP])  or 0, "°C") end
@@ -348,7 +372,14 @@ function driver_poll()
                 local name = sanitize_metric_name(pt.parameterName, pid)
                 if seen[name] then name = name .. "_" .. pid end
                 seen[name] = true
-                host.emit_metric(name, scale_value(raw, unit), unit)
+                local value = scale_value(raw, unit)
+                local folded = fold_unit(unit)
+                if folded == "kw" or folded == "w" then
+                    value, unit = to_watts(value, unit)
+                elseif folded == "kwh" or folded == "wh" then
+                    value, unit = to_wh(value, unit)
+                end
+                host.emit_metric(name, value, unit)
             end
         end
     end
