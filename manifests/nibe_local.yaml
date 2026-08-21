@@ -1,5 +1,5 @@
 name: "nibe_local"
-version: "1.1.2"
+version: "1.1.3"
 tier: core
 author: "HuggeK with the help of Claude Code"
 protocol: http
@@ -21,9 +21,9 @@ upstream_docs:
     kind: changelog
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 18227
+size_bytes: 19446
 dkb_id: "nibe_local"
-sha256: "b89177004a2eff5a5b60e2f275f584f079acf02876c049b231ba3170bb35ac50"
+sha256: "7f020f70eb4109c58f1af1097e37597280447fcbc95246b30e9638413592039e"
 signature: ""
 
 bytecode_sha256: ""

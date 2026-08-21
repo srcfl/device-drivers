@@ -1,5 +1,5 @@
 name: "50-125k-svk-ac-slew"
-version: "0.2.3"
+version: "0.2.4"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,12 +15,12 @@ tested_devices:
     notes: "AC-stage variant (44284/85) of 50-125k-svk-slew; PV shares the AC stage."
     min_driver_version: "0.2.3"
 min_host_version: "2.0.0"
-size_bytes: 41105
+size_bytes: 41128
 dkb_id: "50-125k-svk-ac-slew"
-sha256: "1c92a83c49781d3302e905c0d5029306fb32edc045263e8773ecf9a0a1dc1e08"
+sha256: "db00b11c9bb22e94dbed47f4fd1699e011b4fbd8cd389278365f843b07b5081c"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Migrate from the Blixt L1 device-support registry (50-125k-svk-ac-slew@0.2.3)."
+changelog: "Migrate from the Blixt L1 driver source (50-125k-svk-ac-slew@0.2.3)."
