@@ -1038,7 +1038,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.6.0",
+      "catalog_version": "0.7.0",
       "driver_id": "heishamon",
       "package_id": null,
       "targets": {
