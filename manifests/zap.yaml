@@ -1,10 +1,10 @@
 name: "zap"
-version: "3.0.0"
+version: "3.1.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
 connectivity: local
-ders: [meter]
+ders: [meter, pv, battery]
 control: false
 tested_devices:
   - manufacturer: "Sourceful"
@@ -12,12 +12,12 @@ tested_devices:
     variants: [Sourceful Zap (ESP32-C3 controller firmware)]
     regions: []
     firmware_versions: ""
-    notes: "P1/HAN site meter from a Sourceful Zap. Inverters, batteries and chargers found on Zap must be added in FTW with their own drivers."
-    min_driver_version: "3.0.0"
+    notes: "P1/HAN site meter from a Sourceful Zap. PV and battery telemetry from devices on Zap are opt-in (read_pv / read_battery) and read-only. Prefer a native FTW driver; use Zap as the reader only when it already owns the bus."
+    min_driver_version: "3.1.0"
 min_host_version: "2.0.0"
-size_bytes: 14932
+size_bytes: 26921
 dkb_id: "zap"
-sha256: "4438eef6f79695c0c26e8b7c1df91c7f0d8ae5b62ea506c9dcea8e0fbf36376f"
+sha256: "d89a99205f99aa04bc838f89e15a6aa979a7ab106f76c06cef9094a6abee9f17"
 signature: ""
 
 bytecode_sha256: ""
