@@ -9,6 +9,7 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Changed
 
+- **zap** 3.1.0 — P1/HAN remains the default. `read_pv` and `read_battery` are opt-in, read-only ingest of devices Zap already talks to (closed inverter Modbus, or an RS-485 bus Zap owns). Off by default so a native FTW driver is not doubled. The driver still never writes. Chargers stay out: add those in FTW.
 - **`nibe_local` 1.1.3** — heat-pump diagnostic metrics convert vendor kW/kWh to W/Wh at emit (case and surrounding spaces folded, so `kW ` still converts). Headline names `hp_energy_consumed_kwh` and `hp_energy_produced_kwh` stay so existing series keys do not move; the unit field is Wh. `DRIVER.read_only = true` so the signed artifact matches the observe-only command path. HTTP GET and JSON decode wrap in `pcall`.
 - **`myuplink` 1.2.1** — bulk kW/kWh points and the `hp_power_w` headline convert to W/Wh at emit. There are no `hp_energy_*_kwh` headlines; energy, if the pump reports it, is a sanitized bulk name with unit Wh.
 - **acuvim** 0.4.2, **50-125k-svk** 0.2.3, **50-125k-svk-slew** 0.1.12,

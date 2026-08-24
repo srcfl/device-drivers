@@ -1734,11 +1734,11 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "zap"
-            version: "3.0.0"
-            ders: [meter]
+            version: "3.1.0"
+            ders: [meter, pv, battery]
             control: false
         firmware_versions: ""
-        notes: "P1/HAN site meter from a Sourceful Zap. Inverters, batteries and chargers found on Zap must be added in FTW with their own drivers."
+        notes: "P1/HAN site meter from a Sourceful Zap. PV and battery telemetry from devices on Zap are opt-in (read_pv / read_battery) and read-only. Prefer a native FTW driver; use Zap as the reader only when it already owns the bus."
   - name: "Sungrow"
     model_families:
       - name: "SG-CX (Three-Phase Commercial)"
