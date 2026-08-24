@@ -1,16 +1,42 @@
 {
   "schema_version": "sourceful.upstream-docs-state/v1",
   "docs": {
+    "acuvim::https://www.accuenergy.com/wp-content/uploads/Acuvim-II-Power-Meter-User-Manual-1040E1303.pdf": {
+      "driver": "acuvim",
+      "url": "https://www.accuenergy.com/wp-content/uploads/Acuvim-II-Power-Meter-User-Manual-1040E1303.pdf",
+      "title": "Accuenergy Acuvim II Power Meter User Manual (1040E1303)",
+      "kind": "manual",
+      "url_stability": "stable",
+      "sha256": "a65ba3be1e0d7a88a48d3bc601b46001452e105a775205fd68f987706737b7c7",
+      "content_length": 18607962,
+      "first_seen": "2026-08-24T06:27:25+00:00",
+      "last_changed": "2026-08-24T06:27:25+00:00",
+      "consecutive_failures": 0,
+      "last_error": null
+    },
+    "acuvim::https://www.accuenergy.com/wp-content/uploads/Acuvim-II-V3-Modbus-map-v1.07.xlsx": {
+      "driver": "acuvim",
+      "url": "https://www.accuenergy.com/wp-content/uploads/Acuvim-II-V3-Modbus-map-v1.07.xlsx",
+      "title": "Accuenergy Acuvim II Modbus map v1.07",
+      "kind": "register_map",
+      "url_stability": "volatile",
+      "sha256": "917b1fdb1e7931904a0b284811d8a110f825192081444a1da5a8684ba860aa2d",
+      "content_length": 456525,
+      "first_seen": "2026-08-24T06:27:25+00:00",
+      "last_changed": "2026-08-24T06:27:25+00:00",
+      "consecutive_failures": 0,
+      "last_error": null
+    },
     "foxess_h3_smart::https://github.com/nathanmarlor/foxess_modbus": {
       "driver": "foxess_h3_smart",
       "url": "https://github.com/nathanmarlor/foxess_modbus",
       "title": "nathanmarlor/foxess_modbus community register map (Inv.H3_SMART profile)",
       "kind": "register_map",
       "url_stability": "stable",
-      "sha256": "6d7db359be89039011c48dd6f691767ebc0b53863315115ce6264eb95294c5d3",
-      "content_length": 305867,
+      "sha256": "7c1b7ee30cb560df896dbd5be771385c9d8e36650b2c8842e3714822a58f5fd2",
+      "content_length": 307933,
       "first_seen": "2026-08-10T06:44:29+00:00",
-      "last_changed": "2026-08-17T06:26:47+00:00",
+      "last_changed": "2026-08-24T06:27:25+00:00",
       "consecutive_failures": 0,
       "last_error": null
     },
