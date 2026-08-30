@@ -25,7 +25,7 @@ DRIVER = {
   id           = "easee-cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.0.1",
+  version      = "1.2.0",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -181,6 +181,22 @@ local function redact_http_err(err)
     return tostring(err):match("^(HTTP %d+)") or "request failed"
 end
 
+-- Wrapped transport. A host whose http_get raises, or a vendor API
+-- that answers with garbage, must degrade to (nil, err) — never kill
+-- the driver mid-poll.
+local function safe_http_get(url, headers)
+    local ok, resp, err = pcall(host.http_get, url, headers)
+    if not ok then return nil, tostring(resp) end
+    return resp, err
+end
+
+local function safe_json_decode(s)
+    if s == nil then return nil end
+    local ok, data = pcall(host.json_decode, s)
+    if not ok then return nil end
+    return data
+end
+
 -- ---- Auth helpers ----
 
 local function login(email, password)
@@ -190,7 +206,7 @@ local function login(email, password)
         host.log("error", "Easee login failed: " .. redact_http_err(err))
         return false
     end
-    local data = host.json_decode(resp)
+    local data = safe_json_decode(resp)
     if not data or not data.accessToken then
         host.log("error", "Easee login: no accessToken in response")
         return false
@@ -215,7 +231,7 @@ local function do_refresh()
         host.log("warn", "Easee token refresh failed: " .. redact_http_err(err))
         return false
     end
-    local data = host.json_decode(resp)
+    local data = safe_json_decode(resp)
     if not data or not data.accessToken then
         host.log("warn", "Easee refresh: no accessToken, will re-login")
         return false
@@ -246,9 +262,9 @@ end
 -- ---- API helpers ----
 
 local function get_chargers()
-    local resp, err = host.http_get(BASE_URL .. "/chargers", auth_headers())
+    local resp, err = safe_http_get(BASE_URL .. "/chargers", auth_headers())
     if err then return nil, err end
-    return host.json_decode(resp), nil
+    return safe_json_decode(resp), nil
 end
 
 -- Observation IDs (from developer.easee.com/docs/charger-observation-ids)
@@ -266,9 +282,9 @@ local OBS_IDS = "48,96,103,109,120,121,124,183,194"
 
 local function get_observations(serial)
     local url = "https://api.easee.com/state/" .. serial .. "/observations?ids=" .. OBS_IDS
-    local resp, err = host.http_get(url, auth_headers())
+    local resp, err = safe_http_get(url, auth_headers())
     if err then return nil, err end
-    local decoded = host.json_decode(resp)
+    local decoded = safe_json_decode(resp)
     if not decoded then return nil, "decode failed" end
     local list = decoded.observations or decoded
     local obs = {}
@@ -355,9 +371,9 @@ local email, password, configured_max_a
 -- (compare requested phaseMode after a write) is a follow-up; this
 -- driver's contribution is the diagnostic logging at init.
 local function read_settings(serial)
-    local resp, err = host.http_get(BASE_URL .. "/chargers/" .. serial .. "/config", auth_headers())
+    local resp, err = safe_http_get(BASE_URL .. "/chargers/" .. serial .. "/config", auth_headers())
     if err then return nil, redact_http_err(err) end
-    local decoded = host.json_decode(resp)
+    local decoded = safe_json_decode(resp)
     if decoded == nil then
         return nil, "decode failed (non-JSON response)"
     end
@@ -531,10 +547,28 @@ function driver_poll()
         command_stalled_since_ms = 0
     end
 
+    -- request_active: false ONLY when the vehicle side has explicitly
+    -- stopped requesting current — Easee reason 50 ("secondary unit
+    -- not requesting current"; the vehicle is the secondary unit) or
+    -- op_mode 4 ("completed"). Every other reason (52/53/100 = the box
+    -- throttled it, pending authorization, schedules, fuse limits)
+    -- keeps the default true, so a pause the box itself ordered is
+    -- never mistaken for the car declining. The host debounces this
+    -- for 90 s before acting on it (session-completion latch,
+    -- manual-hold auto-release), so a brief 50 during session
+    -- handshake is harmless. Field observation 2026-08-29: a car at
+    -- its own charge limit held reason 50 all night while the box kept
+    -- offering 11 kW and paged the operator twice about it.
+    local request_active = true
+    if connected and not charging and (reason_code == 50 or op_mode == 4) then
+        request_active = false
+    end
+
     host.emit("ev", {
         w                       = power_w,
         connected               = connected,
         charging                = charging,
+        request_active          = request_active,
         session_wh              = session_wh,
         op_mode                 = op_mode,                     -- 1=disc,2=awaiting,3=charging,4=completed,5=error,6=ready
         state_label             = OP_MODE_LABELS[op_mode] or "unknown",

@@ -9,6 +9,18 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Changed
 
+- **easee_cloud** 1.2.0 — emit `request_active`: false only when the vehicle
+  side has explicitly stopped requesting current (Easee `reasonForNoCurrent`
+  50, or `op_mode` 4 "completed"); every box-ordered pause (52/53/100, pending
+  authorization, schedules, fuse limits) stays true. Lets the FTW host tell
+  "the car declined" from "we paused it": the session-completion latch stops
+  the planner allocating energy to a full car, a manual Start hold
+  auto-releases instead of offering power all night, and the
+  charging-interrupted notification stops firing on the car's own
+  renegotiation bursts. Field-observed 2026-08-29: a car at its own charge
+  limit held reason 50 overnight while the box kept offering 11 kW and paged
+  the operator twice.
+
 - **zap** 3.1.0 — P1/HAN remains the default. `read_pv` and `read_battery` are opt-in, read-only ingest of devices Zap already talks to (closed inverter Modbus, or an RS-485 bus Zap owns). Off by default so a native FTW driver is not doubled. The driver still never writes. Chargers stay out: add those in FTW.
 - **`nibe_local` 1.1.3** — heat-pump diagnostic metrics convert vendor kW/kWh to W/Wh at emit (case and surrounding spaces folded, so `kW ` still converts). Headline names `hp_energy_consumed_kwh` and `hp_energy_produced_kwh` stay so existing series keys do not move; the unit field is Wh. `DRIVER.read_only = true` so the signed artifact matches the observe-only command path. HTTP GET and JSON decode wrap in `pcall`.
 - **`myuplink` 1.2.1** — bulk kW/kWh points and the `hp_power_w` headline convert to W/Wh at emit. There are no `hp_energy_*_kwh` headlines; energy, if the pump reports it, is a sanitized bulk name with unit Wh.
