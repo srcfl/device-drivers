@@ -33,10 +33,10 @@
       "title": "nathanmarlor/foxess_modbus community register map (Inv.H3_SMART profile)",
       "kind": "register_map",
       "url_stability": "stable",
-      "sha256": "7c1b7ee30cb560df896dbd5be771385c9d8e36650b2c8842e3714822a58f5fd2",
-      "content_length": 307933,
+      "sha256": "c4c6bf8bfdbdeb0e10a180a09f2612c5680cd6ace1eae4c823fbfead27f384ea",
+      "content_length": 307299,
       "first_seen": "2026-08-10T06:44:29+00:00",
-      "last_changed": "2026-08-24T06:27:25+00:00",
+      "last_changed": "2026-08-31T06:47:39+00:00",
       "consecutive_failures": 0,
       "last_error": null
     },
