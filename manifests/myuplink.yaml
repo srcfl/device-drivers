@@ -1,5 +1,5 @@
 name: "myuplink"
-version: "1.2.1"
+version: "1.2.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -23,7 +23,7 @@ upstream_docs:
 min_host_version: "2.0.0"
 size_bytes: 17549
 dkb_id: "myuplink"
-sha256: "6ac47f27388ba8c89e5aafc1b764f598a0fe8cb89e12bcabdae855419f8d5e42"
+sha256: "0af1e129899c4c014b2e825d3efe13887dbc7f041cde6dbcb5496cc712e67bf9"
 signature: ""
 
 bytecode_sha256: ""

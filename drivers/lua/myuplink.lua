@@ -48,7 +48,7 @@ DRIVER = {
   id           = "myuplink",
   name         = "MyUplink Heat Pump (telemetry)",
   manufacturer = "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)",
-  version      = "1.2.1",
+  version      = "1.2.2",
   protocols    = { "http" },
   capabilities = { "apicreds" },
   -- Says what the header, the description and driver_command have always

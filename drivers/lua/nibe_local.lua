@@ -57,7 +57,7 @@ DRIVER = {
   id           = "nibe-local",
   name         = "NIBE REST API S-series",
   manufacturer = "NIBE",
-  version      = "1.1.3",
+  version      = "1.1.4",
   protocols    = { "http" },
   capabilities = { "apicreds" },
   -- Without this the channel infers control from driver_command and
