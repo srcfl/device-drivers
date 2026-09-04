@@ -7,6 +7,10 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Fixed
+
+- **The channel build now carries `config_secrets` into the generated header, so a box no longer masks nothing.** `tools/ftw_repository.py` prepends a generated `DRIVER = { … }` block ahead of the source's own, and FTW core parses only the first block it finds (`extractDriverBlock`). The generated block never copied `config_secrets`, so any driver declaring it — `myuplink`, `nibe_local`, `sonnen`, `tibber` — published a catalog entry with nothing to mask: `GET /api/config` on a box running the channel build returned `myuplink`'s `client_secret` and `refresh_token` in clear text, confirmed on a live installation. The source block further down still declared the field correctly, which is exactly why nothing caught this in a source-level review. `test_config_secrets_reach_the_generated_header` holds the generated header to it. Fixes #106.
+
 ### Changed
 
 - **easee_cloud** 1.2.0 — emit `request_active`: false only when the vehicle
