@@ -731,6 +731,21 @@ def test_nested_or_commented_controls_do_not_change_a_control_artifact(
     assert "__sourceful_ftw_controls" not in entry["raw"].decode("utf-8")
 
 
+def test_config_secrets_reach_the_generated_header(tmp_path: Path) -> None:
+    # FTW core parses only the generated header this tool prepends, never the
+    # source's own DRIVER block further down (srcfl/device-drivers#106) -- a
+    # secret name missing from the header is a name nothing on the host ever
+    # masks, and myuplink's client_secret/refresh_token shipped in the clear
+    # because of exactly that gap.
+    repo, config_path = single_driver_repo(tmp_path, "myuplink")
+
+    entry = _load_channel(config_path, repo)[0]
+
+    assert entry["metadata"]["config_secrets"] == ["client_secret", "refresh_token"]
+    header = entry["raw"].decode("utf-8").split("DRIVER = __sourceful_ftw_metadata", 1)[0]
+    assert 'config_secrets = { "client_secret", "refresh_token" },' in header
+
+
 def test_driver_locator_skips_non_module_decoys() -> None:
     source = '''-- DRIVER = { id = "commented" }
 --[=[ DRIVER = { id = "long-commented" } ]=]
