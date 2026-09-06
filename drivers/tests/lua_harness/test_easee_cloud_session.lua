@@ -62,4 +62,14 @@ assert(#host._emitted.ev == before,"broken JSON invented fresh telemetry")
 host._http_responses["/observations?ids="] = nil
 driver_poll()
 assert(#host._emitted.ev == before,"failed read invented fresh telemetry")
+boot(true)
+for i=1,20 do
+    host._millis_counter = host._millis_counter + 61000
+    assert(poll(3,current).session_id == nil,"ended session accepted during retries")
+end
+lookups=0
+for _, call in ipairs(host._calls) do
+    if call.func=="http_get" and call.args[1]:find("/sessions/ongoing",1,true) then lookups=lookups+1 end
+end
+assert(lookups==10,"ongoing-session API exceeded ten requests per hour: "..lookups)
 print("Easee current-session identity: passed")
