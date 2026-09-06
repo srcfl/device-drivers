@@ -14,6 +14,8 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Changed
 
+- **`easee_cloud` 1.3.0** — verify an active energy session before core can retain a confirmed battery level across restart. Keep that identity through pauses in the same driver process. A paused or finished session cannot prove that the same car remains after restart. Failed or empty observations emit no telemetry.
+
 - **easee_cloud** 1.2.0 — emit `request_active`: false only when the vehicle
   side has explicitly stopped requesting current (Easee `reasonForNoCurrent`
   50, or `op_mode` 4 "completed"); every box-ordered pause (52/53/100, pending

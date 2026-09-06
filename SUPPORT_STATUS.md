@@ -46,8 +46,8 @@ Catalog source is not proof that a target can install or run a driver.
 | deye | 2.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | easee | 1.0.4 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | easee | 1.0.4 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| easee_cloud | 1.2.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| easee_cloud | 1.2.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| easee_cloud | 1.3.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| easee_cloud | 1.3.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | esphome-dsmr | 1.0.3 | ftw-core | not_assessed | 1.0.2 | — | not_recorded | — | not_assessed | no |
 | esphome-dsmr | 1.0.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | esphome_dsmr | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
