@@ -14,7 +14,7 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Changed
 
-- **`easee_cloud` 1.3.0** — verify an active energy session before core can retain a confirmed battery level across restart. Keep that identity through pauses in the same driver process. A paused or finished session cannot prove that the same car remains after restart. Failed or empty observations emit no telemetry.
+- **`easee_cloud` 1.3.0** — verify an active energy session before core can retain a confirmed battery level across restart. Keep that identity through pauses in the same driver process, but clear it on completion until a new active session proves its identity. An offline car may need its battery level confirmed after completion or restart; do not reuse another car's level. Match equivalent UTC timestamp formats from both session APIs. Failed or empty observations emit no telemetry. Invalid session payloads omit the identity while keeping fresh charger readings.
 
 - **easee_cloud** 1.2.0 — emit `request_active`: false only when the vehicle
   side has explicitly stopped requesting current (Easee `reasonForNoCurrent`

@@ -308,8 +308,10 @@ end
 -- Observation 223 identifies an energy session. That session can end before
 -- the cable is removed, so it is not enough to restore a prior car's level.
 -- Validate an active session against the sessions API once, then retain its
--- identity through pauses in this driver process. A fresh process waits for
--- active-session proof again. Neither endpoint proves a paused car's identity.
+-- identity through pauses in this driver process until a completed session.
+-- Completion or a fresh process needs active proof again; an offline car may
+-- need its battery level confirmed. Neither endpoint proves a paused car's
+-- identity after an ended session.
 -- https://developer.easee.com/docs/charger-observation-ids
 -- https://developer.easee.com/reference/chargers_getongoingsessiondetails
 local validated_session_id = nil
@@ -320,11 +322,11 @@ local last_session_lookup_ms = nil
 local function normalized_session_start(value)
     if type(value) ~= "string" or
        not value:match("^%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d") then return nil end
-    return (value:gsub("%.0+Z$", "Z"):gsub("%+00:00$", "Z"))
+    return (value:gsub("%+00:00$", "Z"):gsub("%.0+Z$", "Z"))
 end
 
 local function current_session_id(obs, op_mode)
-    if op_mode == 0 or op_mode == 1 then
+    if op_mode == 0 or op_mode == 1 or op_mode == 4 then
         validated_session_id = nil
         observed_session_id = nil
         return nil
@@ -332,7 +334,7 @@ local function current_session_id(obs, op_mode)
     local raw = obs[OBS_SESSION_START]
     local session = type(raw) == "table" and raw or nil
     if type(raw) == "string" then session = safe_json_decode(raw) end
-    if not session then return nil end
+    if type(session) ~= "table" then return nil end
     local id = tonumber(session.Id)
     local start = normalized_session_start(session.Start)
     if not id or id <= 0 or id % 1 ~= 0 or not start then return nil end
@@ -361,7 +363,7 @@ local function current_session_id(obs, op_mode)
     local body, err = safe_http_get(BASE_URL .. "/chargers/" .. charger_serial .. "/sessions/ongoing", auth_headers())
     if err then return nil end
     local ongoing = safe_json_decode(body)
-    if not ongoing or tonumber(ongoing.sessionId) ~= id or
+    if type(ongoing) ~= "table" or tonumber(ongoing.sessionId) ~= id or
        normalized_session_start(ongoing.sessionStart) ~= start or
        (ongoing.sessionEnd ~= nil and ongoing.sessionEnd ~= "") then return nil end
     validated_session_id = identity

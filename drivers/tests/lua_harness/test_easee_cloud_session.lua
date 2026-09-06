@@ -12,7 +12,7 @@ local function boot(ended)
 end
 local function poll(mode, session, energy, lifetime)
     local obs = {
-        {id=109,value=mode}, {id=120,value=4.3},
+        {id=109,value=mode}, {id=120,value=mode == 3 and 4.3 or 0},
         {id=121,value=energy or 9}, {id=124,value=lifetime or 1009},
     }
     if session ~= nil then table.insert(obs,{id=223,value=session}) end
@@ -26,10 +26,11 @@ local canonical = "100:2026-01-01T08:00:00Z"
 local current = host.json_encode({Id=100,Start=start,MeterValue=1000})
 boot()
 assert(poll(3,current).session_id == canonical,"current session missing")
-assert(poll(4,current).session_id == canonical,"paused/full session lost")
+assert(poll(4,current).session_id == nil,"completed session retained active proof")
 boot()
 assert(poll(3,current).session_id == canonical,"identity changed on driver restart")
 assert(poll(2,current).session_id == canonical,"a pause lost the confirmed session")
+assert(poll(6,current).session_id == canonical,"ready mode lost the confirmed session")
 boot()
 assert(poll(2,current).session_id == nil,"restart inferred a paused car's identity")
 boot(true)
@@ -72,4 +73,47 @@ for _, call in ipairs(host._calls) do
     if call.func=="http_get" and call.args[1]:find("/sessions/ongoing",1,true) then lookups=lookups+1 end
 end
 assert(lookups==10,"ongoing-session API exceeded ten requests per hour: "..lookups)
+
+-- A car can be swapped between polls while observation 223 still describes
+-- its predecessor. Once completion was seen, pauses cannot reuse that proof.
+boot()
+assert(poll(3,current).session_id == canonical)
+host._http_responses["/sessions/ongoing"] = host.json_encode({sessionId=100,sessionStart="2026-01-01T08:00:00Z",sessionEnd="2026-01-01T09:00:00Z"})
+assert(poll(4,current).session_id == nil,"completion kept the previous car's proof")
+assert(poll(2,current).session_id == nil,"awaiting car reused completed session")
+assert(poll(6,current).session_id == nil,"ready car reused completed session")
+host._millis_counter = host._millis_counter + 61000
+assert(poll(3,current).session_id == nil,"ended API session passed active revalidation")
+host._millis_counter = host._millis_counter + 61000
+host._http_responses["/sessions/ongoing"] = host.json_encode({sessionId=101,sessionStart="2026-01-02T08:00:00Z"})
+assert(poll(3,next,1,1010).session_id == "101:2026-01-02T08:00:00Z","new active session did not regain proof")
+
+-- The two APIs may encode the same UTC instant differently.
+for _, pair in ipairs({
+    {observation="2026-01-01T08:00:00.000+00:00", ongoing="2026-01-01T08:00:00Z"},
+    {observation="2026-01-01T08:00:00Z", ongoing="2026-01-01T08:00:00.000+00:00"},
+}) do
+    boot()
+    host._http_responses["/sessions/ongoing"] = host.json_encode({sessionId=100,sessionStart=pair.ongoing})
+    local observation = host.json_encode({Id=100,Start=pair.observation})
+    assert(poll(3,observation).session_id == canonical,"equivalent UTC times did not match")
+end
+boot()
+host._http_responses["/sessions/ongoing"] = host.json_encode({sessionId=100,sessionStart="2026-01-01T08:00:01.000+00:00"})
+assert(poll(3,current).session_id == nil,"different start times passed session proof")
+
+-- Valid JSON can still have the wrong shape. Keep fresh charger readings
+-- when either session endpoint sends a scalar or a document without an ID.
+for _, payload in ipairs({"true", "false", "42", '"error"', "null", "[]", "{}"}) do
+    boot()
+    local sample = poll(3, payload)
+    assert(sample.session_id == nil, "wrong-shaped observation accepted: " .. payload)
+    assert(sample.connected and sample.w == 4300, "session payload dropped fresh charger readings")
+
+    boot()
+    host._http_responses["/sessions/ongoing"] = payload
+    sample = poll(3, current)
+    assert(sample.session_id == nil, "wrong-shaped ongoing session accepted: " .. payload)
+    assert(sample.connected and sample.w == 4300, "ongoing payload dropped fresh charger readings")
+end
 print("Easee current-session identity: passed")
