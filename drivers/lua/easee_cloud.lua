@@ -25,7 +25,7 @@ DRIVER = {
   id           = "easee-cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.2.0",
+  version      = "1.3.0",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -277,15 +277,16 @@ local OBS_SESSION_ENERGY  = 121
 local OBS_LIFETIME_ENERGY = 124
 local OBS_CURRENT         = 183
 local OBS_VOLTAGE         = 194
+local OBS_SESSION_START   = 223
 
-local OBS_IDS = "48,96,103,109,120,121,124,183,194"
+local OBS_IDS = "48,96,103,109,120,121,124,183,194,223"
 
 local function get_observations(serial)
     local url = "https://api.easee.com/state/" .. serial .. "/observations?ids=" .. OBS_IDS
     local resp, err = safe_http_get(url, auth_headers())
     if err then return nil, err end
     local decoded = safe_json_decode(resp)
-    if not decoded then return nil, "decode failed" end
+    if type(decoded) ~= "table" then return nil, "decode failed" end
     local list = decoded.observations or decoded
     local obs = {}
     for _, item in ipairs(list) do
@@ -293,7 +294,80 @@ local function get_observations(serial)
             obs[item.id] = tonumber(item.value) or item.value
         end
     end
+    local mode = obs[OBS_OP_MODE]
+    if type(mode) ~= "number" or mode < 0 or mode > 6 or mode % 1 ~= 0 then
+        return nil, "missing charger state"
+    end
+    if mode >= 2 and (type(obs[OBS_TOTAL_POWER]) ~= "number" or
+       type(obs[OBS_SESSION_ENERGY]) ~= "number" or obs[OBS_SESSION_ENERGY] < 0) then
+        return nil, "missing session measurement"
+    end
     return obs, nil
+end
+
+-- Observation 223 identifies an energy session. That session can end before
+-- the cable is removed, so it is not enough to restore a prior car's level.
+-- Validate an active session against the sessions API once, then retain its
+-- identity through pauses in this driver process until a completed session.
+-- Completion or a fresh process needs active proof again; an offline car may
+-- need its battery level confirmed. Neither endpoint proves a paused car's
+-- identity after an ended session.
+-- https://developer.easee.com/docs/charger-observation-ids
+-- https://developer.easee.com/reference/chargers_getongoingsessiondetails
+local validated_session_id = nil
+local observed_session_id = nil
+local session_lookups_ms = {}
+local last_session_lookup_ms = nil
+
+local function normalized_session_start(value)
+    if type(value) ~= "string" or
+       not value:match("^%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d") then return nil end
+    return (value:gsub("%+00:00$", "Z"):gsub("%.0+Z$", "Z"))
+end
+
+local function current_session_id(obs, op_mode)
+    if op_mode == 0 or op_mode == 1 or op_mode == 4 then
+        validated_session_id = nil
+        observed_session_id = nil
+        return nil
+    end
+    local raw = obs[OBS_SESSION_START]
+    local session = type(raw) == "table" and raw or nil
+    if type(raw) == "string" then session = safe_json_decode(raw) end
+    if type(session) ~= "table" then return nil end
+    local id = tonumber(session.Id)
+    local start = normalized_session_start(session.Start)
+    if not id or id <= 0 or id % 1 ~= 0 or not start then return nil end
+    local identity = string.format("%.0f", id) .. ":" .. start
+    if identity ~= observed_session_id then
+        observed_session_id = identity
+        validated_session_id = nil
+    end
+    if validated_session_id == identity then return identity end
+    -- A completed or awaiting session can belong to an earlier car. Do not
+    -- turn that into automatic battery-level restoration after restart.
+    if op_mode ~= 3 or (obs[OBS_TOTAL_POWER] or 0) < 0.1 then return nil end
+
+    -- The vendor allows ten requests per hour, not one per normal poll.
+    local now = host.millis()
+    local recent = {}
+    for _, at in ipairs(session_lookups_ms) do
+        if now - at < 3600000 then table.insert(recent, at) end
+    end
+    session_lookups_ms = recent
+    if #recent >= 10 or (last_session_lookup_ms and now - last_session_lookup_ms < 60000) then
+        return nil
+    end
+    last_session_lookup_ms = now
+    table.insert(session_lookups_ms, now)
+    local body, err = safe_http_get(BASE_URL .. "/chargers/" .. charger_serial .. "/sessions/ongoing", auth_headers())
+    if err then return nil end
+    local ongoing = safe_json_decode(body)
+    if type(ongoing) ~= "table" or tonumber(ongoing.sessionId) ~= id or
+       normalized_session_start(ongoing.sessionStart) ~= start or
+       (ongoing.sessionEnd ~= nil and ongoing.sessionEnd ~= "") then return nil end
+    validated_session_id = identity
+    return identity
 end
 
 -- ---- State mapping ----
@@ -570,6 +644,7 @@ function driver_poll()
         charging                = charging,
         request_active          = request_active,
         session_wh              = session_wh,
+        session_id              = current_session_id(obs, op_mode),
         op_mode                 = op_mode,                     -- 1=disc,2=awaiting,3=charging,4=completed,5=error,6=ready
         state_label             = OP_MODE_LABELS[op_mode] or "unknown",
         reason_no_current       = reason_code,                 -- int: 0=ok; why NOT drawing current
