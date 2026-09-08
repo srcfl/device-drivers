@@ -14,6 +14,8 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Changed
 
+- **`saj` 1.2.0** — replace the untested input-0x10xx stub with the SAJ H2-Protocol holding map used by evcc `saj-h2` and the community Home Assistant integration. Identity from `0x8F00`, live PV/battery/grid power from `0x40A5`/`0x40A6`/`0x40AD`, per-phase meter from `0x4031`, and battery SoC/voltage/current only when the `0xA000` BMS block reports a pack (`BatNum` and `BatOnline` both non-zero). A missed live-power read emits nothing rather than a fabricated zero-watt site; an AS2 string inverter or a PV-only H2 no longer appears as an empty battery the planner can dispatch into. Battery power is negated at the boundary (vendor discharge-positive). Control stays off until a named H2/HS2 proves held zero — the protocol's AppMode/passive registers are documented in the driver and not written.
+
 - **`easee_cloud` 1.3.0** — verify an active energy session before core can retain a confirmed battery level across restart. Keep that identity through pauses in the same driver process, but clear it on completion until a new active session proves its identity. An offline car may need its battery level confirmed after completion or restart; do not reuse another car's level. Match equivalent UTC timestamp formats from both session APIs. Failed or empty observations emit no telemetry. Invalid session payloads omit the identity while keeping fresh charger readings.
 
 - **easee_cloud** 1.2.0 — emit `request_active`: false only when the vehicle
