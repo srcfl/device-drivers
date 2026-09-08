@@ -1056,33 +1056,33 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "saj"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "String sibling: the driver must not emit a battery. The BMS block is probed and then left alone if it reports no pack or never answers."
       - name: "H2 (Three-Phase Hybrid)"
         variants: [H2-10K, H2-12K, H2-15K, H2-20K, H2-25K, H2-5K, H2-6K, H2-8K]
         regions: []
         protocols:
           - protocol: modbus
             driver: "saj"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "H2-Protocol holding map (evcc saj-h2 / community HA integration). Telemetry only; not yet verified on a named FTW site. Control stays off until a held-zero command is proven."
       - name: "HS2 (Single-Phase Hybrid)"
         variants: [HS2-3K, HS2-4K, HS2-5K, HS2-6K]
         regions: []
         protocols:
           - protocol: modbus
             driver: "saj"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Same H2-Protocol map as the three-phase hybrid. Ampere.StoragePro / EKD-Solar is a rebadged HS2. Telemetry only."
   - name: "SMA"
     model_families:
       - name: "SMA Home Manager 2.0"

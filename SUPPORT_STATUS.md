@@ -118,8 +118,8 @@ Catalog source is not proof that a target can install or run a driver.
 | pixii | 2.1.3 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | pixii_pv | 0.3.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | pixii_pv | 0.3.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| saj | 1.1.1 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
-| saj | 1.1.1 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| saj | 1.2.0 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
+| saj | 1.2.0 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | schneider_meter | 1.0.5 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | schneider_meter | 1.0.5 | blixt-l1 | not_assessed | — | — | not_recorded | — | not_assessed | no |
 | schrack_ev | 1.0.3 | ftw-core | not_assessed | — | — | not_recorded | — | not_assessed | no |

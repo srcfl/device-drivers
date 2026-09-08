@@ -526,14 +526,15 @@ drivers:
     size_bytes: 6692
     sha256: "d0901b6478e05b5cdf46fc2a9675700ba6008be2feb370be0ff7e87d2f1de883"
   - name: "saj"
-    version: "1.1.1"
+    version: "1.2.0"
     tier: community
     protocol: modbus
     connectivity: local
+    setup: [device_ui]
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 4855
-    sha256: "3eec98c298872444cbddfc33c7c666decc367c427e5aacb7e1c240a3d6cdd21f"
+    size_bytes: 16074
+    sha256: "0588a78a9664cf767557bc0cfb17e8cbd684709cb019d126ab00edadc64c47b6"
   - name: "schneider_meter"
     version: "1.0.5"
     tier: community
