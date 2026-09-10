@@ -1,0 +1,24 @@
+name: "zaptec_cloud"
+version: "0.1.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: http
+connectivity: cloud
+setup: [vendor_portal]
+ders: [ev]
+control: true
+tested_devices:
+  - manufacturer: "Zaptec"
+    model_family: "Zaptec Cloud"
+    variants: [Go, Go 2, Pro]
+    regions: []
+    firmware_versions: ""
+    notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial."
+    min_driver_version: "0.1.0"
+min_host_version: "2.0.0"
+size_bytes: 13520
+dkb_id: "zaptec_cloud"
+sha256: "a686205872b6371de886dbcd99623858b7bd227e61f299fc1488d9de11e3b04c"
+signature: ""
+
+bytecode_sha256: ""

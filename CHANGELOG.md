@@ -9,6 +9,24 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Fixed
 
+- **`fronius_smart_meter` 2.1.2** — `read_f32` returns nil on a failed / given-up register instead of fabricating 0; when total AC power (40098) is missing the poll emits neither meter nor meter metrics. Optional phase/energy fields omit nil rather than coercing to 0. Declares `read_only = true`.
+- **`tesla_vehicle` 0.2.2** — `emit_last` sets `soc_fresh = false` so a cached SoC replay is not treated as a fresh observation by the FTW host.
+- **`zuidwijk_p1` 1.1.1** — emit `p1_crc_errors` only after a valid frame (silence no longer keeps driver health alive on a CRC metric alone); skip the meter emit when both import and export power OBIS (`1.7.0` / `2.7.0`) are missing. Declares `read_only = true`; manifest `control` corrected to false.
+- **`pixii` 2.1.4** — serial probe in `driver_poll` no longer gates on an unset `ok` local (the branch was permanently false, so `host.set_sn` never ran).
+- **`easee_cloud` 1.3.1** — declares `config_secrets = { "password" }`; `driver_default_mode` now pauses charging and writes `dynamicChargerCurrent = 0` so FTW loss of steer stands the charger down.
+- **`ferroamp` 2.1.2** — when `config.serial` is a non-empty string, call `host.set_sn`; MQTT telemetry still carries no hub serial, so identity otherwise falls back to the endpoint.
+
+### Changed
+
+- **Read-only hybrids / meters declare `read_only = true`:** `sonnen` 2.0.3 (plus no-op `driver_command` / `driver_default_mode`), `goodwe` 2.1.2, `growatt` 2.1.2, `sofar` 2.1.2, `kostal` 2.1.2, `sma` 2.1.2, `victron` 2.1.2, `fronius` 2.1.2, `pixii_pv` 0.3.1, `solis_string` 1.1.2, `tibber` 1.1.2 (also `http_hosts = { "api.tibber.com" }`).
+
+### Added
+
+- **`zaptec_cloud` 0.1.0** — Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API, promoted from FTW testdata. Controllable; `driver_default_mode` pauses and clamps `maxChargeCurrent` to 0.
+- **`tesla_wall_connector` 0.1.0** — Tesla Wall Connector Gen 3 local HTTP observation driver, promoted from FTW testdata. `read_only = true` (EV commands accepted as no-op success so the planner does not mark failed).
+
+### Fixed
+
 - **The channel build now carries `config_secrets` into the generated header, so a box no longer masks nothing.** `tools/ftw_repository.py` prepends a generated `DRIVER = { … }` block ahead of the source's own, and FTW core parses only the first block it finds (`extractDriverBlock`). The generated block never copied `config_secrets`, so any driver declaring it — `myuplink`, `nibe_local`, `sonnen`, `tibber` — published a catalog entry with nothing to mask: `GET /api/config` on a box running the channel build returned `myuplink`'s `client_secret` and `refresh_token` in clear text, confirmed on a live installation. The source block further down still declared the field correctly, which is exactly why nothing caught this in a source-level review. `test_config_secrets_reach_the_generated_header` holds the generated header to it. Fixes #106.
 - **myuplink** 1.2.2, **nibe_local** 1.1.4, **sonnen** 2.0.2, **tibber** 1.1.1 — patch bump only. The `config_secrets` fix above changes these four drivers' published artifact bytes (the signed channel now emits their `config_secrets` list in the generated header), so the signed channel's own version rule requires a new version to publish it under. No Lua source changed.
 

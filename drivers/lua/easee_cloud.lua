@@ -25,7 +25,7 @@ DRIVER = {
   id           = "easee-cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.0",
+  version      = "1.3.1",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -37,6 +37,7 @@ DRIVER = {
   verified_by = { "frahlg@homelab-rpi:2d", "erikarenhill@fortytwo:1d" },
   verified_at = "2026-04-18",
   verification_notes = "Observations API + lifecycle commands exercised against an Easee Home charger. Session state, op_mode labels, charge/pause/resume all verified.",
+  config_secrets = { "password" },
 }
 
 PROTOCOL = "http"
@@ -814,7 +815,25 @@ function driver_command(action, power_w, cmd)
 end
 
 function driver_default_mode()
-    -- No-op — cloud charger manages itself.
+    -- Stand-down when FTW can no longer steer: pause and clamp offered
+    -- current to 0 A. Missing serial/auth is not an error — nothing to
+    -- release yet.
+    if not charger_serial or not email or not password then
+        return
+    end
+    if not ensure_auth(email, password) then
+        return
+    end
+    if post_command("/commands/pause_charging") then
+        paused_state = true
+    end
+    local err = write_setting(charger_serial, {dynamicChargerCurrent = 0})
+    if err == nil then
+        last_amps_set = 0
+    else
+        host.log("warn", "Easee: default_mode current clamp failed: " ..
+            redact_http_err(err))
+    end
 end
 
 function driver_cleanup()

@@ -250,9 +250,16 @@ class TestManifestDriverConsistency:
         # Handle empty/standalone mapping
         # Manifest may use "" or "standalone" for the same thing
         # Also handle the hello driver which has PROTOCOL="standalone" but manifest protocol=""
+        #
+        # FTW-promoted drivers may use a more specific Lua PROTOCOL than the
+        # catalog permission bucket: tibber speaks websocket (HTTP for auth)
+        # while the channel maps http permissions; zuidwijk_p1 speaks raw TCP
+        # while its catalog row still uses the modbus permission bucket.
         proto_aliases = {
             "": {"", "standalone"},
             "standalone": {"", "standalone"},
+            "http": {"http", "websocket"},
+            "modbus": {"modbus", "tcp"},
         }
 
         if manifest_protocol in proto_aliases:

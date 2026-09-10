@@ -1,5 +1,5 @@
 name: "tibber"
-version: "1.1.1"
+version: "1.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Tibber Pulse grid meter via GraphQL-transport-ws liveMeasurement stream."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 12410
+size_bytes: 12472
 dkb_id: "tibber"
-sha256: "845ca59a775a3a4a4c27962454f14ba654fba0d1b905f24647c80db5c26a62ae"
+sha256: "3cf10b93755fa8b840375f53343e91b5efa98ddffe119a5679b43ee4bfb61c88"
 signature: ""
 
 bytecode_sha256: ""
