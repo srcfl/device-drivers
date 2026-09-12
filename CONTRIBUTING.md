@@ -1,16 +1,24 @@
 # Contributing device drivers
 
-Sourceful maintains this repository. External users contribute through
-[issues](https://github.com/srcfl/device-drivers/issues): device needs, bugs,
-protocol sources and hardware evidence. We do not accept external pull
-requests, including documentation. Acceptance of an issue does not invite an
-external implementation PR.
+Sourceful maintains this repository. External PRs are welcome, preferably
+based on [issues](https://github.com/srcfl/device-drivers/issues) with device
+needs, bugs, protocol sources and hardware evidence. Small fixes need no
+separate issue. Broad ideas may start as short Markdown PRs in the PR
+description or relevant maintained docs; mark proposed behaviour as proposed.
+Keep agent scratch notes and task breakdowns out of the repository.
 
-Users may adapt Lua drivers locally under the existing license. Local changes
-do not grant release, signing or activation authority. The development steps
-below apply to Sourceful-maintained PRs and local adaptation. Keep Sourceful
-PRs focused on one driver or one contract change. FTW direction lives in
-[the shared vision](https://github.com/srcfl/ftw/blob/master/VISION.md).
+Work is agentic first: state the problem, scope, reproducible test steps and
+actual results so people and agents can assess and continue it. Check agent
+output before submitting it. For device behaviour, include model, firmware
+and hardware results before merge. State missing hardware tests and keep the
+PR as a proposal or draft until they are done. Simulators do not prove
+physical support. Docs need no hardware tests. Control keeps its separate
+acceptance gates below.
+
+Keep PRs focused on one driver or contract change. Local adaptation and PRs
+grant no release, signing or activation authority. Fredrik owns FTW's
+direction in [the shared vision](https://github.com/srcfl/ftw/blob/master/VISION.md);
+Sourceful reviews and maintains changes under the existing license.
 
 ## Legal sign-off
 

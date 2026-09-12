@@ -1,9 +1,11 @@
-<!-- Sourceful maintains implementation PRs. External users submit issues,
-including driver and documentation requests; see CONTRIBUTING.md. -->
+<!-- External PRs are welcome, preferably based on an issue. Short Markdown
+proposals are welcome too. State what was tested and what remains unproven.
+For docs/proposals, mark hardware-only fields and checks as not applicable.
+See CONTRIBUTING.md. -->
 
 ## Summary
 
-<!-- State what hardware support or contract changes. -->
+<!-- State the problem, link the issue and describe the proposed result. -->
 
 ## Driver evidence
 

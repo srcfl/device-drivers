@@ -9,8 +9,10 @@ for other products or support levels, but it does not own a second source tree.
 
 Read [FTW's vision](https://github.com/srcfl/ftw/blob/master/VISION.md) for the household
 experience these drivers support. Sourceful maintains this shared repository.
-External users submit issues with needs and evidence, not implementation PRs.
-See [CONTRIBUTING.md](CONTRIBUTING.md). Local Lua customization remains useful
+External PRs are welcome, preferably based on issues with needs and evidence.
+Work is agentic first: state the problem, scope, test steps and actual results.
+Short Markdown proposals are welcome; hardware changes keep the acceptance
+gates below. See [CONTRIBUTING.md](CONTRIBUTING.md). Local Lua customization remains useful
 and does not grant signed-channel activation or release rights.
 
 Support mixed makes and generations with explicit model/firmware evidence.
