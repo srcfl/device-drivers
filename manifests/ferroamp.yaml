@@ -1,5 +1,5 @@
 name: "ferroamp"
-version: "2.1.1"
+version: "2.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -18,9 +18,9 @@ connection_defaults:
   mqtt_username: "extapi"
   mqtt_password: "ferroampExtApi"
 min_host_version: "2.0.0"
-size_bytes: 55058
+size_bytes: 55329
 dkb_id: "ferroamp"
-sha256: "c04d137d595ba50b8c6178c82d917b115dbe9a7cbd2cf671ef2660e871f96de3"
+sha256: "81de3c2f78618f4a30994b0397f4b6b4b56273a33946ae2d23f75a27698bc399"
 signature: ""
 
 bytecode_sha256: ""

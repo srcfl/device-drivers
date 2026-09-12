@@ -1,0 +1,23 @@
+name: "tesla_wall_connector"
+version: "0.1.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: http
+connectivity: local
+ders: [ev]
+control: false
+tested_devices:
+  - manufacturer: "Tesla"
+    model_family: "Tesla Wall Connector"
+    variants: [Wall Connector Gen 3]
+    regions: []
+    firmware_versions: ""
+    notes: "Tesla Wall Connector Gen 3 on the LAN. Observation only; no local current setpoint."
+    min_driver_version: "0.1.0"
+min_host_version: "2.0.0"
+size_bytes: 8162
+dkb_id: "tesla_wall_connector"
+sha256: "7715ce1ec3cf707fbcfc5ae58430430ffa79f7f82b38b242df9631ea1593af79"
+signature: ""
+
+bytecode_sha256: ""

@@ -1,5 +1,5 @@
 name: "pixii"
-version: "2.1.3"
+version: "2.1.4"
 tier: core
 author: "Sourceful Labs AB and community contributors"
 protocol: modbus
@@ -15,9 +15,9 @@ tested_devices:
     notes: ""
     min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
-size_bytes: 27853
+size_bytes: 27846
 dkb_id: "pixii"
-sha256: "9f0c60a5e3414df07f2a8866a5275325b7539df92fb9d4d847028cfa5ed651fd"
+sha256: "2b9c691f7171794e39dd28e927a9d09ac706e507cd646b8f1ca2bf76c7d892ea"
 signature: ""
 
 bytecode_sha256: ""

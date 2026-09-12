@@ -42,6 +42,13 @@ if fresh_emits == 0 then error("fresh poll emitted no telemetry") end
 
 host._emitted = {}
 host._mqtt_buffer = {}
+-- Ferroamp deliberately re-emits from a short age window so a WiFi blip
+-- does not flap LastSuccess; past STALE_AFTER_MS (30 s) the cache drops
+-- and idle polls must go silent. Advance the mock clock past that window
+-- before asserting the no-emit rule for this driver.
+if driver_name == "ferroamp" then
+    host._millis_counter = host._millis_counter + 31000
+end
 local stale_ok, stale_error = pcall(driver_poll)
 if not stale_ok then error("idle poll raised: " .. tostring(stale_error)) end
 

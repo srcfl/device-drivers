@@ -14,9 +14,10 @@ DRIVER = {
   id           = "zuidwijk-p1",
   name         = "Zuidwijk P1 Reader Ethernet",
   manufacturer = "Zuidwijk",
-  version      = "1.0.0",
+  version      = "1.1.1",
   protocols    = { "tcp" },
   capabilities = { "meter" },
+  read_only    = true,
   description  = "Dutch DSMR P1 smart-meter via Zuidwijk Serial-to-Ethernet bridge (raw TCP, port 23).",
   homepage     = "https://www.zuidwijk.com/product/p1-reader-ethernet/",
   authors      = { "FTW contributors" },
@@ -290,10 +291,12 @@ function driver_poll()
             host.log("warn", "zuidwijk-p1: CRC mismatch — dropping frame (total bad: " .. crc_errors .. ")")
         end
     end
-    host.emit_metric("p1_crc_errors", crc_errors)
+    -- Do not emit the CRC metric on silence: a metric alone can keep
+    -- driver health alive while no trusted meter reading exists.
     if not latest then
         return 1000
     end
+    host.emit_metric("p1_crc_errors", crc_errors)
 
     local o = parse_obis(latest)
 
@@ -317,9 +320,15 @@ function driver_poll()
     last_telegram_ms = host.millis()
 
     -- Active power in kW. DSMR sends import + export as separate positive
-    -- values; the difference gives site-convention W.
-    local p_imp_kw = obis_num(o, "1-0:1.7.0") or 0
-    local p_exp_kw = obis_num(o, "1-0:2.7.0") or 0
+    -- values; the difference gives site-convention W. Missing both OBIS
+    -- power readings is not "0 W" — skip the meter emit.
+    local p_imp_kw = obis_num(o, "1-0:1.7.0")
+    local p_exp_kw = obis_num(o, "1-0:2.7.0")
+    if p_imp_kw == nil and p_exp_kw == nil then
+        return 1000
+    end
+    p_imp_kw = p_imp_kw or 0
+    p_exp_kw = p_exp_kw or 0
     local p_imp_l1 = obis_num(o, "1-0:21.7.0") or 0
     local p_imp_l2 = obis_num(o, "1-0:41.7.0") or 0
     local p_imp_l3 = obis_num(o, "1-0:61.7.0") or 0

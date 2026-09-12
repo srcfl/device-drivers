@@ -1,5 +1,5 @@
 name: "sonnen"
-version: "2.0.2"
+version: "2.0.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.1.0"
-size_bytes: 6158
+size_bytes: 6631
 dkb_id: ""
-sha256: "92163e4356b895e16b0205e849aa42a2dcea0d799f8cc6bcbce60b5e2cd92285"
+sha256: "94ae5e0065f5793051acb89b7ef04a679b2898908dfac6f4ffd6e8deb77fa2c0"
 signature: ""
 
 bytecode_sha256: ""
