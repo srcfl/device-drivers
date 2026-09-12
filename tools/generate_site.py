@@ -964,7 +964,7 @@ def render_html(catalog: dict) -> str:
 <main id="content">
 <section class="hero" id="top">
   <div class="wrap">
-    <p class="kicker"><span class="dot" aria-hidden="true"></span>Apache-2.0 &middot; One driver per device &middot; Built from the repository</p>
+    <p class="kicker"><span class="dot" aria-hidden="true"></span>AGPL-3.0-only &middot; One driver per device &middot; Built from the repository</p>
     <h1>Every driver, and what <em>stands behind it.</em></h1>
     <p class="lede">These are the Lua drivers Sourceful publishes for FTW and Blixt L1 — solar inverters,
     batteries, meters, heat pumps and EV charging. Each entry is generated from the manifest and the driver
@@ -1055,7 +1055,7 @@ def render_html(catalog: dict) -> str:
     </div>
   </div>
   <div class="wrap footer-bottom">
-    <span>&copy; Sourceful Labs AB and contributors &middot; Apache-2.0</span>
+    <span>&copy; Sourceful Labs AB and contributors &middot; AGPL-3.0-only</span>
     <span>Generated from {commit_line or "the repository"} &middot;
       <a href="./drivers.json">drivers.json</a></span>
   </div>

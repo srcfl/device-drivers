@@ -22,15 +22,18 @@ Sourceful reviews and maintains changes under the existing license.
 
 ## Legal sign-off
 
-Contributions use Apache-2.0 and the Developer Certificate of Origin 1.1. Sign
-every commit with your real name and email:
+Contributions to this version use GNU AGPL v3 only with the Energyplan
+combination permission in LICENSE, including that permission. Preserve
+third-party licenses and notices. Use the Developer Certificate of Origin
+1.1 and sign every commit with your real name and email:
 
 ```bash
 git commit -s -m "feat(driver): add example meter"
 ```
 
 The sign-off confirms that you wrote the contribution or have the right to
-submit it under this license.
+submit it under these terms. A sign-off does not assign copyright or grant
+commercial relicensing rights. See [LICENSING.md](LICENSING.md).
 
 ## Start a driver
 

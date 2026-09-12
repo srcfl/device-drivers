@@ -178,6 +178,12 @@ jobs:
           set -euo pipefail
           artifacts=("${FTW_DRIVER_CANDIDATE_DIR}"/driver-*.lua)
           test -e "${artifacts[0]}"
+          # Keep notices immutable alongside artifacts from this source commit.
+          # Earlier files in the rolling channel retain their earlier licenses.
+          for notice in LICENSE NOTICE LICENSING.md THIRD_PARTY_NOTICES.md; do
+            cp "${notice}" "${FTW_DRIVER_CANDIDATE_DIR}/${notice}-${GITHUB_SHA}.txt"
+            artifacts+=("${FTW_DRIVER_CANDIDATE_DIR}/${notice}-${GITHUB_SHA}.txt")
+          done
           existing="$(gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json assets --jq '.assets[].name')"
           for artifact in "${artifacts[@]}"; do
             name="$(basename "${artifact}")"
