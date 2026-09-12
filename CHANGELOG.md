@@ -22,7 +22,7 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Added
 
-- **`zaptec_cloud` 0.1.0** — Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API, promoted from FTW testdata. Controllable; `driver_default_mode` pauses and clamps `maxChargeCurrent` to 0.
+- **`zaptec_cloud` 0.1.0** — Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API, promoted from FTW testdata. `read_only = true` (EV commands accepted as no-op success so the planner does not mark failed): review before merge found the control path's `ev_set_current` computed the requested current from the phase count *before* applying a same-call phase change, and no live charger has exercised pause/resume/current end-to-end. Re-add control once that ordering is fixed and hardware-verified per `AGENTS.md`.
 - **`tesla_wall_connector` 0.1.0** — Tesla Wall Connector Gen 3 local HTTP observation driver, promoted from FTW testdata. `read_only = true` (EV commands accepted as no-op success so the planner does not mark failed).
 
 ### Fixed

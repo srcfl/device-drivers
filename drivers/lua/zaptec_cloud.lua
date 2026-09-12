@@ -7,20 +7,23 @@
 --
 -- Auth:      POST /oauth/token  (OAuth2 password grant, form-encoded)
 -- Telemetry: GET  /api/chargers/{id}/state
--- Control:   POST /api/chargers/{id}/update          (current / phases)
---            POST /api/chargers/{id}/sendCommand/506 (pause)
---            POST /api/chargers/{id}/sendCommand/507 (resume; 528 = already running)
 --
 -- Sign convention: positive W is charging (power into the vehicle / site load).
--- Minimum offered current is 6 A (IEC 61851); below that we pause.
+--
+-- This driver is read-only for now. A control path (POST .../update for
+-- current/phases, POST .../sendCommand/506|507 for pause/resume) was
+-- reviewed before merge and held back per AGENTS.md ("New drivers start
+-- read-only" / control needs HIL acceptance): no live charger has exercised
+-- it end-to-end, and the reviewed version also computed the requested
+-- current from the phase count *before* applying a same-call phase change,
+-- so a 1<->3 phase switch would have offered roughly 3x/3x-under the
+-- intended power for one command. Re-add control in a follow-up once that
+-- ordering is fixed and a real Zaptec unit has verified pause/resume/current.
 --
 -- Config:
 --   email / username  Zaptec account email
 --   password          Zaptec account password (secret)
 --   serial            optional charger Id (UUID) or SerialNo
---   phases            1 or 3 (default 3)
---   min_a             minimum current, default 6
---   max_a             maximum current, default 32
 --   base_url          optional origin override (tests / staging)
 --
 -- verification_status is experimental until a live charger has been
@@ -35,6 +38,7 @@ DRIVER = {
   version      = "0.1.0",
   protocols    = { "http" },
   capabilities = { "ev" },
+  read_only    = true,
   description  = "Zaptec Go / Go 2 / Pro via Zaptec Cloud. Email + password; optional charger serial.",
   homepage     = "https://zaptec.com",
   http_hosts   = { "api.zaptec.com" },
@@ -63,21 +67,15 @@ local OP_CONNECTED    = 2
 local OP_CHARGING     = 3
 local OP_FINISHED     = 5
 
--- sendCommand codes.
-local CMD_STOP   = 506
-local CMD_RESUME = 507
-
 local email         = nil
 local password      = nil
 local serial_want   = nil
 local charger_id    = nil
 local phases        = 3
-local min_a         = 6
-local max_a         = 32
 local access_token  = nil
 local refresh_token = nil
 local token_expiry  = 0
-local paused_state  = false
+local warned_readonly = false
 
 local function pick(t, ...)
   if type(t) ~= "table" then return nil end
@@ -240,43 +238,6 @@ local function observation_map(raw)
   return obs, nil
 end
 
-local function send_command(code)
-  local url = BASE_URL .. "/api/chargers/" .. charger_id .. "/sendCommand/" .. tostring(code)
-  local _, err = host.http_post(url, "{}", auth_headers())
-  if err then
-    -- 528: not paused, cannot resume — treat as success so a resume
-    -- issued while already running does not fail the command.
-    if code == CMD_RESUME and tostring(err):match("528") then
-      return true
-    end
-    host.log("warn", "Zaptec sendCommand " .. tostring(code) .. " failed: " .. redact_http_err(err))
-    return false
-  end
-  return true
-end
-
-local function update_charger(fields)
-  local body = host.json_encode(fields)
-  local _, err = host.http_post(
-    BASE_URL .. "/api/chargers/" .. charger_id .. "/update",
-    body,
-    auth_headers())
-  if err then
-    host.log("warn", "Zaptec update failed: " .. redact_http_err(err))
-    return false
-  end
-  return true
-end
-
-local function watts_to_amps(power_w)
-  local p = phases
-  if p < 1 then p = 1 end
-  local amps = math.floor((tonumber(power_w) or 0) / (230 * p) + 0.5)
-  if amps < 0 then amps = 0 end
-  if amps > max_a then amps = max_a end
-  return amps
-end
-
 function driver_init(config)
   host.set_make("Zaptec")
   config = config or {}
@@ -291,10 +252,6 @@ function driver_init(config)
   end
   local p = as_number(config.phases)
   if p == 1 or p == 3 then phases = p end
-  local mn = as_number(config.min_a)
-  if mn and mn > 0 then min_a = mn end
-  local mx = as_number(config.max_a)
-  if mx and mx > 0 then max_a = mx end
 
   if not email or not password then
     error("Zaptec: email/username and password required")
@@ -366,50 +323,13 @@ function driver_command(action, power_w, cmd)
   if action == "init" or action == "deinit" then
     return true
   end
-  if not charger_id then
-    host.log("warn", "Zaptec: command before charger resolved")
-    return false
-  end
-  if not ensure_auth() then return false end
-
-  if action == "ev_pause" then
-    local ok = send_command(CMD_STOP)
-    if ok then paused_state = true end
-    return ok
-  end
-
-  if action == "ev_start" or action == "ev_resume" then
-    local ok = send_command(CMD_RESUME)
-    if ok then paused_state = false end
-    return ok
-  end
-
-  if action == "ev_set_current" then
-    local amps = watts_to_amps(power_w)
-    if cmd and type(cmd) == "table" then
-      local req_phases = as_number(cmd.phases)
-      if req_phases == 1 or req_phases == 3 then
-        phases = req_phases
-        if not update_charger({ maxChargePhases = phases }) then
-          return false
-        end
-      end
-    end
-    if amps > 0 and amps < min_a then
-      amps = 0
-    end
-    if amps <= 0 then
-      local ok = send_command(CMD_STOP)
-      if ok then paused_state = true end
-      return ok
-    end
-    if not update_charger({ maxChargeCurrent = amps }) then
-      return false
-    end
-    if paused_state then
-      if send_command(CMD_RESUME) then
-        paused_state = false
-      end
+  if action == "ev_set_current" or action == "ev_pause"
+      or action == "ev_resume" or action == "ev_start" then
+    if not warned_readonly then
+      host.log("warn",
+        "Zaptec Cloud is read-only pending hardware verification of its " ..
+        "control path; command accepted but not applied")
+      warned_readonly = true
     end
     return true
   end
@@ -419,18 +339,7 @@ function driver_command(action, power_w, cmd)
 end
 
 function driver_default_mode()
-  -- Stand-down when FTW can no longer steer: pause and clamp offered
-  -- current to 0 A using the same helpers as ev_set_current.
-  if not charger_id then
-    return
-  end
-  if not ensure_auth() then
-    return
-  end
-  if send_command(CMD_STOP) then
-    paused_state = true
-  end
-  update_charger({ maxChargeCurrent = 0 })
+  -- Read-only: nothing was ever commanded, so there is nothing to release.
 end
 
 function driver_cleanup()

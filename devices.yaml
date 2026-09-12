@@ -2066,7 +2066,7 @@ manufacturers:
             driver: "zaptec_cloud"
             version: "0.1.0"
             ders: [ev]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial."
   - name: "Zuidwijk"
