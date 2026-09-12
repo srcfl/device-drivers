@@ -1,3 +1,6 @@
+<!-- Sourceful maintains implementation PRs. External users submit issues,
+including driver and documentation requests; see CONTRIBUTING.md. -->
+
 ## Summary
 
 <!-- State what hardware support or contract changes. -->
