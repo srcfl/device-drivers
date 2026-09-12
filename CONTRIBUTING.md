@@ -14,7 +14,8 @@ PRs focused on one driver or one contract change. FTW direction lives in
 
 ## Legal sign-off
 
-Contributions use Apache-2.0 and the Developer Certificate of Origin 1.1. Sign
+Sourceful-maintained changes use the AGPL and Energyplan combination
+permission in LICENSE, with the Developer Certificate of Origin 1.1. Sign
 every commit with your real name and email:
 
 ```bash

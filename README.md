@@ -148,5 +148,6 @@ target identities from [support-status.json](support-status.json).
 
 ## License
 
-Sourceful-authored code is licensed under Apache-2.0. Vendored Lua 5.5 source
+This version uses AGPL-3.0-only with the Energyplan combination permission
+in [LICENSE](LICENSE). See [LICENSING.md](LICENSING.md) and [NOTICE](NOTICE). Vendored Lua 5.5 source
 keeps its own MIT notice; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
