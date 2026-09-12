@@ -6,8 +6,8 @@ License transition: 2026-09-12
 This version changes the license of the project as a whole to GNU AGPL v3
 only with the Energyplan combination permission in LICENSE. It does not
 withdraw any rights already granted for earlier copies or their code.
-The last default-branch snapshot before this change was:
-https://github.com/srcfl/device-drivers/tree/7e5946555245dee2150d46d1b7278aaec5ebe242
+The Apache-licensed default-branch snapshot used for this transition was:
+https://github.com/srcfl/device-drivers/tree/91f49bd869300e4985979823971787d9cc6eb883
 
 That snapshot was offered under Apache-2.0. Its copyright holders keep their
 copyrights and the permissions they previously granted remain available.

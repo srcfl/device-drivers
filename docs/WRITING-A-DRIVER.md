@@ -1,8 +1,8 @@
 # Writing a driver
 
-This guide serves local Lua adaptation and Sourceful development. External
-users submit [issues](https://github.com/srcfl/device-drivers/issues) with
-needs and evidence; the project does not accept external pull requests.
+This guide serves contributions and local Lua adaptation. PRs are welcome,
+preferably based on [issues](https://github.com/srcfl/device-drivers/issues)
+with needs and evidence. Hardware claims need relevant hardware results.
 See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 Start here: **[`blueprint/BLUEPRINT.lua`](../blueprint/BLUEPRINT.lua)**.

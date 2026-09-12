@@ -6,8 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Sourceful develops the drivers. External users submit issues with needs
-        and evidence; we do not accept external pull requests, including docs.
+        Share device needs and evidence here. PRs are welcome, preferably linked
+        to an issue: a short Markdown proposal or a focused fix with test results.
+        Hardware claims need hardware evidence. See CONTRIBUTING.md.
   - type: input
     id: device
     attributes:

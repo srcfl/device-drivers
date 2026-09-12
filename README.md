@@ -26,12 +26,13 @@ hardware.
 
 ## Report a need or adapt a driver
 
-Sourceful maintains implementation and release PRs. External users submit
-[issues](https://github.com/srcfl/device-drivers/issues) with hardware needs,
-bugs and test evidence; we do not accept external PRs, including docs.
+Sourceful maintains the drivers and releases. External PRs are welcome,
+preferably based on [issues](https://github.com/srcfl/device-drivers/issues)
+with hardware needs, bugs and test evidence. Share a short Markdown proposal
+or a focused fix; hardware claims need hardware results.
 [FTW's product vision](https://github.com/srcfl/ftw/blob/master/VISION.md)
 sets the FTW goals. The existing license still permits local adaptation.
-The instructions below serve local work and Sourceful development.
+The instructions below serve contributions and local adaptation.
 
 Start from **[`blueprint/BLUEPRINT.lua`](blueprint/BLUEPRINT.lua)**. It is a
 complete, working driver for an imaginary inverter, written so that every rule
@@ -51,7 +52,7 @@ fabricated zero is worse than a missing field, and why arithmetic never belongs
 in the host API.
 
 For an issue, include the device model, protocol source and any observations
-you can safely share. Sourceful implementation PRs use the template and include
+you can safely share. Implementation PRs use the template and include
 sign checks and test evidence without credentials or private site data.
 
 New drivers start with telemetry only. Control support needs a later,
