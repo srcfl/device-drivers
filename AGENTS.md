@@ -5,6 +5,22 @@ drivers and the main driver source for FTW. It publishes FTW's signed driver
 channel from reviewed commits. Device Support may later consume a locked commit
 for other products or support levels, but it does not own a second source tree.
 
+## FTW product direction
+
+Read [FTW's vision](https://github.com/srcfl/ftw/blob/master/VISION.md) for the household
+experience these drivers support. Sourceful maintains this shared repository.
+External users submit issues with needs and evidence, not implementation PRs.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Local Lua customization remains useful
+and does not grant signed-channel activation or release rights.
+
+Support mixed makes and generations with explicit model/firmware evidence.
+Report identity, reliable measurements, known limits and structured command
+results so Core can distinguish read support from control support. A catalog
+entry or a simulated response does not establish working physical control.
+Heat telemetry helps planning first; active tank or hot-water control requires
+its separate safety and hardware evidence. Keep the existing host contracts
+and control acceptance gates below.
+
 ## Boundaries
 
 - Keep API, admin, database and deployment code out of this repo.

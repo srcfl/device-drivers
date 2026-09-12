@@ -1,5 +1,10 @@
 # Writing a driver
 
+This guide serves local Lua adaptation and Sourceful development. External
+users submit [issues](https://github.com/srcfl/device-drivers/issues) with
+needs and evidence; the project does not accept external pull requests.
+See [CONTRIBUTING.md](../CONTRIBUTING.md).
+
 Start here: **[`blueprint/BLUEPRINT.lua`](../blueprint/BLUEPRINT.lua)**.
 
 It is a complete, working driver for an imaginary inverter. Every rule in this
@@ -95,7 +100,7 @@ Wrap the driver's own typed helpers â€” `read_i16`, `read_u32_be` and the like â
 around `probe_read` rather than giving each its own `pcall`. That fixes every
 call site at once and leaves one place to reason about.
 
-### Check your driver before you open the pull request
+### Check local changes and Sourceful pull requests
 
 ```bash
 make absent-register-report ID=example

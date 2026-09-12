@@ -1,7 +1,16 @@
 # Contributing device drivers
 
-Thank you for helping add hardware support. Keep each pull request focused on
-one driver or one contract change.
+Sourceful maintains this repository. External users contribute through
+[issues](https://github.com/srcfl/device-drivers/issues): device needs, bugs,
+protocol sources and hardware evidence. We do not accept external pull
+requests, including documentation. Acceptance of an issue does not invite an
+external implementation PR.
+
+Users may adapt Lua drivers locally under the existing license. Local changes
+do not grant release, signing or activation authority. The development steps
+below apply to Sourceful-maintained PRs and local adaptation. Keep Sourceful
+PRs focused on one driver or one contract change. FTW direction lives in
+[the shared vision](https://github.com/srcfl/ftw/blob/master/VISION.md).
 
 ## Legal sign-off
 
@@ -146,7 +155,7 @@ State:
 Do not post credentials, full configuration, serial numbers, private addresses
 or energy history from a real site.
 
-New contributions use the `community` tier. That tier states the current test
+New drivers use the `community` evidence tier. That tier states the current test
 and support evidence; it does not mean the public repo is unofficial or
 unmaintained. A maintainer may promote a driver only after the stated review
 and hardware checks. Control support always uses a separate change and cannot

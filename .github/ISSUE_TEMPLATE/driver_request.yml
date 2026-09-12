@@ -1,8 +1,13 @@
 name: Driver request
-description: Request support for a device or propose a driver contribution
+description: Request device support or share hardware evidence
 title: "[driver] "
 labels: ["driver"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Sourceful develops the drivers. External users submit issues with needs
+        and evidence; we do not accept external pull requests, including docs.
   - type: input
     id: device
     attributes:
@@ -30,4 +35,4 @@ body:
     attributes:
       label: Contribution
       options:
-        - label: I can help write or test this driver.
+        - label: I can provide device documentation or help test on hardware.
