@@ -179,7 +179,10 @@ def test_publication_contains_the_full_read_only_catalog(
     assert {"sungrow", "pixii", "alphaess", "ferroamp"} <= controlling
     # And a driver that declares read_only in its own DRIVER table stays a
     # meter, whatever anything else says.
-    assert not ({"sdm630", "zap", "esphome_dsmr", "nibe_local", "myuplink"} & controlling)
+    assert not ({"sdm630", "zap", "esphome_dsmr", "myuplink"} & controlling)
+    # nibe_local dropped read_only for its opt-in Solar PV surplus feed and
+    # declares write_capabilities, so the channel must publish it as control.
+    assert "nibe_local" in controlling
     assert all(driver["host_api"] == {"min": 1, "max": 1} for driver in manifest["drivers"])
     assert all(driver["metadata"]["source"] == "upstream" for driver in manifest["drivers"])
     assert all(driver["source_commit"] == COMMIT for driver in manifest["drivers"])
