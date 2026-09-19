@@ -18,12 +18,19 @@
 --           host: core-mosquitto
 --           port: 1883
 --           username: mqtt-user
---           password: 42wenkel
+--           password: <your mqtt password>
 --       config:
 --         base_topic: panasonic_heat_pump
 --         min_offset: -3
 --         max_offset: 3
 --         safe_offset: 0
+--         power_topic: Heat_Power_Consumption
+--
+-- power_topic names the main/ topic carrying the pump's electrical draw in W.
+-- Heishamon publishes it as Heat_Power_Consumption (TOP21) on the builds this
+-- driver has been run against; set it if your build names it differently. The
+-- driver emits hp_power_w only once that topic has arrived, so a wrong name
+-- costs the power reading and nothing else.
 
 DRIVER = {
   host_api_min = 1,
@@ -31,7 +38,7 @@ DRIVER = {
   id           = "heishamon",
   name         = "Panasonic Aquarea (Heishamon)",
   manufacturer = "Panasonic",
-  version      = "0.4.0",
+  version      = "0.6.0",
   protocols    = { "mqtt" },
   capabilities = { "heatpump" },
   description  = "Panasonic Aquarea H/J/K/L/M-series heat pump via Heishamon MQTT bridge. Controls Zone 1 heat curve offset (Z1_Heat_Request_Temp) in range -3..+3 °C.",
@@ -52,7 +59,9 @@ local outlet_temp    = nil
 local inlet_temp     = nil
 local target_temp    = nil
 local z1_offset      = nil
+local power_w        = nil
 local last_msg_ts    = 0
+local last_power_ts  = 0
 local STALE_AFTER_MS = 60000
 
 -- Config (overridable via config.yaml)
@@ -60,6 +69,7 @@ local base_topic   = "panasonic_heat_pump"
 local min_offset   = -3
 local max_offset   = 3
 local safe_offset  = 0
+local power_topic  = "Heat_Power_Consumption"
 
 ----------------------------------------------------------------------------
 -- Lifecycle
@@ -73,6 +83,7 @@ function driver_init(config)
         if config.min_offset  then min_offset  = tonumber(config.min_offset)  or -3   end
         if config.max_offset  then max_offset  = tonumber(config.max_offset)  or  3   end
         if config.safe_offset then safe_offset = tonumber(config.safe_offset) or  0   end
+        if config.power_topic then power_topic = config.power_topic                   end
     end
 
     -- Subscribe broadly to all Heishamon topics
@@ -85,7 +96,8 @@ function driver_init(config)
 
     host.log("info", "Heishamon: initialized, base_topic=" .. base_topic
         .. " offset_range=[" .. min_offset .. ".." .. max_offset .. "]"
-        .. " safe_offset=" .. safe_offset)
+        .. " safe_offset=" .. safe_offset
+        .. " power_topic=" .. power_topic)
 end
 
 function driver_poll()
@@ -111,6 +123,10 @@ function driver_poll()
             elseif msg.topic == base_topic .. "/main/Z1_Heat_Request_Temp" then
                 z1_offset   = val
                 last_msg_ts = now
+            elseif msg.topic == base_topic .. "/main/" .. power_topic then
+                power_w       = val
+                last_power_ts = now
+                last_msg_ts   = now
             end
         end
     end
@@ -124,14 +140,24 @@ function driver_poll()
         inlet_temp   = nil
         target_temp  = nil
         z1_offset    = nil
+        power_w      = nil
+        last_power_ts = 0
+    elseif last_power_ts > 0 and (now - last_power_ts) > STALE_AFTER_MS then
+        host.log("warn", "Heishamon: no power reading for "
+            .. tostring(STALE_AFTER_MS) .. " ms — power stale")
+        power_w       = nil
+        last_power_ts = 0
     end
 
-    -- Emit metrics
-    if outside_temp ~= nil then host.emit_metric("hp_outside_temp_c", outside_temp, "°C") end
+    -- Emit metrics. Names are the ones FTW's heating view reads: it finds a
+    -- heat pump by hp_power_w and charts the outdoor temperature under
+    -- hp_outdoor_temp_c, the same names nibe_local and myuplink report.
+    if outside_temp ~= nil then host.emit_metric("hp_outdoor_temp_c", outside_temp, "°C") end
     if outlet_temp  ~= nil then host.emit_metric("hp_outlet_temp_c",  outlet_temp,  "°C") end
     if inlet_temp   ~= nil then host.emit_metric("hp_inlet_temp_c",   inlet_temp,   "°C") end
     if target_temp  ~= nil then host.emit_metric("hp_target_temp_c",  target_temp,  "°C") end
     if z1_offset    ~= nil then host.emit_metric("hp_z1_heat_offset", z1_offset,    "°C") end
+    if power_w      ~= nil then host.emit_metric("hp_power_w",        power_w,      "W")  end
 
     return 5000
 end
@@ -186,4 +212,6 @@ function driver_cleanup()
     inlet_temp   = nil
     target_temp  = nil
     z1_offset    = nil
+    power_w      = nil
+    last_power_ts = 0
 end
