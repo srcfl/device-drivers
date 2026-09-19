@@ -14,9 +14,10 @@ DRIVER = {
   id           = "fronius-smart-meter",
   name         = "Fronius Smart Meter",
   manufacturer = "Fronius",
-  version      = "2.1.1",
+  version      = "2.1.2",
   protocols    = { "modbus" },
   capabilities = { "meter" },
+  read_only    = true,
   description  = "Fronius Smart Meter three-phase energy meter via Modbus TCP (SunSpec).",
   homepage     = "https://www.fronius.com",
   authors      = { "FTW contributors" },
@@ -110,15 +111,14 @@ local function probe_read(addr, count, kind)
 end
 
 -- Helper: read a contiguous F32 BE pair at `addr` and return the decoded
--- float. On Modbus error, returns 0 so the poll cycle still emits a
--- well-shaped table. Every read in this driver goes through here, so
--- bounding it bounds the whole driver.
+-- float. On Modbus error / give-up, returns nil so callers can omit the
+-- field or skip the emit rather than publishing a fabricated 0 W.
 local function read_f32(addr)
     local regs = probe_read(addr, 2, "holding")
     if regs then
         return decode_f32_be(regs[1], regs[2])
     end
-    return 0
+    return nil
 end
 
 ----------------------------------------------------------------------------
@@ -136,57 +136,53 @@ end
 ----------------------------------------------------------------------------
 
 function driver_poll()
-    -- Per-phase current (A)
+    -- Total AC power (W) — Fronius: positive = import, matches site convention.
+    -- Without it there is no trustworthy site-meter reading; do not emit a
+    -- fabricated 0 W after the register has been given up.
+    local total_w = read_f32(40098)
+    if total_w == nil then
+        return 5000
+    end
+
+    -- Optional phase / energy fields: omit nil rather than coercing to 0.
     local l1_a = read_f32(40074)
     local l2_a = read_f32(40076)
     local l3_a = read_f32(40078)
-
-    -- Per-phase voltage (V)
     local l1_v = read_f32(40082)
     local l2_v = read_f32(40084)
     local l3_v = read_f32(40086)
-
-    -- Grid frequency (Hz)
     local hz = read_f32(40096)
-
-    -- Total AC power (W) — Fronius: positive = import, matches site convention
-    local total_w = read_f32(40098)
-
-    -- Per-phase AC power (W)
     local l1_w = read_f32(40100)
     local l2_w = read_f32(40102)
     local l3_w = read_f32(40104)
-
-    -- Lifetime energy counters (Wh)
     local export_wh = read_f32(40130)
     local import_wh = read_f32(40138)
 
-    host.emit("meter", {
-        w         = total_w,
-        l1_w      = l1_w,
-        l2_w      = l2_w,
-        l3_w      = l3_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = l1_a,
-        l2_a      = l2_a,
-        l3_a      = l3_a,
-        hz        = hz,
-        import_wh = import_wh,
-        export_wh = export_wh,
-    })
-    -- Diagnostics: long-format TS DB
-    host.emit_metric("meter_l1_w", l1_w)
-    host.emit_metric("meter_l2_w", l2_w)
-    host.emit_metric("meter_l3_w", l3_w)
-    host.emit_metric("meter_l1_v", l1_v)
-    host.emit_metric("meter_l2_v", l2_v)
-    host.emit_metric("meter_l3_v", l3_v)
-    host.emit_metric("meter_l1_a", l1_a)
-    host.emit_metric("meter_l2_a", l2_a)
-    host.emit_metric("meter_l3_a", l3_a)
-    host.emit_metric("grid_hz",    hz)
+    local meter = { w = total_w }
+    if l1_w ~= nil then meter.l1_w = l1_w end
+    if l2_w ~= nil then meter.l2_w = l2_w end
+    if l3_w ~= nil then meter.l3_w = l3_w end
+    if l1_v ~= nil then meter.l1_v = l1_v end
+    if l2_v ~= nil then meter.l2_v = l2_v end
+    if l3_v ~= nil then meter.l3_v = l3_v end
+    if l1_a ~= nil then meter.l1_a = l1_a end
+    if l2_a ~= nil then meter.l2_a = l2_a end
+    if l3_a ~= nil then meter.l3_a = l3_a end
+    if hz ~= nil then meter.hz = hz end
+    if import_wh ~= nil then meter.import_wh = import_wh end
+    if export_wh ~= nil then meter.export_wh = export_wh end
+
+    host.emit("meter", meter)
+    if l1_w ~= nil then host.emit_metric("meter_l1_w", l1_w) end
+    if l2_w ~= nil then host.emit_metric("meter_l2_w", l2_w) end
+    if l3_w ~= nil then host.emit_metric("meter_l3_w", l3_w) end
+    if l1_v ~= nil then host.emit_metric("meter_l1_v", l1_v) end
+    if l2_v ~= nil then host.emit_metric("meter_l2_v", l2_v) end
+    if l3_v ~= nil then host.emit_metric("meter_l3_v", l3_v) end
+    if l1_a ~= nil then host.emit_metric("meter_l1_a", l1_a) end
+    if l2_a ~= nil then host.emit_metric("meter_l2_a", l2_a) end
+    if l3_a ~= nil then host.emit_metric("meter_l3_a", l3_a) end
+    if hz ~= nil then host.emit_metric("grid_hz", hz) end
 
     return 5000
 end

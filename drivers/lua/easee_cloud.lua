@@ -25,7 +25,7 @@ DRIVER = {
   id           = "easee-cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.0.1",
+  version      = "1.3.2",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -37,6 +37,7 @@ DRIVER = {
   verified_by = { "frahlg@homelab-rpi:2d", "erikarenhill@fortytwo:1d" },
   verified_at = "2026-04-18",
   verification_notes = "Observations API + lifecycle commands exercised against an Easee Home charger. Session state, op_mode labels, charge/pause/resume all verified.",
+  config_secrets = { "password" },
 }
 
 PROTOCOL = "http"
@@ -181,6 +182,22 @@ local function redact_http_err(err)
     return tostring(err):match("^(HTTP %d+)") or "request failed"
 end
 
+-- Wrapped transport. A host whose http_get raises, or a vendor API
+-- that answers with garbage, must degrade to (nil, err) — never kill
+-- the driver mid-poll.
+local function safe_http_get(url, headers)
+    local ok, resp, err = pcall(host.http_get, url, headers)
+    if not ok then return nil, tostring(resp) end
+    return resp, err
+end
+
+local function safe_json_decode(s)
+    if s == nil then return nil end
+    local ok, data = pcall(host.json_decode, s)
+    if not ok then return nil end
+    return data
+end
+
 -- ---- Auth helpers ----
 
 local function login(email, password)
@@ -190,7 +207,7 @@ local function login(email, password)
         host.log("error", "Easee login failed: " .. redact_http_err(err))
         return false
     end
-    local data = host.json_decode(resp)
+    local data = safe_json_decode(resp)
     if not data or not data.accessToken then
         host.log("error", "Easee login: no accessToken in response")
         return false
@@ -215,7 +232,7 @@ local function do_refresh()
         host.log("warn", "Easee token refresh failed: " .. redact_http_err(err))
         return false
     end
-    local data = host.json_decode(resp)
+    local data = safe_json_decode(resp)
     if not data or not data.accessToken then
         host.log("warn", "Easee refresh: no accessToken, will re-login")
         return false
@@ -246,9 +263,9 @@ end
 -- ---- API helpers ----
 
 local function get_chargers()
-    local resp, err = host.http_get(BASE_URL .. "/chargers", auth_headers())
+    local resp, err = safe_http_get(BASE_URL .. "/chargers", auth_headers())
     if err then return nil, err end
-    return host.json_decode(resp), nil
+    return safe_json_decode(resp), nil
 end
 
 -- Observation IDs (from developer.easee.com/docs/charger-observation-ids)
@@ -261,23 +278,118 @@ local OBS_SESSION_ENERGY  = 121
 local OBS_LIFETIME_ENERGY = 124
 local OBS_CURRENT         = 183
 local OBS_VOLTAGE         = 194
+local OBS_SESSION_START   = 223
 
-local OBS_IDS = "48,96,103,109,120,121,124,183,194"
+local OBS_IDS = "48,96,103,109,120,121,124,183,194,223"
+
+local validated_session_id = nil
+local observed_session_id = nil
+local departed_session_id = nil
+local session_lookups_ms = {}
+local last_session_lookup_ms = nil
+local last_session_mode = nil
+
+local function invalidate_session_proof()
+    -- An unreadable charger may have changed cars during the gap. Keep the
+    -- gap unknown, but require fresh proof when observations return.
+    validated_session_id = nil
+    observed_session_id = nil
+    last_session_mode = nil
+end
 
 local function get_observations(serial)
     local url = "https://api.easee.com/state/" .. serial .. "/observations?ids=" .. OBS_IDS
-    local resp, err = host.http_get(url, auth_headers())
-    if err then return nil, err end
-    local decoded = host.json_decode(resp)
-    if not decoded then return nil, "decode failed" end
+    local resp, err = safe_http_get(url, auth_headers())
+    if err then invalidate_session_proof(); return nil, err end
+    local decoded = safe_json_decode(resp)
+    if type(decoded) ~= "table" then invalidate_session_proof(); return nil, "decode failed" end
     local list = decoded.observations or decoded
     local obs = {}
+    local timestamps = {}
     for _, item in ipairs(list) do
         if item.id then
             obs[item.id] = tonumber(item.value) or item.value
+            timestamps[item.id] = item.timestamp
         end
     end
-    return obs, nil
+    local mode = obs[OBS_OP_MODE]
+    if type(mode) ~= "number" or mode < 0 or mode > 6 or mode % 1 ~= 0 then
+        invalidate_session_proof()
+        return nil, "missing charger state"
+    end
+    if mode == 0 then
+        invalidate_session_proof()
+        return nil, "charger offline; connection unknown"
+    end
+    if mode >= 2 and (type(obs[OBS_TOTAL_POWER]) ~= "number" or
+       type(obs[OBS_SESSION_ENERGY]) ~= "number" or obs[OBS_SESSION_ENERGY] < 0) then
+        invalidate_session_proof()
+        return nil, "missing session measurement"
+    end
+    return obs, nil, timestamps
+end
+
+-- Match observation 223 to the vendor's current-session endpoint. sessionEnd
+-- can be populated while a car is merely paused; it is not cable-disconnect
+-- proof (confirmed on hardware, 2026-09-13). Mode 4 also means the car paused
+-- or stopped drawing. Keep the same identity until disconnect or a new ID.
+-- https://developer.easee.com/reference/chargers_getongoingsessiondetails
+-- https://developer.easee.com/docs/api-command-and-control
+local function normalized_session_start(value)
+    if type(value) ~= "string" or
+       not value:match("^%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d") then return nil end
+    return (value:gsub("%+00:00$", "Z"):gsub("%.0+Z$", "Z"))
+end
+
+local function current_session_id(obs, op_mode)
+    local began_charging = op_mode == 3 and last_session_mode ~= 3
+    last_session_mode = op_mode
+    if op_mode == 0 or op_mode == 1 then
+        if op_mode == 1 then departed_session_id = observed_session_id or departed_session_id end
+        validated_session_id = nil
+        observed_session_id = nil
+        return nil
+    end
+    local raw = obs[OBS_SESSION_START]
+    local session = type(raw) == "table" and raw or nil
+    if type(raw) == "string" then session = safe_json_decode(raw) end
+    if type(session) ~= "table" then return nil end
+    local id = tonumber(session.Id)
+    local start = normalized_session_start(session.Start)
+    if not id or id <= 0 or id % 1 ~= 0 or not start then return nil end
+    local identity = string.format("%.0f", id) .. ":" .. start
+    if identity == departed_session_id then return nil end
+    local identity_changed = identity ~= observed_session_id
+    if identity_changed then
+        observed_session_id = identity
+        validated_session_id = nil
+    end
+    if validated_session_id == identity then return identity end
+    -- A pause is still an open session. Ask the ongoing-session endpoint
+    -- before restoring its identity; observation 223 alone may be historical.
+
+    -- The vendor allows ten requests per hour, not one per normal poll.
+    local now = host.millis()
+    local recent = {}
+    for _, at in ipairs(session_lookups_ms) do
+        if now - at < 3600000 then table.insert(recent, at) end
+    end
+    session_lookups_ms = recent
+    -- Spread failed retries across the hour. A new session or a transition to
+    -- charging may try sooner, while retaining the minute and hourly limits.
+    local retry_ms = (identity_changed or began_charging) and 60000 or 360000
+    if #recent >= 10 or (last_session_lookup_ms and now - last_session_lookup_ms < retry_ms) then
+        return nil
+    end
+    last_session_lookup_ms = now
+    table.insert(session_lookups_ms, now)
+    local body, err = safe_http_get(BASE_URL .. "/chargers/" .. charger_serial .. "/sessions/ongoing", auth_headers())
+    if err then return nil end
+    local ongoing = safe_json_decode(body)
+    if type(ongoing) ~= "table" or tonumber(ongoing.sessionId) ~= id or
+       normalized_session_start(ongoing.sessionStart) ~= start then return nil end
+    validated_session_id = identity
+    return identity
 end
 
 -- ---- State mapping ----
@@ -355,9 +467,9 @@ local email, password, configured_max_a
 -- (compare requested phaseMode after a write) is a follow-up; this
 -- driver's contribution is the diagnostic logging at init.
 local function read_settings(serial)
-    local resp, err = host.http_get(BASE_URL .. "/chargers/" .. serial .. "/config", auth_headers())
+    local resp, err = safe_http_get(BASE_URL .. "/chargers/" .. serial .. "/config", auth_headers())
     if err then return nil, redact_http_err(err) end
-    local decoded = host.json_decode(resp)
+    local decoded = safe_json_decode(resp)
     if decoded == nil then
         return nil, "decode failed (non-JSON response)"
     end
@@ -471,7 +583,7 @@ function driver_poll()
         return 10000
     end
 
-    local obs, err = get_observations(charger_serial)
+    local obs, err, timestamps = get_observations(charger_serial)
     if err or not obs then
         host.log("warn", "Easee: observations poll failed: " .. redact_http_err(err))
         return 10000
@@ -488,6 +600,13 @@ function driver_poll()
     local is_online = (op_mode ~= 0)
 
     local reason_code = obs[OBS_REASON_NO_CUR]
+    -- ReasonForNoCurrent describes a blocked offer. An older reason is not
+    -- a current fault while the charger reports both charging and power.
+    local reason_at = normalized_session_start(timestamps[OBS_REASON_NO_CUR])
+    local power_at = normalized_session_start(timestamps[OBS_TOTAL_POWER])
+    if charging and power_w > 100 and reason_at and power_at and reason_at <= power_at then
+        reason_code = nil
+    end
     local cable_locked = obs[OBS_CABLE_LOCKED]
     if cable_locked ~= nil then cable_locked = (cable_locked == 1 or cable_locked == true) end
     local dyn_current = obs[OBS_DYN_CURRENT]
@@ -531,11 +650,37 @@ function driver_poll()
         command_stalled_since_ms = 0
     end
 
+    -- request_active: false ONLY when the vehicle side has explicitly
+    -- stopped requesting current — Easee reason 50 ("secondary unit
+    -- not requesting current"; the vehicle is the secondary unit) or
+    -- op_mode 4 ("completed"). Every other reason (52/53/100 = the box
+    -- throttled it, pending authorization, schedules, fuse limits)
+    -- keeps the default true, so a pause the box itself ordered is
+    -- never mistaken for the car declining. The host debounces this
+    -- for 90 s before acting on it (session-completion latch,
+    -- manual-hold auto-release), so a brief 50 during session
+    -- handshake is harmless. Field observation 2026-08-29: a car at
+    -- its own charge limit held reason 50 all night while the box kept
+    -- offering 11 kW and paged the operator twice about it.
+    local request_active = true
+    if connected and not charging and (reason_code == 50 or op_mode == 4) then
+        request_active = false
+    end
+
     host.emit("ev", {
         w                       = power_w,
         connected               = connected,
         charging                = charging,
+        request_active          = request_active,
         session_wh              = session_wh,
+        power_observed_at       = timestamps[OBS_TOTAL_POWER],
+        -- Two-minute source updates were observed on hardware. One minute
+        -- of margin bounds the power estimate without refreshing its time.
+        power_max_age_s         = 180,
+        energy_observed_at      = timestamps[OBS_SESSION_ENERGY],
+        state_observed_at       = timestamps[OBS_OP_MODE],
+        reason_observed_at      = timestamps[OBS_REASON_NO_CUR],
+        session_id              = current_session_id(obs, op_mode),
         op_mode                 = op_mode,                     -- 1=disc,2=awaiting,3=charging,4=completed,5=error,6=ready
         state_label             = OP_MODE_LABELS[op_mode] or "unknown",
         reason_no_current       = reason_code,                 -- int: 0=ok; why NOT drawing current
@@ -705,7 +850,25 @@ function driver_command(action, power_w, cmd)
 end
 
 function driver_default_mode()
-    -- No-op — cloud charger manages itself.
+    -- Stand-down when FTW can no longer steer: pause and clamp offered
+    -- current to 0 A. Missing serial/auth is not an error — nothing to
+    -- release yet.
+    if not charger_serial or not email or not password then
+        return
+    end
+    if not ensure_auth(email, password) then
+        return
+    end
+    if post_command("/commands/pause_charging") then
+        paused_state = true
+    end
+    local err = write_setting(charger_serial, {dynamicChargerCurrent = 0})
+    if err == nil then
+        last_amps_set = 0
+    else
+        host.log("warn", "Easee: default_mode current clamp failed: " ..
+            redact_http_err(err))
+    end
 end
 
 function driver_cleanup()

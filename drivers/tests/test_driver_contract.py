@@ -31,7 +31,10 @@ class TestDriverContract:
         code = read_driver(driver_name)
         match = re.search(r'^PROTOCOL\s*=\s*"([^"]*)"', code, re.MULTILINE)
         assert match, f"{driver_name}: cannot parse PROTOCOL value"
-        valid = {"modbus", "mqtt", "http", "serial", "p1", "standalone", ""}
+        # tcp / websocket are FTW host protocols used by promoted P1 and
+        # Tibber drivers; the catalog contract originally omitted them.
+        valid = {"modbus", "mqtt", "http", "serial", "p1", "standalone",
+                 "tcp", "websocket", ""}
         assert match.group(1) in valid, \
             f"{driver_name}: PROTOCOL={match.group(1)!r} not in {valid}"
 

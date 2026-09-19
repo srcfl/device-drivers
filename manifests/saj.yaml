@@ -1,9 +1,10 @@
 name: "saj"
-version: "1.1.1"
+version: "1.2.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
+setup: [device_ui]
 ders: [pv, battery, meter]
 control: false
 tested_devices:
@@ -12,29 +13,34 @@ tested_devices:
     variants: [H2-5K, H2-6K, H2-8K, H2-10K, H2-12K, H2-15K, H2-20K, H2-25K]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
-    min_driver_version: "1.0.0"
+    notes: "H2-Protocol holding map (evcc saj-h2 / community HA integration). Telemetry only; not yet verified on a named FTW site. Control stays off until a held-zero command is proven."
+    min_driver_version: "1.2.0"
   - manufacturer: "SAJ"
     model_family: "HS2 (Single-Phase Hybrid)"
     variants: [HS2-3K, HS2-4K, HS2-5K, HS2-6K]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
-    min_driver_version: "1.0.0"
+    notes: "Same H2-Protocol map as the three-phase hybrid. Ampere.StoragePro / EKD-Solar is a rebadged HS2. Telemetry only."
+    min_driver_version: "1.2.0"
   - manufacturer: "SAJ"
     model_family: "AS2 (Three-Phase String)"
     variants: [AS2-3K, AS2-4K, AS2-5K, AS2-6K, AS2-8K, AS2-10K]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
-    min_driver_version: "1.0.0"
+    notes: "String sibling: the driver must not emit a battery. The BMS block is probed and then left alone if it reports no pack or never answers."
+    min_driver_version: "1.2.0"
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/stanus74/home-assistant-saj-h2-modbus/main/custom_components/saj_h2_modbus/modbus_readers.py"
+    title: "Community SAJ H2 Modbus register map (stanus74/home-assistant-saj-h2-modbus)"
+    kind: register_map
+    url_stability: volatile
 min_host_version: "2.0.0"
-size_bytes: 4855
+size_bytes: 16074
 dkb_id: ""
-sha256: "3eec98c298872444cbddfc33c7c666decc367c427e5aacb7e1c240a3d6cdd21f"
+sha256: "0588a78a9664cf767557bc0cfb17e8cbd684709cb019d126ab00edadc64c47b6"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "Replace the untested input-0x10xx stub with the H2-Protocol holding map: identity, live power, per-phase meter, BMS-gated battery telemetry, no fabricated zeros. Control remains off."

@@ -1,5 +1,5 @@
 name: "pixii_pv"
-version: "0.3.0"
+version: "0.3.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -15,9 +15,9 @@ tested_devices:
     notes: "Read-only Pixii telemetry: PV (external CTs) + grid meter (meter_w). Battery / SoC comes from the Modbus driver, not this one."
     min_driver_version: "0.2.0"
 min_host_version: "2.0.0"
-size_bytes: 6692
+size_bytes: 6699
 dkb_id: "pixii_pv"
-sha256: "d0901b6478e05b5cdf46fc2a9675700ba6008be2feb370be0ff7e87d2f1de883"
+sha256: "4f86b5c75ad1af8ed7bb48d7fa0f50db8ade8397b9a04c9ea1a8347f0bafff3d"
 signature: ""
 
 bytecode_sha256: ""

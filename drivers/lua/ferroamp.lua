@@ -8,7 +8,7 @@ DRIVER = {
   id           = "ferroamp",
   name         = "Ferroamp EnergyHub",
   manufacturer = "Ferroamp",
-  version      = "1.0.0",
+  version      = "2.1.2",
   protocols    = { "mqtt" },
   capabilities = { "meter", "pv", "battery" },
   description  = "Ferroamp EnergyHub with ESO battery + SSO solar strings (3-phase).",
@@ -344,6 +344,11 @@ end
 
 function driver_init(config)
     host.set_make("Ferroamp")
+    -- MQTT telemetry does not carry a hub serial, so identity otherwise
+    -- falls back to the endpoint. Operators can pin one via config.serial.
+    if config and type(config.serial) == "string" and config.serial ~= "" then
+        host.set_sn(config.serial)
+    end
 
     -- Honour the `skip_battery` config knob if set — the driver stays
     -- otherwise unchanged, but host.emit("battery", …) is skipped so

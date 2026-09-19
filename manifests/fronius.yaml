@@ -1,5 +1,5 @@
 name: "fronius"
-version: "2.1.1"
+version: "2.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -50,9 +50,9 @@ tested_devices:
     notes: "Classic single-phase string inverter"
     min_driver_version: "1.2.0"
 min_host_version: "2.0.0"
-size_bytes: 12721
+size_bytes: 12744
 dkb_id: "fronius_symo_gen24"
-sha256: "bc526decf391d60f20369d84a20ac564c03255bdaad061ba6d08426169efe3e7"
+sha256: "9ba747b7d54fb5e31fe9334c6a9e9408c9130370900f7ba30f019f232bc022ed"
 signature: ""
 
 bytecode_sha256: ""

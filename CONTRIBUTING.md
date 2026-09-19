@@ -1,19 +1,39 @@
 # Contributing device drivers
 
-Thank you for helping add hardware support. Keep each pull request focused on
-one driver or one contract change.
+Sourceful maintains this repository. External PRs are welcome, preferably
+based on [issues](https://github.com/srcfl/device-drivers/issues) with device
+needs, bugs, protocol sources and hardware evidence. Small fixes need no
+separate issue. Broad ideas may start as short Markdown PRs in the PR
+description or relevant maintained docs; mark proposed behaviour as proposed.
+Keep agent scratch notes and task breakdowns out of the repository.
+
+Work is agentic first: state the problem, scope, reproducible test steps and
+actual results so people and agents can assess and continue it. Check agent
+output before submitting it. For device behaviour, include model, firmware
+and hardware results before merge. State missing hardware tests and keep the
+PR as a proposal or draft until they are done. Simulators do not prove
+physical support. Docs need no hardware tests. Control keeps its separate
+acceptance gates below.
+
+Keep PRs focused on one driver or contract change. Local adaptation and PRs
+grant no release, signing or activation authority. Fredrik owns FTW's
+direction in [the shared vision](https://github.com/srcfl/ftw/blob/master/VISION.md);
+Sourceful reviews and maintains changes under the existing license.
 
 ## Legal sign-off
 
-Contributions use Apache-2.0 and the Developer Certificate of Origin 1.1. Sign
-every commit with your real name and email:
+Contributions to this version use GNU AGPL v3 only with the Energyplan
+combination permission in LICENSE, including that permission. Preserve
+third-party licenses and notices. Use the Developer Certificate of Origin
+1.1 and sign every commit with your real name and email:
 
 ```bash
 git commit -s -m "feat(driver): add example meter"
 ```
 
 The sign-off confirms that you wrote the contribution or have the right to
-submit it under this license.
+submit it under these terms. A sign-off does not assign copyright or grant
+commercial relicensing rights. See [LICENSING.md](LICENSING.md).
 
 ## Start a driver
 
@@ -146,7 +166,7 @@ State:
 Do not post credentials, full configuration, serial numbers, private addresses
 or energy history from a real site.
 
-New contributions use the `community` tier. That tier states the current test
+New drivers use the `community` evidence tier. That tier states the current test
 and support evidence; it does not mean the public repo is unofficial or
 unmaintained. A maintainer may promote a driver only after the stated review
 and hardware checks. Control support always uses a separate change and cannot

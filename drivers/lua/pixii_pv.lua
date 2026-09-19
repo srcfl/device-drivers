@@ -14,9 +14,10 @@ DRIVER = {
   id           = "pixii-pv",
   name         = "Pixii PowerShaper (PV + meter)",
   manufacturer = "Pixii",
-  version      = "0.2.0",
+  version      = "0.3.1",
   protocols    = { "mqtt" },
   capabilities = { "pv", "meter" },
+  read_only    = true,
   description  = "Read-only Pixii telemetry: PV (external CTs) + grid meter (meter_w). Battery / SoC comes from the Modbus driver, not this one.",
   homepage     = "https://pixii.com",
   authors      = { "FTW contributors" },
@@ -114,13 +115,13 @@ function driver_poll()
         local w1 = tonumber(pv_payload.meter_w1) or 0
         local w2 = tonumber(pv_payload.meter_w2) or 0
         local w3 = tonumber(pv_payload.meter_w3) or 0
-        local pv_w = -(w1 + w2 + w3)
-        local pv = { w = pv_w }
+        local pv = {}
+        pv.w = -(w1 + w2 + w3)
         local kwh_imp = tonumber(pv_payload.meter_kwh_imp)
         if kwh_imp then pv.generation_wh = kwh_imp * 1000.0 end
         host.emit("pv", pv)
 
-        host.emit_metric("pv_w_total", pv_w)
+        host.emit_metric("pv_w_total", pv.w)
         host.emit_metric("pv_l1_w", -w1)
         host.emit_metric("pv_l2_w", -w2)
         host.emit_metric("pv_l3_w", -w3)

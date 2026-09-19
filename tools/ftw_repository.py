@@ -414,6 +414,7 @@ def _ftw_artifact(
     protocols = metadata.get("protocols", [])
     capabilities = metadata.get("capabilities", [])
     tested_models = metadata.get("tested_models", [])
+    config_secrets = metadata.get("config_secrets", [])
     fields = [
         f"    id = {_lua_string(metadata['id'])},",
         f"    name = {_lua_string(metadata['name'])},",
@@ -437,6 +438,8 @@ def _ftw_artifact(
             fields.append(f"    {name} = {_lua_string(value)},")
     if tested_models:
         fields.append(f"    tested_models = {_lua_string_list(tested_models)},")
+    if config_secrets:
+        fields.append(f"    config_secrets = {_lua_string_list(config_secrets)},")
     # A driver that declares itself read-only keeps the guards: those are
     # meters and telemetry gateways stating what they are. A driver the catalog
     # marks control: true keeps the control path it was ported with.
@@ -714,6 +717,13 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
                 value = _string_field(body, output_name)
                 if value:
                     metadata[output_name] = value
+            # config_secrets names which config keys a host must mask (API
+            # responses, logs). FTW core parses only the generated header
+            # below, never the source's own DRIVER block, so a name missing
+            # here is a name nothing on the host ever masks.
+            config_secrets = _string_list_field(body, "config_secrets")
+            if config_secrets:
+                metadata["config_secrets"] = config_secrets
 
         if auth_post_path and not controls:
             metadata["auth_post_path"] = auth_post_path

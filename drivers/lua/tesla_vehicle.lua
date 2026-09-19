@@ -29,7 +29,7 @@ DRIVER = {
   id           = "tesla-vehicle",
   name         = "Tesla Vehicle (BLE Proxy)",
   manufacturer = "Tesla",
-  version      = "0.1.0",
+  version      = "0.2.2",
   protocols    = { "http" },
   capabilities = { "vehicle" },
   description  = "Read-only vehicle SoC + charge limit via Tesla API-compatible HTTP endpoint (e.g. TeslaBLEProxy).",
@@ -131,6 +131,25 @@ local function safe_http_err(err)
   return tostring(err):match("^(HTTP %d+)") or "request failed"
 end
 
+local function safe_http_get(url, headers)
+  local ok, resp, err = pcall(host.http_get, url, headers)
+  if not ok then return nil, tostring(resp) end
+  return resp, err
+end
+
+local function safe_http_post(url, body, headers)
+  local ok, resp, err = pcall(host.http_post, url, body, headers)
+  if not ok then return nil, tostring(resp) end
+  return resp, err
+end
+
+local function safe_json_decode(body)
+  if body == nil then return nil end
+  local ok, data = pcall(host.json_decode, body)
+  if not ok then return nil, tostring(data) end
+  return data, nil
+end
+
 function driver_init(config)
   if not config then
     host.log("error", "tesla: config required (ip + vin)")
@@ -201,6 +220,9 @@ local function emit_last()
     charge_amps            = last.charge_amps,
     charger_actual_current = last.charger_actual_current,
     stale                  = stale,
+    -- Cached replay is not a fresh observation. FTW treats a missing
+    -- soc_fresh as fresh, so mark it false whenever we re-emit last.
+    soc_fresh              = false,
   })
 end
 
@@ -293,7 +315,7 @@ function driver_poll()
   -- first return is the body directly, NOT a table with .body. The
   -- earlier tesla_vehicle iterations treated it as a table and got
   -- length 0 on every poll, which silently emit_last()'d the driver.
-  local body, err = host.http_get(url, auth_headers())
+  local body, err = safe_http_get(url, auth_headers())
   if err ~= nil then
     -- 503 "Command Disallowed" or 408 timeouts mean the proxy's
     -- BLE radio is busy (usually because we just poked or the car
@@ -335,7 +357,7 @@ function driver_poll()
     return steady_ms
   end
 
-  local decoded, derr = host.json_decode(body)
+  local decoded, derr = safe_json_decode(body)
   if derr or not decoded then
     host.log("warn", "tesla: json decode failed: " .. tostring(derr))
     emit_last()
@@ -443,7 +465,7 @@ function driver_command(action, _, _)
       return false
     end
     local url = base_url .. "/api/1/vehicles/" .. vin .. "/command/wake_up"
-    local body, err = host.http_post(url, "{}", auth_headers())
+    local body, err = safe_http_post(url, "{}", auth_headers())
     if err then
       local es = tostring(err)
       if es:match("HTTP 503") or es:match("HTTP 408") then
@@ -477,7 +499,7 @@ function driver_command(action, _, _)
     -- Empty JSON object body — TeslaBLEProxy's command endpoints
     -- accept GET-ish POSTs; some Tesla SDKs send `{}` for parity
     -- with the cloud API. Either form works on the proxy.
-    local body, err = host.http_post(url, "{}", auth_headers())
+    local body, err = safe_http_post(url, "{}", auth_headers())
     if err then
       local es = tostring(err)
       -- 503 / "Command Disallowed" means the proxy's BLE radio is

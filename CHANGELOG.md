@@ -1,5 +1,11 @@
 # Changelog
 
+## easee_cloud 1.3.2
+
+Restore the current session after restart even when Easee fills sessionEnd during a pause. Keep the ID when the car stops drawing; revoke it on a real unplug. Retain each measurement's source time and omit an old no-current reason while fresh charging power flows. Cloud offline state no longer reports a cable unplug.
+
+Recheck session identity after offline or unreadable observations. Spread failed session lookups across the hour, with an earlier attempt when charging starts or the session changes.
+
 All notable changes to drivers in this repository are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
@@ -7,8 +13,51 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Added
+- **nibe_local** 1.2.0 — the driver's first write path, and deliberately its only one: the pump's native **Solar PV surplus feed** ([srcfl/ftw#537](https://github.com/srcfl/ftw/issues/537)). The S-series was built to take a live "available solar power" number from NIBE's Modbus accessory (registers 2107/2109) and soak the surplus into heating and hot water using owner-tuned offsets; FTW now acts as that accessory. Control-by-hint: the pump's firmware decides what to do with the number, so a wrong value degrades to wasted comfort, never to unsafe operation. Off by default and triple-gated — host `capabilities.http.allow_write`, driver `write.solar_pv: true` with a mandatory `write.max_w` clamp ceiling, and the owner-side enable on the pump itself. The pump's timeout for a silently stopped feed is undocumented, so the driver does not lean on it: a dead-man's switch clears the feed when commands stop, `driver_default_mode` clears it on watchdog/stale-meter/stop, and a startup sweep clears a feed a crashed run left behind — and the sweep stays armed even when a config mistake (missing `max_w`) refuses new writes. All of that runs only while FTW runs, so the driver header documents the decommission step (turn 2107 off, or set the API read-only in menu 7.5.15) for the day it does not. The write API's most dangerous habit is covered too: the Local REST API rejects writes *inside an HTTP 200* ("error: read only value"), which the driver surfaces as an actionable error naming the installer menu (7.5.15) instead of reporting success. Requires `host.http_patch` from the FTW core; on older cores the driver states so and stays read-only. The `DRIVER` block declares the path as `write_capabilities = { "solar_pv" }`, which is what lets a host offer a switch for it: FTW's Settings screen renders the feed's controls only for a driver that states it has a write path, so the alternative was an owner hand-editing two keys in `config.yaml` to use the feature at all
+
+### Fixed
+
+- **`fronius_smart_meter` 2.1.2** — `read_f32` returns nil on a failed / given-up register instead of fabricating 0; when total AC power (40098) is missing the poll emits neither meter nor meter metrics. Optional phase/energy fields omit nil rather than coercing to 0. Declares `read_only = true`.
+- **`tesla_vehicle` 0.2.2** — `emit_last` sets `soc_fresh = false` so a cached SoC replay is not treated as a fresh observation by the FTW host.
+- **`zuidwijk_p1` 1.1.1** — emit `p1_crc_errors` only after a valid frame (silence no longer keeps driver health alive on a CRC metric alone); skip the meter emit when both import and export power OBIS (`1.7.0` / `2.7.0`) are missing. Declares `read_only = true`; manifest `control` corrected to false.
+- **`pixii` 2.1.4** — serial probe in `driver_poll` no longer gates on an unset `ok` local (the branch was permanently false, so `host.set_sn` never ran).
+- **`easee_cloud` 1.3.1** — declares `config_secrets = { "password" }`; `driver_default_mode` now pauses charging and writes `dynamicChargerCurrent = 0` so FTW loss of steer stands the charger down.
+- **`ferroamp` 2.1.2** — when `config.serial` is a non-empty string, call `host.set_sn`; MQTT telemetry still carries no hub serial, so identity otherwise falls back to the endpoint.
+
 ### Changed
 
+- **Read-only hybrids / meters declare `read_only = true`:** `sonnen` 2.0.3 (plus no-op `driver_command` / `driver_default_mode`), `goodwe` 2.1.2, `growatt` 2.1.2, `sofar` 2.1.2, `kostal` 2.1.2, `sma` 2.1.2, `victron` 2.1.2, `fronius` 2.1.2, `pixii_pv` 0.3.1, `solis_string` 1.1.2, `tibber` 1.1.2 (also `http_hosts = { "api.tibber.com" }`).
+
+### Added
+
+- **`zaptec_cloud` 0.1.0** — Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API, promoted from FTW testdata. `read_only = true` (EV commands accepted as no-op success so the planner does not mark failed): review before merge found the control path's `ev_set_current` computed the requested current from the phase count *before* applying a same-call phase change, and no live charger has exercised pause/resume/current end-to-end. Re-add control once that ordering is fixed and hardware-verified per `AGENTS.md`.
+- **`tesla_wall_connector` 0.1.0** — Tesla Wall Connector Gen 3 local HTTP observation driver, promoted from FTW testdata. `read_only = true` (EV commands accepted as no-op success so the planner does not mark failed).
+
+### Fixed
+
+- **The channel build now carries `config_secrets` into the generated header, so a box no longer masks nothing.** `tools/ftw_repository.py` prepends a generated `DRIVER = { … }` block ahead of the source's own, and FTW core parses only the first block it finds (`extractDriverBlock`). The generated block never copied `config_secrets`, so any driver declaring it — `myuplink`, `nibe_local`, `sonnen`, `tibber` — published a catalog entry with nothing to mask: `GET /api/config` on a box running the channel build returned `myuplink`'s `client_secret` and `refresh_token` in clear text, confirmed on a live installation. The source block further down still declared the field correctly, which is exactly why nothing caught this in a source-level review. `test_config_secrets_reach_the_generated_header` holds the generated header to it. Fixes #106.
+- **myuplink** 1.2.2, **nibe_local** 1.1.4, **sonnen** 2.0.2, **tibber** 1.1.1 — patch bump only. The `config_secrets` fix above changes these four drivers' published artifact bytes (the signed channel now emits their `config_secrets` list in the generated header), so the signed channel's own version rule requires a new version to publish it under. No Lua source changed.
+
+### Changed
+
+- **`saj` 1.2.0** — replace the untested input-0x10xx stub with the SAJ H2-Protocol holding map used by evcc `saj-h2` and the community Home Assistant integration. Identity from `0x8F00`, live PV/battery/grid power from `0x40A5`/`0x40A6`/`0x40AD`, per-phase meter from `0x4031`, and battery SoC/voltage/current only when the `0xA000` BMS block reports a pack (`BatNum` and `BatOnline` both non-zero). A missed live-power read emits nothing rather than a fabricated zero-watt site; an AS2 string inverter or a PV-only H2 no longer appears as an empty battery the planner can dispatch into. Battery power is negated at the boundary (vendor discharge-positive). Control stays off until a named H2/HS2 proves held zero — the protocol's AppMode/passive registers are documented in the driver and not written.
+
+- **`easee_cloud` 1.3.0** — verify an active energy session before core can retain a confirmed battery level across restart. Keep that identity through pauses in the same driver process, but clear it on completion until a new active session proves its identity. An offline car may need its battery level confirmed after completion or restart; do not reuse another car's level. Match equivalent UTC timestamp formats from both session APIs. Failed or empty observations emit no telemetry. Invalid session payloads omit the identity while keeping fresh charger readings.
+
+- **easee_cloud** 1.2.0 — emit `request_active`: false only when the vehicle
+  side has explicitly stopped requesting current (Easee `reasonForNoCurrent`
+  50, or `op_mode` 4 "completed"); every box-ordered pause (52/53/100, pending
+  authorization, schedules, fuse limits) stays true. Lets the FTW host tell
+  "the car declined" from "we paused it": the session-completion latch stops
+  the planner allocating energy to a full car, a manual Start hold
+  auto-releases instead of offering power all night, and the
+  charging-interrupted notification stops firing on the car's own
+  renegotiation bursts. Field-observed 2026-08-29: a car at its own charge
+  limit held reason 50 overnight while the box kept offering 11 kW and paged
+  the operator twice.
+
+- **zap** 3.1.0 — P1/HAN remains the default. `read_pv` and `read_battery` are opt-in, read-only ingest of devices Zap already talks to (closed inverter Modbus, or an RS-485 bus Zap owns). Off by default so a native FTW driver is not doubled. The driver still never writes. Chargers stay out: add those in FTW.
 - **`nibe_local` 1.1.3** — heat-pump diagnostic metrics convert vendor kW/kWh to W/Wh at emit (case and surrounding spaces folded, so `kW ` still converts). Headline names `hp_energy_consumed_kwh` and `hp_energy_produced_kwh` stay so existing series keys do not move; the unit field is Wh. `DRIVER.read_only = true` so the signed artifact matches the observe-only command path. HTTP GET and JSON decode wrap in `pcall`.
 - **`myuplink` 1.2.1** — bulk kW/kWh points and the `hp_power_w` headline convert to W/Wh at emit. There are no `hp_energy_*_kwh` headlines; energy, if the pump reports it, is a sanitized bulk name with unit Wh.
 - **acuvim** 0.4.2, **50-125k-svk** 0.2.3, **50-125k-svk-slew** 0.1.12,

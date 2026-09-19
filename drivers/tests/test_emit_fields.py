@@ -63,6 +63,8 @@ VALID_FIELDS = {
         # the same kind of diagnostic the Pixii battery fields below carry.
         "mppt3_v", "mppt3_a", "mppt4_v", "mppt4_a",
         "dc_w", "status", "mode",
+        # Pixii MQTT PV meter: lifetime generation under the FTW field name.
+        "generation_wh",
     },
     "battery": {
         "w", "v", "a", "soc",
@@ -75,6 +77,9 @@ VALID_FIELDS = {
         # list above was written from the catalog's narrower view.
         "charge_status", "control_mode",
         "battery_state", "battery_vendor_state", "battery_event1",
+        # sonnenBatterie FullChargeCapacity; Ferroamp multi-ESO capability.
+        "capacity_wh",
+        "discharge_capable", "charge_capable",
     },
     "v2x_charger": {
         "w", "a", "v", "hz",
@@ -169,8 +174,10 @@ def _extract_variable_emit_fields(code, der_type):
                 all_fields.append(field)
 
         # Also check for inline table construction: local var = { field = ... }
+        # or a later reassignment `var = { field = ... }` (Ferroamp builds
+        # battery that way before host.emit("battery", battery)).
         table_pattern = re.compile(
-            rf'local\s+{re.escape(var_name)}\s*=\s*\{{([^}}]*)\}}',
+            rf'(?:local\s+)?{re.escape(var_name)}\s*=\s*\{{([^}}]*)\}}',
             re.DOTALL,
         )
         for table_match in table_pattern.finditer(clean):
