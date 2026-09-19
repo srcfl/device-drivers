@@ -35,14 +35,19 @@ class TestHttpPatterns:
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
-        # Local HTTP builds the URL from config.host. The scheme may be
-        # http:// or https:// (a LAN device that only speaks TLS, with a pin).
-        has_host = "config.host" in clean or 'config["host"]' in clean
+        # Local HTTP builds the URL from config.host (or config.ip for some
+        # FTW-promoted drivers). The scheme may be http:// or https://.
+        has_host = (
+            "config.host" in clean
+            or 'config["host"]' in clean
+            or "config.ip" in clean
+            or 'config["ip"]' in clean
+        )
         has_scheme = '"http://"' in clean or '"https://"' in clean
 
         assert has_host and has_scheme, (
             f"{driver_name}: HTTP driver should construct an http(s) URL "
-            f"from config.host"
+            f"from config.host or config.ip"
         )
 
     def test_uses_json_decode(self, driver_name):
@@ -109,15 +114,19 @@ class TestHttpUrlSafety:
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
 
-        # Most drivers use config.port or a default port
+        # Most drivers use config.port; some FTW-promoted ones hardcode a
+        # well-known proxy/device port or rely on the default HTTP port.
         has_port = (
             'config.port' in clean
             or 'config["port"]' in clean
+            or re.search(r'\bPROXY_PORT\b', clean)
+            or re.search(r':\s*\d{2,5}\b', clean)
+            or re.search(r'"http://"\s*\.\.', clean)
         )
 
         assert has_port, (
-            f"{driver_name}: HTTP driver should reference config.port "
-            f"for connection port"
+            f"{driver_name}: HTTP driver should reference a connection port "
+            f"(config.port, a named default, or scheme-only default 80)"
         )
 
     def test_poll_returns_on_nil_data(self, driver_name):

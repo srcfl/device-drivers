@@ -276,6 +276,14 @@ local function setup_modbus_data(driver_name)
         holding[4] = 0; holding[5] = 3500   -- power U32 BE
         holding[7] = 0; holding[8] = 5000   -- session U32 BE
         holding[9] = 32   -- max current
+    elseif driver_name == "saj" then
+        -- H2 BMS block: a pack is present, SoC is 0.01 % (5000 → 50 %).
+        holding[40960] = 1     -- BatNum
+        holding[40971] = 1     -- BatOnline
+        holding[40972] = 5000  -- Bat1SOC
+        input[40960] = 1
+        input[40971] = 1
+        input[40972] = 5000
     end
 
     ---------------------------------------------------------------------------
@@ -298,7 +306,7 @@ local function setup_modbus_data(driver_name)
         11038,  -- FoxESS
         54,     -- KSTAR
         36,     -- AlphaESS
-        4248,   -- SAJ
+        4248,   -- unused by current SAJ map; harmless
         1014,   -- Growatt
     }
     for _, a in ipairs(soc_div100) do

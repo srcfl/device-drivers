@@ -179,7 +179,10 @@ def test_publication_contains_the_full_read_only_catalog(
     assert {"sungrow", "pixii", "alphaess", "ferroamp"} <= controlling
     # And a driver that declares read_only in its own DRIVER table stays a
     # meter, whatever anything else says.
-    assert not ({"sdm630", "zap", "esphome_dsmr", "nibe_local", "myuplink"} & controlling)
+    assert not ({"sdm630", "zap", "esphome_dsmr", "myuplink"} & controlling)
+    # nibe_local dropped read_only for its opt-in Solar PV surplus feed and
+    # declares write_capabilities, so the channel must publish it as control.
+    assert "nibe_local" in controlling
     assert all(driver["host_api"] == {"min": 1, "max": 1} for driver in manifest["drivers"])
     assert all(driver["metadata"]["source"] == "upstream" for driver in manifest["drivers"])
     assert all(driver["source_commit"] == COMMIT for driver in manifest["drivers"])
@@ -729,6 +732,21 @@ def test_nested_or_commented_controls_do_not_change_a_control_artifact(
     assert entry["controls"] is True
     assert entry["raw"] == expected
     assert "__sourceful_ftw_controls" not in entry["raw"].decode("utf-8")
+
+
+def test_config_secrets_reach_the_generated_header(tmp_path: Path) -> None:
+    # FTW core parses only the generated header this tool prepends, never the
+    # source's own DRIVER block further down (srcfl/device-drivers#106) -- a
+    # secret name missing from the header is a name nothing on the host ever
+    # masks, and myuplink's client_secret/refresh_token shipped in the clear
+    # because of exactly that gap.
+    repo, config_path = single_driver_repo(tmp_path, "myuplink")
+
+    entry = _load_channel(config_path, repo)[0]
+
+    assert entry["metadata"]["config_secrets"] == ["client_secret", "refresh_token"]
+    header = entry["raw"].decode("utf-8").split("DRIVER = __sourceful_ftw_metadata", 1)[0]
+    assert 'config_secrets = { "client_secret", "refresh_token" },' in header
 
 
 def test_driver_locator_skips_non_module_decoys() -> None:

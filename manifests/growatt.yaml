@@ -1,5 +1,5 @@
 name: "growatt"
-version: "2.1.1"
+version: "2.1.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -50,9 +50,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 9353
+size_bytes: 9376
 dkb_id: ""
-sha256: "3c4563fc848786caa8fb3a751b1a9c5fbf13db9e173b27a5fa2780c9cbadcf49"
+sha256: "1e9623cbf3453697f0fba429a5b8dab7d61cf9507587e616d0cd9de3cc3594c8"
 signature: ""
 
 bytecode_sha256: ""

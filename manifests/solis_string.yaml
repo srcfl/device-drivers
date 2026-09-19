@@ -1,5 +1,5 @@
 name: "solis_string"
-version: "1.1.1"
+version: "1.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,9 +15,9 @@ tested_devices:
     notes: "Solis non-hybrid PV inverters via Modbus TCP."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 5784
+size_bytes: 5807
 dkb_id: "solis_string"
-sha256: "3cfcf53653680dede7caf6173cee251efa3cf2c9ec46fdc16a89b9b526dceb7e"
+sha256: "be7c491e93dcbdf6271428c6c9268f99da6efba7903ae0356c585b0e3c5c9992"
 signature: ""
 
 bytecode_sha256: ""

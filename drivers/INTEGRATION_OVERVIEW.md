@@ -44,7 +44,7 @@ NATS → Cloud      ← standardized data model
 | **Kostal** | Plenticore Plus/BI, PIKO MP Plus/IQ | Modbus | Stub |
 | **Fox ESS** | H1, H3, H3 PRO, AIO-H3, KH | Modbus | Stub |
 | **Sofar Solar** | HYD, ME, HYD-ES | Modbus | Stub |
-| **SAJ** | H2, HS2, AS2 | Modbus | Stub |
+| **SAJ** | H2, HS2, AS2 | Modbus | Telemetry |
 | **KSTAR** | KSE, BluE-S | Modbus | Stub |
 | **AlphaESS** | Smile, G2 | Modbus | Stub |
 | **Victron Energy** | MultiPlus-II, Quattro-II, SmartSolar, SmartShunt | Modbus + MQTT |  Stub |

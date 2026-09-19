@@ -24,7 +24,15 @@ Being listed is not an install claim. The page states the same evidence the
 repository does, including how few drivers have been confirmed against physical
 hardware.
 
-## Contribute a driver
+## Report a need or adapt a driver
+
+Sourceful maintains the drivers and releases. External PRs are welcome,
+preferably based on [issues](https://github.com/srcfl/device-drivers/issues)
+with hardware needs, bugs and test evidence. Share a short Markdown proposal
+or a focused fix; hardware claims need hardware results.
+[FTW's product vision](https://github.com/srcfl/ftw/blob/master/VISION.md)
+sets the FTW goals. The existing license still permits local adaptation.
+The instructions below serve contributions and local adaptation.
 
 Start from **[`blueprint/BLUEPRINT.lua`](blueprint/BLUEPRINT.lua)**. It is a
 complete, working driver for an imaginary inverter, written so that every rule
@@ -43,11 +51,11 @@ behind each rule — why a failed read can take a whole site offline, why a
 fabricated zero is worse than a missing field, and why arithmetic never belongs
 in the host API.
 
-Then open a pull request using the template. Include the tested device models,
-the protocol source, sign checks against vendor data and a test fixture when
-one can be shared without credentials or site data.
+For an issue, include the device model, protocol source and any observations
+you can safely share. Implementation PRs use the template and include
+sign checks and test evidence without credentials or private site data.
 
-New community drivers start with telemetry only. Control support needs a later,
+New drivers start with telemetry only. Control support needs a later,
 separate review with a safe default mode, a bounded command lease, structured
 results and supervised hardware-in-the-loop evidence.
 
@@ -141,5 +149,6 @@ target identities from [support-status.json](support-status.json).
 
 ## License
 
-Sourceful-authored code is licensed under Apache-2.0. Vendored Lua 5.5 source
+This version uses AGPL-3.0-only with the Energyplan combination permission
+in [LICENSE](LICENSE). See [LICENSING.md](LICENSING.md) and [NOTICE](NOTICE). Vendored Lua 5.5 source
 keeps its own MIT notice; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -29,7 +29,7 @@ DRIVER = {
   id           = "pixii",
   name         = "Pixii PowerShaper",
   manufacturer = "Pixii",
-  version      = "2.1.3",
+  version      = "2.1.4",
   protocols    = { "modbus" },
   capabilities = { "battery", "meter" },
   description  = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -352,7 +352,7 @@ function driver_poll()
     -- the common block → absolute 40052, 16 regs ASCII).
     if not sn_read then
         local sn_regs = probe_read(40052, 16, "holding")
-        if ok and sn_regs then
+        if sn_regs then
             local sn = decode_ascii(sn_regs, 16)
             if string.len(sn) > 0 then
                 host.set_sn(sn)

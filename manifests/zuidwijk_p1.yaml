@@ -1,12 +1,12 @@
 name: "zuidwijk_p1"
-version: "1.1.0"
+version: "1.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
 setup: [bridge]
 ders: [meter]
-control: true
+control: false
 tested_devices:
   - manufacturer: "Zuidwijk"
     model_family: "Zuidwijk P1 Reader Ethernet"
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Dutch DSMR P1 smart-meter via Zuidwijk Serial-to-Ethernet bridge (raw TCP, port 23)."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 16217
+size_bytes: 16578
 dkb_id: "zuidwijk_p1"
-sha256: "61f1d6522823b6054172d9f9fd17cc6f84088be515077043e1123b6dfb509f3a"
+sha256: "a08af3da055a64f082293389d6a1d8a13ca784b4a497bab3ca20c2f70361ec4e"
 signature: ""
 
 bytecode_sha256: ""

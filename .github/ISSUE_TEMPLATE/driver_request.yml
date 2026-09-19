@@ -1,8 +1,14 @@
 name: Driver request
-description: Request support for a device or propose a driver contribution
+description: Request device support or share hardware evidence
 title: "[driver] "
 labels: ["driver"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Share device needs and evidence here. PRs are welcome, preferably linked
+        to an issue: a short Markdown proposal or a focused fix with test results.
+        Hardware claims need hardware evidence. See CONTRIBUTING.md.
   - type: input
     id: device
     attributes:
@@ -30,4 +36,4 @@ body:
     attributes:
       label: Contribution
       options:
-        - label: I can help write or test this driver.
+        - label: I can provide device documentation or help test on hardware.

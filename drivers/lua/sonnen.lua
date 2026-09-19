@@ -30,9 +30,10 @@ DRIVER = {
   id           = "sonnen",
   name         = "sonnenBatterie (local API)",
   manufacturer = "sonnen",
-  version      = "1.0.0",
+  version      = "2.0.3",
   protocols    = { "http" },
   capabilities = { "battery" },
+  read_only    = true,
   description  = "sonnenBatterie local JSON API v2: SoC + charge/discharge power. Read-only.",
   homepage     = "https://sonnen.de",
   authors      = { "FTW contributors" },
@@ -87,6 +88,19 @@ local function in_backoff()
     return (host.millis() - last_attempt) < backoff_ms
 end
 
+local function safe_http_get(url, headers)
+    local ok, resp, err = pcall(host.http_get, url, headers)
+    if not ok then return nil, tostring(resp) end
+    return resp, err
+end
+
+local function safe_json_decode(body)
+    if body == nil then return nil end
+    local ok, data = pcall(host.json_decode, body)
+    if not ok then return nil end
+    return data
+end
+
 -- clamp drops obviously-broken values (NaN, sentinel huge numbers from a
 -- partial JSON parse) so a single bad poll doesn't poison the battery
 -- model with a 2 GW reading.
@@ -138,7 +152,7 @@ function driver_poll()
 
     local url = base_url() .. "/api/v2/latestdata"
     local headers = { ["Auth-Token"] = api_token }
-    local body, err = host.http_get(url, headers)
+    local body, err = safe_http_get(url, headers)
 
     if err then
         bump_backoff()
@@ -147,7 +161,7 @@ function driver_poll()
         return 1000
     end
 
-    local data = host.json_decode(body)
+    local data = safe_json_decode(body)
     if not data then
         bump_backoff()
         host.log("warn", "sonnen: JSON decode failed")
@@ -187,6 +201,13 @@ function driver_poll()
     end
 
     return 1000
+end
+
+function driver_command(...)
+    return false
+end
+
+function driver_default_mode()
 end
 
 function driver_cleanup()
