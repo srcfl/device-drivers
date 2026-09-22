@@ -22,8 +22,12 @@ tested_devices:
     notes: "Shares the 1K5 register map; not yet tested on H3-Smart hardware."
     min_driver_version: "0.7.0"
 upstream_docs:
-  - url: "https://github.com/nathanmarlor/foxess_modbus"
-    title: "nathanmarlor/foxess_modbus community register map (Inv.H3_SMART profile)"
+  - url: "https://raw.githubusercontent.com/nathanmarlor/foxess_modbus/master/custom_components/foxess_modbus/entities/entity_descriptions.py"
+    title: "nathanmarlor/foxess_modbus telemetry register descriptions (entity_descriptions.py, Inv.H3_SMART profile)"
+    kind: register_map
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/nathanmarlor/foxess_modbus/master/custom_components/foxess_modbus/entities/remote_control_description.py"
+    title: "nathanmarlor/foxess_modbus remote-control register descriptions (remote_control_description.py, Inv.H3_SMART profile)"
     kind: register_map
     url_stability: stable
 min_host_version: "1.5.0"

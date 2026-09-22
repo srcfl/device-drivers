@@ -27,6 +27,7 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ### Changed
 
+- **`foxess_h3_smart`** — `manifests/foxess_h3_smart.yaml`'s `upstream_docs` now points at the two `nathanmarlor/foxess_modbus` source files that actually carry the register map (`entity_descriptions.py`, `remote_control_description.py`) instead of the repo's root page. The root page's raw bytes include star/fork counts and relative commit timestamps that churn on their own, which had produced six false-positive `upstream-doc-changed` issues in a row with no real register change underneath (#87, #101, #104, #109, #119, #125). Closes #129. `upstream_docs` is descriptive metadata only — not copied into `index.yaml` and never part of the signed artifact — so no driver version bump applies (per `spec/manifest-v2.md`).
 - **Read-only hybrids / meters declare `read_only = true`:** `sonnen` 2.0.3 (plus no-op `driver_command` / `driver_default_mode`), `goodwe` 2.1.2, `growatt` 2.1.2, `sofar` 2.1.2, `kostal` 2.1.2, `sma` 2.1.2, `victron` 2.1.2, `fronius` 2.1.2, `pixii_pv` 0.3.1, `solis_string` 1.1.2, `tibber` 1.1.2 (also `http_hosts = { "api.tibber.com" }`).
 
 ### Added
