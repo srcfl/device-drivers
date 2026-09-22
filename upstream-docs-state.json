@@ -53,16 +53,29 @@
       "consecutive_failures": 0,
       "last_error": null
     },
-    "foxess_h3_smart::https://github.com/nathanmarlor/foxess_modbus": {
+    "foxess_h3_smart::https://raw.githubusercontent.com/nathanmarlor/foxess_modbus/master/custom_components/foxess_modbus/entities/entity_descriptions.py": {
       "driver": "foxess_h3_smart",
-      "url": "https://github.com/nathanmarlor/foxess_modbus",
-      "title": "nathanmarlor/foxess_modbus community register map (Inv.H3_SMART profile)",
+      "url": "https://raw.githubusercontent.com/nathanmarlor/foxess_modbus/master/custom_components/foxess_modbus/entities/entity_descriptions.py",
+      "title": "nathanmarlor/foxess_modbus telemetry register descriptions (entity_descriptions.py, Inv.H3_SMART profile)",
       "kind": "register_map",
       "url_stability": "stable",
-      "sha256": "e46d8584276d297c1a52a1314eb77f6a2925b45db3e5f4623f3b435057fa6d62",
-      "content_length": 308269,
-      "first_seen": "2026-08-10T06:44:29+00:00",
-      "last_changed": "2026-09-21T06:50:03+00:00",
+      "sha256": "641d8e71daf1b0cfba119fef8e0e4cf76ad6d46b23a2208bc6c803651e2f0e34",
+      "content_length": 110468,
+      "first_seen": "2026-09-22T07:06:24+00:00",
+      "last_changed": "2026-09-22T07:06:24+00:00",
+      "consecutive_failures": 0,
+      "last_error": null
+    },
+    "foxess_h3_smart::https://raw.githubusercontent.com/nathanmarlor/foxess_modbus/master/custom_components/foxess_modbus/entities/remote_control_description.py": {
+      "driver": "foxess_h3_smart",
+      "url": "https://raw.githubusercontent.com/nathanmarlor/foxess_modbus/master/custom_components/foxess_modbus/entities/remote_control_description.py",
+      "title": "nathanmarlor/foxess_modbus remote-control register descriptions (remote_control_description.py, Inv.H3_SMART profile)",
+      "kind": "register_map",
+      "url_stability": "stable",
+      "sha256": "cc7146bc32ee8be725b67ef2f9532566f75d6beb425349e96040a355a8cc64c2",
+      "content_length": 5160,
+      "first_seen": "2026-09-22T07:06:24+00:00",
+      "last_changed": "2026-09-22T07:06:24+00:00",
       "consecutive_failures": 0,
       "last_error": null
     },
