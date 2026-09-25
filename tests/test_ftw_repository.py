@@ -210,8 +210,10 @@ def test_esphome_dsmr_artifact_declares_one_ftw_host_api_range(
     artifact = output / Path(driver["url"]).name
     source = artifact.read_text(encoding="utf-8")
 
-    assert re.findall(r"(?m)^\s*host_api_min\s*=\s*([0-9]+)", source) == ["1"]
-    assert re.findall(r"(?m)^\s*host_api_max\s*=\s*([0-9]+)", source) == ["1"]
+    # The channel's header and the driver's own table may both state the
+    # range; every statement must agree.
+    assert set(re.findall(r"(?m)^\s*host_api_min\s*=\s*([0-9]+)", source)) == {"1"}
+    assert set(re.findall(r"(?m)^\s*host_api_max\s*=\s*([0-9]+)", source)) == {"1"}
 
 
 def test_publication_is_deterministic(

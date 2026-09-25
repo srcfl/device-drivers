@@ -58,11 +58,13 @@
 -- just re-reads the same numbers — default 5 s keeps the meter fresh
 -- without hammering the ESP32's tiny TCP stack.
 
-DRIVER = { host_api_min = 1, host_api_max = 1,
+DRIVER = {
   id           = "esphome_dsmr",
   name         = "ESPHome DSMR (P1)",
   manufacturer = "ESPHome",
-  version      = "1.0.4",
+  version      = "1.0.5",
+  host_api_min = 1,
+  host_api_max = 1,
   protocols    = { "http" },
   capabilities = { "meter" },
   description  = "Smart meter via ESPHome web_server v3 + dsmr component (Sourceful Zap on open firmware, DIY ESP32+P1, etc.).",
