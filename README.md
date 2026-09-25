@@ -105,16 +105,24 @@ source commit and artifact bytes; it does not claim hardware test coverage.
 ## Release flow
 
 ```text
-public PR -> public CI -> reviewed commit -> signed FTW beta
-          -> site test -> stable promotion of the exact beta commit
+public PR -> public CI -> reviewed commit on main -> signed drivers-beta
+          -> FTW pins the commit and ships it in an FTW beta
+          -> FTW stable -> drivers-stable promoted
 ```
 
-The FTW channel contains every catalog driver. The release build turns each
-source into a separate, read-only Lua asset and checks its FTW v1 contract.
-The beta workflow runs on protected `main`; stable promotion requires the exact
-signed commit found in beta. Refreshing the signed catalog never installs or
-activates code. FTW keeps its own safety, activation, rollback and bundled
-recovery paths.
+Drivers reach FTW users with the FTW release: FTW bundles the commit pinned in
+its `drivers/BUNDLED_SOURCE.json`, and `ftw update` and `ftw rollback` move
+those drivers with FTW. Every commit on `main` is published to the signed
+`drivers-beta` channel, where an owner can pick one driver's newer version
+from FTW's Versions list. After a stable FTW release, `drivers-stable` is
+promoted with `gh workflow run ftw-drivers-release.yml --ref main -f
+channel=stable`; it accepts only the exact commit `drivers-beta` carries, and
+serves installs that read the stable channel.
+
+The channel contains every catalog driver as its own signed Lua asset. A driver
+the catalog marks `control: true` keeps its control path; every other one is
+read-only. Refreshing the signed catalog never installs or activates code.
+FTW keeps its own safety, activation, rollback and bundled copies.
 
 Each asset name contains the driver ID, semantic version and source hash. FTW
 downloads only the selected driver. The release workflow never replaces a
