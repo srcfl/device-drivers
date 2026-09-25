@@ -590,7 +590,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.3.2",
+      "catalog_version": "1.3.3",
       "driver_id": "easee_cloud",
       "package_id": null,
       "targets": {

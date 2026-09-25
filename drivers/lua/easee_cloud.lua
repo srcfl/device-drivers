@@ -25,7 +25,7 @@ DRIVER = {
   id           = "easee-cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.2",
+  version      = "1.3.3",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -282,6 +282,7 @@ local OBS_SESSION_START   = 223
 
 local OBS_IDS = "48,96,103,109,120,121,124,183,194,223"
 
+local last_power_observed_at = nil
 local validated_session_id = nil
 local observed_session_id = nil
 local departed_session_id = nil
@@ -599,6 +600,19 @@ function driver_poll()
     -- responsive even when no car is plugged in.
     local is_online = (op_mode ~= 0)
 
+    -- Easee records an observation only when its value changes, so a steady
+    -- charge keeps an old TotalPower timestamp; on hardware it stayed
+    -- unchanged for over five minutes. A new value carries its source time.
+    -- An unchanged one was confirmed by this poll of a charger the cloud
+    -- still hears from (get_observations rejects op_mode 0), so omit the
+    -- source time and let the host stamp the reading when it arrives.
+    local power_observed_at = timestamps[OBS_TOTAL_POWER]
+    if power_observed_at ~= nil and power_observed_at == last_power_observed_at then
+        power_observed_at = nil
+    else
+        last_power_observed_at = power_observed_at
+    end
+
     local reason_code = obs[OBS_REASON_NO_CUR]
     -- ReasonForNoCurrent describes a blocked offer. An older reason is not
     -- a current fault while the charger reports both charging and power.
@@ -673,9 +687,7 @@ function driver_poll()
         charging                = charging,
         request_active          = request_active,
         session_wh              = session_wh,
-        power_observed_at       = timestamps[OBS_TOTAL_POWER],
-        -- Two-minute source updates were observed on hardware. One minute
-        -- of margin bounds the power estimate without refreshing its time.
+        power_observed_at       = power_observed_at,
         power_max_age_s         = 180,
         energy_observed_at      = timestamps[OBS_SESSION_ENERGY],
         state_observed_at       = timestamps[OBS_OP_MODE],

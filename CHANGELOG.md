@@ -1,5 +1,9 @@
 # Changelog
 
+## easee_cloud 1.3.3
+
+Omit `power_observed_at` when the power is unchanged since the last poll, so the host stamps the reading on arrival. Easee records TotalPower only when it changes, so a steady charge kept an old timestamp; FTW took it as a stale charger after three minutes and stopped the car every few minutes all night ([srcfl/ftw#1417](https://github.com/srcfl/ftw/pull/1417)). A new value still carries Easee's source time, and an offline charger (op_mode 0) still emits no sample.
+
 ## easee_cloud 1.3.2
 
 Restore the current session after restart even when Easee fills sessionEnd during a pause. Keep the ID when the car stops drawing; revoke it on a real unplug. Retain each measurement's source time and omit an old no-current reason while fresh charging power flows. Cloud offline state no longer reports a cable unplug.
