@@ -8,9 +8,8 @@ both places, none is byte-identical to its catalog namesake.
 Importing a bundled driver straight into drivers/lua would break things, so
 this tool does the safe half first. It copies each bundled driver in byte for
 byte under baselines/ftw and records its hash, id and version in
-source-map.json. Nothing here reaches the catalog, the package recipes or the
-signed channel. It gives the repository the source, and gives us a hash to
-check drift against.
+source-map.json. Nothing here reaches the catalog or the signed channel. It
+gives the repository the source, and gives us a hash to check drift against.
 
 Importing needs the GitHub API. Verifying does not, so CI can run --check
 offline against the recorded hashes.

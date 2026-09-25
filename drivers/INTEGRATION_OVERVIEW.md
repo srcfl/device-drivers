@@ -1,7 +1,7 @@
 # Sourceful Device Integration Overview
 
 > **53 drivers, 46 manufacturers, 551+ device variants**
-> One Lua driver framework, two runtimes (Blaxt + Zap), zero firmware updates needed for new devices.
+> One Lua driver framework, zero firmware updates needed for new devices.
 
 ---
 

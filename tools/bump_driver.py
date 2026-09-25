@@ -87,8 +87,7 @@ def write_lua_version(path: Path, version: str) -> bool:
     changed = False
 
     # A driver may state its version in DRIVER, in DRIVER_MANIFEST, or in both.
-    # sdm630 carries both, and leaving one behind fails the package build with
-    # "Lua metadata version must equal package version".
+    # sdm630 carries both, so both move together.
     for table in ("DRIVER_MANIFEST", "DRIVER"):
         for match in re.finditer(rf'^{table}\s*=\s*\{{', text, re.M):
             start = match.start()
@@ -105,30 +104,6 @@ def write_lua_version(path: Path, version: str) -> bool:
     if changed:
         path.write_text(text, encoding="utf-8")
     return changed
-
-
-def write_package_version(driver_id: str, previous: str, version: str) -> bool:
-    """Keep packages/v1/<id>/package-source.json in step.
-
-    The package build refuses an artifact whose Lua metadata version differs
-    from the package version, so a driver with a recipe must move both.
-    """
-    path = ROOT / "packages" / "v1" / driver_id / "package-source.json"
-    if not path.exists():
-        return False
-    text = path.read_text(encoding="utf-8")
-
-    # A package may run its own version line. sungrow's catalog driver is on
-    # 1.2.x while its package is on 1.3.x, and forcing them together would
-    # rewrite a published package version. Only follow along when the package
-    # was tracking the driver, which is what sdm630 does.
-    match = re.search(r'^  "version":\s*"([^"]+)"', text, re.M)
-    if not match or match.group(1) != previous:
-        return False
-
-    new_text = text[:match.start(1)] + version + text[match.end(1):]
-    path.write_text(new_text, encoding="utf-8")
-    return True
 
 
 def main() -> int:
@@ -161,13 +136,10 @@ def main() -> int:
 
     write_manifest_version(manifest_path, target)
     lua_changed = write_lua_version(lua_path, target)
-    package_changed = write_package_version(args.id, current, target)
 
     updated = ["manifest"]
     if lua_changed:
         updated.append("Lua metadata")
-    if package_changed:
-        updated.append("package recipe")
 
     print(f"{args.id}: {current} -> {target}")
     print(f"updated {', '.join(updated)}. Now run:")

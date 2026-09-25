@@ -4,26 +4,19 @@
       "catalog_source": true,
       "catalog_version": "0.2.4",
       "driver_id": "50-125k-svk-ac-slew",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -32,26 +25,19 @@
       "catalog_source": true,
       "catalog_version": "0.1.12",
       "driver_id": "50-125k-svk-slew",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -60,26 +46,19 @@
       "catalog_source": true,
       "catalog_version": "0.2.3",
       "driver_id": "50-125k-svk",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -88,26 +67,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.6",
       "driver_id": "abb_meter",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -116,26 +88,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "abb_terra",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -144,26 +109,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.4",
       "driver_id": "acrel",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -172,26 +130,19 @@
       "catalog_source": true,
       "catalog_version": "0.4.2",
       "driver_id": "acuvim",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -200,26 +151,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.4",
       "driver_id": "alfen",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -228,26 +172,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.1",
       "driver_id": "alphaess",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -256,26 +193,19 @@
       "catalog_source": true,
       "catalog_version": "1.2.0",
       "driver_id": "ambibox",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -284,26 +214,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.0",
       "driver_id": "ambibox_v2x",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -312,26 +235,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.1",
       "driver_id": "atmoce",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -340,26 +256,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.5",
       "driver_id": "carlo_gavazzi",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -368,26 +277,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.5",
       "driver_id": "chint",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -396,26 +298,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.5",
       "driver_id": "circutor",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -424,26 +319,19 @@
       "catalog_source": true,
       "catalog_version": "0.3.2",
       "driver_id": "ctek",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -452,26 +340,19 @@
       "catalog_source": true,
       "catalog_version": "0.3.1",
       "driver_id": "ctek_hybrid",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -480,26 +361,19 @@
       "catalog_source": true,
       "catalog_version": "0.3.2",
       "driver_id": "ctek_v2",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -508,26 +382,19 @@
       "catalog_source": true,
       "catalog_version": "0.2.1",
       "driver_id": "deye-svk",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -536,26 +403,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.1",
       "driver_id": "deye",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -564,26 +424,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.4",
       "driver_id": "easee",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -592,26 +445,19 @@
       "catalog_source": true,
       "catalog_version": "1.3.3",
       "driver_id": "easee_cloud",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -620,26 +466,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "esphome-dsmr",
-      "package_id": "com.sourceful.driver.esphome-dsmr",
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.0.2",
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -648,26 +487,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "esphome_dsmr",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -676,26 +508,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "etrel",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -704,26 +529,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "ferroamp",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -732,26 +550,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.0",
       "driver_id": "ferroamp_dc2_v2x",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -760,26 +571,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "ferroamp_modbus",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -788,26 +592,19 @@
       "catalog_source": true,
       "catalog_version": "0.9.5",
       "driver_id": "foxess_h3_smart",
-      "package_id": "com.sourceful.driver.foxess-h3-smart",
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": "0.9.5",
-          "control_enabled": true,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "0.9.5",
-          "control_enabled": true,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -816,26 +613,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "fronius",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -844,26 +634,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.2",
       "driver_id": "fronius_api",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -872,26 +655,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "fronius_smart_meter",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -900,26 +676,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "goe",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -928,26 +697,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.1",
       "driver_id": "goe_http",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -956,27 +718,20 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "goodwe",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
-          "hil": "gw8kn_et_hk3000_required",
+          "hil": "not_recorded",
           "historical_signed_beta_version": null,
-          "legacy_parity": "profile_selected",
-          "note": "Version 1.0.2 is an observe-only GW8KN-ET/HK3000 candidate. Stable needs the masked fixture, three hard-reboot recoveries and a 24-hour field pass.",
-          "stable_package_version": null,
-          "target_conformance": "contract_passed"
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "target_conformance": "not_assessed"
         }
       }
     },
@@ -984,26 +739,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "growatt",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1012,26 +760,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.1",
       "driver_id": "hardybarth",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1040,26 +781,19 @@
       "catalog_source": true,
       "catalog_version": "0.5.0",
       "driver_id": "heishamon",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1068,26 +802,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.2",
       "driver_id": "hello",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1096,26 +823,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "huawei",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1124,26 +844,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.5",
       "driver_id": "janitza",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1152,26 +865,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "keba",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1180,26 +886,19 @@
       "catalog_source": true,
       "catalog_version": "0.3.1",
       "driver_id": "konja-261-svk",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1208,26 +907,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "kostal",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1236,26 +928,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.1",
       "driver_id": "kstar",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1264,26 +949,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "mennekes",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1292,26 +970,19 @@
       "catalog_source": true,
       "catalog_version": "1.2.2",
       "driver_id": "myuplink",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1320,26 +991,19 @@
       "catalog_source": true,
       "catalog_version": "1.2.0",
       "driver_id": "nibe_local",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1348,26 +1012,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.2",
       "driver_id": "opendtu",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1376,26 +1033,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "opendtu_mqtt",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1404,26 +1054,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.1",
       "driver_id": "openevse",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1432,26 +1075,19 @@
       "catalog_source": true,
       "catalog_version": "2.0.2",
       "driver_id": "p1_dsmr",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1460,26 +1096,19 @@
       "catalog_source": true,
       "catalog_version": "2.0.2",
       "driver_id": "p1_encrypted",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1488,26 +1117,19 @@
       "catalog_source": true,
       "catalog_version": "2.0.2",
       "driver_id": "p1_hdlc",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1516,26 +1138,19 @@
       "catalog_source": true,
       "catalog_version": "2.0.2",
       "driver_id": "p1_meter",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1544,27 +1159,20 @@
       "catalog_source": true,
       "catalog_version": "2.1.4",
       "driver_id": "pixii",
-      "package_id": "com.sourceful.driver.pixii",
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.2.5",
-          "control_enabled": false,
-          "hil": "required",
+          "hil": "not_recorded",
           "historical_signed_beta_version": null,
-          "legacy_parity": "blocked",
-          "note": "Target differs materially from the FTW legacy driver. Golden telemetry, identity, fault, default-mode parity and physical HIL are required before activation.",
-          "stable_package_version": null,
-          "target_conformance": "staged"
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "target_conformance": "not_assessed"
         }
       }
     },
@@ -1572,26 +1180,19 @@
       "catalog_source": true,
       "catalog_version": "0.3.1",
       "driver_id": "pixii_pv",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1600,26 +1201,19 @@
       "catalog_source": true,
       "catalog_version": "1.2.0",
       "driver_id": "saj",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1628,26 +1222,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.5",
       "driver_id": "schneider_meter",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1656,26 +1243,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "schrack_ev",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1684,27 +1264,20 @@
       "catalog_source": true,
       "catalog_version": "2.0.1",
       "driver_id": "sdm630",
-      "package_id": "com.sourceful.driver.sdm630",
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": "2.0.0",
-          "control_enabled": false,
-          "hil": "required_for_public_source_candidate",
-          "historical_signed_beta_version": "1.1.1",
-          "legacy_parity": "not_applicable_new_pilot",
-          "note": "",
-          "stable_package_version": null,
-          "target_conformance": "contract_passed"
-        },
-        "ftw-core": {
-          "candidate_package_version": "2.0.0",
-          "control_enabled": false,
-          "hil": "required_for_public_source_candidate",
-          "historical_signed_beta_version": "1.1.1",
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
-          "target_conformance": "contract_passed"
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "target_conformance": "not_assessed"
         }
       }
     },
@@ -1712,26 +1285,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.2",
       "driver_id": "shelly",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1740,26 +1306,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.5",
       "driver_id": "siemens_pac",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1768,26 +1327,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.3",
       "driver_id": "sigenergy",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1796,26 +1348,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "sma",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1824,26 +1369,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.1",
       "driver_id": "sma_pv",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1852,26 +1390,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.4",
       "driver_id": "socomec",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1880,26 +1411,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "sofar",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1908,26 +1432,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.1",
       "driver_id": "solaredge",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1936,26 +1453,19 @@
       "catalog_source": true,
       "catalog_version": "0.3.2",
       "driver_id": "solaredge_legacy",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1964,26 +1474,19 @@
       "catalog_source": true,
       "catalog_version": "1.2.1",
       "driver_id": "solaredge_pv",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -1992,26 +1495,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.1",
       "driver_id": "solax",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2020,26 +1516,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.1",
       "driver_id": "solinteg",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2048,26 +1537,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.1",
       "driver_id": "solis",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2076,26 +1558,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.2",
       "driver_id": "solis_string",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2104,26 +1579,19 @@
       "catalog_source": true,
       "catalog_version": "2.0.3",
       "driver_id": "sonnen",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2132,27 +1600,20 @@
       "catalog_source": true,
       "catalog_version": "1.5.8",
       "driver_id": "sungrow",
-      "package_id": "com.sourceful.driver.sungrow",
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": "1.3.3",
-          "control_enabled": false,
-          "hil": "exact_model_firmware_required",
-          "historical_signed_beta_version": "1.3.0",
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
-          "note": "Version 1.3.2 is read-only and blocks activation until an exact model and firmware profile passes review. Version 1.3.1 remains staged and must not run on the pilot site.",
-          "stable_package_version": null,
-          "target_conformance": "observe_only_profile_blocked"
+          "note": "",
+          "target_conformance": "not_assessed"
         }
       }
     },
@@ -2160,26 +1621,19 @@
       "catalog_source": true,
       "catalog_version": "0.2.2",
       "driver_id": "tesla_vehicle",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2188,26 +1642,19 @@
       "catalog_source": true,
       "catalog_version": "0.1.0",
       "driver_id": "tesla_wall_connector",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2216,26 +1663,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.2",
       "driver_id": "tibber",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2244,26 +1684,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.1",
       "driver_id": "varta",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2272,26 +1705,19 @@
       "catalog_source": true,
       "catalog_version": "2.1.2",
       "driver_id": "victron",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2300,26 +1726,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "victron_mqtt",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2328,26 +1747,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.3",
       "driver_id": "wallbox",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2356,26 +1768,19 @@
       "catalog_source": true,
       "catalog_version": "3.1.0",
       "driver_id": "zap",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2384,26 +1789,19 @@
       "catalog_source": true,
       "catalog_version": "1.0.1",
       "driver_id": "zaptec",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2412,26 +1810,19 @@
       "catalog_source": true,
       "catalog_version": "0.1.0",
       "driver_id": "zaptec_cloud",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }
@@ -2440,26 +1831,19 @@
       "catalog_source": true,
       "catalog_version": "1.1.1",
       "driver_id": "zuidwijk_p1",
-      "package_id": null,
       "targets": {
         "blixt-l1": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         },
         "ftw-core": {
-          "candidate_package_version": null,
-          "control_enabled": false,
           "hil": "not_recorded",
           "historical_signed_beta_version": null,
           "legacy_parity": "not_assessed",
           "note": "",
-          "stable_package_version": null,
           "target_conformance": "not_assessed"
         }
       }

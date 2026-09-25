@@ -5,8 +5,7 @@ on the linux-edge hosts this repository targets — FTW (gopher-lua) and Blixt L
 (luajit).
 
 Both run on Linux-class hardware, so a driver here is not written to a memory
-budget. Write the driver the device needs. Zap builds are a separate track that
-compiles from this source; its constraints do not shape the code here.
+budget. Write the driver the device needs.
 
 What a driver may call is set by `spec/host-api-profile.json` and checked by
 `tests/test_host_api_profile.py`. A function that is not in the profile is not
@@ -274,7 +273,6 @@ end
 
 ```bash
 make test-driver ID=<id>      # syntax, sandbox, manifest and driver tests
-make package-driver ID=<id> TARGET=ftw-core
 make check                    # the whole suite, including the host API profile
 ```
 

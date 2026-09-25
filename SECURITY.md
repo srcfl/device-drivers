@@ -6,6 +6,5 @@ advisory flow for this repository.
 Never include credentials, signing material, private addresses, device serial
 numbers or site telemetry in an issue, pull request, fixture or log.
 
-The public build creates unsigned candidates. Only the private Device Support
-release service holds release credentials and signs packages from reviewed,
-locked commits.
+Pull-request builds are unsigned. Only the release workflow on `main` signs
+FTW's driver channel, with credentials held as GitHub Actions secrets.

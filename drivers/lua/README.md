@@ -1,9 +1,7 @@
 # Lua device drivers
 
-This catalog supplies drivers to FTW core and the Blixt gateway. Zap is a
-future target, not current production support. Each driver is a standalone Lua
-script. Its package recipe lists the exact runtime targets and versions it
-supports.
+This catalog supplies drivers to FTW core. Each driver is a standalone Lua
+script with a manifest under `manifests/`.
 
 ## Driver Types
 
