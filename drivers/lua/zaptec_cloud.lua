@@ -32,10 +32,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "zaptec-cloud",
+  id           = "zaptec_cloud",
   name         = "Zaptec Cloud",
   manufacturer = "Zaptec",
-  version      = "0.1.0",
+  version      = "0.1.1",
   protocols    = { "http" },
   capabilities = { "ev" },
   read_only    = true,

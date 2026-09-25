@@ -23,10 +23,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "tesla-wall-connector",
+  id           = "tesla_wall_connector",
   name         = "Tesla Wall Connector",
   manufacturer = "Tesla",
-  version      = "0.1.0",
+  version      = "0.1.1",
   protocols    = { "http" },
   capabilities = { "ev" },
   read_only    = true,

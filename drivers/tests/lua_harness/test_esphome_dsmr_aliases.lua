@@ -26,9 +26,9 @@ local function text_sensor(path, value)
         string.format('{"value":"%s"}', value)
 end
 
-dofile("drivers/lua/esphome-dsmr.lua")
+dofile("drivers/lua/esphome_dsmr.lua")
 
-if type(DRIVER) ~= "table" or DRIVER.id ~= "esphome-dsmr" or DRIVER.version ~= "1.0.3" then
+if type(DRIVER) ~= "table" or DRIVER.id ~= "esphome_dsmr" or DRIVER.version ~= "1.0.4" then
     error("ESPHome DSMR identity metadata is wrong")
 end
 if DRIVER.host_api_min ~= 1 or DRIVER.host_api_max ~= 1 or DRIVER.read_only ~= true then

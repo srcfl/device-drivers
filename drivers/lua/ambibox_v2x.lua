@@ -9,10 +9,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "ambibox-v2x",
+  id           = "ambibox_v2x",
   name         = "Ambibox V2X",
   manufacturer = "Ambibox",
-  version      = "1.0.0",
+  version      = "1.1.1",
   protocols    = { "mqtt" },
   capabilities = { "v2x_charger" },
   description  = "Ambibox bidirectional V2X charger via MQTT.",

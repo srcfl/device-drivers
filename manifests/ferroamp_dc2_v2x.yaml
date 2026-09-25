@@ -1,5 +1,5 @@
 name: "ferroamp_dc2_v2x"
-version: "2.1.0"
+version: "2.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -18,9 +18,9 @@ connection_defaults:
   mqtt_username: "dc2"
   mqtt_password: "dc2mqtt"
 min_host_version: "2.0.0"
-size_bytes: 13321
+size_bytes: 13358
 dkb_id: "ferroamp_dc2_v2x"
-sha256: "c9f4fa0fd78c0c28fbd730a66178d993f91d6d1c6557c1b8ecb8612ef4129262"
+sha256: "997fc712c5ef0336620fd5d628175c4df831e26b7826b9fdc36f56b5ca3f69d7"
 signature: ""
 
 bytecode_sha256: ""

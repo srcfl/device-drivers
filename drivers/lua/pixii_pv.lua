@@ -11,10 +11,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "pixii-pv",
+  id           = "pixii_pv",
   name         = "Pixii PowerShaper (PV + meter)",
   manufacturer = "Pixii",
-  version      = "0.3.1",
+  version      = "0.3.2",
   protocols    = { "mqtt" },
   capabilities = { "pv", "meter" },
   read_only    = true,

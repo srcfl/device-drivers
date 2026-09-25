@@ -1,5 +1,5 @@
 name: "easee_cloud"
-version: "1.3.3"
+version: "1.3.4"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -18,7 +18,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 39308
 dkb_id: "easee_cloud"
-sha256: "1ae0b702197553df0075a649a161ecce57b2a3afe69322afa78edd585f112232"
+sha256: "46581eb77e9d7e5fc4b0937ea2c5fa560afef749b50a42dd0353682fada87624"
 signature: ""
 
 bytecode_sha256: ""

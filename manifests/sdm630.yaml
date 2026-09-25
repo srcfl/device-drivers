@@ -1,5 +1,5 @@
 name: "sdm630"
-version: "2.0.1"
+version: "2.0.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,9 +15,9 @@ tested_devices:
     notes: ""
     min_driver_version: "1.1.1"
 min_host_version: "2.0.0"
-size_bytes: 5488
+size_bytes: 5024
 dkb_id: "sdm630"
-sha256: "27d5612b891b01c98b054304a16295bd3e78982d166f731fd99372e3871eea54"
+sha256: "d879dd48e0ab6bf42547745659798473267e52bdaa84c93b94b5a6dc9969ac4c"
 signature: ""
 
 bytecode_sha256: ""

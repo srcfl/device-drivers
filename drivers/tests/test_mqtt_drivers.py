@@ -146,6 +146,7 @@ class TestMqttMessageProcessing:
             re.search(r'if\s+not\s+messages\b', clean)
             or re.search(r'if\s+messages\s*==\s*nil', clean)
             or re.search(r'if\s+not\s+msgs\b', clean)
+            or re.search(r'if\s+(?:messages|msgs)\s+then\b', clean)
         )
 
         assert has_nil_check, (

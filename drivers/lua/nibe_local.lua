@@ -105,10 +105,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "nibe-local",
+  id           = "nibe_local",
   name         = "NIBE REST API S-series",
   manufacturer = "NIBE",
-  version      = "1.2.0",
+  version      = "1.2.1",
   protocols    = { "http" },
   capabilities = { "apicreds" },
   description  = "NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Read-only by default; one opt-in write path feeds the pump's native Solar PV surplus input (registers 2107/2109) so the pump soaks up excess solar.",

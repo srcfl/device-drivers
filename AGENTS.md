@@ -55,15 +55,16 @@ by #27, and reached customer hardware a second time. See the entries for
 **pixii** 2.1.1 and **solaredge_legacy** 0.3.1 in `CHANGELOG.md`. Those copies
 have since been removed.
 
-### Editing a driver that came from FTW
+### One id and one version
 
-The 37 drivers promoted in #27 are exempt from this suite's catalog
-conventions for as long as they stay byte-identical to `baselines/ftw/drivers`
-— `drivers/tests/conftest.py` decides that by content, not by a list. The
-moment you edit one, every check in the suite starts applying to it, and
-`make check` may fail on rules that driver never had to meet. That is working
-as intended. Read the failure before assuming your change caused it: the
-rule may be right and the driver wrong, or the check itself may be wrong.
+A driver's id is its file name and catalog name, and its `DRIVER` table says
+exactly that id and the manifest's version. FTW compares its bundled copy with
+the signed channel by that id and version, so they must be the same text. The
+channel build and `tests/test_driver_truth.py` refuse anything else. Change a
+version with `make bump-driver`, which moves both.
+
+`baselines/ftw` records what was promoted from FTW in #27. Every promoted
+driver has since changed, so no check treats them differently.
 
 ## Source rules
 

@@ -68,10 +68,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "ctek-chargestorm",
+  id           = "ctek",
   name         = "CTEK Chargestorm (API v1)",
   manufacturer = "CTEK",
-  version      = "0.3.2",
+  version      = "0.3.3",
   protocols    = { "modbus" },
   capabilities = { "ev" },
   description  = "CTEK Chargestorm Connected 2/3 via Modbus/TCP Automation API v1 (CSOS ≥ 4.9.3). Full telemetry + current-limit control.",

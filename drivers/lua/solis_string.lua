@@ -8,10 +8,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "solis-string",
+  id           = "solis_string",
   name         = "Solis string inverter",
   manufacturer = "Ginlong Solis",
-  version      = "1.1.2",
+  version      = "1.1.3",
   protocols    = { "modbus" },
   capabilities = { "pv" },
   read_only    = true,

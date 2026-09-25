@@ -365,19 +365,13 @@ hidden a real bug — it once implemented decode helpers no host provided, which
 is how thirty-five broken drivers passed CI for months. If the host does not
 have it, the mock must not either.
 
-## Drivers promoted from FTW
+## One id and one version
 
-37 drivers here came from FTW, where they have run on customer sites for
-months. They are kept **byte-identical** to `baselines/ftw/drivers/`, which is
-what makes their provenance checkable.
+A driver has one id, its file name and catalog name, and one version. Its
+`DRIVER` table states both exactly as the manifest does; FTW compares its
+bundled copy with the signed channel by them. `make bump-driver ID=<id>`
+moves the manifest and the `DRIVER` table together.
 
-Two consequences:
-
-- The test suite skips catalog conventions for them, because FTW tests them in
-  Go. Identity is by content: **edit one and every check applies to it again.**
-- Their `DRIVER` table states FTW's id and version; the file name and manifest
-  state this repository's. Two lineages, deliberately, because making them
-  agree would mean editing a file we keep unmodified on purpose.
-
-If you need to change one, just change it. The tooling will notice and start
-holding it to this repository's rules, which is the correct outcome.
+37 drivers came from FTW in #27; `baselines/ftw/drivers/` records what they
+were. All of them have changed since, and the same rules apply to every
+driver.

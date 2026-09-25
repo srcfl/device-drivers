@@ -1,5 +1,5 @@
 name: "zaptec_cloud"
-version: "0.1.0"
+version: "0.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -18,7 +18,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 11275
 dkb_id: "zaptec_cloud"
-sha256: "b6fcdd70b15749caa13a77c4993568effcb199e05f913be0fd667ee9ad2ef134"
+sha256: "5ef87b886b0cfd9952e00f357e81b9cd9196f041ad7b17f321f7219e3f292998"
 signature: ""
 
 bytecode_sha256: ""

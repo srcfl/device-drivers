@@ -1,5 +1,5 @@
 name: "konja-261-svk"
-version: "0.3.1"
+version: "0.3.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,9 +15,9 @@ tested_devices:
     notes: "C&I BESS via MG500 EMS Modbus TCP :1502; SvK FCR/FFR test driver on Blixt L1."
     min_driver_version: "0.3.0"
 min_host_version: "2.0.0"
-size_bytes: 93318
+size_bytes: 88536
 dkb_id: "konja-261-svk"
-sha256: "dcd2eccbccc9e97f24c63f6a65a3498b8441f249ae9a17b5268a97bd8b34bdb5"
+sha256: "be06598829fa88048c4d0ede0703ca7e5e53376341cdcdbdb47062604ce470db"
 signature: ""
 
 bytecode_sha256: ""

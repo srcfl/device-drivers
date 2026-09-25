@@ -58,7 +58,7 @@ end
 
 boot(nil, 1, 0)
 
-if type(DRIVER) ~= "table" or DRIVER.id ~= "nibe-local" or DRIVER.version ~= "1.2.0" then
+if type(DRIVER) ~= "table" or DRIVER.id ~= "nibe_local" or DRIVER.version ~= "1.2.1" then
     error("NIBE identity metadata is wrong")
 end
 if DRIVER.host_api_min ~= 1 or DRIVER.host_api_max ~= 1 then

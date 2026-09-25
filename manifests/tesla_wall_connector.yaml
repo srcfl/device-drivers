@@ -1,5 +1,5 @@
 name: "tesla_wall_connector"
-version: "0.1.0"
+version: "0.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -17,7 +17,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 8162
 dkb_id: "tesla_wall_connector"
-sha256: "7715ce1ec3cf707fbcfc5ae58430430ffa79f7f82b38b242df9631ea1593af79"
+sha256: "66b6313eda4f68a92a7cc55931baa2408cb6cbb249145f7e6005456fb821d284"
 signature: ""
 
 bytecode_sha256: ""

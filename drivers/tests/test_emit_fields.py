@@ -100,6 +100,10 @@ VALID_FIELDS = {
         "charge_power_min_w", "charge_power_max_w",
         "discharge_power_min_w", "discharge_power_max_w",
         "plug_connected",
+        # Fields FTW reads for a V2X charger: its host maps hz to freq_hz
+        # and vehicle_soc to the charger's SoC, and its API shows connected,
+        # status, control_mode and protocol (FTW go/internal/api/api.go).
+        "freq_hz", "vehicle_soc", "connected", "status", "control_mode", "protocol",
     },
 }
 

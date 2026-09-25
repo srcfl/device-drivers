@@ -55,7 +55,6 @@ def declared_locals(code: str) -> set[str]:
     return names
 
 
-@pytest.mark.holds_for_ftw_drivers
 @pytest.mark.parametrize("name", get_driver_names())
 def test_driver_declares_every_guard_it_reads(name):
     code = strip_lua_comments(read_driver(name))

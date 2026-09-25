@@ -1,5 +1,5 @@
 name: "heishamon"
-version: "0.5.0"
+version: "0.5.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -18,7 +18,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 6973
 dkb_id: "heishamon"
-sha256: "01a8bc73689715531cfc0f21963c045b2144fa54715690949b44a578ee821a88"
+sha256: "a20d17ccc147772df3ad6827f0243436dcbb28b307e1dfc034cd6ff658a9ba69"
 signature: ""
 
 bytecode_sha256: ""

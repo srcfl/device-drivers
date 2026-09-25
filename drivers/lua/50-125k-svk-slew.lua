@@ -75,7 +75,7 @@ DRIVER = {
     id = "50-125k-svk-slew",
     name = "Solis S6 50-125 kW C&I hybrid (SvK, slew-limited)",
     manufacturer = "Solis",
-    version = "0.1.12",
+    version = "0.1.13",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -86,75 +86,6 @@ DRIVER = {
     verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         unit_id = 1, baud_rate = 9600,
-    },
-}
-
-DRIVER_MANIFEST = {
-    name    = "50-125k-svk-slew",
-    version = "0.1.12",
-    role    = "battery",
-
-    requires = {
-        { name    = "battery_capacity_wh",
-          purpose = "control",
-          type    = "integer", min = 1000, max = 1000000,
-          help    = "Total usable LFP capacity wired to this Solis (Wh). " ..
-                    "Not on the bus; configured per install. Used to derive " ..
-                    "charge / discharge energy headroom (Wh)." },
-        { name    = "battery_soc_min_pct",
-          purpose = "control",
-          type    = "integer", min = 0, max = 100,
-          help    = "Floor for discharge — arbitrator vetoes setpoints that " ..
-                    "would drive SoC below this percentage." },
-        { name    = "battery_soc_max_pct",
-          purpose = "control",
-          type    = "integer", min = 0, max = 100,
-          help    = "Ceiling for charge — arbitrator vetoes setpoints that " ..
-                    "would drive SoC above this percentage." },
-    },
-
-    options = {
-        { name    = "battery_rated_w",
-          purpose = "control",
-          type    = "integer", min = 1000, max = 200000,
-          help    = "Battery max continuous charge / discharge power (W, " ..
-                    "magnitude). Cap on |setpoint| regardless of the " ..
-                    "inverter's nameplate. The driver clamps |W| to this " ..
-                    "before writing the 44282-83 battery power value." },
-        { name    = "battery_max_c_rate",
-          purpose = "control",
-          type    = "double",  default = 1.0, min = 0.1, max = 5.0,
-          help    = "Battery max C-rate. Fallback magnitude cap when " ..
-                    "battery_rated_w is unset (capacity_wh × c_rate)." },
-        { name    = "pv_shares_ac_stage",
-          purpose = "control",
-          type    = "boolean", default = true,
-          help    = "Hybrid topology: PV + battery contend for the AC " ..
-                    "inverter stage. Carried for config-compatibility with " ..
-                    "solis_50_125k; this fast driver does not emit PV." },
-        { name    = "ffr_slew_rate_pct_per_s",
-          purpose = "control",
-          type    = "double",  default = 100000.0, min = 1.0, max = 100000.0,
-          help    = "Max deactivation slew rate as % of |setpoint_cap_w| " ..
-                    "per second. Applied ONLY when |new_setpoint| < " ..
-                    "|current_setpoint| (deactivation). Activation, hold, " ..
-                    "and direction-up-in-magnitude bypass the slew and " ..
-                    "write immediately. init() / deinit() also bypass — " ..
-                    "safe-revert must reach 0 W instantly. Default is " ..
-                    "**no slew enforcement** (100000 %/s, effectively " ..
-                    "unbounded) so the driver behaves transparently for " ..
-                    "FCR-D/N, aFRR, mFRR, and operator setpoints. SvK FFR " ..
-                    "§1.4 Tabell 3 kort uthållighet caps deact at 20 %/s — " ..
-                    "the runner constrains via driver_command('set_slew_" ..
-                    "rate', 15) only for that specific test profile." },
-    },
-
-    provides = {
-        live   = { "battery.W", "battery.SoC_nom_fract", "battery.available_charge_Wh",
-                   "battery.available_discharge_Wh", "battery.available_charge_W",
-                   "battery.available_discharge_W", "inverter.W",
-                   "inverter.available_import_W", "inverter.available_export_W" },
-        static = { "rated_W", "make", "model", "sn" },
     },
 }
 

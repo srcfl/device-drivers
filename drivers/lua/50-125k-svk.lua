@@ -64,7 +64,7 @@ DRIVER = {
     id = "50-125k-svk",
     name = "Solis S6 50-125 kW C&I hybrid (SvK)",
     manufacturer = "Solis",
-    version = "0.2.3",
+    version = "0.2.4",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -75,60 +75,6 @@ DRIVER = {
     verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         unit_id = 1, baud_rate = 9600,
-    },
-}
-
-DRIVER_MANIFEST = {
-    name    = "50-125k-svk",
-    version = "0.2.3",
-    role    = "battery",
-
-    requires = {
-        { name    = "battery_capacity_wh",
-          purpose = "control",
-          type    = "integer", min = 1000, max = 1000000,
-          help    = "Total usable LFP capacity wired to this Solis (Wh). " ..
-                    "Not on the bus; configured per install. Used to derive " ..
-                    "charge / discharge energy headroom (Wh)." },
-        { name    = "battery_soc_min_pct",
-          purpose = "control",
-          type    = "integer", min = 0, max = 100,
-          help    = "Floor for discharge — arbitrator vetoes setpoints that " ..
-                    "would drive SoC below this percentage." },
-        { name    = "battery_soc_max_pct",
-          purpose = "control",
-          type    = "integer", min = 0, max = 100,
-          help    = "Ceiling for charge — arbitrator vetoes setpoints that " ..
-                    "would drive SoC above this percentage." },
-    },
-
-    options = {
-        { name    = "battery_rated_w",
-          purpose = "control",
-          type    = "integer", min = 1000, max = 200000,
-          help    = "Battery max continuous charge / discharge power (W, " ..
-                    "magnitude). Cap on |setpoint| regardless of the " ..
-                    "inverter's nameplate. The driver clamps |W| to this " ..
-                    "before writing the 44282-83 battery power value." },
-        { name    = "battery_max_c_rate",
-          purpose = "control",
-          type    = "double",  default = 1.0, min = 0.1, max = 5.0,
-          help    = "Battery max C-rate. Fallback magnitude cap when " ..
-                    "battery_rated_w is unset (capacity_wh × c_rate)." },
-        { name    = "pv_shares_ac_stage",
-          purpose = "control",
-          type    = "boolean", default = true,
-          help    = "Hybrid topology: PV + battery contend for the AC " ..
-                    "inverter stage. Carried for config-compatibility with " ..
-                    "solis_50_125k; this fast driver does not emit PV." },
-    },
-
-    provides = {
-        live   = { "battery.W", "battery.SoC_nom_fract", "battery.available_charge_Wh",
-                   "battery.available_discharge_Wh", "battery.available_charge_W",
-                   "battery.available_discharge_W", "inverter.W",
-                   "inverter.available_import_W", "inverter.available_export_W" },
-        static = { "rated_W", "make", "model", "sn" },
     },
 }
 

@@ -63,29 +63,6 @@ PROTOCOL_WRITE_PERMISSIONS = {
 
 
 
-def _identifies_same_driver(metadata_id: str, driver_id: str) -> bool:
-    """Whether a DRIVER table's id names the catalog driver holding it.
-
-    FTW spells ids with hyphens and is usually more specific than the catalog
-    name, sometimes by inserting a word rather than appending one:
-
-        ctek        <- ctek-chargestorm
-        ctek_hybrid <- ctek-chargestorm-hybrid
-        sungrow     <- sungrow-shx
-        huawei      <- huawei-sun2000
-        zap         <- sourceful-zap
-
-    So require the catalog name's words to appear in the declared id in order,
-    which all of those satisfy while a driver dropped into the wrong file --
-    "deye" holding a growatt table -- still does not.
-    """
-    def words(value: str) -> list[str]:
-        return value.replace("-", "_").split("_")
-
-    remaining = iter(words(metadata_id))
-    return all(word in remaining for word in words(driver_id))
-
-
 class RepositoryError(ValueError):
     """A driver channel build or verification error."""
 
@@ -635,22 +612,18 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
         if body is not None:
             metadata_id = _string_field(body, "id")
             metadata_version = _string_field(body, "version")
-            # A driver promoted from FTW keeps its own DRIVER table verbatim, so
-            # that it stays byte-identical to the baseline it came from and any
-            # later edit shows up. That table states FTW's identity, which need
-            # not be this catalog's:
-            #
-            #   id      FTW is more specific -- "sungrow-shx" for what this
-            #           catalog publishes as "sungrow". The catalog name is the
-            #           one operators use, so it wins; a name that is neither
-            #           the catalog id nor a prefix of the declared one is still
-            #           an error.
-            #   version two lineages. The manifest counts releases from this
-            #           repository; DRIVER.version counts FTW's. Forcing them
-            #           equal would mean rewriting a field inside a file we
-            #           deliberately keep unmodified.
-            if metadata_id and not _identifies_same_driver(metadata_id, driver_id):
-                raise RepositoryError(f"{driver_id}: DRIVER id is {metadata_id!r}")
+            # One driver has one id and one version. The DRIVER table, the
+            # catalog, the signed channel and FTW's bundled copy all state
+            # them, and FTW compares them to decide which file runs, so they
+            # must be the same text, not the same driver by some rule.
+            if metadata_id and metadata_id != driver_id:
+                raise RepositoryError(
+                    f"{driver_id}: DRIVER id is {metadata_id!r}; it must be {driver_id!r}"
+                )
+            if metadata_version and metadata_version != version:
+                raise RepositoryError(
+                    f"{driver_id}: DRIVER version is {metadata_version!r}; the catalog says {version!r}"
+                )
 
         filename = source_path.name
         logical_path = f"drivers/{filename}"

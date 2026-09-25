@@ -111,8 +111,9 @@ class TestMqttStructure:
         """MQTT drivers should handle nil/empty message list."""
         code = read_driver(driver_name)
         clean = strip_lua_comments(code)
-        # Should check for nil messages (e.g., "if not messages then")
-        assert re.search(r'if\s+not\s+messages\b', clean), \
+        # Should check for nil messages ("if not messages then" or a loop
+        # guarded by "if messages then")
+        assert re.search(r'if\s+not\s+messages\b|if\s+messages\s+then\b', clean), \
             f"{driver_name}: should check for nil messages from mqtt_messages()"
 
 

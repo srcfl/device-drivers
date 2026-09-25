@@ -64,7 +64,7 @@ DRIVER = {
     id = "deye-svk",
     name = "Deye SUN hybrid — lean SvK fast-poll variant",
     manufacturer = "Deye",
-    version = "0.2.1",
+    version = "0.2.2",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -75,65 +75,6 @@ DRIVER = {
     verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         unit_id = 1, baud_rate = 9600,
-    },
-}
-
-DRIVER_MANIFEST = {
-    name    = "deye-svk",
-    version = "0.2.1",
-    role    = "battery",   -- hybrid inverter is treated as a battery asset
-
-    -- Same requires/options as deye@2.4.4 so an existing Deye device
-    -- entry (e.g. Sveavägen 19) can be repinned to this driver WITHOUT
-    -- re-entering config.
-    requires = {
-        { name    = "battery_capacity_wh",
-          purpose = "control",
-          type    = "integer", min = 1000, max = 1000000,
-          help    = "Total usable LFP capacity wired to this Deye (Wh). " ..
-                    "The Deye doesn't know how much battery is on its DC bus, " ..
-                    "so this must be configured per install." },
-        { name    = "battery_rated_w",
-          purpose = "control",
-          type    = "integer", min = 1000, max = 200000,
-          help    = "Battery max continuous charge / discharge power (W, " ..
-                    "magnitude). Cap on |setpoint| regardless of inverter " ..
-                    "rated_w. Use the manufacturer's continuous rating; " ..
-                    "the inverter is hardware-limited but the battery may " ..
-                    "be the actual bottleneck (e.g. a 30 kWh / 15 kW pack " ..
-                    "behind a 30 kW inverter). The driver will silently " ..
-                    "clamp setpoints over this magnitude before writing " ..
-                    "reg 1109." },
-        { name    = "battery_soc_min_pct",
-          purpose = "control",
-          type    = "integer", min = 0, max = 100,
-          help    = "Floor for discharge — arbitrator vetoes setpoints that " ..
-                    "would drive SoC below this percentage." },
-        { name    = "battery_soc_max_pct",
-          purpose = "control",
-          type    = "integer", min = 0, max = 100,
-          help    = "Ceiling for charge — arbitrator vetoes setpoints that " ..
-                    "would drive SoC above this percentage." },
-    },
-
-    options = {
-        { name    = "battery_max_c_rate",
-          purpose = "control",
-          type    = "double",  default = 1.0, min = 0.1, max = 5.0,
-          help    = "Battery max C-rate. 1.0 means rated power == capacity " ..
-                    "per hour. Most LFP packs paired with hybrid inverters " ..
-                    "can sustain 1.0 C at moderate temperatures." },
-        { name    = "pv_shares_ac_stage",
-          purpose = "control",
-          type    = "boolean", default = true,
-          help    = "Hybrid topology: PV + battery contend for the AC " ..
-                    "inverter stage. Carried for config-compatibility with " ..
-                    "deye; this fast driver does not emit PV." },
-    },
-
-    provides = {
-        live   = { "battery.W", "battery.SoC_nom_fract" },
-        static = { "rated_W", "make", "model", "sn" },
     },
 }
 

@@ -120,13 +120,17 @@ class TestDriverContract:
     def test_no_io_os_debug(self, driver_name):
         """Driver must not access io, os, or debug modules."""
         code = read_driver(driver_name)
-        clean = strip_lua_comments(code)
+        # Text inside a string is not a module call ("sid-os.local" is a host
+        # name), so strings are blanked before looking.
+        clean = re.sub(r'"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'', '""', strip_lua_comments(code))
 
         # Check for io.xxx usage (word boundary to avoid false positives like 'radio.xxx')
         assert not re.search(r'\bio\.\w+', clean), \
             f"{driver_name}: uses forbidden io module"
-        # Check for os.xxx usage (word boundary to avoid 'Ferroamp EnergyHub OS' etc.)
-        assert not re.search(r'\bos\.\w+', clean), \
+        # Check for os.xxx usage (word boundary to avoid 'Ferroamp EnergyHub OS' etc.).
+        # FTW's host keeps os.time and os.date for MQTT timestamps and removes
+        # the process and filesystem entry points (go/internal/drivers/lua.go).
+        assert not re.search(r'\bos\.(?!(?:time|date)\b)\w+', clean), \
             f"{driver_name}: uses forbidden os module"
         # Check for debug.xxx usage
         assert not re.search(r'\bdebug\.\w+', clean), \

@@ -1,5 +1,5 @@
 name: "deye-svk"
-version: "0.2.1"
+version: "0.2.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,9 +15,9 @@ tested_devices:
     notes: "Lean SvK sibling of deye; validated on Deye SvK bench under Blixt L1."
     min_driver_version: "0.2.0"
 min_host_version: "2.0.0"
-size_bytes: 24774
+size_bytes: 21949
 dkb_id: "deye-svk"
-sha256: "e4b0637ddb91a4e4ee375125d166e93a86fac97a0ded64e062a7bd39f026e2a6"
+sha256: "ce957acebd6b98060e2736148af5fe53784109b243678e9d216becaa6e116088"
 signature: ""
 
 bytecode_sha256: ""

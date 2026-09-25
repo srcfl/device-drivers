@@ -11,10 +11,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "fronius-smart-meter",
+  id           = "fronius_smart_meter",
   name         = "Fronius Smart Meter",
   manufacturer = "Fronius",
-  version      = "2.1.2",
+  version      = "2.1.3",
   protocols    = { "modbus" },
   capabilities = { "meter" },
   read_only    = true,

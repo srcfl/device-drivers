@@ -1,5 +1,5 @@
 name: "solaredge_legacy"
-version: "0.3.2"
+version: "0.3.3"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -17,7 +17,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 18246
 dkb_id: "solaredge_legacy"
-sha256: "7a590f5f35efc395754f002f0d48aef8b2d46cab525bf2ae863f4fd73b01781b"
+sha256: "c3a06fad328d6135abd6fdaf7c08fed0ba7e4905f18c0f2f2a624fda12750c06"
 signature: ""
 
 bytecode_sha256: ""

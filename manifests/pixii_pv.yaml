@@ -1,5 +1,5 @@
 name: "pixii_pv"
-version: "0.3.1"
+version: "0.3.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -17,7 +17,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 6699
 dkb_id: "pixii_pv"
-sha256: "4f86b5c75ad1af8ed7bb48d7fa0f50db8ade8397b9a04c9ea1a8347f0bafff3d"
+sha256: "7a27b937bdc845dff8d4032cb96ccca16242cc8378d1cbf5cfc8030660b871db"
 signature: ""
 
 bytecode_sha256: ""

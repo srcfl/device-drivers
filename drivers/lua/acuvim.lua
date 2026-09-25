@@ -106,7 +106,7 @@ DRIVER = {
     id = "acuvim",
     name = "Accuenergy Acuvim II meter",
     manufacturer = "Accuenergy",
-    version = "0.4.2",
+    version = "0.4.3",
     protocols = { "modbus" },
     capabilities = { "meter" },
     read_only = true,
@@ -117,29 +117,6 @@ DRIVER = {
     verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         port = 502, unit_id = 1,
-    },
-}
-
-DRIVER_MANIFEST = {
-    name    = "acuvim",
-    version = "0.4.2",
-    role    = "meter",
-
-    requires = {},
-    options  = {},
-
-    -- Field names match @srcful/data-models MeterTelemetry verbatim and
-    -- the SDM630 reference driver.  Top-level W/Hz are totals; per-phase
-    -- rows are flat (L1_V/L1_A/L1_W ...) — the shape l1's MeterEmit /
-    -- arbitrator per-phase fuse clamp reads (lua_driver.rs reads
-    -- tbl.get("L1_V") etc.; the Rust side converts A→mA and V→dV).
-    provides = {
-        live   = { "meter.W", "meter.Hz",
-                   "meter.L1_V", "meter.L2_V", "meter.L3_V",
-                   "meter.L1_A", "meter.L2_A", "meter.L3_A",
-                   "meter.L1_W", "meter.L2_W", "meter.L3_W",
-                   "meter.total_import_Wh", "meter.total_export_Wh" },
-        static = { "make", "model", "sn" },
     },
 }
 

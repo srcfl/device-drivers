@@ -22,10 +22,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "easee-cloud",
+  id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.3",
+  version      = "1.3.4",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",

@@ -148,7 +148,7 @@ DRIVER = {
     id = "konja-261-svk",
     name = "Konja MG 261 kWh / 125 kW C&I BESS (SvK)",
     manufacturer = "Konja Power",
-    version = "0.3.1",
+    version = "0.3.2",
     protocols = { "modbus" },
     capabilities = { "battery", "meter" },
     read_only = false,
@@ -159,97 +159,6 @@ DRIVER = {
     verification_notes = "Migrated from the Blixt L1 driver source; source has run on hardware under Blixt L1 but no HIL record exists in this repository yet.",
     connection_defaults = {
         port = 1502, unit_id = 1,
-    },
-}
-
-DRIVER_MANIFEST = {
-    name    = "konja-261-svk",
-    version = "0.3.1",
-    role    = "battery",
-
-    -- 20 Hz. SvK FFR §2 Tabell 5 wants 0.1 s logging resolution and
-    -- the l1 snapshot feeds the SOC / UtsignalStyrenhet_W columns of
-    -- the session CSV — at exactly 100 ms any jitter drops 0.1 s bins,
-    -- so leave headroom. Each poll is 3 × FC04 over TCP (PCS, BMS,
-    -- meter — the meter block was added in 0.3.0). Command
-    -- latency does NOT depend on this: l1's mid-poll preempt
-    -- dispatches a pending SetpointWrite between register bundles.
-    -- Raise it per-device if the EMS objects to the rate
-    -- (see OPEN QUESTION 1).
-    poll_interval_ms = 50,
-
-    requires = {
-        { name    = "battery_capacity_wh",
-          purpose = "control",
-          type    = "integer", min = 1000, max = 1000000,
-          help    = "Total usable LFP capacity of the cabinet (Wh). " ..
-                    "Nameplate for the 261 kWh unit is 261000. Not " ..
-                    "reliably on the bus; configured per install. Used " ..
-                    "to derive charge / discharge energy headroom (Wh)." },
-        { name    = "battery_soc_min_pct",
-          purpose = "control",
-          type    = "integer", min = 0, max = 100,
-          help    = "Floor for discharge — arbitrator vetoes setpoints " ..
-                    "that would drive SoC below this percentage." },
-        { name    = "battery_soc_max_pct",
-          purpose = "control",
-          type    = "integer", min = 0, max = 100,
-          help    = "Ceiling for charge — arbitrator vetoes setpoints " ..
-                    "that would drive SoC above this percentage." },
-    },
-
-    options = {
-        { name    = "battery_rated_w",
-          purpose = "control",
-          type    = "integer", min = 1000, max = 200000,
-          help    = "Max continuous charge / discharge power (W, " ..
-                    "magnitude). Nameplate for this cabinet is 125000. " ..
-                    "Cap on |setpoint| regardless of what the PCS " ..
-                    "reports. When unset the driver falls back to PCS " ..
-                    "reg 8256 (Maximum Discharging Power), then to " ..
-                    "capacity_wh × battery_max_c_rate." },
-        { name    = "battery_max_c_rate",
-          purpose = "control",
-          type    = "double",  default = 1.0, min = 0.1, max = 5.0,
-          help    = "Battery max C-rate. Fallback magnitude cap when " ..
-                    "battery_rated_w is unset and the PCS rating is " ..
-                    "unreadable (capacity_wh × c_rate)." },
-        { name    = "pv_shares_ac_stage",
-          purpose = "control",
-          type    = "boolean", default = false,
-          help    = "Hybrid topology flag. FALSE for this cabinet — " ..
-                    "the 261 kWh unit has no PV on the PCS AC stage, " ..
-                    "so battery power never contends with PV." },
-        { name    = "ffr_slew_rate_pct_per_s",
-          purpose = "control",
-          type    = "double",  default = 100000.0, min = 1.0, max = 100000.0,
-          help    = "Max DEACTIVATION slew rate as % of " ..
-                    "|setpoint_cap_w| per second. Applied only when " ..
-                    "|new_setpoint| < |current_setpoint|. Activation, " ..
-                    "hold and direction-up-in-magnitude bypass it and " ..
-                    "write immediately; init() / deinit() also bypass " ..
-                    "— safe-revert must reach 0 W instantly. Default " ..
-                    "is no enforcement (100000 %/s) so the driver is " ..
-                    "market-agnostic; SvK FFR §1.4 Tabell 3 kort " ..
-                    "uthållighet caps deact at 20 %/s and the runner " ..
-                    "sets it via driver_command('set_slew_rate', 15)." },
-    },
-
-    provides = {
-        live   = { "battery.W", "battery.SoC_nom_fract",
-                   "battery.available_charge_Wh", "battery.available_discharge_Wh",
-                   "battery.available_charge_W", "battery.available_discharge_W",
-                   "battery.V", "battery.A", "battery.temperature_C",
-                   "inverter.W", "inverter.Hz", "inverter.heatsink_C",
-                   -- Cabinet ADL400 meter (0.3.0). Flat per-phase keys,
-                   -- not `meter.lines[]` — the l1 MeterEmit struct is
-                   -- flat and silently drops anything else.
-                   "meter.W", "meter.Hz",
-                   "meter.L1_V", "meter.L2_V", "meter.L3_V",
-                   "meter.L1_A", "meter.L2_A", "meter.L3_A",
-                   "meter.L1_W", "meter.L2_W", "meter.L3_W",
-                   "meter.total_import_Wh", "meter.total_export_Wh" },
-        static = { "rated_W", "make", "model", "sn" },
     },
 }
 

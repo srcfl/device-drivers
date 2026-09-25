@@ -1,5 +1,5 @@
 name: "50-125k-svk"
-version: "0.2.3"
+version: "0.2.4"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,9 +15,9 @@ tested_devices:
     notes: "Base SvK driver; slew variants derive from it."
     min_driver_version: "0.2.2"
 min_host_version: "2.0.0"
-size_bytes: 25341
+size_bytes: 22821
 dkb_id: "50-125k-svk"
-sha256: "052e51a0d4da51f9a48bddc0ab6684474bbe7988a9cefdf768b4d669dad0e40f"
+sha256: "0c0061094c43fcd46a386c6787fd984459f4510644ecc2260cf29ebbf3147433"
 signature: ""
 
 bytecode_sha256: ""
