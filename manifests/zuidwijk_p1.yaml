@@ -1,5 +1,5 @@
 name: "zuidwijk_p1"
-version: "1.1.1"
+version: "1.1.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -18,7 +18,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 16578
 dkb_id: "zuidwijk_p1"
-sha256: "a08af3da055a64f082293389d6a1d8a13ca784b4a497bab3ca20c2f70361ec4e"
+sha256: "811b2efc31aee3a3e5b5bdffef9048c2eed7bdf9746672147a8b2535667610ee"
 signature: ""
 
 bytecode_sha256: ""

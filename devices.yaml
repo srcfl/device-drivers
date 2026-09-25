@@ -67,7 +67,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "acuvim"
-            version: "0.4.2"
+            version: "0.4.3"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -159,7 +159,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "ambibox_v2x"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [v2x_charger]
             control: true
         firmware_versions: ""
@@ -183,7 +183,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "ctek"
-            version: "0.3.2"
+            version: "0.3.3"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -194,7 +194,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "ctek_v2"
-            version: "0.3.2"
+            version: "0.3.3"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -205,7 +205,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "ctek_hybrid"
-            version: "0.3.1"
+            version: "0.3.2"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -301,7 +301,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye-svk"
-            version: "0.2.1"
+            version: "0.2.2"
             ders: [battery]
             control: true
         firmware_versions: ""
@@ -317,19 +317,13 @@ manufacturers:
             version: "1.0.3"
             ders: [meter]
             control: false
-        firmware_versions: "DSMR 2022.10.1 on SlimmeLezer+; Sourceful Zap open firmware"
-        notes: "Name-derived phase object_ids live-validated on SlimmeLezer+; explicit Sourceful aliases retained."
-      - name: "ESPHome DSMR (P1)"
-        variants: [ESPHome DSMR P1 readers using name-derived object_ids (SlimmeLezer+), Sourceful Zap P1 (sourceful-zap-esphome firmware)]
-        regions: []
-        protocols:
           - protocol: http
             driver: "esphome_dsmr"
-            version: "1.0.3"
+            version: "1.0.4"
             ders: [meter]
-            control: true
-        firmware_versions: ""
-        notes: "Smart meter via ESPHome web_server v3 + dsmr component (Sourceful Zap on open firmware, DIY ESP32+P1, etc.)."
+            control: false
+        firmware_versions: "DSMR 2022.10.1 on SlimmeLezer+; Sourceful Zap open firmware"
+        notes: "Name-derived phase object_ids live-validated on SlimmeLezer+; explicit Sourceful aliases retained."
   - name: "Easee"
     model_families:
       - name: "Easee"
@@ -349,7 +343,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "easee_cloud"
-            version: "1.3.3"
+            version: "1.3.4"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -362,7 +356,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sdm630"
-            version: "2.0.1"
+            version: "2.0.2"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -388,7 +382,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "ferroamp_dc2_v2x"
-            version: "2.1.0"
+            version: "2.1.1"
             ders: [v2x_charger]
             control: true
         firmware_versions: ""
@@ -404,7 +398,7 @@ manufacturers:
             control: true
           - protocol: modbus
             driver: "ferroamp_modbus"
-            version: "2.1.2"
+            version: "2.1.3"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -417,7 +411,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.9.5"
+            version: "0.9.6"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
@@ -428,7 +422,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.9.5"
+            version: "0.9.6"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
@@ -496,7 +490,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius_smart_meter"
-            version: "2.1.2"
+            version: "2.1.3"
             ders: [meter]
             control: false
         firmware_versions: ""
@@ -531,7 +525,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis_string"
-            version: "1.1.2"
+            version: "1.1.3"
             ders: [pv]
             control: false
         firmware_versions: ""
@@ -687,7 +681,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.2"
+            version: "2.1.3"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -698,7 +692,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.2"
+            version: "2.1.3"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -709,7 +703,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.2"
+            version: "2.1.3"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -720,7 +714,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.2"
+            version: "2.1.3"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -731,7 +725,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.2"
+            version: "2.1.3"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -860,7 +854,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "konja-261-svk"
-            version: "0.3.1"
+            version: "0.3.2"
             ders: [battery, meter]
             control: true
         firmware_versions: ""
@@ -993,7 +987,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "nibe_local"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [heatpump]
             control: true
         firmware_versions: ""
@@ -1019,7 +1013,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "heishamon"
-            version: "0.5.0"
+            version: "0.5.1"
             ders: [heatpump]
             control: true
         firmware_versions: ""
@@ -1032,7 +1026,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "pixii_pv"
-            version: "0.3.1"
+            version: "0.3.2"
             ders: [pv, meter]
             control: false
         firmware_versions: ""
@@ -1564,7 +1558,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solaredge_pv"
-            version: "1.2.1"
+            version: "1.2.2"
             ders: [pv]
             control: true
         firmware_versions: ""
@@ -1575,7 +1569,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solaredge_legacy"
-            version: "0.3.2"
+            version: "0.3.3"
             ders: [pv]
             control: true
         firmware_versions: ""
@@ -1689,17 +1683,17 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "50-125k-svk-ac-slew"
-            version: "0.2.4"
+            version: "0.2.5"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk-slew"
-            version: "0.1.12"
+            version: "0.1.13"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk"
-            version: "0.2.3"
+            version: "0.2.4"
             ders: [battery]
             control: true
         firmware_versions: ""
@@ -1734,7 +1728,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "zap"
-            version: "3.1.0"
+            version: "3.1.1"
             ders: [meter, pv, battery]
             control: false
         firmware_versions: ""
@@ -1747,7 +1741,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.8"
+            version: "1.5.9"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1758,7 +1752,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.8"
+            version: "1.5.9"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1769,7 +1763,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.8"
+            version: "1.5.9"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1780,7 +1774,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.8"
+            version: "1.5.9"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1791,7 +1785,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.5.8"
+            version: "1.5.9"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1804,7 +1798,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "tesla_vehicle"
-            version: "0.2.2"
+            version: "0.2.3"
             ders: [vehicle]
             control: true
         firmware_versions: ""
@@ -1815,7 +1809,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "tesla_wall_connector"
-            version: "0.1.0"
+            version: "0.1.1"
             ders: [ev]
             control: false
         firmware_versions: ""
@@ -2064,7 +2058,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "zaptec_cloud"
-            version: "0.1.0"
+            version: "0.1.1"
             ders: [ev]
             control: false
         firmware_versions: ""
@@ -2077,7 +2071,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "zuidwijk_p1"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [meter]
             control: false
         firmware_versions: ""

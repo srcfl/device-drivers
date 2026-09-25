@@ -13,10 +13,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id = "ferroamp-dc2-v2x",
+  id = "ferroamp_dc2_v2x",
   name = "Ferroamp DC2 V2X",
   manufacturer = "Ferroamp",
-  version = "1.1.0",
+  version = "2.1.1",
   protocols = { "mqtt" },
   capabilities = { "v2x_charger" },
   description = "Ferroamp DC2 V2X 20 kW bidirectional CCS2 charger via local MQTT.",
@@ -98,9 +98,9 @@ end
 
 local function parse_json(payload)
   if payload == nil or payload == "" then return nil end
-  local value, err = host.json_decode(payload)
-  if err then
-    host.log("warn", "dc2 json decode failed: " .. tostring(err))
+  local ok, value, err = pcall(host.json_decode, payload)
+  if not ok or err then
+    host.log("warn", "dc2 json decode failed: " .. tostring(ok and err or value))
     return nil
   end
   return value

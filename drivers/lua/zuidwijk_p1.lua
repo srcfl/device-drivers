@@ -11,10 +11,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "zuidwijk-p1",
+  id           = "zuidwijk_p1",
   name         = "Zuidwijk P1 Reader Ethernet",
   manufacturer = "Zuidwijk",
-  version      = "1.1.1",
+  version      = "1.1.2",
   protocols    = { "tcp" },
   capabilities = { "meter" },
   read_only    = true,

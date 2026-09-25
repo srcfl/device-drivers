@@ -30,10 +30,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "solaredge-legacy",
+  id           = "solaredge_legacy",
   name         = "SolarEdge legacy (K-series with display)",
   manufacturer = "SolarEdge",
-  version      = "0.3.2",
+  version      = "0.3.3",
   protocols    = { "modbus" },
   capabilities = { "pv", "pv-curtail" },
   description  = "SolarEdge K-series (SE7K / SE10K / SE17K / SE25K) PV inverter via Modbus TCP — reads use FC 0x03 holding; curtail writes use FC 0x10 multi-holding on the same Advanced Power Control registers (0xF000/0xF001) as HD-Wave.",

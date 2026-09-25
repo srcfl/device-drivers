@@ -1,5 +1,5 @@
 name: "acuvim"
-version: "0.4.2"
+version: "0.4.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -24,9 +24,9 @@ upstream_docs:
     kind: register_map
     url_stability: volatile
 min_host_version: "2.0.0"
-size_bytes: 18291
+size_bytes: 17436
 dkb_id: "acuvim"
-sha256: "221f3733028fa0c9e82f8c83622bf8fe778454985fa06243007238a41ea0ddd0"
+sha256: "3c82c1286a0a21c5ed644aef39a28dac523135f8729ecf84e9e8ec2400a8438f"
 signature: ""
 
 bytecode_sha256: ""

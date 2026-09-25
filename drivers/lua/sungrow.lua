@@ -6,10 +6,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "sungrow-shx",
+  id           = "sungrow",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.5.8",
+  version      = "1.5.9",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",

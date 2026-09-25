@@ -1,5 +1,5 @@
 name: "ambibox_v2x"
-version: "1.1.0"
+version: "1.1.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -17,7 +17,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 7506
 dkb_id: "ambibox_v2x"
-sha256: "90a572b0f74511d42e4b55047a6e1e52f266af5f595ce31dbcf2ffd74ce4253f"
+sha256: "9ad0e7989fb17b82531b47885baa94fa3c130ef25d23d647fad472cea9b8bbcb"
 signature: ""
 
 bytecode_sha256: ""

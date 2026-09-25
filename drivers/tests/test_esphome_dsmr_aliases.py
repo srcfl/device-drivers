@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_esphome_dsmr_source_has_ftw_read_only_contract():
-    source = (ROOT / "drivers/lua/esphome-dsmr.lua").read_text(encoding="utf-8")
+    source = (ROOT / "drivers/lua/esphome_dsmr.lua").read_text(encoding="utf-8")
     for entrypoint in ("driver_init", "driver_poll", "driver_command",
                        "driver_default_mode"):
         assert re.search(rf"\bfunction\s+{entrypoint}\s*\(", source), entrypoint

@@ -67,10 +67,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "ctek-chargestorm-hybrid",
+  id           = "ctek_hybrid",
   name         = "CTEK Chargestorm (Modbus + MQTT)",
   manufacturer = "CTEK",
-  version      = "0.3.1",
+  version      = "0.3.2",
   protocols    = { "modbus", "mqtt" },
   capabilities = { "ev" },
   description  = "CTEK Chargestorm Connected 2/3 — MQTT for state + live telemetry (preferred), Modbus/TCP for control + telemetry fallback.",

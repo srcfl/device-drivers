@@ -10,10 +10,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "solaredge-pv",
+  id           = "solaredge_pv",
   name         = "SolarEdge inverter (PV only)",
   manufacturer = "SolarEdge",
-  version      = "1.2.1",
+  version      = "1.2.2",
   protocols    = { "modbus" },
   capabilities = { "pv", "pv-curtail" },
   description  = "SolarEdge HD-Wave / StorEdge PV-only via Modbus TCP (SunSpec) with PV active-power-limit curtail.",

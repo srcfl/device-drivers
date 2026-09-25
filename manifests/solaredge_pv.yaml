@@ -1,5 +1,5 @@
 name: "solaredge_pv"
-version: "1.2.1"
+version: "1.2.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -17,7 +17,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 12121
 dkb_id: "solaredge_pv"
-sha256: "8ea6381cdc608939919b8ff55c22c1febe8a8da5a0b81f93cbd341a7d1733467"
+sha256: "50d0d07dd92d14f93d3a4ba123fa7e036762437eee450e2caea6556d3b770582"
 signature: ""
 
 bytecode_sha256: ""

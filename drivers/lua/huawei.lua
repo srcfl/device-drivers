@@ -20,10 +20,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "huawei-sun2000",
+  id           = "huawei",
   name         = "Huawei SUN2000 Hybrid Inverter",
   manufacturer = "Huawei",
-  version      = "2.1.2",
+  version      = "2.1.3",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,

@@ -26,10 +26,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "tesla-vehicle",
+  id           = "tesla_vehicle",
   name         = "Tesla Vehicle (BLE Proxy)",
   manufacturer = "Tesla",
-  version      = "0.2.2",
+  version      = "0.2.3",
   protocols    = { "http" },
   capabilities = { "vehicle" },
   description  = "Read-only vehicle SoC + charge limit via Tesla API-compatible HTTP endpoint (e.g. TeslaBLEProxy).",

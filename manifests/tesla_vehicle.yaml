@@ -1,5 +1,5 @@
 name: "tesla_vehicle"
-version: "0.2.2"
+version: "0.2.3"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -18,7 +18,7 @@ tested_devices:
 min_host_version: "2.0.0"
 size_bytes: 23888
 dkb_id: "tesla_vehicle"
-sha256: "b05cbd358a51409225b7043d22336b01cd85c2c005da6d64cc57368a34713aec"
+sha256: "480c23e8ec13e075254dded23b4a9e3b93bb91b02ac63d29bd126b672a569bdd"
 signature: ""
 
 bytecode_sha256: ""

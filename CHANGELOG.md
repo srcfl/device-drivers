@@ -1,5 +1,125 @@
 # Changelog
 
+## ctek 0.3.3
+
+The `DRIVER` table's id is now `ctek`, the catalog id, instead of `ctek-chargestorm`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## ctek_hybrid 0.3.2
+
+The `DRIVER` table's id is now `ctek_hybrid`, the catalog id, instead of `ctek-chargestorm-hybrid`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## ctek_v2 0.3.3
+
+The `DRIVER` table's id is now `ctek_v2`, the catalog id, instead of `ctek-chargestorm-v2`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## easee_cloud 1.3.4
+
+The `DRIVER` table's id is now `easee_cloud`, the catalog id, instead of `easee-cloud`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## ferroamp_modbus 2.1.3
+
+The `DRIVER` table's id is now `ferroamp_modbus`, the catalog id, instead of `ferroamp-modbus`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## fronius_smart_meter 2.1.3
+
+The `DRIVER` table's id is now `fronius_smart_meter`, the catalog id, instead of `fronius-smart-meter`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## huawei 2.1.3
+
+The `DRIVER` table's id is now `huawei`, the catalog id, instead of `huawei-sun2000`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## nibe_local 1.2.1
+
+The `DRIVER` table's id is now `nibe_local`, the catalog id, instead of `nibe-local`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## pixii_pv 0.3.2
+
+The `DRIVER` table's id is now `pixii_pv`, the catalog id, instead of `pixii-pv`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## solaredge_legacy 0.3.3
+
+The `DRIVER` table's id is now `solaredge_legacy`, the catalog id, instead of `solaredge-legacy`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## solaredge_pv 1.2.2
+
+The `DRIVER` table's id is now `solaredge_pv`, the catalog id, instead of `solaredge-pv`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## solis_string 1.1.3
+
+The `DRIVER` table's id is now `solis_string`, the catalog id, instead of `solis-string`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## sungrow 1.5.9
+
+The `DRIVER` table's id is now `sungrow`, the catalog id, instead of `sungrow-shx`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## tesla_vehicle 0.2.3
+
+The `DRIVER` table's id is now `tesla_vehicle`, the catalog id, instead of `tesla-vehicle`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## tesla_wall_connector 0.1.1
+
+The `DRIVER` table's id is now `tesla_wall_connector`, the catalog id, instead of `tesla-wall-connector`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## zap 3.1.1
+
+The `DRIVER` table's id is now `zap`, the catalog id, instead of `sourceful-zap`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## zaptec_cloud 0.1.1
+
+The `DRIVER` table's id is now `zaptec_cloud`, the catalog id, instead of `zaptec-cloud`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## zuidwijk_p1 1.1.2
+
+The `DRIVER` table's id is now `zuidwijk_p1`, the catalog id, instead of `zuidwijk-p1`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## heishamon 0.5.1
+
+The `DRIVER` table's version now matches the catalog. It said 0.4.0 while the manifest said 0.5.0, because the file was kept byte-identical to the copy promoted from FTW. No behaviour change.
+
+## sdm630 2.0.2
+
+The `DRIVER` table's version now matches the catalog; it said 1.1.1 while the manifest said 2.0.1. Drop the Blixt L1 `DRIVER_MANIFEST` table. FTW never read it, and this repository no longer builds packages for other products. No behaviour change.
+
+## esphome_dsmr 1.0.4
+
+The source is now the ESPHome DSMR driver itself. `drivers/lua/esphome_dsmr.lua` held a generated channel artifact committed as source, so the channel wrapped its header twice and the published file reported id `esphome-dsmr` 1.0.2. The tested hardware now matches the `esphome-dsmr` entry, and the manifest says `control: false`, since the driver is read-only. The separate catalog entry `esphome-dsmr` stays for installs that use it.
+
+## ambibox_v2x 1.1.1
+
+The `DRIVER` table's id is now `ambibox_v2x` instead of `ambibox-v2x`, and its version matches the catalog (it said 1.0.0 while the manifest said 1.1.0). FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
+
+## ferroamp_dc2_v2x 2.1.1
+
+The `DRIVER` table's id is now `ferroamp_dc2_v2x` instead of `ferroamp-dc2-v2x`, and its version matches the catalog (it said 1.1.0 while the manifest said 2.1.0). JSON payloads are decoded through `pcall`, like every other MQTT driver; a bad payload is still logged and ignored. Control logic is unchanged. Hardware-in-the-loop testing is still pending before stable.
+
+## 50-125k-svk 0.2.4
+
+Drop the Blixt L1 `DRIVER_MANIFEST` table. FTW never read it, and this repository no longer builds packages for other products. No behaviour change.
+
+## 50-125k-svk-ac-slew 0.2.5
+
+Drop the Blixt L1 `DRIVER_MANIFEST` table. FTW never read it, and this repository no longer builds packages for other products. No behaviour change.
+
+## 50-125k-svk-slew 0.1.13
+
+Drop the Blixt L1 `DRIVER_MANIFEST` table. FTW never read it, and this repository no longer builds packages for other products. No behaviour change.
+
+## acuvim 0.4.3
+
+Drop the Blixt L1 `DRIVER_MANIFEST` table. FTW never read it, and this repository no longer builds packages for other products. No behaviour change.
+
+## deye-svk 0.2.2
+
+Drop the Blixt L1 `DRIVER_MANIFEST` table. FTW never read it, and this repository no longer builds packages for other products. No behaviour change.
+
+## foxess_h3_smart 0.9.6
+
+Drop the Blixt L1 `DRIVER_MANIFEST` table. FTW never read it, and this repository no longer builds packages for other products. No behaviour change.
+
+## konja-261-svk 0.3.2
+
+Drop the Blixt L1 `DRIVER_MANIFEST` table. FTW never read it, and this repository no longer builds packages for other products. No behaviour change.
+
 ## easee_cloud 1.3.3
 
 Omit `power_observed_at` when the power is unchanged since the last poll, so the host stamps the reading on arrival. Easee records TotalPower only when it changes, so a steady charge kept an old timestamp; FTW took it as a stale charger after three minutes and stopped the car every few minutes all night ([srcfl/ftw#1417](https://github.com/srcfl/ftw/pull/1417)). A new value still carries Easee's source time, and an offline charger (op_mode 0) still emits no sample.

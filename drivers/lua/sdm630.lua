@@ -14,7 +14,7 @@ DRIVER = {
     id = "sdm630",
     name = "Eastron SDM630 meter",
     manufacturer = "Eastron",
-    version = "1.1.1",
+    version = "2.0.2",
     protocols = { "modbus" },
     capabilities = { "meter" },
     read_only = true,
@@ -27,24 +27,6 @@ DRIVER = {
     connection_defaults = {
         port = 502,
         unit_id = 1,
-    },
-}
-
-DRIVER_MANIFEST = {
-    name = "sdm630",
-    version = "1.1.1",
-    role = "meter",
-    requires = {},
-    options = {},
-    provides = {
-        live = {
-            "meter.W", "meter.Hz",
-            "meter.L1_V", "meter.L2_V", "meter.L3_V",
-            "meter.L1_A", "meter.L2_A", "meter.L3_A",
-            "meter.L1_W", "meter.L2_W", "meter.L3_W",
-            "meter.total_import_Wh", "meter.total_export_Wh",
-        },
-        static = { "make" },
     },
 }
 

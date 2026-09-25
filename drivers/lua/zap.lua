@@ -35,10 +35,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "sourceful-zap",
+  id           = "zap",
   name         = "Sourceful Zap (P1/HAN meter)",
   manufacturer = "Sourceful",
-  version      = "3.1.0",
+  version      = "3.1.1",
   protocols    = { "http" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,

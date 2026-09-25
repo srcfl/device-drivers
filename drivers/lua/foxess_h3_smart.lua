@@ -148,7 +148,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.9.5",
+  version = "0.9.6",
   host_api_min = 1,
   host_api_max = 2,
   protocols = { "modbus" },
@@ -171,28 +171,6 @@ PROTOCOL = "modbus"
 -- what driver_poll emits; SoC, temperature and the energy counters are
 -- omitted from an emit when their block has given up, same as every
 -- other field here.
-DRIVER_MANIFEST = {
-  name = "foxess_h3_smart",
-  version = "0.9.5",
-  role = "inverter",
-  requires = {},
-  options = {},
-  provides = {
-    live = {
-      "pv.W", "pv.mppts", "pv.total_generation_Wh",
-      "battery.W", "battery.V", "battery.A",
-      "battery.SoC_nom_fract", "battery.temperature_C",
-      "battery.total_charge_Wh", "battery.total_discharge_Wh",
-      "meter.W", "meter.Hz",
-      "meter.L1_V", "meter.L2_V", "meter.L3_V",
-      "meter.L1_W", "meter.L2_W", "meter.L3_W",
-      "meter.L1_A", "meter.L2_A", "meter.L3_A",
-      "meter.total_import_Wh", "meter.total_export_Wh",
-    },
-    static = { "make" },
-  },
-}
-
 -- Model regs 30000..30015, serial regs 30016..30031, both ASCII.
 local MODEL_ADDR  = 30000
 -- One block covers inverter state through temperature:

@@ -20,10 +20,10 @@
 DRIVER = {
   host_api_min = 1,
   host_api_max = 1,
-  id           = "ferroamp-modbus",
+  id           = "ferroamp_modbus",
   name         = "Ferroamp EnergyHub (Modbus)",
   manufacturer = "Ferroamp",
-  version      = "2.1.2",
+  version      = "2.1.3",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
