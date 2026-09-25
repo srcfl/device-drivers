@@ -85,25 +85,6 @@ jobs:
       - run: git diff --exit-code -- support-status.json SUPPORT_STATUS.md
       - run: uv run --no-sync pytest -q drivers/tests tests
 
-  packages:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          fetch-depth: 1
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          python-version: "3.12"
-      - run: uv sync --frozen --extra package --extra dev
-      - name: Build each unsigned package candidate
-        run: |
-          for source in packages/v1/*/package-source.json; do
-            id="$(basename "$(dirname "$source")")"
-            uv run --no-sync python tools/build_candidate.py \
-              --id "$id" \
-              --output-dir "/tmp/device-driver-candidates/$id"
-          done
-
   # The sign-off certifies authored content, so this asks it of the commits that
   # carry some, and skips merge commits.
   #

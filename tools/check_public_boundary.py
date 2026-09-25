@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import subprocess
 from pathlib import Path
@@ -41,7 +40,6 @@ PROVENANCE_EXCEPTIONS = {Path("SOURCE_IMPORT.md"), Path("source-import-delta.jso
 PROVENANCE_TREES = (Path("baselines"),)
 SECRET_PATTERN_EXCEPTIONS = {
     Path("tools/check_public_boundary.py"),
-    Path("tools/driver_package.py"),
 }
 
 
@@ -88,13 +86,6 @@ def main(root: Path = ROOT) -> int:
                 for value in FORBIDDEN_TEXT:
                     if value in text:
                         errors.append(f"{relative}: forbidden private reference {value}")
-
-    for source in sorted((root / "packages" / "v1").glob("*/package-source.json")):
-        payload = json.loads(source.read_text(encoding="utf-8"))
-        if payload["source"]["repository"] != "https://github.com/srcfl/device-drivers":
-            errors.append(f"{source.relative_to(root)}: public source repository mismatch")
-        if payload["builder_id"] != "https://github.com/srcfl/device-drivers/blob/main/tools/driver_package.py":
-            errors.append(f"{source.relative_to(root)}: public builder id mismatch")
 
     if errors:
         for error in errors:

@@ -22,12 +22,9 @@ undefined-global analysis would need a real Lua parser and would fight with
 """
 
 import re
-from pathlib import Path
 
 import pytest
 from conftest import get_driver_names, read_driver, strip_lua_comments
-
-ROOT = Path(__file__).resolve().parents[2]
 
 # Names shaped like a local this repository would declare: a read guard or a
 # register block. Anything else is out of scope for this check.
@@ -58,20 +55,10 @@ def declared_locals(code: str) -> set[str]:
     return names
 
 
-def driver_sources():
-    sources = [(name, ROOT / "drivers" / "lua" / f"{name}.lua")
-               for name in get_driver_names()]
-    sources += [(f"package:{path.parent.parent.name}", path)
-                for path in sorted((ROOT / "packages" / "v1").glob("*/targets/*.lua"))]
-    return sources
-
-
 @pytest.mark.holds_for_ftw_drivers
-@pytest.mark.parametrize("name,path", driver_sources(), ids=lambda v: v if isinstance(v, str) else "")
-def test_driver_declares_every_guard_it_reads(name, path):
-    code = strip_lua_comments(
-        read_driver(name) if not str(path).startswith(str(ROOT / "packages"))
-        else path.read_text())
+@pytest.mark.parametrize("name", get_driver_names())
+def test_driver_declares_every_guard_it_reads(name):
+    code = strip_lua_comments(read_driver(name))
     declared = declared_locals(code)
 
     used = {}

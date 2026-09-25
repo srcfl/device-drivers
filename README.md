@@ -1,13 +1,9 @@
 # Sourceful Device Drivers
 
-This public repository is the source of truth for Sourceful device driver
-code, package metadata, compatibility contracts and tests. It is also FTW's
-main driver source. FTW installs signed, content-addressed release assets from
-this repository. It never runs raw code from `main`.
-
-Device Support may later consume an exact public commit to build packages for
-other products or a higher support level. It does not own a second editable
-copy of the source and is not FTW's normal driver source.
+This public repository is FTW's driver repository: the source of truth for its
+device driver code, catalog metadata and tests. FTW installs signed,
+content-addressed release assets from this repository. It never runs raw code
+from `main`.
 
 ## Browse the catalog
 
@@ -59,9 +55,7 @@ New drivers start with telemetry only. Control support needs a later,
 separate review with a safe default mode, a bounded command lease, structured
 results and supervised hardware-in-the-loop evidence.
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and
-[spec/driver-package-v1.md](spec/driver-package-v1.md) before changing a
-package contract.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 ## Scope
 
@@ -84,10 +78,6 @@ host provides, which `tools/host_api_check.py` enforces. Converting drivers to
 a single spelling was tried and abandoned: it changed 196 lines across 36
 field-proven drivers without changing what any of them does.
 
-Zap is built on a separate track that compiles from this source. Its
-constraints do not shape the drivers here, and it is not a target in these
-package recipes.
-
 What a driver may call is defined in [spec/host-api-profile.json](spec/host-api-profile.json)
 and enforced by `make check`. A function outside the profile is not available,
 whichever host it was tested against.
@@ -100,13 +90,12 @@ integrity, never hardware coverage.
 
 This repository contains only public source and validation code:
 
-- `drivers/lua` — shared Lua driver source;
+- `drivers/lua` — Lua driver source;
 - `manifests` — public catalog metadata and tested models;
-- `packages/v1` — signed-package build recipes and host adapters;
-- `spec` — package, inventory and command contracts;
-- `drivers/tests` and `tests` — driver and package tests;
+- `spec` — driver, host API, manifest and signing contracts;
+- `drivers/tests` and `tests` — driver and tooling tests;
 - `ftw-channel.json` — the rules for FTW's signed, read-only channel;
-- `tools` — local validation, FTW release builds and unsigned package builds.
+- `tools` — local validation and FTW release builds.
 
 Private keys, credentials, cloud roles and service code stay outside this
 repository. A pull request can produce unsigned test output only. GitHub
@@ -138,14 +127,9 @@ uv run python tools/ftw_download_stats.py
 
 GitHub counts asset downloads, not unique users or active installs.
 
-The separate package-v1 work remains available for Blixt and later Device
-Support use. It can consume the same public commit without changing FTW's
-default source.
-
 The catalog is not an install claim. See [SUPPORT_STATUS.md](SUPPORT_STATUS.md)
-for source, target conformance, signed beta, HIL, stable and legacy parity per
-driver and target. Nova and fleet inventory use the same driver, package and
-target identities from [support-status.json](support-status.json).
+for target conformance, signed beta, HIL and legacy parity per driver and
+target.
 
 ## License
 

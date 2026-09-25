@@ -305,8 +305,6 @@ def collect_drivers() -> list[dict]:
                 name: {
                     "conformance": target.get("target_conformance", "not_assessed"),
                     "hil": target.get("hil", "not_recorded"),
-                    "control_enabled": bool(target.get("control_enabled", False)),
-                    "stable": target.get("stable_package_version"),
                     "beta": target.get("historical_signed_beta_version"),
                     "note": target.get("note", ""),
                 }
@@ -644,12 +642,11 @@ SCRIPT = r"""
       return "<tr><td><b>" + esc(name) + "</b></td>" +
         '<td class="variants">' + esc(t.conformance) + "</td>" +
         '<td class="variants">' + esc(t.hil) + "</td>" +
-        '<td class="variants">' + esc(t.stable || "—") + "</td>" +
         '<td class="note">' + esc(t.note) + "</td></tr>";
     }).join("");
     return '<p class="subhead">Per-target status</p>' +
       '<div class="table-scroll"><table class="models"><thead><tr><th>Target</th><th>Conformance</th><th>HIL</th>' +
-      "<th>Stable package</th><th>Note</th></tr></thead><tbody>" + rows + "</tbody></table></div>";
+      "<th>Note</th></tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 
   // The vendor material the driver decodes. Reading a register map is how

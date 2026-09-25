@@ -1,27 +1,27 @@
 """Exercise ESPHome DSMR aliases against the canonical public driver."""
 
 from pathlib import Path
+import re
 import subprocess
-import sys
 
 import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "tools"))
-
-from driver_package import _validate_lua_source_for_target  # noqa: E402
 
 
 def test_esphome_dsmr_source_has_ftw_read_only_contract():
-    source = (ROOT / "drivers/lua/esphome-dsmr.lua").read_bytes()
-    _validate_lua_source_for_target(
+    source = (ROOT / "drivers/lua/esphome-dsmr.lua").read_text(encoding="utf-8")
+    for entrypoint in ("driver_init", "driver_poll", "driver_command",
+                       "driver_default_mode"):
+        assert re.search(rf"\bfunction\s+{entrypoint}\s*\(", source), entrypoint
+    assert re.search(r"\bhost_api_min\s*=", source)
+    assert re.search(r"\bhost_api_max\s*=", source)
+    assert re.search(r"\bread_only\s*=\s*true\b", source)
+    assert not re.search(
+        r"\bhost\.(?:http_post|modbus_write(?:_multi)?|mqtt_publish|serial_write)\s*\(",
         source,
-        target="ftw-core",
-        read_only=True,
-        package_version="1.0.2",
-        runtime_abi="gopher-lua-source-v1",
-    )
+    ), "a read-only driver calls a write-capable host function"
 
 
 @pytest.mark.parametrize("scenario", ["name-derived", "delivered-returned"])

@@ -14,8 +14,7 @@ for Ferroamp DC2 V2X field names. A focused host-contract test pins that change;
 no Ferroamp package recipe or release is part of this cutover, and physical HIL
 remains required before any signed Ferroamp artifact.
 
-From this import onward, this public repository is the editable source. The
-private service consumes a locked commit and must reject local source drift.
+From this import onward, this public repository is the editable source.
 
 ## FTW bundled drivers
 
@@ -25,7 +24,7 @@ hash, FTW driver id and version. `make check` verifies those hashes, so a
 baseline cannot be edited by hand.
 
 A baseline is a record, not a driver. Nothing under `baselines` reaches the
-catalog, a package recipe or the signed channel, and every entry stays
+catalog or the signed channel, and every entry stays
 `live_activation: blocked`.
 
 Re-import after a change in FTW:

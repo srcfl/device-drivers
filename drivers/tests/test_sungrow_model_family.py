@@ -26,7 +26,6 @@ ROOT = Path(__file__).resolve().parents[2]
 LUA = ROOT / "lua55"
 HARNESS = ROOT / "drivers" / "tests" / "lua_harness"
 DRIVER = ROOT / "drivers" / "lua" / "sungrow.lua"
-FTW_V2 = ROOT / "packages" / "v1" / "sungrow" / "targets" / "ftw.lua"
 
 # Every address in the hybrid block this driver touches.
 HYBRID_BLOCK = [12999, 13000, 13002, 13019, 13026, 13036, 13040, 13045, 13049]
@@ -273,8 +272,7 @@ def test_battery_refusal_says_why() -> None:
 
     assert out["CODE"] == "no_battery", (
         f"the refusal carried code {out['CODE']!r}. It must be 'no_battery', "
-        f"the same code packages/v1/sungrow/targets/ftw.lua already returns, "
-        f"so both control paths refuse in one vocabulary.")
+        f"which says the command never could succeed, not merely that it failed.")
     assert out["STATE"] == "unchanged", (
         "a refused command touched nothing, and the host needs to be told so "
         "before it decides whether the device still needs default mode")
@@ -378,49 +376,27 @@ def test_string_inverter_still_takes_a_curtail_command() -> None:
 
 
 # --------------------------------------------------------------------------
-# Both copies of this driver, held to one rule
+# One rule, however the battery is missing
 #
-# The Sungrow driver exists twice: the catalog driver the signed channel
-# publishes, and the FTW v2 control target, which is a separate file and not
-# generated from it. They speak different command ABIs -- v1 returns a boolean,
-# v2 returns a result table -- but the rule underneath is the same, so one test
-# states it once. Pixii's 40288 came back because the package target had its
-# own green test; the v2 target here had no pytest at all, only a Lua harness
-# CI does not run.
+# A model that names itself a string inverter and a model that names nothing
+# and never answers a battery register both have no battery to command. The
+# guard refuses both, and still accepts a battery it can confirm either way.
 # --------------------------------------------------------------------------
 
-BOTH_DRIVERS = [pytest.param(DRIVER, id="catalog"), pytest.param(FTW_V2, id="ftw-v2")]
-
-
-def battery_command_on(driver: Path) -> str:
-    """Send one battery setpoint through whichever ABI this file speaks."""
-    if driver == FTW_V2:
-        call = '''
-local result = driver_command_v2({
-    command = "battery.set_power",
-    runtime_action = "battery",
-    inputs = {power_w = 1000},
-})
-print("ACCEPTED " .. tostring(result.status ~= "rejected"))
-print("CODE " .. tostring(result.code or "none"))
-'''
-    else:
-        call = '''
-local accepted, refusal = driver_command("battery", 1000, {})
-print("ACCEPTED " .. tostring(accepted == true))
-print("CODE " .. tostring(type(refusal) == "table" and refusal.code or "none"))
-'''
+def battery_command() -> str:
+    """Send one battery setpoint once the driver has settled."""
     return f'''
-dofile("{driver}")
+dofile("{DRIVER}")
 driver_init({{}})
 for poll = 1, 4 do pcall(driver_poll) end
 host._modbus_write_attempts = 0
-{call}
+local accepted, refusal = driver_command("battery", 1000, {{}})
+print("ACCEPTED " .. tostring(accepted == true))
+print("CODE " .. tostring(type(refusal) == "table" and refusal.code or "none"))
 print("WRITES " .. tostring(host._modbus_write_attempts))
 '''
 
 
-@pytest.mark.parametrize("driver", BOTH_DRIVERS)
 @pytest.mark.parametrize("device,label", [
     pytest.param(STRING_INVERTER,
                  "a model that names itself a string inverter",
@@ -429,23 +405,20 @@ print("WRITES " .. tostring(host._modbus_write_attempts))
                  "a model that names nothing and answers no battery register",
                  id="unidentified-string"),
 ])
-def test_neither_copy_writes_a_battery_it_cannot_confirm(
-        driver: Path, device: str, label: str) -> None:
-    out = run_lua(device + battery_command_on(driver))
+def test_no_battery_write_it_cannot_confirm(device: str, label: str) -> None:
+    out = run_lua(device + battery_command())
 
     assert out["ACCEPTED"] == "false", (
-        f"{driver.name} accepted a battery setpoint on {label}. Writing "
+        f"the driver accepted a battery setpoint on {label}. Writing "
         f"13049/13050/13051 to an inverter that does not implement them is "
         f"unexpected traffic to live hardware, and answering success renews "
         f"the lease on a battery that is not there.")
     assert out["WRITES"] == "0", (
-        f"{driver.name} refused and still wrote {out['WRITES']} registers")
+        f"the driver refused and still wrote {out['WRITES']} registers")
     assert out["CODE"] == "no_battery", (
-        f"{driver.name} refused with code {out['CODE']!r}. Both control paths "
-        f"refuse in one vocabulary or they drift apart again.")
+        f"the driver refused with code {out['CODE']!r}, not 'no_battery'")
 
 
-@pytest.mark.parametrize("driver", BOTH_DRIVERS)
 @pytest.mark.parametrize("device,label", [
     pytest.param(HEALTHY_HYBRID,
                  "an inverter that names itself a hybrid",
@@ -454,13 +427,12 @@ def test_neither_copy_writes_a_battery_it_cannot_confirm(
                  "an inverter whose battery answers but whose type does not",
                  id="unidentified-hybrid"),
 ])
-def test_neither_copy_refuses_a_battery_it_can_confirm(
-        driver: Path, device: str, label: str) -> None:
+def test_no_refusal_of_a_battery_it_can_confirm(device: str, label: str) -> None:
     """The other half. Refusing too much is also an outage."""
-    out = run_lua(device + battery_command_on(driver))
+    out = run_lua(device + battery_command())
 
     assert out["ACCEPTED"] == "true", (
-        f"{driver.name} refused a battery setpoint on {label}. A driver that "
+        f"the driver refused a battery setpoint on {label}. A driver that "
         f"reads a battery every poll and will not command it has taken a "
         f"control off the fleet.")
 
@@ -489,9 +461,7 @@ def test_neither_copy_refuses_a_battery_it_can_confirm(
 #     watchdog and the stale-site-meter standdown, never through
 #     driver_command. driver_init writes self-consumption too, before the run
 #     loop can accept any command -- so the window where a battery command is
-#     refused is a window where the inverter is already back on its own. On
-#     the control v2 path FTW does not even rely on that: it calls
-#     driver_default_mode_v2 itself once driver_init returns.
+#     refused is a window where the inverter is already back on its own.
 #
 # Refusing therefore withholds nothing that is not reachable by a route which
 # cannot refuse. Accepting would put mode 2 and a setpoint back on an SG
@@ -502,18 +472,6 @@ def test_neither_copy_refuses_a_battery_it_can_confirm(
 # The residue is honest and small: if the init write fails on a real hybrid,
 # battery commands are refused until the first poll confirms the battery --
 # at most one poll interval, with driver_default_mode available throughout.
-#
-# The two copies agree on the guard, and the tests below hold both to it. They
-# do NOT agree on what zero writes: the catalog driver forces idle (mode 2),
-# the v2 target hands the inverter back (mode 0, device_state "default", which
-# clears FTW's lease). The v2 target uses a different register map throughout
-# -- 13050 and 13051 as per-direction limits rather than force command and
-# setpoint -- so this is one question inside a larger one. It belongs to the
-# register-map review packages/v1/sungrow/PILOT.md already requires before
-# that target ships; its verification_status is "experimental" and the signed
-# package builds from targets/ftw-observe.lua, so nothing here reaches
-# hardware today. Written down because untested drift between these two files
-# is how Pixii's 40288 came back.
 # --------------------------------------------------------------------------
 
 NOTHING_ANSWERED_YET = '''
@@ -549,7 +507,7 @@ print("WRITE_LOG " .. table.concat(writes, ","))
 '''
 
 
-def zero_command_before_any_poll(driver: Path) -> str:
+def zero_command_before_any_poll() -> str:
     """Init, then one zero-watt battery command, with no poll in between.
 
     The earliest a command can reach a driver on FTW. Registry.Add runs
@@ -557,33 +515,18 @@ def zero_command_before_any_poll(driver: Path) -> str:
     channel before the first poll timer fires -- and that timer is a full poll
     interval out, longer with host.set_warmup_s.
     """
-    if driver == FTW_V2:
-        call = '''
-local result = driver_command_v2({
-    command = "battery.set_power",
-    runtime_action = "battery",
-    inputs = {power_w = 0},
-})
-print("ACCEPTED " .. tostring(result.status ~= "rejected"))
-print("CODE " .. tostring(result.code or "none"))
-'''
-    else:
-        call = '''
-local accepted, refusal = driver_command("battery", 0, {})
-print("ACCEPTED " .. tostring(accepted == true))
-print("CODE " .. tostring(type(refusal) == "table" and refusal.code or "none"))
-'''
     return f'''
-dofile("{driver}")
+dofile("{DRIVER}")
 driver_init({{}})
 host._modbus_write_attempts = 0
-{call}
+local accepted, refusal = driver_command("battery", 0, {{}})
+print("ACCEPTED " .. tostring(accepted == true))
+print("CODE " .. tostring(type(refusal) == "table" and refusal.code or "none"))
 print("WRITES " .. tostring(host._modbus_write_attempts))
 '''
 
 
-@pytest.mark.parametrize("driver", BOTH_DRIVERS)
-def test_zero_watts_is_still_a_battery_command(driver: Path) -> None:
+def test_zero_watts_is_still_a_battery_command() -> None:
     """A setpoint of zero is a setpoint. It proves nothing about the battery.
 
     Nothing here says this device has one: no family named, no battery
@@ -591,16 +534,16 @@ def test_zero_watts_is_still_a_battery_command(driver: Path) -> None:
     is not a guard -- an SG string inverter takes a zero as readily as it
     takes a thousand, and answers success to both.
     """
-    out = run_lua(NOTHING_ANSWERED_YET + zero_command_before_any_poll(driver))
+    out = run_lua(NOTHING_ANSWERED_YET + zero_command_before_any_poll())
 
     assert out["ACCEPTED"] == "false", (
-        f"{driver.name} accepted a zero-watt battery command on a device that "
-        f"has confirmed nothing. Zero is not exempt: it writes the same three "
-        f"registers to the same models, and reports the same false success.")
+        "the driver accepted a zero-watt battery command on a device that "
+        "has confirmed nothing. Zero is not exempt: it writes the same three "
+        "registers to the same models, and reports the same false success.")
     assert out["WRITES"] == "0", (
-        f"{driver.name} refused and still wrote {out['WRITES']} registers")
+        f"the driver refused and still wrote {out['WRITES']} registers")
     assert out["CODE"] == "no_battery", (
-        f"{driver.name} refused with code {out['CODE']!r}, not 'no_battery'")
+        f"the driver refused with code {out['CODE']!r}, not 'no_battery'")
 
 
 def test_zero_watts_takes_the_inverter_over_rather_than_handing_it_back() -> None:
@@ -631,27 +574,17 @@ print("ACCEPTED " .. tostring(accepted == true))
         f"reads it backwards.")
 
 
-def release_before_any_poll(driver: Path) -> str:
+def release_before_any_poll() -> str:
     """Init, then the release, with no poll in between."""
-    if driver == FTW_V2:
-        call = '''
-local result = driver_default_mode_v2({reason = "host_shutdown"})
-print("RELEASED " .. tostring(result.status ~= "rejected"))
-'''
-    else:
-        call = '''
-print("RELEASED " .. tostring(driver_default_mode() == true))
-'''
     return f'''
-dofile("{driver}")
+dofile("{DRIVER}")
 driver_init({{}})
 host._calls = {{}}
-{call}
+print("RELEASED " .. tostring(driver_default_mode() == true))
 ''' + ems_mode_written()
 
 
-@pytest.mark.parametrize("driver", BOTH_DRIVERS)
-def test_the_release_is_never_gated(driver: Path) -> None:
+def test_the_release_is_never_gated() -> None:
     """Why refusing a battery command is safe, and the thing that must not move.
 
     Refusing costs nothing only while handing the inverter back stays
@@ -659,13 +592,13 @@ def test_the_release_is_never_gated(driver: Path) -> None:
     driver_command is gated and the whole argument collapses: a device would
     then be able to hold a forced state that nothing is allowed to clear.
     """
-    out = run_lua(NOTHING_ANSWERED_YET + release_before_any_poll(driver))
+    out = run_lua(NOTHING_ANSWERED_YET + release_before_any_poll())
 
     assert out["RELEASED"] == "true", (
-        f"{driver.name} refused to hand the inverter back on a device that "
-        f"has confirmed nothing. Shutdown, lease expiry, the watchdog and the "
-        f"stale-meter standdown all arrive here, and none of them can wait "
-        f"for a poll.")
+        "the driver refused to hand the inverter back on a device that "
+        "has confirmed nothing. Shutdown, lease expiry, the watchdog and the "
+        "stale-meter standdown all arrive here, and none of them can wait "
+        "for a poll.")
     assert out["EMS_MODE_WRITTEN"] == "0", (
         f"the release left EMS mode at {out['EMS_MODE_WRITTEN']}, not 0. "
         f"Anything else keeps the inverter under FTW's control.")

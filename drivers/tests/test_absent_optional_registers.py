@@ -89,33 +89,23 @@ print("STREAMS " .. streams)
 ''')
 
 
-# The catalog driver and the package target are separate files that both ship.
-# Fixing one and not the other is what let this bug come back: #16 patched both,
-# #27 overwrote only the catalog copy, and the package target's own test stayed
-# green while the flap reached customer hardware. Hold both to the same rule.
-PIXII_SOURCES = {
-    "catalog": ROOT / "drivers" / "lua" / "pixii.lua",
-    "package-target": ROOT / "packages" / "v1" / "pixii" / "targets" / "ftw.lua",
-}
-
-
-@pytest.mark.parametrize("source", sorted(PIXII_SOURCES), ids=sorted(PIXII_SOURCES))
-def test_pixii_gives_up_on_an_absent_scale_factor(source):
+def test_pixii_gives_up_on_an_absent_scale_factor():
     """40288 meter_energy_sf is absent on PowerShaper firmware below CPU 2.0.23."""
-    out = poll_with_absent(PIXII_SOURCES[source], absent=40288, present=40256,
+    out = poll_with_absent(ROOT / "drivers" / "lua" / "pixii.lua",
+                           absent=40288, present=40256,
                            config="{host = '127.0.0.1', port = 502, unit_id = 1}")
 
     assert int(out["ABSENT_READS"]) <= GIVE_UP_AFTER, (
-        f"pixii {source} read absent 40288 {out['ABSENT_READS']} times over "
+        f"pixii read absent 40288 {out['ABSENT_READS']} times over "
         f"{POLLS} polls, so it never stopped. Every failed read counts against "
         f"the poll and takes the driver offline; the budget is {GIVE_UP_AFTER}."
     )
     # Caching absence must not freeze a scale factor the firmware does carry.
     assert int(out["PRESENT_READS"]) >= POLLS, (
-        f"pixii {source} stopped re-reading meter power SF 40256, which is present"
+        "pixii stopped re-reading meter power SF 40256, which is present"
     )
     assert int(out["STREAMS"]) >= 2, (
-        f"pixii {source} stopped telemetry when 40288 is absent"
+        "pixii stopped telemetry when 40288 is absent"
     )
 
 

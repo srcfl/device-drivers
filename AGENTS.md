@@ -1,9 +1,8 @@
 # Device driver repository guide
 
-This public repository is the only editable source for shared Sourceful device
-drivers and the main driver source for FTW. It publishes FTW's signed driver
-channel from reviewed commits. Device Support may later consume a locked commit
-for other products or support levels, but it does not own a second source tree.
+This public repository is FTW's driver repository and the only editable source
+for its device drivers. It publishes FTW's signed driver channel from reviewed
+commits.
 
 ## FTW product direction
 
@@ -30,23 +29,20 @@ and control acceptance gates below.
 - Keep signing keys out of source, logs and build output.
 - Public pull-request builds stay unsigned. The release workflow signs the FTW
   channel only after a reviewed change reaches `main`.
-- A catalog or package build never grants activation or control authority.
+- A catalog build never grants activation or control authority.
 - New drivers start read-only.
 - Control needs a safe default mode, bounded leases, structured results and HIL
   acceptance for every target host.
 
 ## Where a driver change has to land
 
-A driver can exist in three places. Fixing one and leaving the others is how a
+A driver can exist in two places. Fixing one and leaving the other is how a
 fixed bug comes back.
 
 1. **`drivers/lua/<id>.lua`** — the catalog driver. This is what the signed
-   channel publishes and what FTW bundles. Every fix starts here.
-2. **`packages/v1/<id>/targets/*.lua`** — a separate file, not generated from
-   the catalog driver. Only some drivers have one. A package target carries its
-   own version line and can drift from the catalog copy without any check
-   noticing. If the driver you are fixing has one, fix both.
-3. **FTW's `drivers/`** — a recovery snapshot, generated from this repository
+   channel publishes and what FTW bundles. Every fix starts here, and it is
+   the only copy of a driver in this repository.
+2. **FTW's `drivers/`** — a recovery snapshot, generated from this repository
    at the commit pinned in FTW's `drivers/BUNDLED_SOURCE.json`. Never edit a
    driver there; FTW's own CI rejects the drift. But note the reverse: merging
    here does **not** reach that snapshot. Someone has to move the pin and run
@@ -54,9 +50,10 @@ fixed bug comes back.
    offline still runs the old driver.
 
 Pixii's flap on register 40288 is the worked example. It was fixed in #16,
-survived in the package target, was reverted in the catalog driver by #27, and
-reached customer hardware a second time. See the entries for **pixii** 2.1.1
-and **solaredge_legacy** 0.3.1 in `CHANGELOG.md`.
+survived in a separate package-target copy, was reverted in the catalog driver
+by #27, and reached customer hardware a second time. See the entries for
+**pixii** 2.1.1 and **solaredge_legacy** 0.3.1 in `CHANGELOG.md`. Those copies
+have since been removed.
 
 ### Editing a driver that came from FTW
 
@@ -82,9 +79,6 @@ rule may be right and the driver wrong, or the check itself may be wrong.
   caught there rather than by a wrong value on a customer's site. A document
   behind a login cannot be watched; reference it in a driver comment instead.
   See `docs/WRITING-A-DRIVER.md`.
-- Keep Lua compatible with every runtime declared in the package recipe.
-- Package id, version, read-only state and target metadata must match the Lua
-  `DRIVER` block.
 
 ## Checks
 
@@ -92,7 +86,6 @@ Run the narrow driver command while editing, then the full check:
 
 ```bash
 make test-driver ID=example
-make package-driver ID=example TARGET=ftw-core
 make check
 ```
 

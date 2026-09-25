@@ -37,14 +37,13 @@ DIALECT = PROFILE["deprecated"]["ftw_to_blixt"]
 PENDING = set(PROFILE["pending"]["functions"])
 
 CATALOG = sorted((ROOT / "drivers" / "lua").glob("*.lua"))
-TARGETS = sorted((ROOT / "packages" / "v1").glob("*/targets/*.lua"))
 
 
 def called_functions(path: Path) -> set[str]:
     return set(HOST_CALL.findall(path.read_text(encoding="utf-8", errors="replace")))
 
 
-@pytest.mark.parametrize("path", CATALOG + TARGETS, ids=lambda p: p.stem)
+@pytest.mark.parametrize("path", CATALOG, ids=lambda p: p.stem)
 def test_driver_calls_only_functions_a_host_provides(path: Path) -> None:
     called = called_functions(path)
     unknown = called - LINUX_EDGE - set(DIALECT) - set(DIALECT.values())
@@ -58,7 +57,7 @@ def test_driver_calls_only_functions_a_host_provides(path: Path) -> None:
            if unknown & PENDING else ""))
 
 
-@pytest.mark.parametrize("path", CATALOG + TARGETS, ids=lambda p: p.stem)
+@pytest.mark.parametrize("path", CATALOG, ids=lambda p: p.stem)
 def test_driver_does_not_mix_both_spellings_of_one_function(path: Path) -> None:
     """One driver, one dialect. Both names of the same function means a mistake."""
     called = called_functions(path)

@@ -1,12 +1,10 @@
 ID ?=
 PROTOCOL ?= modbus
 KIND ?= meter
-TARGET ?= ftw-core
-ARTIFACT_DIR ?= .artifacts/$(ID)
 
 LEVEL ?= patch
 
-.PHONY: bootstrap new-driver test-driver package-driver check boundary \
+.PHONY: bootstrap new-driver test-driver check boundary \
 	refused-write-report absent-register-report \
 	sync-manifests bump-driver history ftw-baseline ftw-baseline-report \
 	host-api site watch-upstream-docs
@@ -55,10 +53,6 @@ test-driver:
 	bash tools/check_sandbox.sh "drivers/lua/$(ID).lua"
 	uv run --frozen --extra package --extra dev python tools/validate_manifest.py "manifests/$(ID).yaml"
 	uv run --frozen --extra package --extra dev pytest -q drivers/tests -k "$(ID)"
-
-package-driver:
-	test -n "$(ID)"
-	uv run --frozen --extra package --extra dev python tools/build_candidate.py --id "$(ID)" --target "$(TARGET)" --output-dir "$(ARTIFACT_DIR)"
 
 boundary:
 	uv run --frozen --extra package --extra dev python tools/check_public_boundary.py

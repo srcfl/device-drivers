@@ -42,13 +42,12 @@ git checkout -b add-example-meter
 make new-driver ID=example PROTOCOL=modbus KIND=meter
 ```
 
-The generated package is read-only and targets FTW and Blixt through the shared
-Lua 5.1 source profile. Edit the generated files rather than creating a second
-manifest elsewhere.
+The generated driver is read-only and comes with its manifest. Edit the
+generated files rather than creating a second manifest elsewhere.
 
 Every driver must:
 
-- declare `DRIVER` metadata whose id and version match its package;
+- declare `DRIVER` metadata whose id and version match its manifest;
 - implement `driver_init`, `driver_poll`, `driver_cleanup` and a safe
   `driver_default_mode` when control is later added;
 - translate vendor signs at the driver boundary;
@@ -140,12 +139,8 @@ make history
 ```bash
 make bootstrap
 make test-driver ID=example
-make package-driver ID=example TARGET=ftw-core
 make check
 ```
-
-The package command creates an unsigned candidate under `.artifacts/`. It does
-not grant release or signing rights.
 
 The FTW release build turns each source file into a signed, read-only Lua
 artifact. The channel includes the full catalog and checks every generated

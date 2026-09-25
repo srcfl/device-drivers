@@ -13,15 +13,6 @@ ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ("ftw-core", "blixt-l1")
 
 
-def package_data(driver_id: str) -> tuple[dict | None, dict[str, dict]]:
-    path = ROOT / "packages" / "v1" / driver_id / "package-source.json"
-    if not path.exists():
-        return None, {}
-    package = json.loads(path.read_text(encoding="utf-8"))
-    targets = {item["target"]: item for item in package["compatibility"]}
-    return package, targets
-
-
 def main() -> int:
     overrides = json.loads(
         (ROOT / "support-status-overrides.json").read_text(encoding="utf-8")
@@ -31,18 +22,13 @@ def main() -> int:
     for manifest_path in sorted((ROOT / "manifests").glob("*.yaml")):
         manifest = parse_yaml_simple(manifest_path.read_text(encoding="utf-8"))
         driver_id = manifest["name"]
-        package, package_targets = package_data(driver_id)
         target_status: dict[str, dict] = {}
         for target in TARGETS:
-            compatibility = package_targets.get(target)
             status = {
                 "target_conformance": "not_assessed",
-                "candidate_package_version": package["version"] if compatibility else None,
                 "historical_signed_beta_version": None,
                 "hil": "not_recorded",
-                "stable_package_version": None,
                 "legacy_parity": "not_assessed",
-                "control_enabled": bool(compatibility and compatibility["control_enabled"]),
                 "note": "",
             }
             status.update(overrides.get(driver_id, {}).get(target, {}))
@@ -53,12 +39,9 @@ def main() -> int:
                     str(manifest["version"]),
                     target,
                     status["target_conformance"],
-                    status["candidate_package_version"] or "—",
                     status["historical_signed_beta_version"] or "—",
                     status["hil"],
-                    status["stable_package_version"] or "—",
                     status["legacy_parity"],
-                    "yes" if status["control_enabled"] else "no",
                 ]
             )
         drivers.append(
@@ -66,7 +49,6 @@ def main() -> int:
                 "driver_id": driver_id,
                 "catalog_version": str(manifest["version"]),
                 "catalog_source": True,
-                "package_id": package["package_id"] if package else None,
                 "targets": target_status,
             }
         )
@@ -80,8 +62,8 @@ def main() -> int:
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     headers = [
-        "Driver", "Catalog", "Target", "Conformance", "Candidate", "Signed beta",
-        "HIL", "Stable", "Legacy parity", "Control",
+        "Driver", "Catalog", "Target", "Conformance", "Signed beta", "HIL",
+        "Legacy parity",
     ]
     lines = [
         "# Driver support status",

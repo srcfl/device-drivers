@@ -23,22 +23,16 @@ See CONTRIBUTING.md. -->
 - [ ] Cached telemetry becomes stale instead of being re-emitted as fresh.
 - [ ] No credentials, serial numbers, private addresses or site data are included.
 
-## Package or promotion evidence
+## Control evidence
 
-Complete this part when a package version, target, control contract or release
-candidate changes. Use `not applicable` for a driver-only read-only change.
+Complete this part when a control path changes. Use `not applicable` for a
+read-only change.
 
-- Public source SHA:
-- Package ID and new version:
-- Target matrix:
-- Material and candidate artifact SHA-256:
 - HIL evidence or `required`:
-- Control enabled: `false` unless all control gates have passed
 - [ ] Control changes include default-mode, lease-expiry and HIL evidence.
 
 ## Checks
 
 - [ ] Commits include `Signed-off-by`.
 - [ ] `make test-driver ID=<id>`
-- [ ] `make package-driver ID=<id> TARGET=<target>`
 - [ ] `make check`
