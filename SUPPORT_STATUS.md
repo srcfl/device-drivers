@@ -48,10 +48,8 @@ Catalog source is not proof that a target can install or run a driver.
 | easee | 1.0.4 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | easee_cloud | 1.3.4 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | easee_cloud | 1.3.4 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| esphome-dsmr | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| esphome-dsmr | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| esphome_dsmr | 1.0.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| esphome_dsmr | 1.0.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| esphome_dsmr | 1.0.6 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| esphome_dsmr | 1.0.6 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | etrel | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | etrel | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ferroamp | 2.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |

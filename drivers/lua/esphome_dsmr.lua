@@ -62,9 +62,12 @@ DRIVER = {
   id           = "esphome_dsmr",
   name         = "ESPHome DSMR (P1)",
   manufacturer = "ESPHome",
-  version      = "1.0.5",
+  version      = "1.0.6",
   host_api_min = 1,
   host_api_max = 1,
+  -- This driver replaces the catalog entry of the same device published as
+  -- esphome-dsmr. A host moves a device that runs it to this one.
+  replaces     = { "esphome-dsmr" },
   protocols    = { "http" },
   capabilities = { "meter" },
   description  = "Smart meter via ESPHome web_server v3 + dsmr component (Sourceful Zap on open firmware, DIY ESP32+P1, etc.).",
