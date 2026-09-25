@@ -1,5 +1,9 @@
 # Changelog
 
+## esphome_dsmr 1.0.6
+
+The catalog entry `esphome-dsmr` is folded into this one: it was the same driver for the same device under a second id. `esphome_dsmr` declares `replaces = { "esphome-dsmr" }` in its `DRIVER` table, so a host can move a device that runs the old entry to this driver. Every published `esphome-dsmr` artifact stays in the signed channel's history, so an installed copy keeps running until then.
+
 ## esphome_dsmr 1.0.5
 
 Each field of the `DRIVER` table is on its own line, `host_api_min` and `host_api_max` included. FTW reads these fields line by line, so with both on the `DRIVER = {` line its bundled copy could not state its host API. No behaviour change.
