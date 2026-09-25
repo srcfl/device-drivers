@@ -213,15 +213,15 @@ drivers:
     size_bytes: 16772
     sha256: "f91e7c1769c239020b94aa75555dcaf830449d60d2bbbe54d09a969d2a423382"
   - name: "esphome_dsmr"
-    version: "1.0.4"
+    version: "1.0.5"
     tier: core
     protocol: http
     connectivity: local
     setup: [bridge]
     ders: [meter]
     control: false
-    size_bytes: 16772
-    sha256: "4c51414c0eaa02d5d6e1319337e0355e4ea8af5ada3390604544ea152156b400"
+    size_bytes: 16776
+    sha256: "cae8f72ad3ddf56e8c5be28fcbfa7218801f87bfe7552c4f04394a60ef55bb3f"
   - name: "etrel"
     version: "1.0.3"
     tier: community

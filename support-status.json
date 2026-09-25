@@ -485,7 +485,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.4",
+      "catalog_version": "1.0.5",
       "driver_id": "esphome_dsmr",
       "targets": {
         "blixt-l1": {

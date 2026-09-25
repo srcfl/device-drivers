@@ -1,5 +1,9 @@
 # Changelog
 
+## esphome_dsmr 1.0.5
+
+Each field of the `DRIVER` table is on its own line, `host_api_min` and `host_api_max` included. FTW reads these fields line by line, so with both on the `DRIVER = {` line its bundled copy could not state its host API. No behaviour change.
+
 ## ctek 0.3.3
 
 The `DRIVER` table's id is now `ctek`, the catalog id, instead of `ctek-chargestorm`. FTW compares the id of its bundled copy with the signed channel's to decide which file runs; the old spelling kept them from matching. No behaviour change.
