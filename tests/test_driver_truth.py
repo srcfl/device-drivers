@@ -64,6 +64,28 @@ def test_manifest_hash_and_size_match_the_source(driver_id: str) -> None:
         f"drivers/lua/{driver_id}.lua. Run: make sync-manifests")
 
 
+def lua_driver_id(text: str) -> str | None:
+    start = text.find("DRIVER")
+    if start == -1:
+        return None
+    end = text.find("\n}", start)
+    if end == -1:
+        return None
+    match = re.search(r'\bid\s*=\s*"([^"]+)"', text[start:end])
+    return match.group(1) if match else None
+
+
+@pytest.mark.parametrize("driver_id", DRIVER_IDS)
+def test_manifest_and_driver_table_agree_on_the_id(driver_id: str) -> None:
+    # FTW compares the id its bundled copy declares with the signed channel's
+    # to decide which file runs, so one driver has one id, spelled once.
+    lua_id = lua_driver_id((LUA_DIR / f"{driver_id}.lua").read_text(encoding="utf-8"))
+    if lua_id is None:
+        pytest.skip(f"{driver_id} has no id in its DRIVER table")
+    assert lua_id == driver_id, (
+        f"{driver_id}: the DRIVER table says id {lua_id!r}; it must be {driver_id!r}")
+
+
 @pytest.mark.parametrize("driver_id", DRIVER_IDS)
 def test_manifest_and_driver_table_agree_on_the_version(driver_id: str) -> None:
     manifest_version = manifest_field(
@@ -73,14 +95,6 @@ def test_manifest_and_driver_table_agree_on_the_version(driver_id: str) -> None:
 
     if lua_version is None:
         pytest.skip(f"{driver_id} has no version in its DRIVER table")
-
-    baseline = ROOT / "baselines" / "ftw" / "drivers" / f"{driver_id}.lua"
-    if baseline.exists() and baseline.read_bytes() == (LUA_DIR / f"{driver_id}.lua").read_bytes():
-        pytest.skip(
-            f"{driver_id} is FTW's driver verbatim. Its DRIVER table counts "
-            f"FTW's releases; the manifest counts this repository's. Making "
-            f"them agree would mean editing a file kept byte-identical to its "
-            f"baseline, which is what makes provenance checkable.")
 
     assert manifest_version == lua_version, (
         f"{driver_id}: manifest says {manifest_version}, the DRIVER table says "

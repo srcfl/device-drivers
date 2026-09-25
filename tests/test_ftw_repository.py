@@ -206,7 +206,7 @@ def test_esphome_dsmr_artifact_declares_one_ftw_host_api_range(
     tmp_path: Path, keypair: tuple[str, str]
 ) -> None:
     manifest, output = build(tmp_path, keypair)
-    driver = next(driver for driver in manifest["drivers"] if driver["id"] == "esphome-dsmr")
+    driver = next(driver for driver in manifest["drivers"] if driver["id"] == "esphome_dsmr")
     artifact = output / Path(driver["url"]).name
     source = artifact.read_text(encoding="utf-8")
 
@@ -503,12 +503,17 @@ def test_check_versions_accepts_a_changed_driver_that_took_a_version(
     ).group(1)
     previous_path = publish_once(tmp_path, keypair, repo, config_path)
 
-    source_path.write_text(source_path.read_text() + "\n-- source changed\n")
     major, minor, patch = (int(part) for part in published_version.split("."))
+    bumped = f"{major}.{minor}.{patch + 1}"
+    # One version per driver: the DRIVER table moves with the manifest.
+    source_path.write_text(
+        source_path.read_text().replace(f'"{published_version}"', f'"{bumped}"', 1)
+        + "\n-- source changed\n"
+    )
     manifest_path.write_text(
         re.sub(
             r'^version:\s*"[^"]+"',
-            f'version: "{major}.{minor}.{patch + 1}"',
+            f'version: "{bumped}"',
             manifest_path.read_text(),
             count=1,
             flags=re.M,

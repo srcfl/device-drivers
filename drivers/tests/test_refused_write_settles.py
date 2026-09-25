@@ -94,7 +94,6 @@ def driver_names() -> list[str]:
     return sorted(p.stem for p in DRIVERS.glob("*.lua"))
 
 
-@pytest.mark.holds_for_ftw_drivers
 @pytest.mark.parametrize("driver", driver_names())
 def test_refused_write_debt_does_not_grow(driver: str) -> None:
     baseline = load_baseline()
