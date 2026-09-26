@@ -1,5 +1,9 @@
 # Changelog
 
+## teslamate_vehicle 0.1.0
+
+Read-only Tesla vehicle telemetry from TeslaMate over MQTT: SoC, charge limit, charging state and time to full. Identity is Tesla plus the VIN from YAML, since TeslaMate does not publish the VIN. A reading is fresh only when TeslaMate reports the car awake and has just read it: a changed charge field, or the `healthy` message it sends with every update. In between, the driver replays the last reading with `soc_fresh=false`, and it stops after 15 minutes. It never publishes, wakes the car or starts a charge, and it talks only to the owner's MQTT broker, not to Tesla's cloud or Home Assistant. Optional next to `tesla_vehicle` (TeslaBLEProxy). Not yet run against a car.
+
 ## esphome_dsmr 1.0.6
 
 The catalog entry `esphome-dsmr` is folded into this one: it was the same driver for the same device under a second id. `esphome_dsmr` declares `replaces = { "esphome-dsmr" }` in its `DRIVER` table, so a host can move a device that runs the old entry to this driver. Every published `esphome-dsmr` artifact stays in the signed channel's history, so an installed copy keeps running until then.

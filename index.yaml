@@ -717,6 +717,16 @@ drivers:
     control: false
     size_bytes: 8162
     sha256: "66b6313eda4f68a92a7cc55931baa2408cb6cbb249145f7e6005456fb821d284"
+  - name: "teslamate_vehicle"
+    version: "0.1.0"
+    tier: community
+    protocol: mqtt
+    connectivity: local
+    setup: [bridge]
+    ders: [vehicle]
+    control: false
+    size_bytes: 13260
+    sha256: "916cc84bd8df4080ccccbcc9bc968082771e847a6c1f020cfeefc52d4db68a43"
   - name: "tibber"
     version: "1.1.2"
     tier: core

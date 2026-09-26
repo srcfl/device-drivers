@@ -160,6 +160,8 @@ Catalog source is not proof that a target can install or run a driver.
 | tesla_vehicle | 0.2.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | tesla_wall_connector | 0.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | tesla_wall_connector | 0.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| teslamate_vehicle | 0.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| teslamate_vehicle | 0.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | tibber | 1.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | tibber | 1.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | varta | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
