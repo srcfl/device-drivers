@@ -1,5 +1,17 @@
 # Changelog
 
+## vag_vehicle 0.1.0
+
+Read-only VW / Audi / Škoda / SEAT / Cupra telemetry from the VW Group EU
+Data Act portal. We Connect third-party APIs are blocked; this is the remaining
+owner door. The driver emits `DerVehicle` (SoC, charge limit, charging_state,
+time-to-full, stale, soc_fresh), binds identity with `set_make` / `set_sn`
+(VIN), ages the last dataset and stops emitting when it is stale. Cloud access
+is not a charging prerequisite. The owner enables a continuous 15-minute All
+Data request on the portal and pastes a session Cookie header — the Lua host
+has no cookie jar and cannot complete the portal's OIDC login. Porsche, wake
+and charge_start are out of scope.
+
 ## esphome_dsmr 1.0.6
 
 The catalog entry `esphome-dsmr` is folded into this one: it was the same driver for the same device under a second id. `esphome_dsmr` declares `replaces = { "esphome-dsmr" }` in its `DRIVER` table, so a host can move a device that runs the old entry to this driver. Every published `esphome-dsmr` artifact stays in the signed channel's history, so an installed copy keeps running until then.

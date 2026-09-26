@@ -1,0 +1,29 @@
+name: "vag_vehicle"
+version: "0.1.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: http
+connectivity: cloud
+setup: [vendor_portal]
+ders: [vehicle]
+control: false
+tested_devices:
+  - manufacturer: "Volkswagen Group"
+    model_family: "VAG Vehicle (EU Data Act)"
+    variants: [ID.3, ID.4, Enyaq, Q4 e-tron]
+    regions: [EU]
+    firmware_versions: ""
+    notes: "Read-only SoC and charge state from the VW Group EU Data Act portal. We Connect third-party APIs are blocked. Owner must enable a continuous 15-minute All Data request and paste a portal session cookie. Not live BMS; charging does not need this cloud. Porsche is not on this portal. Not yet exercised on a live FTW site."
+    min_driver_version: "0.1.0"
+upstream_docs:
+  - url: "https://eu-data-act.drivesomethinggreater.com/"
+    title: "VW Group EU Data Act portal"
+    kind: api_docs
+    url_stability: stable
+min_host_version: "2.0.0"
+size_bytes: 23703
+dkb_id: "vag_vehicle"
+sha256: "2781120682e9f8b4c864d317f3c62fb259375073a91e828bf25010e0d3fd7726"
+signature: ""
+
+bytecode_sha256: ""
