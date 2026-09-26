@@ -147,7 +147,7 @@ host._mqtt_buffer = {
 }
 driver_poll()
 assert(#(host._emitted.vehicle) == after_fresh + 1, "replay cache while young")
-assert(last_vehicle().stale == true, "replay is stale")
+assert(last_vehicle().stale == false, "a young replay must not drop the car from Core")
 assert(last_vehicle().soc_fresh == false, "replay is not fresh")
 assert(last_vehicle().soc == 67, "replay keeps SoC")
 assert(count_publish() == 0, "asleep poll must not publish")
@@ -172,7 +172,7 @@ assert(last_vehicle() and last_vehicle().soc == 55, "online parked emits")
 host._mqtt_buffer = {}
 driver_poll()
 assert(last_vehicle().soc_fresh == false, "idle replay is not fresh")
-assert(last_vehicle().stale == true, "idle replay is stale")
+assert(last_vehicle().stale == false, "a young idle replay is not stale")
 host._millis_counter = host._millis_counter + 900001
 local n = #(host._emitted.vehicle)
 host._mqtt_buffer = {}
@@ -240,6 +240,60 @@ host._mqtt_buffer = {
 }
 driver_poll()
 assert(last_vehicle().charging_state == "Charging", "nil payload must not wipe state")
+
+-- TeslaMate publishes a value only when it changes, but sends healthy with
+-- every update. A healthy=true while awake is a new observation of the
+-- retained values.
+boot()
+push({ state = "online", healthy = "true", soc = 70, limit = 80, charging_state = "Stopped" })
+driver_poll()
+assert(last_vehicle() and last_vehicle().soc_fresh == true, "prime")
+host._millis_counter = host._millis_counter + 600000
+host._mqtt_buffer = { { topic = "teslamate/cars/1/healthy", payload = "true" } }
+driver_poll()
+assert(last_vehicle().soc_fresh == true, "healthy heartbeat while awake refreshes")
+assert(last_vehicle().soc == 70, "heartbeat keeps the retained SoC")
+host._millis_counter = host._millis_counter + 600000
+host._mqtt_buffer = {}
+driver_poll()
+assert(last_vehicle().soc_fresh == false, "no heartbeat, no fresh reading")
+
+-- A heartbeat while TeslaMate has suspended polling is not a car reading.
+boot()
+push({ state = "online", healthy = "true", soc = 70, limit = 80, charging_state = "Stopped" })
+driver_poll()
+local n_primed = #(host._emitted.vehicle)
+host._mqtt_buffer = {
+  { topic = "teslamate/cars/1/state", payload = "suspended" },
+  { topic = "teslamate/cars/1/healthy", payload = "true" },
+}
+driver_poll()
+assert(#(host._emitted.vehicle) == n_primed + 1, "suspended: replay")
+assert(last_vehicle().soc_fresh == false, "suspended heartbeat is not fresh")
+
+-- TeslaMate reporting itself unhealthy marks the replay stale.
+host._mqtt_buffer = { { topic = "teslamate/cars/1/healthy", payload = "false" } }
+driver_poll()
+assert(last_vehicle().stale == true, "unhealthy TeslaMate marks the replay stale")
+assert(last_vehicle().soc_fresh == false, "unhealthy is not fresh")
+
+-- When charging ends TeslaMate sends an empty time_to_full_charge and
+-- charger_actual_current. The old values must not linger.
+boot()
+push({ state = "charging", healthy = "true", soc = 60, limit = 80,
+       charging_state = "Charging", ttf_h = 0.7, actual = 16 })
+driver_poll()
+assert(last_vehicle().time_to_full_min == 42, "prime time to full")
+host._mqtt_buffer = {
+  { topic = "teslamate/cars/1/state", payload = "online" },
+  { topic = "teslamate/cars/1/charging_state", payload = "Complete" },
+  { topic = "teslamate/cars/1/time_to_full_charge", payload = "" },
+  { topic = "teslamate/cars/1/charger_actual_current", payload = "" },
+}
+driver_poll()
+assert(last_vehicle().charging_state == "Complete", "state moves on")
+assert(last_vehicle().time_to_full_min == nil, "empty time_to_full_charge clears it")
+assert(last_vehicle().charger_actual_current == nil, "empty charger_actual_current clears it")
 
 assert(count_publish() == 0, "driver must never mqtt_publish")
 print("OK teslamate_vehicle")

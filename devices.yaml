@@ -1808,7 +1808,7 @@ manufacturers:
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only vehicle SoC, charge limit and charging state via TeslaMate MQTT. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car."
+        notes: "Read-only vehicle SoC, charge limit and charging state via TeslaMate MQTT. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
       - name: "Tesla Wall Connector"
         variants: [Wall Connector Gen 3]
         regions: []

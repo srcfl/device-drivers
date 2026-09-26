@@ -18,12 +18,17 @@
 --
 -- Vendor document:
 --   https://docs.teslamate.org/docs/integrations/mqtt
--- TeslaMate payloads are per-topic strings, retained. While the car is
--- asleep TeslaMate stops updating; retained values can be hours old. Age
--- is host.millis() of the last awake observation (online / charging /
--- driving / updating / starting). Replay with stale=true / soc_fresh=false
--- until STALE_AFTER_MS, then stop. A first subscribe that only sees an
--- asleep car is not a live observation and emits nothing.
+-- TeslaMate payloads are per-topic strings, retained, and published only
+-- when a value changes. `healthy` is the exception: it is not retained and
+-- goes out with every update TeslaMate makes, so a healthy=true message
+-- while the car is awake means TeslaMate has just read the car and the
+-- retained values still hold. While the car is asleep TeslaMate stops
+-- updating; retained values can be hours old. Age is host.millis() of the
+-- last awake observation (state online / charging / driving / updating).
+-- In between, the driver replays that observation with soc_fresh=false so
+-- Core ages it from the observation, and stops after STALE_AFTER_MS. A
+-- first subscribe that only sees an asleep car is not a live observation
+-- and emits nothing.
 --
 -- Config (MQTT host/port/user live on the capability grant, not here):
 --
@@ -75,12 +80,13 @@ local POLL_INTERVAL_MS   = 5000
 local STALE_AFTER_MS     = 900000
 local WATCHDOG_TIMEOUT_S = 300
 
+-- TeslaMate's state topic also carries asleep, offline and suspended, and
+-- briefly start or unavailable. None of those is a live reading.
 local AWAKE = {
   online    = true,
   charging  = true,
   driving   = true,
   updating  = true,
-  starting  = true,
 }
 
 local vin = nil
@@ -103,7 +109,9 @@ local last = {
 
 -- Fields collected from MQTT that have not yet been accepted as a live
 -- observation. Kept across polls so state and battery_level can arrive
--- on different ticks.
+-- on different ticks. nil means not received; false means TeslaMate sent
+-- an empty value (it does for time_to_full_charge and
+-- charger_actual_current once charging ends).
 local incoming = {
   soc                    = nil,
   charge_limit           = nil,
@@ -204,19 +212,23 @@ local function remember()
     last.charge_amps = tonumber(incoming.charge_amps)
   end
   if incoming.charger_actual_current ~= nil then
-    last.charger_actual_current = tonumber(incoming.charger_actual_current)
+    last.charger_actual_current = tonumber(incoming.charger_actual_current) or nil
   end
   local cs = incoming.charging_state
   if type(cs) == "string" and cs ~= "" then
     last.charging_state = cs
   end
   if incoming.time_to_full ~= nil then
-    last.time_to_full = incoming.time_to_full
+    last.time_to_full = incoming.time_to_full or nil
   end
   last.seen_ms = host.millis()
   return true
 end
 
+-- A replay repeats the last awake observation with soc_fresh=false, so Core
+-- keeps the time of that observation and ages it itself. Marking every
+-- replay stale would drop the car from Core between two MQTT updates.
+-- stale=true only when TeslaMate reports itself unhealthy.
 local function emit_vehicle(fresh)
   if last.soc == nil or last.seen_ms == 0 then return end
   local age = host.millis() - last.seen_ms
@@ -230,13 +242,14 @@ local function emit_vehicle(fresh)
     time_to_full_min       = last.time_to_full,
     charge_amps            = last.charge_amps,
     charger_actual_current = last.charger_actual_current,
-    stale                  = not fresh,
+    stale                  = last.healthy == false,
     soc_fresh              = fresh,
   })
 end
 
--- Returns true when this message is a live charge-field update. State,
--- health and model do not refresh seen_ms on their own.
+-- Returns true when this message shows TeslaMate has just read the car: a
+-- charge-field update, or the healthy=true it sends with every update.
+-- State and model do not refresh seen_ms on their own.
 local function apply_message(msg)
   if type(msg) ~= "table" then return false end
   local key = topic_key(msg.topic)
@@ -251,7 +264,7 @@ local function apply_message(msg)
   if key == "healthy" then
     local b = as_bool(p)
     if b ~= nil then last.healthy = b end
-    return false
+    return b == true
   end
   if key == "model" then
     if payload_present(p) and host.set_model then
@@ -277,6 +290,10 @@ local function apply_message(msg)
     return true
   end
   if key == "time_to_full_charge" then
+    if not payload_present(p) then
+      incoming.time_to_full = false
+      return true
+    end
     local mins = hours_to_min(p)
     if mins == nil then return false end
     incoming.time_to_full = mins
@@ -289,6 +306,10 @@ local function apply_message(msg)
     return true
   end
   if key == "charger_actual_current" then
+    if not payload_present(p) then
+      incoming.charger_actual_current = false
+      return true
+    end
     local n = tonumber(p)
     if n == nil then return false end
     incoming.charger_actual_current = n
@@ -350,9 +371,9 @@ function driver_poll()
     if apply_message(msg) then saw_charge = true end
   end
 
-  -- Only a charge-field message while TeslaMate says the car is awake
-  -- starts (or refreshes) the age clock. Idle polls and asleep retained
-  -- values must not look like a new BMS reading.
+  -- Only a charge-field message or a healthy heartbeat while TeslaMate says
+  -- the car is awake starts (or refreshes) the age clock. Idle polls and
+  -- asleep retained values must not look like a new BMS reading.
   if can_accept_fresh() and saw_charge and remember() then
     host.log("info", "teslamate_vehicle: emit soc=" .. tostring(last.soc) ..
                      " limit=" .. tostring(last.charge_limit) ..

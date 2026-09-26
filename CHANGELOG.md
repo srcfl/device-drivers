@@ -2,7 +2,7 @@
 
 ## teslamate_vehicle 0.1.0
 
-Read-only Tesla vehicle telemetry from TeslaMate MQTT: SoC, charge limit, charging state and time-to-full. Identity is Tesla + VIN (YAML; TeslaMate does not publish VIN). Vendor data is aged from the last awake observation and emission stops when it is stale. The driver never publishes, wakes or starts a charge. Optional next to `tesla_vehicle` (TeslaBLEProxy). TeslaMate is the common combo when the owner already runs it — FTW does not talk to Tesla Fleet cloud or ingest Home Assistant.
+Read-only Tesla vehicle telemetry from TeslaMate over MQTT: SoC, charge limit, charging state and time to full. Identity is Tesla plus the VIN from YAML, since TeslaMate does not publish the VIN. A reading is fresh only when TeslaMate reports the car awake and has just read it: a changed charge field, or the `healthy` message it sends with every update. In between, the driver replays the last reading with `soc_fresh=false`, and it stops after 15 minutes. It never publishes, wakes the car or starts a charge, and it talks only to the owner's MQTT broker, not to Tesla's cloud or Home Assistant. Optional next to `tesla_vehicle` (TeslaBLEProxy). Not yet run against a car.
 
 ## esphome_dsmr 1.0.6
 
