@@ -1,12 +1,24 @@
 -- Telemetry-only VAG / EU Data Act vehicle driver.
--- Args: stored.zip deflated.zip streamed.zip oversized.zip nosoc.zip
+-- Args: stored.zip deflated.zip streamed.zip oversized.zip nosoc.zip large.zip
 
 dofile("drivers/tests/lua_harness/host_mock.lua")
 
-local stored_path, deflated_path, streamed_path, oversized_path, nosoc_path =
-    arg[1], arg[2], arg[3], arg[4], arg[5]
-assert(stored_path and deflated_path and streamed_path and oversized_path and nosoc_path,
-    "usage: test_vag_vehicle.lua stored.zip deflated.zip streamed.zip oversized.zip nosoc.zip")
+-- FTW runs gopher-lua, whose table.concat puts every item of the range on a
+-- value stack of about 5,000 slots. C Lua has no such limit, so refuse long
+-- ranges here too, or a driver that needs them passes this test and fails
+-- on a box with "registry overflow".
+local c_concat = table.concat
+table.concat = function(t, sep, i, j)
+    i = i or 1
+    j = j or #t
+    assert(j - i < 2000, "table.concat over " .. (j - i + 1) .. " items overflows gopher-lua")
+    return c_concat(t, sep, i, j)
+end
+
+local stored_path, deflated_path, streamed_path, oversized_path, nosoc_path, large_path =
+    arg[1], arg[2], arg[3], arg[4], arg[5], arg[6]
+assert(stored_path and deflated_path and streamed_path and oversized_path and nosoc_path and large_path,
+    "usage: test_vag_vehicle.lua stored.zip deflated.zip streamed.zip oversized.zip nosoc.zip large.zip")
 
 local function read_bin(path)
     local f = assert(io.open(path, "rb"))
@@ -20,6 +32,7 @@ local deflated_zip = read_bin(deflated_path)
 local streamed_zip = read_bin(streamed_path)
 local oversized_zip = read_bin(oversized_path)
 local nosoc_zip = read_bin(nosoc_path)
+local large_zip = read_bin(large_path)
 assert(#stored_zip > 0 and #deflated_zip > 0 and #streamed_zip > 0, "empty zip fixture")
 
 local VIN = "WVWZZZTESTVIN0001"
@@ -169,6 +182,18 @@ assert(#rows() == 0, "oversized dataset must not emit")
 assert(logged("dataset too large"), "oversized dataset is logged")
 driver_poll()
 assert(#host._download_log == 1, "a refused file is not downloaded again")
+
+-- A few hundred kB of data points: the unzip flushes chunks, and every join
+-- stays short enough for gopher-lua.
+boot()
+listing({ file(OLD, "2026-09-26T06:45:00Z") })
+host._downloads[OLD] = stored_zip
+driver_poll()
+listing({ file(OLD, "2026-09-26T06:45:00Z"), file(FILE, "2026-09-26T07:00:00Z") })
+host._downloads[FILE] = large_zip
+driver_poll()
+assert(last_row().soc == 71, "large dataset decodes, got " .. tostring(last_row().soc))
+assert(last_row().soc_fresh == true, "large dataset is a fresh reading")
 
 -- A new file without SoC is read once and replays the last reading.
 boot()

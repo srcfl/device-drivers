@@ -52,7 +52,7 @@ DRIVER = {
   id           = "vag_vehicle",
   name         = "VAG Vehicle (EU Data Act)",
   manufacturer = "Volkswagen Group",
-  version      = "0.1.0",
+  version      = "0.1.1",
   protocols    = { "http" },
   capabilities = { "vehicle" },
   read_only    = true,
@@ -165,10 +165,31 @@ local function u32le(s, i)
 end
 
 -- A dataset larger than this is refused rather than inflated: the charging
--- fields need far less, and every driver shares the host's memory.
-local MAX_JSON_BYTES = 4194304
+-- fields need far less, every driver shares the host's memory, and a poll
+-- has 10 seconds. In FTW's gopher-lua, 1 MB of JSON took 0.6 s on an Apple
+-- M-series core; a Raspberry Pi is several times slower.
+local MAX_JSON_BYTES = 2097152
 -- DEFLATE back-references reach at most this far back.
 local WINDOW = 32768
+-- FTW runs gopher-lua, whose table.concat puts every item of the range on
+-- a value stack of about 5,000 slots, so a long range fails with "registry
+-- overflow". Join at most JOIN_STEP items per call.
+local JOIN_STEP = 256
+
+local function join(parts, first, last)
+  local level = {}
+  for i = first, last, JOIN_STEP do
+    level[#level + 1] = table.concat(parts, "", i, math.min(i + JOIN_STEP - 1, last))
+  end
+  while #level > 1 do
+    local up = {}
+    for i = 1, #level, JOIN_STEP do
+      up[#up + 1] = table.concat(level, "", i, math.min(i + JOIN_STEP - 1, #level))
+    end
+    level = up
+  end
+  return level[1] or ""
+end
 
 local function inflate_raw(src)
   local pos = 1
@@ -180,7 +201,7 @@ local function inflate_raw(src)
 
   local function flush()
     local keep = n - WINDOW
-    chunks[#chunks + 1] = table.concat(out, "", 1, keep)
+    chunks[#chunks + 1] = join(out, 1, keep)
     flushed = flushed + keep
     for i = 1, WINDOW do out[i] = out[keep + i] end
     for i = WINDOW + 1, n do out[i] = nil end
@@ -421,8 +442,8 @@ local function inflate_raw(src)
       return nil
     end
     if bfinal == 1 then
-      chunks[#chunks + 1] = table.concat(out, "", 1, n)
-      return table.concat(chunks)
+      chunks[#chunks + 1] = join(out, 1, n)
+      return join(chunks, 1, #chunks)
     end
   end
 end

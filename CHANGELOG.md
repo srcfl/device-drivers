@@ -1,5 +1,9 @@
 # Changelog
 
+## vag_vehicle 0.1.1
+
+A dataset of more than a few kB failed on a box with "registry overflow". FTW runs gopher-lua, whose `table.concat` puts every item of the range on a value stack of about 5,000 slots, and the unzip joined its whole output in one call. It now joins at most 256 items per call. The test harness refuses longer `table.concat` ranges too, since the C Lua the tests run has no such limit. The dataset cap drops from 4 MiB to 2 MiB: in FTW's host, 1 MB of JSON took 0.6 s to unzip and read on an Apple M-series core, a poll has 10 seconds, and a Raspberry Pi is several times slower.
+
 ## vag_vehicle 0.1.0
 
 Read-only VW, Audi, Škoda, SEAT and Cupra telemetry from the VW Group EU Data Act portal, the one owner door left now that We Connect's third-party APIs are closed. The owner orders a continuous 15-minute All Data delivery on the portal and pastes the Cookie header of a logged-in portal session: the Lua host has no cookie jar and cannot complete the portal's OIDC login, so the driver stops when that session ends. Every 5 minutes it lists the delivered files, downloads the newest one with content, unzips it in Lua (streamed zip entries included, 4 MiB cap) and emits `DerVehicle`: SoC, charge limit, charging state and time to full. Data keys follow VW's data dictionary V5.0. The newest file at start has an unknown age, so it is reported stale until a newer file arrives. Portal data are about 15 minutes old, so Core will mostly show this SoC rather than steer by it. Cloud access is not a charging prerequisite. Porsche, wake and charge start are out of scope. Not yet run against the portal or a car.
