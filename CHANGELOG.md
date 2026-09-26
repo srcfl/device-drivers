@@ -2,7 +2,7 @@
 
 ## tesla_cloud 0.1.0
 
-Read-only Tesla vehicle telemetry from the official Fleet API: SoC, charge limit, charging state and time-to-full. Identity is Tesla + VIN. Vendor data is aged and emission stops when it is stale. The driver never posts wake, charge_start or any other car command, and it does not call vehicle_data while the car is asleep. Optional next to `tesla_vehicle` (TeslaBLEProxy on the LAN). Cloud access is not a charging prerequisite.
+Read-only Tesla vehicle telemetry from the official Fleet API: SoC, charge limit, charging state and time to full. Identity is Tesla plus the VIN, and the model comes from the VIN. The driver checks the car's state on the free vehicle endpoint every 5 minutes and calls the billed `vehicle_data` only for a car that is already awake: every 4 minutes while it charges, every 20 minutes otherwise, and not on the first check after it wakes. It never wakes the car or sends a command. The refresh token and client secret go only to Tesla's auth host, and a rejected token waits 15 minutes before the next try. Between reads the driver replays the last reading with `soc_fresh=false`, and it stops after 25 minutes. Optional next to `tesla_vehicle` (TeslaBLEProxy). Cloud access is not a charging prerequisite. Not yet run against a car.
 
 ## esphome_dsmr 1.0.6
 

@@ -8,13 +8,23 @@
 -- and Core already plans from a stated default or the plug-in slider.
 --
 -- Telemetry only. No wake_up, charge_start, or other vehicle commands.
--- GET /api/1/vehicles/{vin}/vehicle_data is a live call and is expensive;
--- this driver asks for it only when GET /api/1/vehicles/{vin} already says
--- the car is online, so a sleeping car is not woken from here.
+-- GET /api/1/vehicles/{vin}/vehicle_data is a live call to the car and a
+-- billed request; Tesla says not to poll it regularly. GET
+-- /api/1/vehicles/{vin} returns the car's state without a live call and
+-- is not billed. So the driver checks the state every 5 minutes and reads
+-- charge_state only from a car that is already awake: every 4 minutes
+-- while it charges, every 20 minutes otherwise, and not on the first check
+-- after it wakes, so it does not stretch the car's own short wakes. A
+-- sleeping car is never woken from here. The host polls every minute; a
+-- poll between those checks sends nothing and replays the last reading.
 --
--- Vendor documents (login-gated Tesla developer portal — not watchable):
---   https://developer.tesla.com/docs/fleet-api/authentication/third-party-tokens
+-- Vendor documents (public):
 --   https://developer.tesla.com/docs/fleet-api/endpoints/vehicle-endpoints
+--   https://developer.tesla.com/docs/fleet-api/authentication/third-party-tokens
+--   https://developer.tesla.com/docs/fleet-api/billing-and-limits
+-- They are not in the manifest's upstream_docs: the page HTML changes
+-- with every deploy of Tesla's site, and the watcher hashes raw bytes.
+--
 -- Auth is OAuth refresh_token against fleet-auth. Refresh tokens rotate and
 -- are persisted via host.persist_secret. Scopes needed: openid, offline_access,
 -- vehicle_device_data. Do not grant vehicle_cmds / vehicle_charging_cmds for
@@ -64,11 +74,13 @@ DRIVER = {
   authors      = { "FTW contributors" },
   tested_models = { "Model Y", "Model 3" },
   verification_status = "experimental",
-  config_secrets = { "client_secret", "refresh_token", "access_token" },
+  config_secrets = { "client_secret", "refresh_token" },
 }
 
 PROTOCOL = "http"
 
+-- Fixed: the POST that carries the refresh token and client secret only
+-- ever goes to Tesla's auth host.
 local AUTH_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token"
 local REGION_URL = {
   na = "https://fleet-api.prd.na.vn.cloud.tesla.com",
@@ -76,9 +88,27 @@ local REGION_URL = {
   cn = "https://fleet-api.prd.cn.vn.cloud.tesla.com.cn",
 }
 
-local POLL_ONLINE_MS  = 60000
-local POLL_ASLEEP_MS  = 300000
-local STALE_AFTER_MS  = 900000
+-- Tesla VINs carry the model line in the fourth character.
+local VIN_MODEL = {
+  S = "Model S",
+  ["3"] = "Model 3",
+  X = "Model X",
+  Y = "Model Y",
+  C = "Cybertruck",
+}
+
+-- The host ignores driver_poll's return value and keeps the interval last
+-- set with host.set_poll_interval, so every poll sets it. Requests to Tesla
+-- are paced separately by next_request_ms.
+local POLL_MS           = 60000
+local CHARGING_EVERY_MS = 240000   -- charging: the car is awake anyway
+local IDLE_EVERY_MS     = 1200000  -- awake, not charging: let it fall asleep
+local ASLEEP_EVERY_MS   = 300000   -- state check only: free, wakes nothing
+local ERROR_RETRY_MS    = 300000
+local BACKOFF_MS        = 900000   -- failed token refresh or HTTP 429
+-- Longer than IDLE_EVERY_MS, so an awake idle car stays listed between
+-- reads. Core itself stops using a vehicle SoC 5 minutes after it was read.
+local STALE_AFTER_MS    = 1500000
 local WATCHDOG_TIMEOUT_S = 300
 
 local client_id     = nil
@@ -88,15 +118,16 @@ local access_token  = nil
 local token_expires_at = 0
 local vin           = nil
 local base_url      = REGION_URL.eu
-local auth_url      = AUTH_URL
+local next_request_ms = 0
+-- Whether the car was online at the previous state check (nil: not
+-- checked yet since start).
+local was_online    = nil
 
--- Last vendor observation. seen_ms is host.millis() when this vendor
--- timestamp (or this successful parse, if Tesla omitted timestamp) first
--- arrived. Age is measured on that clock; Tesla's unix ms cannot be
--- compared to host.millis().
+-- Last vendor observation. seen_ms is host.millis() of the last successful
+-- charge_state read. Age is measured on that clock; Tesla's unix ms cannot
+-- be compared to host.millis().
 local last = {
   seen_ms                = 0,
-  vendor_ts              = nil,
   soc                    = nil,
   charge_limit           = nil,
   charging_state         = nil,
@@ -188,7 +219,7 @@ local function fetch_token()
   if client_secret and client_secret ~= "" then
     body = body .. "&client_secret=" .. url_encode(client_secret)
   end
-  local resp, err = safe_http_post(auth_url, body, {
+  local resp, err = safe_http_post(AUTH_URL, body, {
     ["Content-Type"] = "application/x-www-form-urlencoded",
     Accept = "application/json",
   })
@@ -215,13 +246,17 @@ local function ensure_auth()
   return fetch_token()
 end
 
-local function bind_identity(next_vin, model)
-  if next_vin and next_vin ~= "" then
-    vin = tostring(next_vin)
-    host.set_sn(vin)
-  end
-  if model and model ~= "" and host.set_model then
-    host.set_model(tostring(model))
+-- The model comes from the VIN, not display_name: that is the name the
+-- owner gave the car.
+local function bind_identity(next_vin)
+  if not next_vin or next_vin == "" then return end
+  local s = tostring(next_vin)
+  if s == vin then return end
+  vin = s
+  host.set_sn(vin)
+  local model = VIN_MODEL[vin:sub(4, 4):upper()]
+  if model and host.set_model then
+    host.set_model(model)
   end
 end
 
@@ -279,17 +314,17 @@ end
 
 local function charge_state_from(decoded)
   local root = unwrap(decoded)
-  if type(root) ~= "table" then return nil, nil end
+  if type(root) ~= "table" then return nil end
   if type(root.charge_state) == "table" then
-    return root.charge_state, root
+    return root.charge_state
   end
   if root.battery_level ~= nil then
-    return root, root
+    return root
   end
-  return nil, root
+  return nil
 end
 
-local function remember(cs, vendor_ts)
+local function remember(cs)
   local soc = tonumber(cs.battery_level)
   if soc == nil then return false end
   last.soc                    = soc
@@ -305,13 +340,16 @@ local function remember(cs, vendor_ts)
     if ttf_h ~= nil then ttf_min = math.floor(ttf_h * 60 + 0.5) end
   end
   last.time_to_full = ttf_min
-  last.vendor_ts = vendor_ts
   -- Successful vehicle_data is a new observation. Age is for failed or
   -- asleep polls that would otherwise replay this cache forever.
   last.seen_ms = host.millis()
   return true
 end
 
+-- A replay repeats the last observation with soc_fresh=false, so Core keeps
+-- the time of that observation and ages it itself. Marking a replay stale
+-- would drop the car from Core between two reads. After STALE_AFTER_MS the
+-- driver stops emitting.
 local function emit_vehicle(fresh)
   if last.soc == nil or last.seen_ms == 0 then return end
   local age = host.millis() - last.seen_ms
@@ -325,7 +363,7 @@ local function emit_vehicle(fresh)
     time_to_full_min       = last.time_to_full,
     charge_amps            = last.charge_amps,
     charger_actual_current = last.charger_actual_current,
-    stale                  = not fresh,
+    stale                  = false,
     soc_fresh              = fresh,
   })
 end
@@ -334,13 +372,21 @@ local function fetch_charge_state()
   local url = base_url .. "/api/1/vehicles/" .. vin
     .. "/vehicle_data?endpoints=charge_state"
   local resp, err = safe_http_get(url, auth_headers())
-  if err then return nil, nil, err end
+  if err then return nil, err end
   local decoded, derr = decode_json(resp)
-  if derr then return nil, nil, derr end
+  if derr then return nil, derr end
   if type(decoded) == "table" and decoded.error then
-    return nil, nil, tostring(decoded.error)
+    return nil, tostring(decoded.error)
   end
-  return charge_state_from(decoded)
+  return charge_state_from(decoded), nil
+end
+
+local function wait(ms)
+  next_request_ms = host.millis() + ms
+end
+
+local function is_charging(state)
+  return state == "Charging" or state == "Starting"
 end
 
 function driver_init(config)
@@ -349,37 +395,44 @@ function driver_init(config)
   client_id     = config.client_id
   client_secret = config.client_secret
   refresh_token = config.refresh_token
-  if config.access_token and config.access_token ~= "" then
-    access_token = config.access_token
-    token_expires_at = host.millis() + 300000
-  end
   if config.vin and tostring(config.vin) ~= "" then
-    bind_identity(config.vin, nil)
+    bind_identity(config.vin)
   end
   local region = tostring(config.region or "eu"):lower()
-  base_url = REGION_URL[region] or REGION_URL.eu
-  if config.base_url and tostring(config.base_url) ~= "" then
-    base_url = tostring(config.base_url):gsub("/$", "")
+  base_url = REGION_URL[region]
+  if not base_url then
+    host.log("warn", "tesla_cloud: unknown region " .. region .. ", using eu")
+    region = "eu"
+    base_url = REGION_URL.eu
   end
-  if config.auth_url and tostring(config.auth_url) ~= "" then
-    auth_url = tostring(config.auth_url)
-  end
+  next_request_ms = 0
   if host.set_watchdog_timeout_s then
     host.set_watchdog_timeout_s(WATCHDOG_TIMEOUT_S)
   end
+  -- First poll soon; driver_poll sets POLL_MS on every path after that.
   host.set_poll_interval(500)
+  if not client_id or client_id == "" or not refresh_token or refresh_token == "" then
+    host.log("error", "tesla_cloud: client_id and refresh_token required (Fleet API auth-code exchange)")
+  end
   host.log("info", "tesla_cloud: init region=" .. region ..
                    " vin=" .. tostring(vin or "(discover)") ..
                    " telemetry-only")
 end
 
 function driver_poll()
-  if not refresh_token and not access_token then
-    return POLL_ASLEEP_MS
+  host.set_poll_interval(POLL_MS)
+  if not refresh_token or refresh_token == "" then
+    return POLL_MS
   end
-  if not ensure_auth() then
+  if host.millis() < next_request_ms then
     emit_vehicle(false)
-    return POLL_ASLEEP_MS
+    return POLL_MS
+  end
+
+  if not ensure_auth() then
+    wait(BACKOFF_MS)
+    emit_vehicle(false)
+    return POLL_MS
   end
 
   local row, err = vehicle_row()
@@ -389,81 +442,83 @@ function driver_poll()
       row, err = vehicle_row()
     end
   end
-  if err then
+  if err or type(row) ~= "table" then
     host.log("warn", "tesla_cloud: vehicle status: " .. redact_http_err(err))
+    wait(ERROR_RETRY_MS)
     emit_vehicle(false)
-    return POLL_ASLEEP_MS
-  end
-  if type(row) ~= "table" then
-    emit_vehicle(false)
-    return POLL_ASLEEP_MS
+    return POLL_MS
   end
 
-  bind_identity(row.vin, row.display_name)
+  bind_identity(row.vin)
   if not vin or vin == "" then
     host.log("warn", "tesla_cloud: no VIN on account")
-    return POLL_ASLEEP_MS
+    wait(ERROR_RETRY_MS)
+    return POLL_MS
   end
 
   local state = tostring(row.state or ""):lower()
-  if state ~= "online" then
+  local online = state == "online"
+  local woke_just_now = online and was_online == false
+  was_online = online
+  if not online then
     host.log("debug", "tesla_cloud: " .. vin .. " is " .. (state ~= "" and state or "unknown") ..
                       " — not calling vehicle_data")
+    wait(ASLEEP_EVERY_MS)
     emit_vehicle(false)
-    host.set_poll_interval(POLL_ASLEEP_MS)
-    return POLL_ASLEEP_MS
+    return POLL_MS
+  end
+  if woke_just_now then
+    -- The car wakes briefly on its own. A live call now would keep it
+    -- awake; if it is still online at the next check, it is in use.
+    host.log("debug", "tesla_cloud: " .. vin .. " just woke — reading at the next check")
+    wait(ASLEEP_EVERY_MS)
+    emit_vehicle(false)
+    return POLL_MS
   end
 
-  local cs, root, ferr = fetch_charge_state()
+  local cs, ferr = fetch_charge_state()
   if ferr and tostring(ferr):match("HTTP 401") then
     token_expires_at = 0
     if ensure_auth() then
-      cs, root, ferr = fetch_charge_state()
+      cs, ferr = fetch_charge_state()
     end
   end
   if ferr then
     local es = tostring(ferr)
     if es:match("HTTP 408") or es:match("vehicle unavailable") then
       host.log("debug", "tesla_cloud: vehicle_data unavailable (asleep)")
+      wait(ASLEEP_EVERY_MS)
     elseif es:match("HTTP 429") then
       host.log("warn", "tesla_cloud: rate limited")
-      emit_vehicle(false)
-      return 180000
+      wait(BACKOFF_MS)
     else
       host.log("warn", "tesla_cloud: vehicle_data: " .. redact_http_err(ferr))
+      wait(ERROR_RETRY_MS)
     end
     emit_vehicle(false)
-    host.set_poll_interval(POLL_ONLINE_MS)
-    return POLL_ONLINE_MS
+    return POLL_MS
   end
-  if type(cs) ~= "table" then
-    host.log("debug", "tesla_cloud: no charge_state")
+  if type(cs) ~= "table" or not remember(cs) then
+    host.log("debug", "tesla_cloud: no battery_level in charge_state")
+    wait(IDLE_EVERY_MS)
     emit_vehicle(false)
-    return POLL_ONLINE_MS
+    return POLL_MS
   end
 
-  if root and (not vin or vin == "") then
-    bind_identity(root.vin, root.display_name)
-  end
-  if root and type(root.vehicle_config) == "table" and root.vehicle_config.car_type then
-    bind_identity(nil, root.vehicle_config.car_type)
-  end
-
-  if not remember(cs, tonumber(cs.timestamp)) then
-    emit_vehicle(false)
-    return POLL_ONLINE_MS
+  if is_charging(last.charging_state) then
+    wait(CHARGING_EVERY_MS)
+  else
+    wait(IDLE_EVERY_MS)
   end
   host.log("info", "tesla_cloud: emit soc=" .. tostring(last.soc) ..
                    " limit=" .. tostring(last.charge_limit) ..
                    " state=" .. tostring(last.charging_state))
   emit_vehicle(true)
-  host.set_poll_interval(POLL_ONLINE_MS)
-  return POLL_ONLINE_MS
+  return POLL_MS
 end
 
 function driver_cleanup()
   last.seen_ms                = 0
-  last.vendor_ts              = nil
   last.soc                    = nil
   last.charge_limit           = nil
   last.charging_state         = nil
@@ -472,4 +527,7 @@ function driver_cleanup()
   last.charger_actual_current = nil
   access_token                = nil
   token_expires_at            = 0
+  next_request_ms             = 0
+  was_online                  = nil
+  vin                         = nil
 end

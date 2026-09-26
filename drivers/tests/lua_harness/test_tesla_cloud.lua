@@ -3,6 +3,17 @@ dofile("drivers/tests/lua_harness/host_mock.lua")
 local VIN = "5YJ3E1EA1KF000000"
 local AUTH = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token"
 local EU = "https://fleet-api.prd.eu.vn.cloud.tesla.com"
+local STATUS = EU .. "/api/1/vehicles/" .. VIN
+local DATA = STATUS .. "/vehicle_data?endpoints=charge_state"
+
+-- Mirrors the driver's pacing constants.
+local POLL_MS           = 60000
+local CHARGING_EVERY_MS = 240000
+local IDLE_EVERY_MS     = 1200000
+local ASLEEP_EVERY_MS   = 300000
+local STALE_AFTER_MS    = 1500000
+local ERROR_RETRY_MS    = 300000
+local BACKOFF_MS        = 900000
 
 local routes = {}
 local posted = {}
@@ -41,22 +52,7 @@ local function route_post(url, body, headers)
     end
     return r
   end
-  for pattern, resp in pairs(routes) do
-    if type(pattern) == "string" and url:find(pattern, 1, true) then
-      if type(resp) == "table" and resp.err then
-        return nil, resp.err
-      end
-      return resp
-    end
-  end
   error("http_post: no mock for " .. tostring(url))
-end
-
-host.http_get = function(url)
-  return route_get(url)
-end
-host.http_post = function(url, body, headers)
-  return route_post(url, body, headers)
 end
 
 local function vehicle_doc(state)
@@ -64,6 +60,7 @@ local function vehicle_doc(state)
     response = {
       vin = VIN,
       state = state,
+      -- The owner's name for the car. It must never become the model.
       display_name = "Home",
     }
   })
@@ -85,7 +82,6 @@ local function charge_doc(fields)
       vin = VIN,
       state = "online",
       charge_state = cs,
-      vehicle_config = { car_type = "modely" },
     }
   })
 end
@@ -107,8 +103,8 @@ local function boot(cfg)
   host.http_get = function(url) return route_get(url) end
   host.http_post = function(url, body, headers) return route_post(url, body, headers) end
   routes[AUTH] = token_doc()
-  routes[EU .. "/api/1/vehicles/" .. VIN] = vehicle_doc("online")
-  routes[EU .. "/api/1/vehicles/" .. VIN .. "/vehicle_data?endpoints=charge_state"] = charge_doc()
+  routes[STATUS] = vehicle_doc("online")
+  routes[DATA] = charge_doc()
   dofile("drivers/lua/tesla_cloud.lua")
   driver_init(cfg or {
     client_id = "app-1",
@@ -123,6 +119,11 @@ local function last_vehicle()
   local rows = host._emitted.vehicle
   if not rows or #rows == 0 then return nil end
   return rows[#rows]
+end
+
+local function emitted()
+  local rows = host._emitted.vehicle
+  return rows and #rows or 0
 end
 
 local function count_gets(needle)
@@ -141,9 +142,24 @@ local function count_posts(needle)
   return n
 end
 
+-- The host keeps the interval last set with host.set_poll_interval.
+local function last_poll_interval()
+  local ms = nil
+  for _, call in ipairs(host._calls) do
+    if call.func == "set_poll_interval" then ms = call.args[1] end
+  end
+  return ms
+end
+
+local function advance(ms)
+  host._millis_counter = host._millis_counter + ms
+end
+
+-- Online and charging: one read, a fresh DerVehicle, the model from the VIN.
 boot()
 assert(host._make == "Tesla", "set_make Tesla")
 assert(host._sn == VIN, "set_sn from config VIN")
+assert(host._model == "Model 3", "model from the VIN, got " .. tostring(host._model))
 driver_poll()
 local sample = last_vehicle()
 assert(sample, "online car must emit DerVehicle")
@@ -155,11 +171,12 @@ assert(sample.charge_amps == 16, "charge_amps")
 assert(sample.charger_actual_current == 15, "charger_actual_current")
 assert(sample.stale == false, "fresh emit is not stale")
 assert(sample.soc_fresh == true, "soc_fresh")
-assert(host._model == "Home" or host._model == "modely", "model from vehicle")
+assert(host._model == "Model 3", "display_name must not become the model")
 assert(count_posts("/oauth2/v3/token") == 1, "one token refresh")
 assert(count_posts("/wake_up") == 0, "must not wake")
 assert(count_posts("/command/") == 0, "must not command the car")
 assert(count_gets("/vehicle_data") == 1, "vehicle_data once while online")
+assert(last_poll_interval() == POLL_MS, "poll interval after a read")
 
 -- Rotated refresh_token is persisted.
 local persisted = false
@@ -170,40 +187,109 @@ for _, call in ipairs(host._calls) do
 end
 assert(persisted, "rotated refresh_token not persisted")
 
--- Asleep: status only, no vehicle_data, cache marked stale then dropped.
+-- Between reads a poll calls nothing and replays. The replay is not stale:
+-- a stale flag would drop the car from Core until the next read.
+local gets_before = #gets
+driver_poll()
+assert(#gets == gets_before, "a poll before the next read is due must not call Tesla")
+local replay = last_vehicle()
+assert(replay.soc == 67, "replay keeps SoC")
+assert(replay.soc_fresh == false, "replay is not a new observation")
+assert(replay.stale == false, "replay inside the window must not be stale")
+
+-- Charging: the next read comes after CHARGING_EVERY_MS, not before.
+advance(CHARGING_EVERY_MS - 10000)
+driver_poll()
+assert(count_gets("/vehicle_data") == 1, "no read before the charging interval")
+advance(20000)
+driver_poll()
+assert(count_gets("/vehicle_data") == 2, "read again once the charging interval has passed")
+assert(last_vehicle().soc_fresh == true, "a new read is fresh")
+
+-- Awake but not charging: leave the car IDLE_EVERY_MS to fall asleep.
+boot()
+routes[DATA] = charge_doc({ state = "Stopped" })
+driver_poll()
+assert(count_gets("/vehicle_data") == 1, "idle: first read")
+advance(CHARGING_EVERY_MS + 1000)
+driver_poll()
+assert(count_gets("/vehicle_data") == 1, "an idle car is not read every few minutes")
+advance(IDLE_EVERY_MS)
+driver_poll()
+assert(count_gets("/vehicle_data") == 2, "idle car read again after IDLE_EVERY_MS")
+
+-- Asleep: a state check only, no vehicle_data; replay while young, then stop.
 boot()
 driver_poll()
 assert(last_vehicle() and last_vehicle().soc_fresh == true, "prime cache")
-local after_fresh = #(host._emitted.vehicle)
+routes[STATUS] = vehicle_doc("asleep")
+routes[DATA] = { err = "should not fetch" }
 gets = {}
-routes[EU .. "/api/1/vehicles/" .. VIN] = vehicle_doc("asleep")
-routes[EU .. "/api/1/vehicles/" .. VIN .. "/vehicle_data?endpoints=charge_state"] = { err = "should not fetch" }
+advance(CHARGING_EVERY_MS + 1000)
+local before = emitted()
 driver_poll()
+assert(count_gets("/api/1/vehicles/" .. VIN) == 1, "asleep: one state check")
 assert(count_gets("/vehicle_data") == 0, "asleep car must not call vehicle_data")
-assert(#(host._emitted.vehicle) == after_fresh + 1, "replay cache while young")
-assert(last_vehicle().stale == true, "replay is stale")
+assert(emitted() == before + 1, "replay cache while young")
 assert(last_vehicle().soc_fresh == false, "replay is not fresh")
+assert(last_vehicle().stale == false, "young replay is not stale")
 assert(last_vehicle().soc == 67, "replay keeps SoC")
-
-host._millis_counter = host._millis_counter + 900001
-local before_stale = #(host._emitted.vehicle)
+gets = {}
+advance(ASLEEP_EVERY_MS - 10000)
 driver_poll()
-assert(#(host._emitted.vehicle) == before_stale, "stop emitting when stale")
+assert(#gets == 0, "asleep: no request before the next state check")
+advance(20000)
+before = emitted()
+driver_poll()
+assert(count_gets("/api/1/vehicles/" .. VIN) == 1, "asleep: state checked again")
+assert(emitted() == before + 1, "still young: replay")
+advance(STALE_AFTER_MS)
+before = emitted()
+driver_poll()
+assert(emitted() == before, "stop emitting when stale")
+assert(count_gets("/vehicle_data") == 0, "an asleep car is never read")
 assert(count_posts("/wake_up") == 0, "asleep poll must not wake")
+
+-- A car that just woke is not read on that check: its own short wakes end
+-- by themselves, and a live call would stretch them.
+boot()
+routes[STATUS] = vehicle_doc("asleep")
+driver_poll()
+assert(count_gets("/vehicle_data") == 0, "asleep at start")
+routes[STATUS] = vehicle_doc("online")
+advance(ASLEEP_EVERY_MS + 1000)
+driver_poll()
+assert(count_gets("/vehicle_data") == 0, "first check after waking does not read")
+advance(ASLEEP_EVERY_MS + 1000)
+driver_poll()
+assert(count_gets("/vehicle_data") == 1, "still awake at the next check: read")
+assert(last_vehicle() and last_vehicle().soc_fresh == true, "read after waking is fresh")
 
 -- 408 on vehicle_data does not invent a SoC.
 boot()
-routes[EU .. "/api/1/vehicles/" .. VIN .. "/vehicle_data?endpoints=charge_state"] = { err = "HTTP 408 vehicle unavailable" }
+routes[DATA] = { err = "HTTP 408 vehicle unavailable" }
 driver_poll()
-assert(host._emitted.vehicle == nil or #(host._emitted.vehicle) == 0, "408 invented telemetry")
+assert(emitted() == 0, "408 invented telemetry")
+
+-- 429 backs off longer than a plain error.
+boot()
+routes[DATA] = { err = "HTTP 429 too many requests" }
+driver_poll()
+assert(count_gets("/vehicle_data") == 1, "429: first read")
+advance(ERROR_RETRY_MS + 1000)
+driver_poll()
+assert(count_gets("/vehicle_data") == 1, "429: no read inside the back-off")
+advance(BACKOFF_MS)
+driver_poll()
+assert(count_gets("/vehicle_data") == 2, "429: read after the back-off")
 
 -- Missing battery_level is not a zero SoC.
 boot()
-routes[EU .. "/api/1/vehicles/" .. VIN .. "/vehicle_data?endpoints=charge_state"] = json({
+routes[DATA] = json({
   response = { vin = VIN, charge_state = { charging_state = "Stopped" } }
 })
 driver_poll()
-assert(host._emitted.vehicle == nil or #(host._emitted.vehicle) == 0, "empty charge_state invented SoC")
+assert(emitted() == 0, "empty charge_state invented SoC")
 
 -- Discover VIN from the account list.
 boot({
@@ -217,10 +303,9 @@ routes[EU .. "/api/1/vehicles"] = json({
     { vin = VIN, state = "online", display_name = "Home" },
   }
 })
--- Status by VIN is unknown until discovered; list is the first lookup.
-routes[EU .. "/api/1/vehicles/"] = nil
 driver_poll()
 assert(host._sn == VIN, "discovered VIN")
+assert(host._model == "Model 3", "model from the discovered VIN")
 assert(last_vehicle() and last_vehicle().soc == 67, "emit after discover")
 
 -- Region NA builds the North America Fleet URL.
@@ -241,7 +326,7 @@ end
 
 -- time_to_full_charge hours → minutes.
 boot()
-routes[EU .. "/api/1/vehicles/" .. VIN .. "/vehicle_data?endpoints=charge_state"] = json({
+routes[DATA] = json({
   response = {
     vin = VIN,
     charge_state = {
@@ -255,11 +340,49 @@ routes[EU .. "/api/1/vehicles/" .. VIN .. "/vehicle_data?endpoints=charge_state"
 driver_poll()
 assert(last_vehicle().time_to_full_min == 90, "hours converted to minutes")
 
--- Failed auth does not POST wake or charge_start.
-boot({ client_id = "app-1", vin = VIN, region = "eu" })
+-- Config cannot send the secrets or requests to another host.
+boot({
+  client_id = "app-1",
+  client_secret = "secret-1",
+  refresh_token = "refresh-1",
+  vin = VIN,
+  region = "eu",
+  base_url = "https://attacker.example",
+  auth_url = "https://attacker.example/oauth2/v3/token",
+  access_token = "planted",
+})
 driver_poll()
+assert(#posted == 1 and posted[1].url == AUTH, "token POST must go to Tesla's auth host")
+for i = 1, #gets do
+  assert(gets[i]:find(EU, 1, true) == 1, "GET went to " .. gets[i])
+end
+assert(last_vehicle() and last_vehicle().soc_fresh == true, "reads through Tesla's hosts")
+
+-- A refresh token Tesla rejects: one POST, then back off. The poll interval
+-- must not stay at the 500 ms startup value, or the driver would post to
+-- Tesla's auth host twice a second.
+boot()
+routes[AUTH] = { err = "HTTP 400: invalid_grant" }
+driver_poll()
+assert(count_posts("/oauth2/v3/token") == 1, "one refresh attempt")
+assert(last_poll_interval() == POLL_MS, "failed refresh left the startup poll interval")
+for _ = 1, 5 do
+  advance(POLL_MS)
+  driver_poll()
+end
+assert(count_posts("/oauth2/v3/token") == 1, "no second refresh inside the back-off")
+advance(BACKOFF_MS)
+driver_poll()
+assert(count_posts("/oauth2/v3/token") == 2, "retry after the back-off")
+assert(emitted() == 0, "failed auth invented telemetry")
 assert(count_posts("/wake_up") == 0)
 assert(count_posts("/charge_start") == 0)
-assert(host._emitted.vehicle == nil or #(host._emitted.vehicle) == 0)
+
+-- No refresh token: no POST, no emit, and the poll interval is still set.
+boot({ client_id = "app-1", vin = VIN, region = "eu" })
+driver_poll()
+assert(count_posts("/oauth2/v3/token") == 0, "no refresh without a token")
+assert(last_poll_interval() == POLL_MS, "missing token left the startup poll interval")
+assert(emitted() == 0)
 
 print("OK tesla_cloud")
