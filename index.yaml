@@ -698,6 +698,16 @@ drivers:
     control: true
     size_bytes: 48885
     sha256: "9847c4281d4387b5d4c6a2e1d91c592ca2cbf32c06b872be2d68d46fe307f823"
+  - name: "tesla_cloud"
+    version: "0.1.0"
+    tier: community
+    protocol: http
+    connectivity: cloud
+    setup: [vendor_portal]
+    ders: [vehicle]
+    control: false
+    size_bytes: 15518
+    sha256: "a8d3d6c4f8090e6df4679520008487ca7359b7da6864e4a59610657cf270ad75"
   - name: "tesla_vehicle"
     version: "0.2.3"
     tier: core

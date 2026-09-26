@@ -1,5 +1,9 @@
 # Changelog
 
+## tesla_cloud 0.1.0
+
+Read-only Tesla vehicle telemetry from the official Fleet API: SoC, charge limit, charging state and time-to-full. Identity is Tesla + VIN. Vendor data is aged and emission stops when it is stale. The driver never posts wake, charge_start or any other car command, and it does not call vehicle_data while the car is asleep. Optional next to `tesla_vehicle` (TeslaBLEProxy on the LAN). Cloud access is not a charging prerequisite.
+
 ## esphome_dsmr 1.0.6
 
 The catalog entry `esphome-dsmr` is folded into this one: it was the same driver for the same device under a second id. `esphome_dsmr` declares `replaces = { "esphome-dsmr" }` in its `DRIVER` table, so a host can move a device that runs the old entry to this driver. Every published `esphome-dsmr` artifact stays in the signed channel's history, so an installed copy keeps running until then.
