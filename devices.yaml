@@ -2033,7 +2033,7 @@ manufacturers:
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only SoC and charge state from the VW Group EU Data Act portal. We Connect third-party APIs are blocked. Owner must enable a continuous 15-minute All Data request and paste a portal session cookie. Not live BMS; charging does not need this cloud. Porsche is not on this portal. Not yet exercised on a live FTW site."
+        notes: "Read-only SoC and charge state from the VW Group EU Data Act portal. We Connect third-party APIs are blocked. Owner must enable a continuous 15-minute All Data request and paste a portal session cookie. Not live BMS; charging does not need this cloud. Porsche is not on this portal. Not yet run against the portal or a car."
   - name: "Wallbox"
     model_families:
       - name: "Commander/Pulsar"

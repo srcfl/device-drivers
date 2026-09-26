@@ -40,9 +40,11 @@
 --         brand: volkswagen          # audi | skoda | seat | cupra
 --         cookie: "name=value; ..."  # masked via config_secrets
 --
--- Field names and GUIDs follow the portal data dictionary / evcc's
--- drivesomethinggreater mapping (vehicle/vw/eudataact). Look up by
--- GUID first: several points share the name battery_state_report.soc.
+-- Keys (GUIDs) and names come from VW's data dictionary ("DataDictionary
+-- V5.0, Continuous Data"), as parsed in evcc's vehicle/vw/eudataact, which
+-- reads the same portal. As there, the newest point among the candidates
+-- wins. battery_state_report.soc is looked up by key only: four points
+-- share that name.
 
 DRIVER = {
   host_api_min = 1,
@@ -66,7 +68,9 @@ DRIVER = {
 PROTOCOL = "http"
 
 local BASE_URL = "https://eu-data-act.drivesomethinggreater.com"
-local POLL_INTERVAL_MS = 120000
+-- The portal writes a file about every 15 minutes; asking every 5 is
+-- enough. The host keeps the interval last set with set_poll_interval.
+local POLL_INTERVAL_MS = 300000
 local WATCHDOG_TIMEOUT_S = 600
 -- Portal cadence is ~15 min. Keep a last reading visible a little
 -- longer than that, then stop so Core's watchdog sees the gap.
@@ -85,7 +89,8 @@ local BRANDS = {
 -- SoC / limit / state / remaining-time ids from the Data Act dictionary.
 -- Name fallbacks stay for datasets that omit the GUID.
 local SOC_IDS = {
-  "162c2a75-edf4-3990-b8ed-7c600b3dbc40", -- battery_level_HV.value
+  "162c2a75-edf4-3990-b8ed-7c600b3dbc40", -- battery_level_HV.battery_level_HV.value
+  "ac1108b1-b8cc-3db9-a663-03d387e42223", -- battery_level_HV.value
   "ae0294b4-1286-3e98-a818-1485b8d88430", -- state_of_charge
   "f89ed652-d104-3fa6-b7e2-ab7543309e7b", -- hv_soc
   "506cb83e-f99f-3af3-bbeb-0429b69a78d9", -- battery_state_report.soc (ID.3)
@@ -129,12 +134,16 @@ local brand_name = nil
 local cookie = nil
 local request_id = nil
 local last_file = nil
+-- Newest content file at the first listing after start (false: there was
+-- none). The host has no wall clock, so its age is unknown.
+local baseline_file = nil
 local last = {
   ts_ms = 0,
   soc = nil,
   charge_limit = nil,
   charging_state = nil,
   time_to_full = nil,
+  known_age = false,
 }
 
 ---------------------------------------------------------------------------
@@ -155,10 +164,34 @@ local function u32le(s, i)
   return lo + hi * 65536
 end
 
+-- A dataset larger than this is refused rather than inflated: the charging
+-- fields need far less, and every driver shares the host's memory.
+local MAX_JSON_BYTES = 4194304
+-- DEFLATE back-references reach at most this far back.
+local WINDOW = 32768
+
 local function inflate_raw(src)
   local pos = 1
   local bitbuf, bitcnt = 0, 0
-  local out = {}
+  -- The newest bytes stay one per slot for back-references. Older text is
+  -- flushed into chunks, so the table does not grow with the dataset.
+  local out, n = {}, 0
+  local chunks, flushed = {}, 0
+
+  local function flush()
+    local keep = n - WINDOW
+    chunks[#chunks + 1] = table.concat(out, "", 1, keep)
+    flushed = flushed + keep
+    for i = 1, WINDOW do out[i] = out[keep + i] end
+    for i = WINDOW + 1, n do out[i] = nil end
+    n = WINDOW
+  end
+
+  -- Called between symbols, never inside a copy, so indices stay valid.
+  local function room()
+    if n >= 4 * WINDOW then flush() end
+    return flushed + n <= MAX_JSON_BYTES
+  end
 
   local function pull_byte()
     if pos > #src then return nil end
@@ -322,10 +355,12 @@ local function inflate_raw(src)
 
   local function inflate_block(lit_tree, lit_max, dist_tree, dist_max)
     while true do
+      if not room() then return nil, "dataset too large" end
       local sym = decode(lit_tree, lit_max)
       if sym == nil then return nil end
       if sym < 256 then
-        out[#out + 1] = string.char(sym)
+        n = n + 1
+        out[n] = string.char(sym)
       elseif sym == 256 then
         return true
       else
@@ -339,10 +374,11 @@ local function inflate_raw(src)
         extra = bits(DIST_EXTRA[dsym + 1])
         if extra == nil then return nil end
         local dist = DIST_BASE[dsym + 1] + extra
-        local start = #out - dist + 1
+        local start = n - dist + 1
         if start < 1 then return nil end
-        for i = 1, length do
-          out[#out + 1] = out[start + i - 1]
+        for i = 0, length - 1 do
+          n = n + 1
+          out[n] = out[start + i]
         end
       end
     end
@@ -362,9 +398,11 @@ local function inflate_raw(src)
       if pos + len - 1 > #src then return nil end
       -- One byte per slot so later length/distance copies stay correct.
       for j = pos, pos + len - 1 do
-        out[#out + 1] = string.sub(src, j, j)
+        n = n + 1
+        out[n] = string.sub(src, j, j)
       end
       pos = pos + len
+      if not room() then return nil, "dataset too large" end
     elseif btype == 1 or btype == 2 then
       local lit, dist
       if btype == 1 then
@@ -375,14 +413,16 @@ local function inflate_raw(src)
       end
       local lit_tree, lit_max = build_tree(lit)
       local dist_tree, dist_max = build_tree(dist)
-      if not inflate_block(lit_tree, lit_max, dist_tree, dist_max) then
-        return nil
+      local ok, why = inflate_block(lit_tree, lit_max, dist_tree, dist_max)
+      if not ok then
+        return nil, why
       end
     else
       return nil
     end
     if bfinal == 1 then
-      return table.concat(out)
+      chunks[#chunks + 1] = table.concat(out, "", 1, n)
+      return table.concat(chunks)
     end
   end
 end
@@ -393,6 +433,7 @@ local function zip_extract_json(blob)
   end
   local first = blob:match("^%s*(.)")
   if first == "{" or first == "[" then
+    if #blob > MAX_JSON_BYTES then return nil, "dataset too large" end
     return blob
   end
   local i = 1
@@ -400,32 +441,52 @@ local function zip_extract_json(blob)
     if string.sub(blob, i, i + 3) ~= "PK\003\004" then
       i = i + 1
     else
+      local flags = u16le(blob, i + 6)
       local method = u16le(blob, i + 8)
       local comp_size = u32le(blob, i + 18)
       local name_len = u16le(blob, i + 26)
       local extra_len = u16le(blob, i + 28)
-      if not method or not comp_size or not name_len or not extra_len then
+      if not flags or not method or not comp_size or not name_len or not extra_len then
         return nil, "truncated zip header"
       end
       local name_at = i + 30
       local data_at = name_at + name_len + extra_len
       local name = string.sub(blob, name_at, name_at + name_len - 1)
-      local payload = string.sub(blob, data_at, data_at + comp_size - 1)
-      if #payload < comp_size then
-        return nil, "truncated zip payload"
-      end
+      -- Flag bit 3: the sizes follow the data, and this header says 0.
+      -- Streaming writers such as Java's ZipOutputStream do that. DEFLATE
+      -- marks its own end, so such an entry inflates from here on.
+      local streamed = math.floor(flags / 8) % 2 == 1 and comp_size == 0
       if name:lower():match("%.json$") then
-        if method == 0 then
-          return payload
-        elseif method == 8 then
-          local raw = inflate_raw(payload)
-          if not raw then return nil, "deflate failed" end
+        if method == 8 then
+          local payload
+          if streamed then
+            payload = string.sub(blob, data_at)
+          else
+            payload = string.sub(blob, data_at, data_at + comp_size - 1)
+            if #payload < comp_size then
+              return nil, "truncated zip payload"
+            end
+          end
+          local raw, ierr = inflate_raw(payload)
+          if not raw then return nil, ierr or "deflate failed" end
           return raw
+        elseif method == 0 and not streamed then
+          if comp_size > MAX_JSON_BYTES then return nil, "dataset too large" end
+          local payload = string.sub(blob, data_at, data_at + comp_size - 1)
+          if #payload < comp_size then
+            return nil, "truncated zip payload"
+          end
+          return payload
         else
-          return nil, "unsupported zip method " .. tostring(method)
+          return nil, "unsupported zip entry (method " .. tostring(method) .. ")"
         end
       end
-      i = data_at + comp_size
+      -- A streamed entry has no size to skip by; scan for the next header.
+      if streamed then
+        i = data_at
+      else
+        i = data_at + comp_size
+      end
     end
   end
   return nil, "no json document in dataset"
@@ -466,15 +527,18 @@ local function api_get(path, extra)
   return safe_http_get(BASE_URL .. path, auth_headers(extra))
 end
 
+-- The newest point among the candidates wins; on a tie, the earlier
+-- candidate. Points are numbered in dataset order.
 local function lookup(points, ids)
   if not points then return nil end
+  local best = nil
   for i = 1, #ids do
     local p = points[ids[i]]
-    if p and p.value ~= nil and p.value ~= "" then
-      return p
+    if p and p.value ~= nil and p.value ~= "" and (best == nil or p.seq > best.seq) then
+      best = p
     end
   end
-  return nil
+  return best
 end
 
 local function num(value)
@@ -503,6 +567,7 @@ local function index_points(data)
         value = tostring(dp.value),
         key = dp.key,
         name = dp.dataFieldName or dp.DataFieldName,
+        seq = i,
       }
       if rec.key and rec.key ~= "" then points[rec.key] = rec end
       if rec.name and rec.name ~= "" then points[rec.name] = rec end
@@ -618,14 +683,15 @@ local function emit_last()
   end
   emit_reading(
     last.soc, last.charge_limit, last.charging_state, last.time_to_full,
-    false, age > (STALE_AFTER_MS / 2))
+    false, not last.known_age or age > (STALE_AFTER_MS / 2))
 end
 
-local function remember(soc, limit, state, ttf)
+local function remember(soc, limit, state, ttf, known_age)
   last.soc = soc
   last.charge_limit = limit
   last.charging_state = state
   last.time_to_full = ttf
+  last.known_age = known_age
   last.ts_ms = host.millis()
 end
 
@@ -703,10 +769,10 @@ function driver_init(config)
 end
 
 function driver_poll()
-  if not vin or not cookie or not brand_name then
-    return 30000
-  end
   host.set_poll_interval(POLL_INTERVAL_MS)
+  if not vin or not cookie or not brand_name then
+    return POLL_INTERVAL_MS
+  end
 
   local id, iderr = ensure_request_id()
   if not id then
@@ -747,12 +813,13 @@ function driver_poll()
   end
 
   local ds = newest_dataset(list)
-  if not ds then
-    emit_last()
-    return POLL_INTERVAL_MS
+  local name = ds and dataset_name(ds) or nil
+  -- The newest file at the first listing can be hours old if the car has
+  -- slept since. Only a file that appears after it is a new observation.
+  if baseline_file == nil then
+    baseline_file = name or false
   end
-  local name = dataset_name(ds)
-  if last_file == name and last.soc ~= nil then
+  if not ds or last_file == name then
     emit_last()
     return POLL_INTERVAL_MS
   end
@@ -765,6 +832,8 @@ function driver_poll()
     emit_last()
     return POLL_INTERVAL_MS
   end
+  -- Read each file once, even one that turns out useless.
+  last_file = name
 
   local points, perr = parse_dataset(zip)
   if not points then
@@ -796,13 +865,18 @@ function driver_poll()
   if ttf == 65535 then ttf = nil end
   local state = map_charging_state(points)
 
-  last_file = name
-  remember(soc, limit, state, ttf)
-  host.log("info", "vag: emit soc=" .. tostring(soc) ..
+  local known_age = name ~= baseline_file
+  remember(soc, limit, state, ttf, known_age)
+  host.log("info", "vag: " .. (known_age and "emit" or "first file since start, age unknown, stale:") ..
+    " soc=" .. tostring(soc) ..
     " limit=" .. tostring(limit) ..
     " state=" .. tostring(state) ..
     " file=" .. tostring(name))
-  emit_reading(soc, limit, state, ttf, true, false)
+  if known_age then
+    emit_reading(soc, limit, state, ttf, true, false)
+  else
+    emit_last()
+  end
   return POLL_INTERVAL_MS
 end
 
@@ -816,9 +890,11 @@ function driver_cleanup()
   cookie = nil
   request_id = nil
   last_file = nil
+  baseline_file = nil
   last.soc = nil
   last.charge_limit = nil
   last.charging_state = nil
   last.time_to_full = nil
+  last.known_age = false
   last.ts_ms = 0
 end

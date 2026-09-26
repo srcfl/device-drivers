@@ -13,17 +13,17 @@ tested_devices:
     variants: [ID.3, ID.4, Enyaq, Q4 e-tron]
     regions: [EU]
     firmware_versions: ""
-    notes: "Read-only SoC and charge state from the VW Group EU Data Act portal. We Connect third-party APIs are blocked. Owner must enable a continuous 15-minute All Data request and paste a portal session cookie. Not live BMS; charging does not need this cloud. Porsche is not on this portal. Not yet exercised on a live FTW site."
+    notes: "Read-only SoC and charge state from the VW Group EU Data Act portal. We Connect third-party APIs are blocked. Owner must enable a continuous 15-minute All Data request and paste a portal session cookie. Not live BMS; charging does not need this cloud. Porsche is not on this portal. Not yet run against the portal or a car."
     min_driver_version: "0.1.0"
 upstream_docs:
-  - url: "https://eu-data-act.drivesomethinggreater.com/"
-    title: "VW Group EU Data Act portal"
-    kind: api_docs
+  - url: "https://raw.githubusercontent.com/evcc-io/evcc/master/vehicle/vw/eudataact/datadictionary.json"
+    title: "VW Group EU Data Act data dictionary V5.0, as parsed by evcc"
+    kind: other
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 24508
+size_bytes: 27869
 dkb_id: "vag_vehicle"
-sha256: "2f01b85b115acf754b90553ec580b7a8c543c01a15feb65c464e4e41b5a79bf5"
+sha256: "eaa1b985db5deb897a1aa95596eeb8bedc6c0ac50cabcf14e273a9070edfe227"
 signature: ""
 
 bytecode_sha256: ""

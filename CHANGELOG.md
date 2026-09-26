@@ -2,15 +2,7 @@
 
 ## vag_vehicle 0.1.0
 
-Read-only VW / Audi / Škoda / SEAT / Cupra telemetry from the VW Group EU
-Data Act portal. We Connect third-party APIs are blocked; this is the remaining
-owner door. The driver emits `DerVehicle` (SoC, charge limit, charging_state,
-time-to-full, stale, soc_fresh), binds identity with `set_make` / `set_sn`
-(VIN), ages the last dataset and stops emitting when it is stale. Cloud access
-is not a charging prerequisite. The owner enables a continuous 15-minute All
-Data request on the portal and pastes a session Cookie header — the Lua host
-has no cookie jar and cannot complete the portal's OIDC login. Porsche, wake
-and charge_start are out of scope.
+Read-only VW, Audi, Škoda, SEAT and Cupra telemetry from the VW Group EU Data Act portal, the one owner door left now that We Connect's third-party APIs are closed. The owner orders a continuous 15-minute All Data delivery on the portal and pastes the Cookie header of a logged-in portal session: the Lua host has no cookie jar and cannot complete the portal's OIDC login, so the driver stops when that session ends. Every 5 minutes it lists the delivered files, downloads the newest one with content, unzips it in Lua (streamed zip entries included, 4 MiB cap) and emits `DerVehicle`: SoC, charge limit, charging state and time to full. Data keys follow VW's data dictionary V5.0. The newest file at start has an unknown age, so it is reported stale until a newer file arrives. Portal data are about 15 minutes old, so Core will mostly show this SoC rather than steer by it. Cloud access is not a charging prerequisite. Porsche, wake and charge start are out of scope. Not yet run against the portal or a car.
 
 ## esphome_dsmr 1.0.6
 
