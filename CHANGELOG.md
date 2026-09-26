@@ -1,5 +1,9 @@
 # Changelog
 
+## vag_vehicle 0.1.0
+
+Read-only VW, Audi, Škoda, SEAT and Cupra telemetry from the VW Group EU Data Act portal, the one owner door left now that We Connect's third-party APIs are closed. The owner orders a continuous 15-minute All Data delivery on the portal and pastes the Cookie header of a logged-in portal session: the Lua host has no cookie jar and cannot complete the portal's OIDC login, so the driver stops when that session ends. Every 5 minutes it lists the delivered files, downloads the newest one with content, unzips it in Lua (streamed zip entries included, 4 MiB cap) and emits `DerVehicle`: SoC, charge limit, charging state and time to full. Data keys follow VW's data dictionary V5.0. The newest file at start has an unknown age, so it is reported stale until a newer file arrives. Portal data are about 15 minutes old, so Core will mostly show this SoC rather than steer by it. Cloud access is not a charging prerequisite. Porsche, wake and charge start are out of scope. Not yet run against the portal or a car.
+
 ## tesla_cloud 0.1.0
 
 Read-only Tesla vehicle telemetry from the official Fleet API: SoC, charge limit, charging state and time to full. Identity is Tesla plus the VIN, and the model comes from the VIN. The driver checks the car's state on the free vehicle endpoint every 5 minutes and calls the billed `vehicle_data` only for a car that is already awake: every 4 minutes while it charges, every 20 minutes otherwise, and not on the first check after it wakes. It never wakes the car or sends a command. The refresh token and client secret go only to Tesla's auth host, and a rejected token waits 15 minutes before the next try. Between reads the driver replays the last reading with `soc_fresh=false`, and it stops after 25 minutes. Optional next to `tesla_vehicle` (TeslaBLEProxy). Cloud access is not a charging prerequisite. Not yet run against a car.

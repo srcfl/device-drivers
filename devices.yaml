@@ -2043,6 +2043,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Requires Venus OS with Modbus TCP enabled on GX device"
+  - name: "Volkswagen Group"
+    model_families:
+      - name: "VAG Vehicle (EU Data Act)"
+        variants: [Enyaq, ID.3, ID.4, Q4 e-tron]
+        regions: [EU]
+        protocols:
+          - protocol: http
+            driver: "vag_vehicle"
+            version: "0.1.0"
+            ders: [vehicle]
+            control: false
+        firmware_versions: ""
+        notes: "Read-only SoC and charge state from the VW Group EU Data Act portal. We Connect third-party APIs are blocked. Owner must enable a continuous 15-minute All Data request and paste a portal session cookie. Not live BMS; charging does not need this cloud. Porsche is not on this portal. Not yet run against the portal or a car."
   - name: "Wallbox"
     model_families:
       - name: "Commander/Pulsar"

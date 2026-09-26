@@ -747,6 +747,16 @@ drivers:
     control: false
     size_bytes: 12472
     sha256: "3cf10b93755fa8b840375f53343e91b5efa98ddffe119a5679b43ee4bfb61c88"
+  - name: "vag_vehicle"
+    version: "0.1.0"
+    tier: community
+    protocol: http
+    connectivity: cloud
+    setup: [vendor_portal]
+    ders: [vehicle]
+    control: false
+    size_bytes: 27869
+    sha256: "eaa1b985db5deb897a1aa95596eeb8bedc6c0ac50cabcf14e273a9070edfe227"
   - name: "varta"
     version: "1.1.1"
     tier: community
