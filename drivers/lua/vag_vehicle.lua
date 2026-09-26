@@ -577,10 +577,26 @@ local function content_datasets(list)
   return out
 end
 
+local function dataset_time(entry)
+  if type(entry) ~= "table" then return "" end
+  local t = entry.createdOn or entry.CreatedOn or entry.created_on
+  if type(t) == "string" and t ~= "" then return t end
+  return dataset_name(entry) or ""
+end
+
+-- Portal list order is not a contract. evcc sorts by createdOn; we do the
+-- same and fall back to the file name (ISO-ish prefix).
 local function newest_dataset(list)
   local content = content_datasets(list)
   if #content == 0 then return nil end
-  return content[#content]
+  local best, best_t = content[1], dataset_time(content[1])
+  for i = 2, #content do
+    local t = dataset_time(content[i])
+    if t >= best_t then
+      best, best_t = content[i], t
+    end
+  end
+  return best
 end
 
 local function emit_reading(soc, limit, state, ttf, fresh, stale)
@@ -669,13 +685,15 @@ function driver_init(config)
     host.log("error", "vag: `vin` required")
     return
   end
+  -- Bind identity even when the session cookie is missing so the site
+  -- still sees the car. Cloud is not a charging prerequisite.
+  host.set_make(brand_name)
+  host.set_sn(vin)
   cookie = normalize_cookie(config.cookie or config.session_cookie)
   if not cookie then
     host.log("error", "vag: `cookie` required — paste the portal Cookie header after enabling the 15-minute All Data request. Charging does not need this cloud.")
     return
   end
-  host.set_make(brand_name)
-  host.set_sn(vin)
   if host.set_watchdog_timeout_s then
     host.set_watchdog_timeout_s(WATCHDOG_TIMEOUT_S)
   end
@@ -786,6 +804,10 @@ function driver_poll()
     " file=" .. tostring(name))
   emit_reading(soc, limit, state, ttf, true, false)
   return POLL_INTERVAL_MS
+end
+
+function driver_default_mode()
+  -- Telemetry only: no output to reset. Charging does not use this cloud.
 end
 
 function driver_cleanup()

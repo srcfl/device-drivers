@@ -735,8 +735,8 @@ drivers:
     setup: [vendor_portal]
     ders: [vehicle]
     control: false
-    size_bytes: 23703
-    sha256: "2781120682e9f8b4c864d317f3c62fb259375073a91e828bf25010e0d3fd7726"
+    size_bytes: 24508
+    sha256: "2f01b85b115acf754b90553ec580b7a8c543c01a15feb65c464e4e41b5a79bf5"
   - name: "varta"
     version: "1.1.1"
     tier: community

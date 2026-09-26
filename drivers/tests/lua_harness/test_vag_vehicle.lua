@@ -33,12 +33,19 @@ function host.http_get(url, headers)
             end
         end
     end
+    if host._download_only and string.find(url, DL, 1, true) then
+        local fn = headers and headers.filename
+        if fn ~= host._download_only then
+            return nil, "HTTP 404: wrong file " .. tostring(fn)
+        end
+    end
     return orig_http_get(url, headers)
 end
 
 local function boot(cfg)
     host.reset()
     host._http_errors = {}
+    host._download_only = nil
     dofile("drivers/lua/vag_vehicle.lua")
     driver_init(cfg or {
         vin = VIN,
@@ -61,7 +68,7 @@ driver_poll()
 assert(not host._emitted.vehicle, "Porsche must not emit")
 
 boot({ brand = "audi", vin = VIN })
-assert(host._sn == nil, "missing cookie still set serial")
+assert(host._make == "Audi" and host._sn == VIN, "identity binds before cookie")
 driver_poll()
 assert(not host._emitted.vehicle, "missing cookie must not emit")
 
@@ -125,5 +132,17 @@ host._http_responses[LIST] = host.json_encode({
 })
 driver_poll()
 assert(not host._emitted.vehicle, "asleep placeholder must not invent SoC")
+
+boot()
+prime(stored_zip)
+-- Older file last: a naive "last array element" pick would request it and fail.
+host._download_only = FILE
+host._http_responses[LIST] = host.json_encode({
+    { name = FILE, createdOn = "2026-09-26T07:00:00Z" },
+    { name = "2026-09-26T06-00-00_partial.zip", createdOn = "2026-09-26T06:00:00Z" },
+})
+driver_poll()
+assert(host._emitted.vehicle and host._emitted.vehicle[1].soc == 63,
+    "newest createdOn wins even when it is not last")
 
 print("vag_vehicle: ok")
