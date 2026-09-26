@@ -2051,7 +2051,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "vag_vehicle"
-            version: "0.1.0"
+            version: "0.1.1"
             ders: [vehicle]
             control: false
         firmware_versions: ""

@@ -56,9 +56,22 @@ def _zip_streamed() -> bytes:
 
 
 def _zip_oversized() -> bytes:
-    # About 5 MB of JSON that deflates to a few kB: over the driver's 4 MiB cap.
+    # About 5 MB of JSON that deflates to a few kB: over the driver's 2 MiB cap.
     text = json.dumps({"vin": "WVWZZZTESTVIN0001", "Data": [], "pad": " " * 5_000_000})
     return _zip(zipfile.ZIP_DEFLATED, text)
+
+
+def _zip_large() -> bytes:
+    # About 360 kB of data points: enough that unzipping flushes chunks.
+    rows = [
+        {"key": "00000000-0000-3000-8000-%012d" % i, "dataFieldName": "mileage",
+         "value": str(i), "timestampUtc": "2026-09-26T07:00:00Z"}
+        for i in range(3000)
+    ]
+    rows.append({"key": "162c2a75-edf4-3990-b8ed-7c600b3dbc40",
+                 "dataFieldName": "battery_level_HV.value", "value": "71",
+                 "timestampUtc": "2026-09-26T07:00:00Z"})
+    return _zip(zipfile.ZIP_DEFLATED, json.dumps({"vin": "WVWZZZTESTVIN0001", "Data": rows}))
 
 
 def test_vag_vehicle_dataset_and_freshness(tmp_path: Path) -> None:
@@ -68,6 +81,7 @@ def test_vag_vehicle_dataset_and_freshness(tmp_path: Path) -> None:
         "streamed": _zip_streamed(),
         "oversized": _zip_oversized(),
         "nosoc": _zip(zipfile.ZIP_DEFLATED, NO_SOC),
+        "large": _zip_large(),
     }
     paths = []
     for name, blob in fixtures.items():

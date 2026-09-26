@@ -1,5 +1,5 @@
 name: "vag_vehicle"
-version: "0.1.0"
+version: "0.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -21,9 +21,9 @@ upstream_docs:
     kind: other
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 27869
+size_bytes: 28621
 dkb_id: "vag_vehicle"
-sha256: "eaa1b985db5deb897a1aa95596eeb8bedc6c0ac50cabcf14e273a9070edfe227"
+sha256: "907bb6f845765771a026d3b63f2080f941a6225a7fb51789898ee37e890f0856"
 signature: ""
 
 bytecode_sha256: ""
