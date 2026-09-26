@@ -1,0 +1,29 @@
+name: "teslamate_vehicle"
+version: "0.1.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: mqtt
+connectivity: local
+setup: [bridge]
+ders: [vehicle]
+control: false
+tested_devices:
+  - manufacturer: "Tesla"
+    model_family: "Tesla Vehicle (TeslaMate)"
+    variants: [Model Y, Model 3]
+    regions: []
+    firmware_versions: ""
+    notes: "Read-only vehicle SoC, charge limit and charging state via TeslaMate MQTT. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car."
+    min_driver_version: "0.1.0"
+upstream_docs:
+  - url: "https://docs.teslamate.org/docs/integrations/mqtt"
+    title: "TeslaMate MQTT topics"
+    kind: api_docs
+    url_stability: stable
+min_host_version: "2.0.0"
+size_bytes: 12041
+dkb_id: "teslamate_vehicle"
+sha256: "e424eb5447431544174cd44ce648070ebc422e2682e060a9750535ddb0a2f6c9"
+signature: ""
+
+bytecode_sha256: ""
