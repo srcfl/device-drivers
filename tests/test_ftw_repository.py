@@ -982,29 +982,32 @@ def test_a_read_only_driver_may_still_sign_in(
 ) -> None:
     """Reading after authenticating is still reading.
 
-    myuplink cannot actuate anything -- driver_command refuses every command it
-    is handed -- but it reads nothing until it has exchanged a refresh token,
-    and it exchanges it with a POST. Denying that POST would have cost a
-    read-only driver every reading it takes, so read-only would have been
-    unusable for the drivers that most obviously deserve it.
+    A telemetry-only cloud driver cannot actuate anything, but it reads
+    nothing until it has exchanged a refresh token, and it exchanges it
+    with a POST. Denying that POST would have cost a read-only driver
+    every reading it takes.
     """
     manifest, output = build(tmp_path, keypair)
-    myuplink = next(d for d in manifest["drivers"] if d["id"] == "myuplink")
-    artifact = (output / Path(myuplink["url"]).name).read_text()
+    expected = {
+        "myuplink": "/oauth/token",
+        "tesla_cloud": "/oauth2/v3/token",
+    }
+    for driver_id, auth_path in expected.items():
+        driver = next(d for d in manifest["drivers"] if d["id"] == driver_id)
+        artifact = (output / Path(driver["url"]).name).read_text()
 
-    assert myuplink["read_only"] is True
-    assert myuplink["control_enabled"] is False
-    assert myuplink["metadata"]["auth_post_path"] == "/oauth/token"
-    assert "http.post" in myuplink["permissions"]
+        assert driver["read_only"] is True, driver_id
+        assert driver["control_enabled"] is False, driver_id
+        assert driver["metadata"]["auth_post_path"] == auth_path, driver_id
+        assert "http.post" in driver["permissions"], driver_id
 
-    # The exemption is scoped, not a hole: POST reaches the real host function
-    # only for a URL ending in the declared path.
-    assert 'local __sourceful_ftw_auth_path = "/oauth/token"' in artifact
-    assert "path:sub(-#__sourceful_ftw_auth_path) == __sourceful_ftw_auth_path" in artifact
-    assert "POST is allowed only for authentication" in artifact
-    # Everything else a read-only driver must not do is still refused.
-    for denied in ("modbus_write", "modbus_write_multi", "mqtt_publish", "serial_write"):
-        assert f"host.{denied} = __sourceful_ftw_write_denied" in artifact
+        # The exemption is scoped, not a hole: POST reaches the real host
+        # function only for a URL ending in the declared path.
+        assert f'local __sourceful_ftw_auth_path = "{auth_path}"' in artifact, driver_id
+        assert "path:sub(-#__sourceful_ftw_auth_path) == __sourceful_ftw_auth_path" in artifact
+        assert "POST is allowed only for authentication" in artifact
+        for denied in ("modbus_write", "modbus_write_multi", "mqtt_publish", "serial_write"):
+            assert f"host.{denied} = __sourceful_ftw_write_denied" in artifact, driver_id
 
 
 def test_signing_in_is_declared_or_it_does_not_happen(
@@ -1022,7 +1025,8 @@ def test_signing_in_is_declared_or_it_does_not_happen(
         else:
             assert "auth_post_path" not in driver["metadata"], driver["id"]
             assert "http.post" not in driver["permissions"], driver["id"]
-    assert exempt == ["myuplink"], f"unexpected drivers allowed to POST: {exempt}"
+    assert exempt == ["myuplink", "tesla_cloud"], (
+        f"unexpected drivers allowed to POST: {exempt}")
 
 
 def test_auth_post_path_must_be_a_path_and_must_mean_something(
