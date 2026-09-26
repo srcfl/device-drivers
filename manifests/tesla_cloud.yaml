@@ -1,0 +1,24 @@
+name: "tesla_cloud"
+version: "0.1.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: http
+connectivity: cloud
+setup: [vendor_portal]
+ders: [vehicle]
+control: false
+tested_devices:
+  - manufacturer: "Tesla"
+    model_family: "Tesla Vehicle (Fleet API)"
+    variants: [Model Y, Model 3]
+    regions: [EU, NA, CN]
+    firmware_versions: ""
+    notes: "Read-only vehicle SoC, charge limit and charging state via the official Tesla Fleet API. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+    min_driver_version: "0.1.0"
+min_host_version: "2.0.0"
+size_bytes: 17903
+dkb_id: "tesla_cloud"
+sha256: "4f9a43703e787a5e72f7a86964bc21f89ade869e88fe2213e1931c55c241f34c"
+signature: ""
+
+bytecode_sha256: ""

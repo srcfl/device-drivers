@@ -698,6 +698,16 @@ drivers:
     control: true
     size_bytes: 48885
     sha256: "9847c4281d4387b5d4c6a2e1d91c592ca2cbf32c06b872be2d68d46fe307f823"
+  - name: "tesla_cloud"
+    version: "0.1.0"
+    tier: community
+    protocol: http
+    connectivity: cloud
+    setup: [vendor_portal]
+    ders: [vehicle]
+    control: false
+    size_bytes: 17903
+    sha256: "4f9a43703e787a5e72f7a86964bc21f89ade869e88fe2213e1931c55c241f34c"
   - name: "tesla_vehicle"
     version: "0.2.3"
     tier: core
@@ -717,6 +727,16 @@ drivers:
     control: false
     size_bytes: 8162
     sha256: "66b6313eda4f68a92a7cc55931baa2408cb6cbb249145f7e6005456fb821d284"
+  - name: "teslamate_vehicle"
+    version: "0.1.0"
+    tier: community
+    protocol: mqtt
+    connectivity: local
+    setup: [bridge]
+    ders: [vehicle]
+    control: false
+    size_bytes: 13260
+    sha256: "916cc84bd8df4080ccccbcc9bc968082771e847a6c1f020cfeefc52d4db68a43"
   - name: "tibber"
     version: "1.1.2"
     tier: core

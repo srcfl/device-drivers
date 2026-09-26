@@ -1598,6 +1598,27 @@
     },
     {
       "catalog_source": true,
+      "catalog_version": "0.1.0",
+      "driver_id": "tesla_cloud",
+      "targets": {
+        "blixt-l1": {
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
       "catalog_version": "0.2.3",
       "driver_id": "tesla_vehicle",
       "targets": {
@@ -1621,6 +1642,27 @@
       "catalog_source": true,
       "catalog_version": "0.1.1",
       "driver_id": "tesla_wall_connector",
+      "targets": {
+        "blixt-l1": {
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "target_conformance": "not_assessed"
+        },
+        "ftw-core": {
+          "hil": "not_recorded",
+          "historical_signed_beta_version": null,
+          "legacy_parity": "not_assessed",
+          "note": "",
+          "target_conformance": "not_assessed"
+        }
+      }
+    },
+    {
+      "catalog_source": true,
+      "catalog_version": "0.1.0",
+      "driver_id": "teslamate_vehicle",
       "targets": {
         "blixt-l1": {
           "hil": "not_recorded",

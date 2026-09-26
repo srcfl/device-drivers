@@ -1798,6 +1798,28 @@ manufacturers:
             control: true
         firmware_versions: ""
         notes: "Read-only vehicle SoC + charge limit via Tesla API-compatible HTTP endpoint (e.g. TeslaBLEProxy)."
+      - name: "Tesla Vehicle (Fleet API)"
+        variants: [Model 3, Model Y]
+        regions: [CN, EU, NA]
+        protocols:
+          - protocol: http
+            driver: "tesla_cloud"
+            version: "0.1.0"
+            ders: [vehicle]
+            control: false
+        firmware_versions: ""
+        notes: "Read-only vehicle SoC, charge limit and charging state via the official Tesla Fleet API. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+      - name: "Tesla Vehicle (TeslaMate)"
+        variants: [Model 3, Model Y]
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "teslamate_vehicle"
+            version: "0.1.0"
+            ders: [vehicle]
+            control: false
+        firmware_versions: ""
+        notes: "Read-only vehicle SoC, charge limit and charging state via TeslaMate MQTT. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
       - name: "Tesla Wall Connector"
         variants: [Wall Connector Gen 3]
         regions: []
