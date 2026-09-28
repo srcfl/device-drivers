@@ -1,5 +1,10 @@
 # Changelog
 
+## pixii 2.1.6
+
+Record the SunSpec status specifications in the manifest so the upstream
+document watcher can detect changes. No runtime change from 2.1.5.
+
 ## pixii 2.1.5
 
 Treat unsupported SunSpec status values as unknown. An unknown or missing

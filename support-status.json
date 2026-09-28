@@ -1136,7 +1136,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.5",
+      "catalog_version": "2.1.6",
       "driver_id": "pixii",
       "targets": {
         "blixt-l1": {
