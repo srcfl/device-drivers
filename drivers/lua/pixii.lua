@@ -29,7 +29,7 @@ DRIVER = {
   id           = "pixii",
   name         = "Pixii PowerShaper",
   manufacturer = "Pixii",
-  version      = "2.1.4",
+  version      = "2.1.5",
   protocols    = { "modbus" },
   capabilities = { "battery", "meter" },
   description  = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -155,9 +155,10 @@ local function config_bool(config, key)
     return v == true or v == 1 or v == "1" or v == "true" or v == "yes" or v == "on"
 end
 
-local function read_u16(addr)
+-- SunSpec enum16/uint16 uses 0xffff for an unsupported value.
+local function read_status_u16(addr)
     local regs = probe_read(addr, 1, "holding")
-    if regs then return regs[1] end
+    if regs and regs[1] ~= 0xffff then return regs[1] end
     return nil
 end
 
@@ -207,11 +208,13 @@ local function label_for(labels, value)
     return labels[value] or ("unknown_" .. tostring(value))
 end
 
+local last_charge_label = nil
+
 local function read_battery_status()
-    local charge_status = read_u16(REG_BATTERY_CHARGE_STATUS)
-    local control_mode = read_u16(REG_BATTERY_CONTROL_MODE)
-    local battery_state = read_u16(REG_BATTERY_STATE)
-    local vendor_state = read_u16(REG_BATTERY_STATE_VENDOR)
+    local charge_status = read_status_u16(REG_BATTERY_CHARGE_STATUS)
+    local control_mode = read_status_u16(REG_BATTERY_CONTROL_MODE)
+    local battery_state = read_status_u16(REG_BATTERY_STATE)
+    local vendor_state = read_status_u16(REG_BATTERY_STATE_VENDOR)
     local event1 = read_u32_be(REG_BATTERY_EVT1)
 
     if charge_status ~= nil then host.emit_metric("battery_charge_status_code", charge_status) end
@@ -221,6 +224,12 @@ local function read_battery_status()
     if event1 ~= nil then host.emit_metric("battery_event1_bits", event1) end
 
     local charge_label = label_for(charge_status_labels, charge_status)
+    local charge_status_known = charge_status ~= nil and charge_status_labels[charge_status] ~= nil
+    if not charge_status_known and charge_label ~= last_charge_label then
+        host.log("warn", "Pixii: charge status " .. charge_label
+            .. "; calibration state is unknown; retaining any previous calibration fault")
+    end
+    last_charge_label = charge_label
     local control_label = label_for(control_mode_labels, control_mode)
     local state_label = label_for(battery_state_labels, battery_state)
     local key = charge_label .. "/" .. control_label .. "/" .. state_label .. "/" .. tostring(vendor_state) .. "/" .. tostring(event1)
@@ -238,8 +247,11 @@ local function read_battery_status()
 
     -- SunSpec 802 ChaSt=testing (7): Pixii is calibrating and ignores
     -- external setpoints. Flag a device fault so dispatch + MPC exclude it
-    -- while keeping telemetry and site-meter data live.
-    if charge_status ~= nil then
+    -- while keeping telemetry and site-meter data live. Only a recognized
+    -- status can clear it: absent, unsupported or unknown values do not
+    -- prove calibration has finished. Unknown status at startup is not
+    -- evidence of calibration either, so it does not invent a fault.
+    if charge_status_known then
         local calibrating = charge_status == 7
         host.set_device_fault(calibrating,
             calibrating and "Pixii battery calibrating/testing (SunSpec ChaSt=testing)" or "")

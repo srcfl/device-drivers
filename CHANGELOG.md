@@ -1,5 +1,13 @@
 # Changelog
 
+## pixii 2.1.5
+
+Treat unsupported SunSpec status values as unknown. An unknown or missing
+charge status no longer clears a known calibration fault; a recognized
+non-testing status must confirm recovery. Log changes to unknown charge
+status while keeping battery and meter telemetry available. Unknown status
+at startup does not by itself mark the battery as calibrating.
+
 ## vag_vehicle 0.1.1
 
 A dataset of more than a few kB failed on a box with "registry overflow". FTW runs gopher-lua, whose `table.concat` puts every item of the range on a value stack of about 5,000 slots, and the unzip joined its whole output in one call. It now joins at most 256 items per call. The test harness refuses longer `table.concat` ranges too, since the C Lua the tests run has no such limit. The dataset cap drops from 4 MiB to 2 MiB: in FTW's host, 1 MB of JSON took 0.6 s to unzip and read on an Apple M-series core, a poll has 10 seconds, and a Raspberry Pi is several times slower.
