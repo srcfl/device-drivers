@@ -1037,6 +1037,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: ""
+  - name: "Remne Technologies"
+    model_families:
+      - name: "P1IB P1 Interface Bridge"
+        variants: [rev F]
+        regions: [SE]
+        protocols:
+          - protocol: http
+            driver: "remne_p1ib"
+            version: "0.1.0"
+            ders: [meter]
+            control: false
+        firmware_versions: "757b45d"
+        notes: "Two units on Landis+Gyr E360 (LGF5E360) meters, DLMS Mode D, telegram every ~10 s. Read-only."
   - name: "SAJ"
     model_families:
       - name: "AS2 (Three-Phase String)"

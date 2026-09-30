@@ -1,5 +1,9 @@
 # Changelog
 
+## remne_p1ib 0.1.0
+
+Read-only site meter from a Remne P1IB bridge, a Wi-Fi P1/HAN reader common in Sweden. The driver reads the bridge's `/meterData` JSON: net and per-phase active power, voltage, current and lifetime import and export energy, with reactive power and Wi-Fi signal as diagnostic metrics. It uses HTTP rather than the bridge's MQTT output because P1IB publishes MQTT only when a value moves past its hysteresis, so a steady site would look stale to Core and stop dispatch. Freshness comes from the bridge's good-telegram counter: the driver emits once per new telegram, never re-emits the rolling window, and logs once when no telegram has arrived for three telegram intervals. Identity is the bridge MAC, and the model is the meter string it reports. `connection_defaults` declares an empty `host` so FTW setup passes the entered IP as `config.host`. Run in FTW v0.138.2-beta.1 (native, Debian 13) against two P1IB units (hardware rev F, firmware 757b45d) on Landis+Gyr E360 meters, one as site meter: both healthy, readings fresh, and site power within one telegram of the same meter's reading in Home Assistant.
+
 ## pixii 2.1.6
 
 Record the SunSpec status specifications in the manifest so the upstream

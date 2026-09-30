@@ -116,6 +116,8 @@ Catalog source is not proof that a target can install or run a driver.
 | pixii | 2.1.6 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | pixii_pv | 0.3.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | pixii_pv | 0.3.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| remne_p1ib | 0.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| remne_p1ib | 0.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | saj | 1.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | saj | 1.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | schneider_meter | 1.0.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |

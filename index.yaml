@@ -515,6 +515,16 @@ drivers:
     control: false
     size_bytes: 6699
     sha256: "7a27b937bdc845dff8d4032cb96ccca16242cc8378d1cbf5cfc8030660b871db"
+  - name: "remne_p1ib"
+    version: "0.1.0"
+    tier: community
+    protocol: http
+    connectivity: local
+    setup: [bridge, device_ui]
+    ders: [meter]
+    control: false
+    size_bytes: 10858
+    sha256: "38749fb157e0929c26c31ccb9e8013e3ee81f584349be1dd7cc60792b9e3adeb"
   - name: "saj"
     version: "1.2.0"
     tier: community
