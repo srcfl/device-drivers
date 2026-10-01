@@ -203,15 +203,15 @@ drivers:
     size_bytes: 41070
     sha256: "4f33149c0640c2e9d2c043e36fdf967d8b297f07da56aec934c21e81a397d22b"
   - name: "esphome_dsmr"
-    version: "1.0.6"
+    version: "1.0.7"
     tier: core
     protocol: http
     connectivity: local
     setup: [bridge]
     ders: [meter]
     control: false
-    size_bytes: 16956
-    sha256: "fef22c0e3528c18c5ae27055fb79fa1e6e9a1563d18534753018b7c570227755"
+    size_bytes: 17074
+    sha256: "4fabecf0f5f2f276e7393d104330314d3453f19ad2905a51d1ffa306372a71ad"
   - name: "etrel"
     version: "1.0.3"
     tier: community
@@ -515,6 +515,16 @@ drivers:
     control: false
     size_bytes: 6699
     sha256: "7a27b937bdc845dff8d4032cb96ccca16242cc8378d1cbf5cfc8030660b871db"
+  - name: "remne_p1ib"
+    version: "0.1.0"
+    tier: community
+    protocol: http
+    connectivity: local
+    setup: [bridge, device_ui]
+    ders: [meter]
+    control: false
+    size_bytes: 10858
+    sha256: "38749fb157e0929c26c31ccb9e8013e3ee81f584349be1dd7cc60792b9e3adeb"
   - name: "saj"
     version: "1.2.0"
     tier: community

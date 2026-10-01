@@ -1,0 +1,35 @@
+name: "remne_p1ib"
+version: "0.1.0"
+tier: community
+author: "Andy Lyeklint Hancock with the help of Claude Code"
+protocol: http
+connectivity: local
+setup: [bridge, device_ui]
+ders: [meter]
+control: false
+tested_devices:
+  - manufacturer: "Remne Technologies"
+    model_family: "P1IB P1 Interface Bridge"
+    variants: [rev F]
+    regions: [SE]
+    firmware_versions: "757b45d"
+    notes: "Two units on Landis+Gyr E360 (LGF5E360) meters, DLMS Mode D, telegram every ~10 s. Read-only."
+    min_driver_version: "0.1.0"
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/remne/p1ib/master/README.md"
+    title: "Remne P1IB README (setup, MQTT and /meterData webservice)"
+    kind: manual
+    url_stability: committed
+  - url: "https://raw.githubusercontent.com/remne/p1ib/master/index.json"
+    title: "Remne P1IB firmware index and changelog"
+    kind: firmware_notes
+    url_stability: committed
+min_host_version: "2.0.0"
+size_bytes: 10858
+dkb_id: ""
+sha256: "38749fb157e0929c26c31ccb9e8013e3ee81f584349be1dd7cc60792b9e3adeb"
+signature: ""
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "First version: net and per-phase power, voltage, current and lifetime energy from /meterData; emits only on a new telegram."

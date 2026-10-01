@@ -28,8 +28,12 @@ end
 
 dofile("drivers/lua/esphome_dsmr.lua")
 
-if type(DRIVER) ~= "table" or DRIVER.id ~= "esphome_dsmr" or DRIVER.version ~= "1.0.6" then
+if type(DRIVER) ~= "table" or DRIVER.id ~= "esphome_dsmr" or DRIVER.version ~= "1.0.7" then
     error("ESPHome DSMR identity metadata is wrong")
+end
+-- FTW setup seeds config.host only for drivers that declare this key.
+if type(DRIVER.connection_defaults) ~= "table" or DRIVER.connection_defaults.host ~= "" then
+    error("ESPHome DSMR must declare an empty connection_defaults.host")
 end
 if DRIVER.host_api_min ~= 1 or DRIVER.host_api_max ~= 1 or DRIVER.read_only ~= true then
     error("ESPHome DSMR host API or read-only metadata is wrong")
