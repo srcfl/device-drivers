@@ -62,7 +62,7 @@ DRIVER = {
   id           = "esphome_dsmr",
   name         = "ESPHome DSMR (P1)",
   manufacturer = "ESPHome",
-  version      = "1.0.6",
+  version      = "1.0.7",
   host_api_min = 1,
   host_api_max = 1,
   -- This driver replaces the catalog entry of the same device published as
@@ -85,6 +85,9 @@ DRIVER = {
     -- IP or mDNS hostname. We deliberately don't guess: ESPHome devices
     -- pick their hostname from the YAML `name:` field, which is unique
     -- per build, so any hard-coded default would be wrong on most sites.
+    -- Declaring the empty key is what makes FTW setup pass the entered
+    -- address as config.host.
+    host = "",
   },
 }
 

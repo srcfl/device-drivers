@@ -314,7 +314,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "esphome_dsmr"
-            version: "1.0.6"
+            version: "1.0.7"
             ders: [meter]
             control: false
         firmware_versions: "DSMR 2022.10.1 on SlimmeLezer+; Sourceful Zap open firmware"
