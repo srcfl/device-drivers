@@ -1,5 +1,22 @@
 # Changelog
 
+## remne_p1ib 0.1.0
+
+Read-only site meter from a Remne P1IB bridge, a Wi-Fi P1/HAN reader common in Sweden. The driver reads the bridge's `/meterData` JSON: net and per-phase active power, voltage, current and lifetime import and export energy, with reactive power and Wi-Fi signal as diagnostic metrics. It uses HTTP rather than the bridge's MQTT output because P1IB publishes MQTT only when a value moves past its hysteresis, so a steady site would look stale to Core and stop dispatch. Freshness comes from the bridge's good-telegram counter: the driver emits once per new telegram, never re-emits the rolling window, and logs once when no telegram has arrived for three telegram intervals. Identity is the bridge MAC, and the model is the meter string it reports. `connection_defaults` declares an empty `host` so FTW setup passes the entered IP as `config.host`. Run in FTW v0.138.2-beta.1 (native, Debian 13) against two P1IB units (hardware rev F, firmware 757b45d) on Landis+Gyr E360 meters, one as site meter: both healthy, readings fresh, and site power within one telegram of the same meter's reading in Home Assistant.
+
+## pixii 2.1.6
+
+Record the SunSpec status specifications in the manifest so the upstream
+document watcher can detect changes. No runtime change from 2.1.5.
+
+## pixii 2.1.5
+
+Treat unsupported SunSpec status values as unknown. An unknown or missing
+charge status no longer clears a known calibration fault; a recognized
+non-testing status must confirm recovery. Log changes to unknown charge
+status while keeping battery and meter telemetry available. Unknown status
+at startup does not by itself mark the battery as calibrating.
+
 ## vag_vehicle 0.1.1
 
 A dataset of more than a few kB failed on a box with "registry overflow". FTW runs gopher-lua, whose `table.concat` puts every item of the range on a value stack of about 5,000 slots, and the unzip joined its whole output in one call. It now joins at most 256 items per call. The test harness refuses longer `table.concat` ranges too, since the C Lua the tests run has no such limit. The dataset cap drops from 4 MiB to 2 MiB: in FTW's host, 1 MB of JSON took 0.6 s to unzip and read on an Apple M-series core, a poll has 10 seconds, and a Raspberry Pi is several times slower.
