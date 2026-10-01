@@ -200,8 +200,8 @@ drivers:
     setup: [vendor_portal]
     ders: [ev]
     control: true
-    size_bytes: 40725
-    sha256: "202ed4ce81d8aa5a27bb2bf60d62415bc3c910ba8cbbcfec450ef1aff452398f"
+    size_bytes: 41070
+    sha256: "4f33149c0640c2e9d2c043e36fdf967d8b297f07da56aec934c21e81a397d22b"
   - name: "esphome_dsmr"
     version: "1.0.6"
     tier: core
@@ -504,8 +504,8 @@ drivers:
     connectivity: local
     ders: [battery, meter]
     control: false
-    size_bytes: 28956
-    sha256: "c8624402f68d599f689b2172e013c703a30d1ccac50ea65fc36a52b136fd3759"
+    size_bytes: 29105
+    sha256: "bd8fe1e850ce66e83e107116d7e236c499cca51f75872feb03efde58f95d6e41"
   - name: "pixii_pv"
     version: "0.3.2"
     tier: core
@@ -696,8 +696,8 @@ drivers:
     connectivity: local
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 49623
-    sha256: "29dfebe81976fd77971e8b5db14d65887384cdfb6889794eb312a13bcf666d07"
+    size_bytes: 49876
+    sha256: "25407256014764245bedf1cfc193f94a696854ddedbd224f66fef827df92fb82"
   - name: "tesla_cloud"
     version: "0.1.0"
     tier: community

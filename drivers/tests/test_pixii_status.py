@@ -102,7 +102,8 @@ host._modbus_registers.holding[40083] = -1400
 local battery = poll(3)
 assert(battery.setpoint_w == -1500, "setpoint must use site signs outside TS mode")
 assert(battery.control_power_available == true)
-assert(battery.control_power_w == -1400, "command feedback must use AC, not DC")
+-- SunSpec W is generator frame: -1400 W flows into the inverter, a charge.
+assert(battery.control_power_w == 1400, "command feedback must use site-signed AC, not DC")
 host._modbus_read_fail_addresses[39905] = "timeout"
 host._modbus_read_fail_addresses[40083] = "timeout"
 battery = poll(3)

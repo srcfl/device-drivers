@@ -994,6 +994,18 @@ print("AVAILABLE " .. tostring(host._emitted.meter[1].control_power_available))
     assert out == {"ORIGIN": origin, "AVAILABLE": "true"}
 
 
+def test_sungrow_meterless_hybrid_claims_no_separate_meter():
+    out = run_lua(HEALTHY_HYBRID + f'''
+host._modbus_registers.input[5600] = {{0, 0}}
+host._modbus_registers.input[5743] = {{0, 0, 0}}
+dofile("{DRIVER}")
+driver_init({{}})
+driver_poll()
+print("ORIGIN " .. tostring(host._emitted.meter[1].power_origin))
+''')
+    assert out == {"ORIGIN": "nil"}
+
+
 def test_sungrow_failed_flow_reads_cannot_confirm_control():
     out = run_lua(HEALTHY_HYBRID + f'''
 dofile("{DRIVER}")

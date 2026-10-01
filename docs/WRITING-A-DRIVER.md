@@ -391,18 +391,23 @@ all modes. They never grant control or replace a safety limit:
   unchanged when a cloud poll returns the same observation. Control checks
   must not treat a new HTTP reply as a new physical sample. If power or its
   required source time is missing, set `control_power_available=false`.
+- `control_power_confirmed`: set it only when the source records power on
+  change and this poll shows the source still hears from the device, as with
+  Easee's cloud. Core then treats the unchanged value as current when it
+  arrives. Never set it for a cache that may have lost the device.
 - `device_limit_a`: the charger's own configured current ceiling, separate
   from the dynamic offer in `max_a`. `device_limit_age_s` is time since the
   successful settings read. Failed reads must not reset its age. Core stops
   treating it as a current limit after two minutes.
 
-A device reading supplies Tier 1 evidence only. Core needs an identified,
-separate site meter and a matching measured change for Tier 2. Driver output
-must never claim independent confirmation from another field of the same
-sensor.
+A device reading makes a response measured, nothing more. Core calls it
+confirmed only when an identified, separate site meter shows a matching
+measured change. Driver output must never claim independent confirmation
+from another field of the same sensor.
 
 A meter may report `power_origin="external_meter"` when its documented
-register map reads a separate physical site meter through the inverter.
+register map reads a separate physical site meter through the inverter and
+that meter is present: a meterless install must not claim it.
 This identifies the sensor, not a separate network connection. Never use it
 for power calculated from the inverter's own battery, PV or load readings.
 Use `power_origin="derived"` for such calculated meter values. Failed reads

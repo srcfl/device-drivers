@@ -33,6 +33,8 @@ assert(steady.power_observed_at == nil,
     "an unchanged value kept its old change time: " .. tostring(steady.power_observed_at))
 assert(steady.control_power_observed_at == first.control_power_observed_at,
     "cached cloud power became a new control measurement")
+assert(first.control_power_confirmed and steady.control_power_confirmed,
+    "a poll of a charger the cloud still hears from must confirm the unchanged value")
 local changed = poll(3, 6.30, "2026-09-25T00:29:20Z")
 assert(changed.power_observed_at == "2026-09-25T00:29:20Z", "a changed value lost its source time")
 

@@ -43,9 +43,9 @@ tested_devices:
     notes: "Commercial/industrial three-phase string inverter. Needs 1.5.3: 1.2.1 stopped polling the SH battery registers this family does not answer, and 1.5.3 refuses a battery dispatch instead of writing them. A zero-watt command is still written on every family from 1.5.4 -- it is the release, and on a model without the registers it fails harmlessly."
     min_driver_version: "1.5.3"
 min_host_version: "2.0.0"
-size_bytes: 49623
+size_bytes: 49876
 dkb_id: "sungrow_sh_rt"
-sha256: "29dfebe81976fd77971e8b5db14d65887384cdfb6889794eb312a13bcf666d07"
+sha256: "25407256014764245bedf1cfc193f94a696854ddedbd224f66fef827df92fb82"
 signature: ""
 
 bytecode_sha256: ""

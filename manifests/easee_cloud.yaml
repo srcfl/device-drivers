@@ -16,9 +16,9 @@ tested_devices:
     notes: "Easee Home/Charge via Cloud REST API. No local protocol needed."
     min_driver_version: "1.0.1"
 min_host_version: "2.0.0"
-size_bytes: 40725
+size_bytes: 41070
 dkb_id: "easee_cloud"
-sha256: "202ed4ce81d8aa5a27bb2bf60d62415bc3c910ba8cbbcfec450ef1aff452398f"
+sha256: "4f33149c0640c2e9d2c043e36fdf967d8b297f07da56aec934c21e81a397d22b"
 signature: ""
 
 bytecode_sha256: ""

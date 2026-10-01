@@ -474,7 +474,9 @@ function driver_poll()
     local battery = {
         w                    = bat_w,
         setpoint_w           = setpoint_pixii_w and -setpoint_pixii_w,
-        control_power_w      = acw_regs and ac_w,
+        -- SunSpec W is in the generator frame, like the setpoint: positive
+        -- means power out of the inverter. Site signs charge positive.
+        control_power_w      = acw_regs and -ac_w,
         control_power_available = acw_regs ~= nil,
         v                    = bat_v,
         a                    = bat_a,

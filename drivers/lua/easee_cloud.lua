@@ -701,6 +701,10 @@ function driver_poll()
         -- reply alone does not establish a new physical power measurement.
         control_power_observed_at = timestamps[OBS_TOTAL_POWER],
         control_power_available = obs[OBS_TOTAL_POWER] ~= nil and timestamps[OBS_TOTAL_POWER] ~= nil,
+        -- The cloud records power only on change, and get_observations rejects
+        -- a charger it no longer hears from. This poll therefore confirms that
+        -- an unchanged value is still current, so a steady charge stays measured.
+        control_power_confirmed = obs[OBS_TOTAL_POWER] ~= nil and timestamps[OBS_TOTAL_POWER] ~= nil,
         power_max_age_s         = 180,
         energy_observed_at      = timestamps[OBS_SESSION_ENERGY],
         state_observed_at       = timestamps[OBS_OP_MODE],

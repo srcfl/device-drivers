@@ -740,9 +740,12 @@ function driver_poll()
         end
     end
 
-    -- 5600-5601 relay the external meter on the known SH register map.
+    -- 5600-5601 relay the external meter on the known SH register map. Only an
+    -- installed meter reads anything there: a meterless install reads zero
+    -- power and zero phase current, so it claims no separate meter.
     local meter_origin = nil
-    if model_family == "hybrid" then meter_origin = "external_meter" end
+    local meter_reads = mw_regs ~= nil and (meter_w ~= 0 or l1_a + l2_a + l3_a > 0)
+    if model_family == "hybrid" and meter_reads then meter_origin = "external_meter" end
     host.emit("meter", {
         w         = meter_w,
         power_origin = meter_origin,

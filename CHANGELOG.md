@@ -3,20 +3,25 @@
 ## sungrow 1.5.10
 
 Report the active forced setpoint from the existing holding-register read.
-Identify the separate grid meter on known hybrid models. Failed PV, meter or
+Identify the separate grid meter on known hybrid models when it reads power
+or phase current; a meterless install claims none. Failed PV, meter or
 setpoint reads cannot supply control evidence. No extra Modbus requests.
 
 ## easee_cloud 1.3.6
 
 Keep the source timestamp for control evidence when the cloud repeats a power
-observation. Missing power or source time cannot confirm a command's effect.
-The existing live-status display and polling rate stay unchanged.
+observation, and mark the unchanged value confirmed while the cloud still
+hears from the charger, so a steady charge stays measured. Missing power or
+source time cannot confirm a command's effect. The live-status display and
+polling rate stay unchanged.
 
 ## pixii 2.1.7
 
 Read the setpoint on every poll, including outside troubleshooting mode. Emit
-its site-signed value and measured AC power for command feedback. Missing
-reads remain unknown. No change to commands, heartbeat or safety policy.
+its site-signed value and measured AC power for command feedback; AC power
+leaves SunSpec's generator frame like the setpoint, so a charge is positive.
+Missing reads remain unknown. No change to commands, heartbeat or safety
+policy. Not yet verified on hardware.
 
 ## easee_cloud 1.3.5
 
