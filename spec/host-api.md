@@ -58,31 +58,61 @@ Use it for evidence an operator needs when a device misbehaves, not for
 telemetry that belongs in `host.emit()`.
 
 ### `host.emit(der_type, data)`
-Emit telemetry for a DER type: `"pv"`, `"battery"`, `"inverter"`, `"meter"` or
-`"v2x_charger"`.
+Emit telemetry for one DER. `der_type` is the host's DER kind: `"pv"`,
+`"battery"`, `"inverter"`, `"meter"` or `"v2x_charger"`.
+
+**Field names are defined by
+[srcful-data-models](https://github.com/srcfl/srcful-data-models), not here.**
+Every field per DER type, with unit and sign, is in its
+[`docs/REFERENCE.md`](https://github.com/srcfl/srcful-data-models/blob/main/docs/REFERENCE.md).
+DER and device types are owned by the device-support API (`GET /der-types`,
+`GET /device-types`). The host kinds correspond to the device-support DER types
+as follows:
+
+| `der_type` | device-support DER type |
+|---|---|
+| `pv` | `solar` |
+| `battery` | `battery` |
+| `meter` | `meter` |
+| `inverter` | `inverter` (the AC output; separate from `meter`) |
+| `v2x_charger` | `ev_charger_port` |
+
+When a driver adds a key, take the name from the reference (data-models
+v3.0.0):
+
+- Everything that is not a unit is lowercase (`soc_nom_fract`, `soh_fract`,
+  `l1_V`, `total_charge_Wh_dc`); units keep their physical casing (`W`, `Wh`,
+  `V`, `A`, `Hz`, `VA`, `var`, `C`).
+- A quantity that can be AC or DC carries a lowercase `_ac` / `_dc` postfix:
+  `W_ac`, `W_dc`, `V_dc`, `A_dc`, `total_charge_Wh_dc`, `total_import_Wh_ac`,
+  `upper_limit_W_dc`, `rated_power_W_ac`. When the device measures both
+  sides, emit both.
+- A quantity that can only be one side has no postfix: `Hz`, `VA`, `var`,
+  `heatsink_C`, per-phase `l1_V` / `l1_A` / `l1_W`, `mppt1_V`, `mppt1_A`, `mppt1_W` … up to
+  `mppt4_*`. EV charger DC values are `W_dc`, `V_dc`, `A_dc` (not `dc_W`).
+- solar, battery, inverter and meter DERs emit at least one of `W_ac` /
+  `W_dc` (optional for ev_charger_port).
+- A value that was not read is not emitted (nil). Never emit 0 for it. On the
+  wire every data-models field is present, and an unread value is `null`.
+- Sign: + import / − export seen from the DER (charge and consume positive;
+  discharge, generation and delivery negative).
+
+There are no aliases: consumers move to the 3.0 names. NovaCore ingest still
+accepts the pre-3.0 names (`W`, `SoC_nom_fract` …) for now.
 
 Key names are a contract, not a convention. Blixt reads each table by exact key
 and silently drops a key whose case is wrong, so a mistyped key loses data
-without an error. These names match `@srcful/data-models` verbatim:
-
-**Meter:** `W`, `Hz`, `L1_V`/`L1_A`/`L1_W` (… `L2_`, `L3_`), `total_import_Wh`, `total_export_Wh`
-
-**Inverter:** `W`, `VA`, `Hz`, `L1_V`/`L1_A`/`L1_W` (… `L2_`, `L3_`), `rated_W`
-
-**PV:** `W`, `total_generation_Wh`, `mppts`
-
-**Battery:** `W`, `V`, `A`, `SoC_nom_fract` (0-1 fraction), `temperature_C`, `total_charge_Wh`, `total_discharge_Wh`, `available_charge_Wh`, `available_discharge_Wh`
-
-A repeating structure is a plural-named array, never numbered keys. `pv.mppts`
-is a list of `{V, A, W}` as long as the device physically has. The catalog's
-`mppt1_v`/`mppt2_v` cannot describe a four-MPPT inverter at all.
+without an error. Blixt L1's own emit keys are host-internal and do not follow
+the data-models names yet: it reads bare names such as `W`, `V`, `A` and
+`total_import_Wh`, the inverter's rated power as `rated_W` (data-models:
+`rated_power_W_ac`), and PV inputs as `pv.mppts`, a list of `{V, A, W}`
+(data-models: `mpptN_*`). A driver for Blixt keeps those keys until the host
+changes.
 
 Emit keys follow the same two dialects: FTW's drivers use `w`, `soc`,
 `import_wh`, Blixt's use `W`, `SoC_nom_fract`, `total_import_Wh`. FTW accepts
 both since v1.11.4-beta.7. Use whichever your target speaks and do not convert
 a working driver to change the spelling of what it already reports correctly.
-
-**V2X Charger:** `w`, `a`, `v`, `hz`, `l1_a`..`l3_a`, `l1_v`..`l3_v`, `l1_w`..`l3_w`, `dc_w`, `dc_a`, `dc_v`, `vehicle_soc_fract`, `ev_max_energy_req_wh`, `ev_min_energy_req_wh`, `session_charge_wh`, `session_discharge_wh`, `total_charge_wh`, `total_discharge_wh`, `capacity_wh`, `rated_power_w`
 
 ## Modbus
 
