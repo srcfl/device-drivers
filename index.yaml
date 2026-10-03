@@ -413,15 +413,15 @@ drivers:
     size_bytes: 3766
     sha256: "5f985b8917aea7b08fba13c02506b45e40232a763393dc6af7c6eeb6ab5853af"
   - name: "myuplink"
-    version: "1.2.2"
+    version: "1.2.3"
     tier: core
     protocol: http
     connectivity: cloud
     setup: [vendor_portal]
     ders: [heatpump]
     control: false
-    size_bytes: 17549
-    sha256: "0af1e129899c4c014b2e825d3efe13887dbc7f041cde6dbcb5496cc712e67bf9"
+    size_bytes: 17562
+    sha256: "1eca0cdd1cd2dabf772cba90b359d55e7c8f6e350e403623227e9a5a03b20d9c"
   - name: "nibe_local"
     version: "1.2.1"
     tier: core

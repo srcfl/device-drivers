@@ -48,7 +48,7 @@ DRIVER = {
   id           = "myuplink",
   name         = "MyUplink Heat Pump (telemetry)",
   manufacturer = "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)",
-  version      = "1.2.2",
+  version      = "1.2.3",
   protocols    = { "http" },
   capabilities = { "apicreds" },
   -- Says what the header, the description and driver_command have always
@@ -64,7 +64,7 @@ DRIVER = {
   homepage     = "https://dev.myuplink.com",
   http_hosts   = { "api.myuplink.com" },
   authors      = { "hannesb90", "FTW contributors" },
-  tested_models = { "NIBE F1145", "NIBE S1255", "NIBE F730" },
+  tested_models = { "NIBE F1145", "NIBE S1255", "NIBE F730", "NIBE F750" },
   verification_status = "experimental",
   config_secrets = { "client_secret", "refresh_token" },
 }
