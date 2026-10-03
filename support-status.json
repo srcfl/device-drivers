@@ -1724,7 +1724,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.1.1",
+      "catalog_version": "0.2.0",
       "driver_id": "vag_vehicle",
       "targets": {
         "blixt-l1": {

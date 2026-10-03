@@ -2064,11 +2064,11 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "vag_vehicle"
-            version: "0.1.1"
+            version: "0.2.0"
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only SoC and charge state from the VW Group EU Data Act portal. We Connect third-party APIs are blocked. Owner must enable a continuous 15-minute All Data request and paste a portal session cookie. Not live BMS; charging does not need this cloud. Porsche is not on this portal. Not yet run against the portal or a car."
+        notes: "Read-only SoC and charge state from the VW Group EU Data Act portal. We Connect third-party APIs are blocked. Owner must enable a continuous 15-minute All Data request. The driver signs in with the account email and password and renews the session itself on an FTW Core with host.http_request; an older host needs a pasted portal session cookie. Not live BMS; charging does not need this cloud. Porsche is not on this portal. Sign-in follows evcc and is tested against a scripted portal, not yet against the live portal or a car."
   - name: "Wallbox"
     model_families:
       - name: "Commander/Pulsar"

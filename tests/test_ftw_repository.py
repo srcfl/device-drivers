@@ -1003,8 +1003,8 @@ def test_a_read_only_driver_may_still_sign_in(
 
         # The exemption is scoped, not a hole: POST reaches the real host
         # function only for a URL ending in the declared path.
-        assert f'local __sourceful_ftw_auth_path = "{auth_path}"' in artifact, driver_id
-        assert "path:sub(-#__sourceful_ftw_auth_path) == __sourceful_ftw_auth_path" in artifact
+        assert f'local __sourceful_ftw_auth_paths = {{ "{auth_path}" }}' in artifact, driver_id
+        assert "if path:sub(-#auth) == auth then return true end" in artifact
         assert "POST is allowed only for authentication" in artifact
         for denied in ("modbus_write", "modbus_write_multi", "mqtt_publish", "serial_write"):
             assert f"host.{denied} = __sourceful_ftw_write_denied" in artifact, driver_id
@@ -1025,8 +1025,41 @@ def test_signing_in_is_declared_or_it_does_not_happen(
         else:
             assert "auth_post_path" not in driver["metadata"], driver["id"]
             assert "http.post" not in driver["permissions"], driver["id"]
-    assert exempt == ["myuplink", "tesla_cloud"], (
+    assert exempt == ["myuplink", "tesla_cloud", "vag_vehicle"], (
         f"unexpected drivers allowed to POST: {exempt}")
+
+
+def test_multi_step_sign_in_declares_every_path(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    """A web login posts two forms; both paths are declared, nothing else."""
+    manifest, output = build(tmp_path, keypair)
+    driver = next(d for d in manifest["drivers"] if d["id"] == "vag_vehicle")
+    artifact = (output / Path(driver["url"]).name).read_text()
+    paths = driver["metadata"]["auth_post_paths"]
+    assert "auth_post_path" not in driver["metadata"]
+    assert len(paths) == 8 and all(p.startswith("/signin-service/v1/") for p in paths)
+    assert {p.rsplit("/", 1)[1] for p in paths} == {"identifier", "authenticate"}
+    assert "http.post" in driver["permissions"]
+    for path in paths:
+        assert f'"{path}"' in artifact
+    # host.http_request is guarded the same way: GET passes, POST only to a
+    # declared path.
+    assert "host.http_request = function(opts)" in artifact
+    assert 'method == "POST" and __sourceful_ftw_is_auth(opts.url)' in artifact
+
+
+def test_read_only_driver_without_sign_in_cannot_post_through_http_request(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    manifest, output = build(tmp_path, keypair)
+    for driver in manifest["drivers"]:
+        if not driver["read_only"] or "auth_post_path" in driver["metadata"] \
+                or "auth_post_paths" in driver["metadata"]:
+            continue
+        artifact = (output / Path(driver["url"]).name).read_text()
+        assert "host.http_post = __sourceful_ftw_write_denied" in artifact, driver["id"]
+        assert "host.http_request = function(opts)" in artifact, driver["id"]
 
 
 def test_auth_post_path_must_be_a_path_and_must_mean_something(

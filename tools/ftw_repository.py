@@ -364,7 +364,7 @@ def _ftw_artifact(
     raw: bytes,
     metadata: dict[str, Any],
     read_only: bool,
-    auth_post_path: str = "",
+    auth_post_paths: list[str] | None = None,
     preserve_controls: bool = False,
 ) -> bytes:
     """Add FTW metadata and the host-call polyfills older hosts lack.
@@ -379,14 +379,16 @@ def _ftw_artifact(
     write guards: those are meters and telemetry gateways saying what they are,
     not a policy imposed on them.
 
-    `auth_post_path` is for a driver that can only read once it has signed in.
+    `auth_post_paths` is for a driver that can only read once it has signed in.
     Over HTTP a POST is not evidence of actuation -- it is also how a driver
     exchanges a refresh token -- so denying it outright would cost such a
     driver every reading it takes. The exemption is scoped rather than trusted:
-    POST is permitted only to a URL ending in the declared path, and denied
+    POST is permitted only to a URL ending in a declared path, and denied
     everywhere else, so the flag enforces "this POST is authentication" instead
     of merely asserting it. Matching the path rather than a whole URL survives
-    a site pointing the driver at its own base URL.
+    a site pointing the driver at its own base URL. A web login posts more
+    than one form, so a driver may declare several paths. The same rule holds
+    for a POST through host.http_request.
     """
     protocols = metadata.get("protocols", [])
     capabilities = metadata.get("capabilities", [])
@@ -422,23 +424,51 @@ def _ftw_artifact(
     # marks control: true keeps the control path it was ported with.
     write_guards = ""
     if read_only:
-        if auth_post_path:
+        if auth_post_paths:
             # Sign in, then read. Anything else this driver tries to POST is
             # refused exactly as if it had no exemption at all.
             http_post_guard = (
                 "local __sourceful_ftw_http_post = host.http_post\n"
-                f"local __sourceful_ftw_auth_path = {_lua_string(auth_post_path)}\n"
-                "host.http_post = function(url, ...)\n"
+                f"local __sourceful_ftw_auth_paths = {_lua_string_list(auth_post_paths)}\n"
+                "local function __sourceful_ftw_is_auth(url)\n"
                 "    local path = type(url) == \"string\" and url:match(\"^[^?]*\") or \"\"\n"
-                "    if path:sub(-#__sourceful_ftw_auth_path) == __sourceful_ftw_auth_path then\n"
+                "    for _, auth in ipairs(__sourceful_ftw_auth_paths) do\n"
+                "        if path:sub(-#auth) == auth then return true end\n"
+                "    end\n"
+                "    return false\n"
+                "end\n"
+                "host.http_post = function(url, ...)\n"
+                "    if __sourceful_ftw_is_auth(url) then\n"
                 "        return __sourceful_ftw_http_post(url, ...)\n"
                 "    end\n"
                 "    error(\"this driver declares itself read-only: "
                 "POST is allowed only for authentication\")\n"
                 "end\n"
+                "local __sourceful_ftw_http_request = host.http_request\n"
+                "if __sourceful_ftw_http_request then\n"
+                "    host.http_request = function(opts)\n"
+                "        local method = type(opts) == \"table\" and string.upper(tostring(opts.method or \"GET\")) or \"\"\n"
+                "        if method == \"GET\" or (method == \"POST\" and __sourceful_ftw_is_auth(opts.url)) then\n"
+                "            return __sourceful_ftw_http_request(opts)\n"
+                "        end\n"
+                "        error(\"this driver declares itself read-only: "
+                "POST is allowed only for authentication\")\n"
+                "    end\n"
+                "end\n"
             )
         else:
-            http_post_guard = "host.http_post = __sourceful_ftw_write_denied\n"
+            http_post_guard = (
+                "host.http_post = __sourceful_ftw_write_denied\n"
+                "local __sourceful_ftw_http_request = host.http_request\n"
+                "if __sourceful_ftw_http_request then\n"
+                "    host.http_request = function(opts)\n"
+                "        if type(opts) == \"table\" and string.upper(tostring(opts.method or \"GET\")) == \"GET\" then\n"
+                "            return __sourceful_ftw_http_request(opts)\n"
+                "        end\n"
+                "        __sourceful_ftw_write_denied()\n"
+                "    end\n"
+                "end\n"
+            )
         write_guards = (
             "local function __sourceful_ftw_write_denied()\n"
             "    error(\"this driver declares itself read-only\")\n"
@@ -574,10 +604,13 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
         # It names the path its token exchange goes to, and the generated guard
         # holds it to exactly that -- see _ftw_artifact.
         auth_post_path = _string_field(body, "auth_post_path") if body else ""
-        if auth_post_path and not auth_post_path.startswith("/"):
-            raise RepositoryError(
-                f"{driver_id}: auth_post_path must be a path beginning with '/'")
-        if auth_post_path and not declares_read_only:
+        extra_auth_paths = _string_list_field(body, "auth_post_paths") if body else []
+        auth_post_paths = ([auth_post_path] if auth_post_path else []) + extra_auth_paths
+        for path in auth_post_paths:
+            if not path.startswith("/"):
+                raise RepositoryError(
+                    f"{driver_id}: auth_post_path must be a path beginning with '/'")
+        if auth_post_paths and not declares_read_only:
             raise RepositoryError(
                 f"{driver_id}: auth_post_path only means anything with read_only")
 
@@ -700,12 +733,14 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
 
         if auth_post_path and not controls:
             metadata["auth_post_path"] = auth_post_path
+        if extra_auth_paths and not controls:
+            metadata["auth_post_paths"] = extra_auth_paths
 
         artifact = _ftw_artifact(
             raw,
             metadata,
             read_only=not controls,
-            auth_post_path=auth_post_path if not controls else "",
+            auth_post_paths=auth_post_paths if not controls else [],
             preserve_controls=controls and declares_controls,
         )
         if len(artifact) > MAX_DRIVER_BYTES:
@@ -714,7 +749,7 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
         permissions = list(PROTOCOL_PERMISSIONS[protocol])
         if controls:
             permissions += PROTOCOL_WRITE_PERMISSIONS[protocol]
-        elif auth_post_path:
+        elif auth_post_paths:
             # Read-only, but it cannot read a thing until it has signed in.
             permissions += PROTOCOL_WRITE_PERMISSIONS[protocol]
 
@@ -820,7 +855,7 @@ def _validate_manifest(manifest: dict[str, Any]) -> None:
         # that POST to auth_post_path, so the permission cannot reach further
         # than the token exchange it was granted for.
         allowed_write = set()
-        if metadata.get("auth_post_path"):
+        if metadata.get("auth_post_path") or metadata.get("auth_post_paths"):
             allowed_write = {"http.post"}
         if read_only and write_permissions.intersection(permissions) - allowed_write:
             raise RepositoryError(f"{driver_id}: read-only driver has a write-capable permission")

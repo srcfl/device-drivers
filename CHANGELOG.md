@@ -1,5 +1,11 @@
 # Changelog
 
+## vag_vehicle 0.2.0
+
+Sign in with the account email and password instead of a pasted portal cookie, and sign in again when the portal session ends after about an hour (srcfl/device-drivers#143). The sign-in follows evcc's EU Data Act client: the identity form, the password page's `window._IDK` state, then the redirects back to the portal, skipping an optional marketing consent page. It needs an FTW Core with `host.http_request`. The host keeps the session cookies, and every redirect is a separate request checked against `allowed_hosts`. A failed sign-in waits 15 minutes before the next try, so a wrong password cannot lock the account. On an older Core, a pasted `cookie` works as before. `identity.vwgroup.io` joins `http_hosts`, `password` joins `config_secrets`, and the two sign-in form paths per brand are declared in `auth_post_paths`.
+
+The driver now reports the reading's age as `vehicle_soc_age_s`. The SoC data point carries the time the car measured it, and the portal's `Date` header gives the time now, so no wall clock is needed. A reading the car measured more than 20 minutes ago is not a fresh observation, even in a new file. A fresh first file after start is no longer marked stale. Ages are reported only in sign-in mode, since cookie mode reads through `host.http_get`, which does not return headers. Tested against a scripted portal, not yet against the live portal or a car.
+
 ## esphome_dsmr 1.0.7
 
 Declare an empty `host` in `connection_defaults`, so FTW setup passes the

@@ -18,27 +18,41 @@
 --
 -- Porsche is not on this portal (VW, Audi, Škoda, SEAT, Cupra, MAN,
 -- Bentley, Elli). No wake / charge_start / climatisation — telemetry
--- only. FTW's Lua host has no cookie jar and cannot complete the
--- portal's OIDC form login, so the owner pastes a logged-in session
--- Cookie header. When it expires the driver stops emitting.
+-- only.
+--
+-- Sign-in: with `email` and `password` the driver signs in through the
+-- VW Group identity service itself, as evcc does, and signs in again
+-- when the portal session ends (about an hour). There is no refresh
+-- token. A failed sign-in waits 15 minutes before the next try, so a
+-- wrong password cannot lock the account. This needs a host with
+-- host.http_request (FTW Core with a per-driver cookie jar). On an
+-- older host, or without a password, the owner pastes a logged-in
+-- session Cookie header instead, and the driver stops emitting when it
+-- expires.
+--
+-- Age: the SoC data point carries the time the car measured it, and the
+-- portal's Date header gives the time now, so the driver reports the
+-- reading's age as `vehicle_soc_age_s` without a wall clock of its own.
+-- A reading older than 20 minutes is not a fresh observation.
 --
 -- What the site owner must provide:
 --   1. A brand account already linked to the car.
---   2. One-time consent on the portal, then
+--   2. One-time consent on the portal in a browser, then
 --      Get customised data → continuous → All Data → 15 minutes.
---   3. VIN, brand, and the Cookie header from a logged-in portal tab
---      (DevTools → Network → any portal request → Request Headers).
+--   3. VIN, brand, and the account email and password.
 --
 --   drivers:
 --     - name: id4
 --       lua: drivers/vag_vehicle.lua
 --       capabilities:
 --         http:
---           allowed_hosts: ["eu-data-act.drivesomethinggreater.com"]
+--           allowed_hosts: ["eu-data-act.drivesomethinggreater.com", "identity.vwgroup.io"]
 --       config:
 --         vin: "WVWZZZ..."
 --         brand: volkswagen          # audi | skoda | seat | cupra
---         cookie: "name=value; ..."  # masked via config_secrets
+--         email: "owner@example.com"
+--         password: "..."            # masked via config_secrets
+--         # cookie: "name=value; ..." # instead of email/password on old hosts
 --
 -- Keys (GUIDs) and names come from VW's data dictionary ("DataDictionary
 -- V5.0, Continuous Data"), as parsed in evcc's vehicle/vw/eudataact, which
@@ -52,22 +66,41 @@ DRIVER = {
   id           = "vag_vehicle",
   name         = "VAG Vehicle (EU Data Act)",
   manufacturer = "Volkswagen Group",
-  version      = "0.1.1",
+  version      = "0.2.0",
   protocols    = { "http" },
   capabilities = { "vehicle" },
   read_only    = true,
   description  = "Read-only VW / Audi / Škoda / SEAT / Cupra SoC and charge state from the EU Data Act portal. Not live BMS; charging does not need this cloud.",
   homepage     = "https://eu-data-act.drivesomethinggreater.com/",
-  http_hosts   = { "eu-data-act.drivesomethinggreater.com" },
+  http_hosts   = { "eu-data-act.drivesomethinggreater.com", "identity.vwgroup.io" },
   authors      = { "FTW contributors" },
   tested_models = { "ID.3", "ID.4", "Enyaq", "Q4 e-tron" },
   verification_status = "experimental",
-  config_secrets = { "cookie" },
+  config_secrets = { "cookie", "password" },
+  -- The two form posts of the identity sign-in, per brand client id. A
+  -- read-only driver may POST only here; Core matches each path exactly.
+  auth_post_paths = {
+    "/signin-service/v1/9b58543e-1c15-4193-91d5-8a14145bebb0@apps_vw-dilab_com/login/identifier",
+    "/signin-service/v1/9b58543e-1c15-4193-91d5-8a14145bebb0@apps_vw-dilab_com/login/authenticate",
+    "/signin-service/v1/cc29b87a-5e9a-4362-aecf-5adea6b01bbb@apps_vw-dilab_com/login/identifier",
+    "/signin-service/v1/cc29b87a-5e9a-4362-aecf-5adea6b01bbb@apps_vw-dilab_com/login/authenticate",
+    "/signin-service/v1/3ea88bf9-1d4e-4a68-b3ad-4098c1f1d246@apps_vw-dilab_com/login/identifier",
+    "/signin-service/v1/3ea88bf9-1d4e-4a68-b3ad-4098c1f1d246@apps_vw-dilab_com/login/authenticate",
+    "/signin-service/v1/f85e5b69-e3b2-43aa-9c0d-1b7d0e0b576f@apps_vw-dilab_com/login/identifier",
+    "/signin-service/v1/f85e5b69-e3b2-43aa-9c0d-1b7d0e0b576f@apps_vw-dilab_com/login/authenticate",
+  },
 }
 
 PROTOCOL = "http"
 
 local BASE_URL = "https://eu-data-act.drivesomethinggreater.com"
+local PORTAL_HOST = "eu-data-act.drivesomethinggreater.com"
+local IDENTITY_URL = "https://identity.vwgroup.io"
+local IDENTITY_HOST = "identity.vwgroup.io"
+-- A failed sign-in waits this long, so retries cannot lock the account.
+local LOGIN_BACKOFF_MS = 900000
+-- A reading the car measured longer ago than this is not a fresh one.
+local FRESH_AGE_S = 1200
 -- The portal writes a file about every 15 minutes; asking every 5 is
 -- enough. The host keeps the interval last set with set_poll_interval.
 local POLL_INTERVAL_MS = 300000
@@ -84,6 +117,16 @@ local BRANDS = {
   skoda = "Skoda",
   seat = "Seat",
   cupra = "Cupra",
+}
+
+-- Identity client id and state suffix per brand, from evcc's
+-- vehicle/vw/eudataact (after ioBroker.vw-connect's euDataAct.js).
+local CLIENTS = {
+  Volkswagen = { id = "9b58543e-1c15-4193-91d5-8a14145bebb0@apps_vw-dilab_com", state = "VOLKSWAGEN_PASSENGER_CARS" },
+  Audi = { id = "cc29b87a-5e9a-4362-aecf-5adea6b01bbb@apps_vw-dilab_com", state = "AUDI" },
+  Skoda = { id = "3ea88bf9-1d4e-4a68-b3ad-4098c1f1d246@apps_vw-dilab_com", state = "SKODA" },
+  Seat = { id = "f85e5b69-e3b2-43aa-9c0d-1b7d0e0b576f@apps_vw-dilab_com", state = "SEAT" },
+  Cupra = { id = "f85e5b69-e3b2-43aa-9c0d-1b7d0e0b576f@apps_vw-dilab_com", state = "CUPRA" },
 }
 
 -- SoC / limit / state / remaining-time ids from the Data Act dictionary.
@@ -132,6 +175,14 @@ local TTF_IDS = {
 local vin = nil
 local brand_name = nil
 local cookie = nil
+local email = nil
+local password = nil
+-- Sign-in mode: the host keeps the session cookies; see login().
+local session_ok = false
+local next_login_ms = 0
+-- Server time (epoch s) from the last portal Date header, and when it came.
+local server_now_s = nil
+local server_now_ms = 0
 local request_id = nil
 local last_file = nil
 -- Newest content file at the first listing after start (false: there was
@@ -144,6 +195,8 @@ local last = {
   charging_state = nil,
   time_to_full = nil,
   known_age = false,
+  -- Seconds between the car's measurement and the read, when known.
+  measured_age_s = nil,
 }
 
 ---------------------------------------------------------------------------
@@ -544,8 +597,314 @@ local function auth_headers(extra)
   return h
 end
 
+---------------------------------------------------------------------------
+-- Time. The host has no wall clock; the portal's Date header and the data
+-- points' timestampUtc are both VW's clocks, so their difference is an age.
+---------------------------------------------------------------------------
+
+local function days_from_civil(y, m, d)
+  if m <= 2 then y = y - 1 end
+  local era = math.floor(y / 400)
+  local yoe = y - era * 400
+  local doy = math.floor((153 * ((m + 9) % 12) + 2) / 5) + d - 1
+  local doe = yoe * 365 + math.floor(yoe / 4) - math.floor(yoe / 100) + doy
+  return era * 146097 + doe - 719468
+end
+
+-- "2026-09-26T07:00:00Z", optional fraction, Z or ±hh:mm.
+local function iso_epoch(s)
+  if type(s) ~= "string" then return nil end
+  local y, mo, d, h, mi, se, rest =
+    s:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)[T ](%d%d):(%d%d):(%d%d)(.*)$")
+  if not y then return nil end
+  local t = days_from_civil(tonumber(y), tonumber(mo), tonumber(d)) * 86400 +
+    tonumber(h) * 3600 + tonumber(mi) * 60 + tonumber(se)
+  rest = rest:gsub("^%.%d+", "")
+  if rest == "" or rest == "Z" then return t end
+  local sign, oh, om = rest:match("^([+-])(%d%d):?(%d%d)$")
+  if not sign then return nil end
+  local off = tonumber(oh) * 3600 + tonumber(om) * 60
+  if sign == "+" then return t - off end
+  return t + off
+end
+
+local MONTHS = { Jan = 1, Feb = 2, Mar = 3, Apr = 4, May = 5, Jun = 6,
+  Jul = 7, Aug = 8, Sep = 9, Oct = 10, Nov = 11, Dec = 12 }
+
+-- "Sat, 03 Oct 2026 10:00:00 GMT"
+local function http_date_epoch(s)
+  if type(s) ~= "string" then return nil end
+  local d, mon, y, h, mi, se = s:match("(%d%d?) (%a%a%a) (%d%d%d%d) (%d%d):(%d%d):(%d%d) GMT")
+  local m = mon and MONTHS[mon]
+  if not m then return nil end
+  return days_from_civil(tonumber(y), m, tonumber(d)) * 86400 +
+    tonumber(h) * 3600 + tonumber(mi) * 60 + tonumber(se)
+end
+
+local function note_server_time(headers)
+  local t = headers and http_date_epoch(headers.date)
+  if t then
+    server_now_s = t
+    server_now_ms = host.millis()
+  end
+end
+
+---------------------------------------------------------------------------
+-- Sign-in through the VW Group identity service, as evcc's eudataact does.
+-- Every redirect is one host.http_request call, so Core checks each hop
+-- against allowed_hosts; the session cookies stay in the host's jar.
+---------------------------------------------------------------------------
+
+local function urlencode(v)
+  return (tostring(v):gsub("[^%w%-%._~]", function(c)
+    return string.format("%%%02X", string.byte(c))
+  end))
+end
+
+local function urldecode(v)
+  return (tostring(v):gsub("%+", " "):gsub("%%(%x%x)", function(h)
+    return string.char(tonumber(h, 16))
+  end))
+end
+
+-- pairs is a list of {name, value}, so the order is stable.
+local function form(pairs_list)
+  local out = {}
+  for i = 1, #pairs_list do
+    out[i] = urlencode(pairs_list[i][1]) .. "=" .. urlencode(pairs_list[i][2] or "")
+  end
+  return table.concat(out, "&")
+end
+
+local function html_unescape(v)
+  if not v then return nil end
+  v = v:gsub("&#x(%x+);", function(h) return string.char(tonumber(h, 16)) end)
+  v = v:gsub("&#(%d+);", function(n) return string.char(tonumber(n)) end)
+  v = v:gsub("&quot;", '"'):gsub("&#39;", "'"):gsub("&lt;", "<"):gsub("&gt;", ">")
+  return (v:gsub("&amp;", "&"))
+end
+
+local function attr(tag, name)
+  return html_unescape(tag:match("%s" .. name .. "%s*=%s*\"([^\"]*)\"")
+    or tag:match("%s" .. name .. "%s*=%s*'([^']*)'"))
+end
+
+-- The action and named inputs of the form with this id.
+local function parse_form(html, id)
+  local init = 1
+  while true do
+    local _, tag_end, tag = string.find(html, "(<form[^>]*>)", init)
+    if not tag_end then return nil end
+    if attr(tag, "id") == id then
+      local close = string.find(html, "</form>", tag_end, true) or #html
+      local inner = string.sub(html, tag_end + 1, close)
+      local inputs = {}
+      for input in inner:gmatch("<input[^>]*>") do
+        local name = attr(input, "name")
+        if name then inputs[name] = attr(input, "value") or "" end
+      end
+      return { action = attr(tag, "action"), inputs = inputs }
+    end
+    init = tag_end + 1
+  end
+end
+
+-- The password page carries its form state in a script object,
+-- window._IDK = {...}. Read single fields; no JavaScript runs.
+local function idk_block(html)
+  local s = string.find(html, "window._IDK", 1, true)
+  if not s then return nil end
+  local e = string.find(html, "</script>", s, true) or #html
+  return string.sub(html, s, e)
+end
+
+local function js_field(js, key)
+  for _, pattern in ipairs({
+    "[^%w_]" .. key .. "%s*:%s*\"([^\"]*)\"",
+    "[^%w_]" .. key .. "%s*:%s*'([^']*)'",
+    "\"" .. key .. "\"%s*:%s*\"([^\"]*)\"",
+  }) do
+    local v = js:match(pattern)
+    if v then return v end
+  end
+  return nil
+end
+
+local function url_host(u)
+  return type(u) == "string" and string.lower(u:match("^https://([^/:?#]+)") or "") or ""
+end
+
+local function url_path(u)
+  return type(u) == "string" and (u:match("^https://[^/]+(/[^?#]*)") or "/") or ""
+end
+
+local function sign_in_host(u)
+  local h = url_host(u)
+  return h == IDENTITY_HOST or h == PORTAL_HOST
+end
+
+local function is_user_page(u)
+  local path = url_path(u)
+  return url_host(u) == PORTAL_HOST and path:sub(1, 14) == "/content/euda/"
+    and path:sub(-10) == "/user.html"
+end
+
+local function request(method, url, body)
+  local headers = { ["Accept"] = "text/html,application/json" }
+  if body then headers["Content-Type"] = "application/x-www-form-urlencoded" end
+  local ok, r, err = pcall(host.http_request, {
+    method = method, url = url, headers = headers, body = body,
+  })
+  if not ok then return nil, tostring(r) end
+  if not r then return nil, tostring(err) end
+  note_server_time(r.headers)
+  if r.status >= 400 then return nil, "HTTP " .. tostring(r.status) end
+  return r
+end
+
+-- GET each redirect on a sign-in host until a page answers. Returns the
+-- response and its URL.
+local function follow(r, url)
+  for _ = 1, 10 do
+    if not (r.status >= 300 and r.status < 400) then return r, url end
+    if not r.location or not sign_in_host(r.location) then
+      return nil, nil, "sign-in redirected off the VW hosts"
+    end
+    url = r.location
+    local err
+    r, err = request("GET", url)
+    if not r then return nil, nil, err end
+  end
+  return nil, nil, "sign-in stopped after 10 redirects"
+end
+
+local function nonce()
+  local out = {}
+  for i = 1, 43 do
+    local n = math.random(0, 51)
+    out[i] = string.char(n < 26 and 65 + n or 71 + n)
+  end
+  return table.concat(out)
+end
+
+local function login()
+  local client = CLIENTS[brand_name]
+  if not client then return nil, "no sign-in client for " .. tostring(brand_name) end
+  host.http_cookies_clear()
+
+  local start = IDENTITY_URL .. "/oidc/v1/authorize?" .. form({
+    { "client_id", client.id },
+    { "response_type", "code" },
+    { "scope", "openid cars profile" },
+    { "state", "de__en__" .. client.state },
+    { "redirect_uri", BASE_URL .. "/login" },
+    { "prompt", "login" },
+    { "nonce", nonce() },
+  })
+  local r, err = request("GET", start)
+  if not r then return nil, err end
+  r, _, err = follow(r, start)
+  if not r then return nil, err end
+
+  local f = parse_form(r.body or "", "emailPasswordForm")
+  if not f or not f.action then
+    return nil, "sign-in form not found (the VW page may have changed)"
+  end
+  local id_url = f.action
+  if id_url:sub(1, 1) == "/" then id_url = IDENTITY_URL .. id_url end
+  r, err = request("POST", id_url, form({
+    { "_csrf", f.inputs._csrf },
+    { "relayState", f.inputs.relayState },
+    { "hmac", f.inputs.hmac },
+    { "email", email },
+  }))
+  if not r then return nil, err end
+  r, _, err = follow(r, id_url)
+  if not r then return nil, err end
+
+  local js = idk_block(r.body or "")
+  if not js then return nil, "password page not found (the VW page may have changed)" end
+  local refused = js_field(js, "error")
+  if refused and refused ~= "" then return nil, "sign-in refused: " .. refused end
+  local identifier_url = js_field(js, "identifierUrl")
+  local post_action = js_field(js, "postAction")
+  local s, e
+  if identifier_url then s, e = string.find(id_url, identifier_url, 1, true) end
+  if not s or not post_action then return nil, "password form not found" end
+  local auth_url = string.sub(id_url, 1, s - 1) .. post_action .. string.sub(id_url, e + 1)
+
+  r, err = request("POST", auth_url, form({
+    { "_csrf", js_field(js, "csrf_token") },
+    { "relayState", js_field(js, "relayState") },
+    { "hmac", js_field(js, "hmac") },
+    { "email", email },
+    { "password", password },
+  }))
+  if not r then return nil, err end
+
+  -- Walk the redirects back to the portal, which sets its session cookies
+  -- on the way. Stop before fetching the landing page itself.
+  local url = auth_url
+  for _ = 1, 12 do
+    local loc = (r.status >= 300 and r.status < 400) and r.location or nil
+    if not loc then break end
+    if is_user_page(loc) then return true end
+    if url_host(loc) == IDENTITY_HOST and string.find(url_path(loc), "/consent/marketing/", 1, true) then
+      -- An optional marketing consent page: continue through its callback
+      -- without consenting.
+      local cb = loc:match("[?&]callback=([^&]*)")
+      if not cb then return nil, "marketing consent without a callback" end
+      cb = urldecode(cb):gsub(" ", "%%20")
+      local path = url_path(cb)
+      if url_host(cb) ~= IDENTITY_HOST or (path ~= "/oidc/v1/oauth/client/callback"
+          and path ~= "/oidc/v1/oauth/client/callback/success") then
+        return nil, "unexpected marketing consent callback"
+      end
+      loc = cb
+    end
+    if not sign_in_host(loc) then return nil, "sign-in redirected off the VW hosts" end
+    url = loc
+    r, err = request("GET", url)
+    if not r then return nil, err end
+  end
+  if is_user_page(url) then return true end
+  -- A wrong password comes back as the password page with VW's reason.
+  local page_js = idk_block(r.body or "")
+  local reason = page_js and js_field(page_js, "error")
+  if reason and reason ~= "" then return nil, "sign-in refused: " .. reason end
+  local path = url_path(url)
+  if string.find(path, "signin-service", 1, true) or string.find(path, "/consent", 1, true)
+      or string.find(path, "/error", 1, true) then
+    return nil, "sign-in did not finish: open the portal once in a browser and confirm consent"
+  end
+  return nil, "sign-in did not reach the portal"
+end
+
+local function session_mode()
+  return email ~= nil and password ~= nil and host.http_request ~= nil
+end
+
 local function api_get(path, extra)
-  return safe_http_get(BASE_URL .. path, auth_headers(extra))
+  if not session_mode() then
+    return safe_http_get(BASE_URL .. path, auth_headers(extra))
+  end
+  local headers = { ["Accept"] = "application/json" }
+  if extra then
+    for k, v in pairs(extra) do headers[k] = v end
+  end
+  local ok, r, err = pcall(host.http_request, { url = BASE_URL .. path, headers = headers })
+  if not ok then return nil, tostring(r) end
+  if not r then return nil, tostring(err) end
+  note_server_time(r.headers)
+  -- An ended session answers 401/403, or redirects to the sign-in page.
+  if r.status == 401 or r.status == 403 or (r.status >= 300 and r.status < 400) then
+    session_ok = false
+    return nil, "HTTP 401: session ended"
+  end
+  if r.status >= 400 then
+    return nil, "HTTP " .. tostring(r.status) .. ": " .. string.sub(r.body or "", 1, 200)
+  end
+  return r.body
 end
 
 -- The newest point among the candidates wins; on a tie, the earlier
@@ -588,6 +947,7 @@ local function index_points(data)
         value = tostring(dp.value),
         key = dp.key,
         name = dp.dataFieldName or dp.DataFieldName,
+        ts = dp.timestampUtc or dp.TimestampUtc,
         seq = i,
       }
       if rec.key and rec.key ~= "" then points[rec.key] = rec end
@@ -696,24 +1056,48 @@ local function emit_reading(soc, limit, state, ttf, fresh, stale)
   })
 end
 
+-- The reading's age now: measured age at the read plus time since.
+local function emit_age(since_read_ms)
+  if last.measured_age_s == nil then return nil end
+  local age = last.measured_age_s + since_read_ms / 1000
+  host.emit_metric("vehicle_soc_age_s", age, "s")
+  return age
+end
+
 local function emit_last()
   if last.soc == nil then return end
   local age = host.millis() - last.ts_ms
   if age > STALE_AFTER_MS then
     return
   end
+  local measured = emit_age(age)
+  local stale = not last.known_age or age > (STALE_AFTER_MS / 2)
+  if measured ~= nil then
+    stale = measured * 1000 > STALE_AFTER_MS / 2
+  end
   emit_reading(
     last.soc, last.charge_limit, last.charging_state, last.time_to_full,
-    false, not last.known_age or age > (STALE_AFTER_MS / 2))
+    false, stale)
 end
 
-local function remember(soc, limit, state, ttf, known_age)
+local function remember(soc, limit, state, ttf, known_age, measured_age_s)
   last.soc = soc
   last.charge_limit = limit
   last.charging_state = state
   last.time_to_full = ttf
   last.known_age = known_age
+  last.measured_age_s = measured_age_s
   last.ts_ms = host.millis()
+end
+
+-- Seconds since the car measured this point, from the portal's clock.
+local function point_age_s(point)
+  local measured = point and iso_epoch(point.ts)
+  if not measured or not server_now_s then return nil end
+  -- Subtract the epoch values first: they do not fit a 32-bit float.
+  local age = (server_now_s - measured) + (host.millis() - server_now_ms) / 1000
+  if age < 0 then age = 0 end
+  return age
 end
 
 local function resolve_brand(raw)
@@ -777,8 +1161,18 @@ function driver_init(config)
   host.set_make(brand_name)
   host.set_sn(vin)
   cookie = normalize_cookie(config.cookie or config.session_cookie)
-  if not cookie then
-    host.log("error", "vag: `cookie` required — paste the portal Cookie header after enabling the 15-minute All Data request. Charging does not need this cloud.")
+  if type(config.email) == "string" and config.email ~= "" and
+      type(config.password) == "string" and config.password ~= "" then
+    if host.http_request and host.http_cookies_clear then
+      email = config.email
+      password = config.password
+    elseif not cookie then
+      host.log("error", "vag: this FTW version cannot sign in with email and password; update FTW or paste the portal Cookie header. Charging does not need this cloud.")
+      return
+    end
+  end
+  if not session_mode() and not cookie then
+    host.log("error", "vag: `email` and `password` required (or a pasted portal `cookie`) after enabling the 15-minute All Data request. Charging does not need this cloud.")
     return
   end
   if host.set_watchdog_timeout_s then
@@ -786,19 +1180,44 @@ function driver_init(config)
   end
   host.set_poll_interval(500)
   host.log("info", "vag: telemetry-only EU Data Act driver brand=" ..
-    brand_name .. " vin=" .. vin)
+    brand_name .. " vin=" .. vin ..
+    (session_mode() and " sign-in=email" or " sign-in=cookie"))
 end
 
 function driver_poll()
   host.set_poll_interval(POLL_INTERVAL_MS)
-  if not vin or not cookie or not brand_name then
+  if not vin or not brand_name or (not cookie and not session_mode()) then
     return POLL_INTERVAL_MS
+  end
+  if session_mode() and not session_ok then
+    if host.millis() < next_login_ms then
+      emit_last()
+      return POLL_INTERVAL_MS
+    end
+    local ok, lerr = login()
+    if not ok then
+      next_login_ms = host.millis() + LOGIN_BACKOFF_MS
+      local es = tostring(lerr)
+      if es:find("not in allowed_hosts", 1, true) then
+        es = es .. " — add identity.vwgroup.io to capabilities.http.allowed_hosts"
+      end
+      host.log("warn", "vag: sign-in failed, next try in 15 min: " .. es)
+      emit_last()
+      return POLL_INTERVAL_MS
+    end
+    session_ok = true
+    request_id = nil
+    host.log("info", "vag: signed in to the EU Data Act portal")
   end
 
   local id, iderr = ensure_request_id()
   if not id then
     local es = tostring(iderr)
-    if es:match("HTTP 401") or es:match("HTTP 403") then
+    if session_mode() and not session_ok then
+      host.log("info", "vag: portal session ended, signing in again")
+      emit_last()
+      return 1000
+    elseif es:match("HTTP 401") or es:match("HTTP 403") then
       host.log("warn", "vag: portal session expired — refresh config.cookie. Charging continues without vehicle cloud.")
     elseif es:match("HTTP 404") or es:match("no data request") then
       host.log("warn", "vag: no continuous data request — enable All Data / 15 min on the EU Data Act portal")
@@ -814,7 +1233,12 @@ function driver_poll()
     { type = "partial" })
   if lerr then
     local es = tostring(lerr)
-    if es:match("HTTP 401") or es:match("HTTP 403") then
+    if session_mode() and not session_ok then
+      host.log("info", "vag: portal session ended, signing in again")
+      request_id = nil
+      emit_last()
+      return 1000
+    elseif es:match("HTTP 401") or es:match("HTTP 403") then
       host.log("warn", "vag: portal session expired — refresh config.cookie. Charging continues without vehicle cloud.")
       request_id = nil
     elseif es:match("HTTP 404") then
@@ -887,13 +1311,23 @@ function driver_poll()
   local state = map_charging_state(points)
 
   local known_age = name ~= baseline_file
-  remember(soc, limit, state, ttf, known_age)
-  host.log("info", "vag: " .. (known_age and "emit" or "first file since start, age unknown, stale:") ..
+  local fresh = known_age
+  local measured = point_age_s(soc_p)
+  if measured ~= nil then
+    -- The portal can deliver a new file with an old reading from a car
+    -- that sleeps, and the first file after start may be fresh.
+    known_age = true
+    fresh = measured <= FRESH_AGE_S
+  end
+  remember(soc, limit, state, ttf, known_age, measured)
+  host.log("info", "vag: " .. (fresh and "emit" or (known_age and "old reading:" or "first file since start, age unknown, stale:")) ..
     " soc=" .. tostring(soc) ..
     " limit=" .. tostring(limit) ..
     " state=" .. tostring(state) ..
+    (measured and (" age_s=" .. tostring(math.floor(measured))) or "") ..
     " file=" .. tostring(name))
-  if known_age then
+  if fresh then
+    emit_age(0)
     emit_reading(soc, limit, state, ttf, true, false)
   else
     emit_last()
@@ -909,6 +1343,12 @@ function driver_cleanup()
   vin = nil
   brand_name = nil
   cookie = nil
+  email = nil
+  password = nil
+  session_ok = false
+  next_login_ms = 0
+  server_now_s = nil
+  last.measured_age_s = nil
   request_id = nil
   last_file = nil
   baseline_file = nil

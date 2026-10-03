@@ -59,6 +59,8 @@
           "http_get",
           "http_post",
           "http_patch",
+          "http_request",
+          "http_cookies_clear",
           "https_get",
           "https_post",
           "json_decode"
@@ -87,6 +89,8 @@
           "http_get",
           "http_post",
           "http_patch",
+          "http_request",
+          "http_cookies_clear",
           "mqtt_pub",
           "mqtt_publish",
           "mqtt_sub",

@@ -96,3 +96,17 @@ def test_vag_vehicle_dataset_and_freshness(tmp_path: Path) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_vag_vehicle_email_sign_in(tmp_path: Path) -> None:
+    path = tmp_path / "deflated.zip"
+    path.write_bytes(_zip(zipfile.ZIP_DEFLATED))
+    result = subprocess.run(
+        [str(ROOT / "lua55"), "drivers/tests/lua_harness/test_vag_vehicle_login.lua", str(path)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "vag_vehicle login: ok" in result.stdout
