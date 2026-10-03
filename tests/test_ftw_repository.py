@@ -1036,8 +1036,9 @@ def test_multi_step_sign_in_declares_every_path(
     manifest, output = build(tmp_path, keypair)
     driver = next(d for d in manifest["drivers"] if d["id"] == "vag_vehicle")
     artifact = (output / Path(driver["url"]).name).read_text()
-    paths = driver["metadata"]["auth_post_paths"]
-    assert "auth_post_path" not in driver["metadata"]
+    # The first path also sits in auth_post_path, which an older Core needs
+    # before it runs a read-only driver holding http.post.
+    paths = [driver["metadata"]["auth_post_path"], *driver["metadata"]["auth_post_paths"]]
     assert len(paths) == 8 and all(p.startswith("/signin-service/v1/") for p in paths)
     assert {p.rsplit("/", 1)[1] for p in paths} == {"identifier", "authenticate"}
     assert "http.post" in driver["permissions"]

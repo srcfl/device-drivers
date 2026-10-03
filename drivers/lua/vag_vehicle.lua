@@ -79,8 +79,11 @@ DRIVER = {
   config_secrets = { "cookie", "password" },
   -- The two form posts of the identity sign-in, per brand client id. A
   -- read-only driver may POST only here; Core matches each path exactly.
+  -- The first sits in auth_post_path: a Core that predates auth_post_paths
+  -- refuses a read-only driver holding http.post without one. Such a Core
+  -- has no host.http_request, so the driver never posts there.
+  auth_post_path = "/signin-service/v1/9b58543e-1c15-4193-91d5-8a14145bebb0@apps_vw-dilab_com/login/identifier",
   auth_post_paths = {
-    "/signin-service/v1/9b58543e-1c15-4193-91d5-8a14145bebb0@apps_vw-dilab_com/login/identifier",
     "/signin-service/v1/9b58543e-1c15-4193-91d5-8a14145bebb0@apps_vw-dilab_com/login/authenticate",
     "/signin-service/v1/cc29b87a-5e9a-4362-aecf-5adea6b01bbb@apps_vw-dilab_com/login/identifier",
     "/signin-service/v1/cc29b87a-5e9a-4362-aecf-5adea6b01bbb@apps_vw-dilab_com/login/authenticate",
