@@ -1003,8 +1003,8 @@ def test_a_read_only_driver_may_still_sign_in(
 
         # The exemption is scoped, not a hole: POST reaches the real host
         # function only for a URL ending in the declared path.
-        assert f'local __sourceful_ftw_auth_paths = {{ "{auth_path}" }}' in artifact, driver_id
-        assert "if path:sub(-#auth) == auth then return true end" in artifact
+        assert f'local __sourceful_ftw_auth_path = "{auth_path}"' in artifact, driver_id
+        assert "path:sub(-#__sourceful_ftw_auth_path) == __sourceful_ftw_auth_path" in artifact
         assert "POST is allowed only for authentication" in artifact
         for denied in ("modbus_write", "modbus_write_multi", "mqtt_publish", "serial_write"):
             assert f"host.{denied} = __sourceful_ftw_write_denied" in artifact, driver_id
@@ -1049,17 +1049,18 @@ def test_multi_step_sign_in_declares_every_path(
     assert 'method == "POST" and __sourceful_ftw_is_auth(opts.url)' in artifact
 
 
-def test_read_only_driver_without_sign_in_cannot_post_through_http_request(
+def test_http_request_guard_only_where_used(
     tmp_path: Path, keypair: tuple[str, str]
 ) -> None:
+    """Only a driver that calls host.http_request gets its guard, so adding
+    the guard did not change any other published artifact."""
     manifest, output = build(tmp_path, keypair)
+    guarded = []
     for driver in manifest["drivers"]:
-        if not driver["read_only"] or "auth_post_path" in driver["metadata"] \
-                or "auth_post_paths" in driver["metadata"]:
-            continue
         artifact = (output / Path(driver["url"]).name).read_text()
-        assert "host.http_post = __sourceful_ftw_write_denied" in artifact, driver["id"]
-        assert "host.http_request = function(opts)" in artifact, driver["id"]
+        if "host.http_request = function(opts)" in artifact:
+            guarded.append(driver["id"])
+    assert guarded == ["vag_vehicle"], guarded
 
 
 def test_auth_post_path_must_be_a_path_and_must_mean_something(

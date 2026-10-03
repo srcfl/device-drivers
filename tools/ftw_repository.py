@@ -424,9 +424,25 @@ def _ftw_artifact(
     # marks control: true keeps the control path it was ported with.
     write_guards = ""
     if read_only:
-        if auth_post_paths:
+        # Only a driver that calls host.http_request gets its guard, so every
+        # other published artifact stays byte-identical.
+        uses_http_request = b"http_request" in raw
+        if len(auth_post_paths or []) == 1 and not uses_http_request:
             # Sign in, then read. Anything else this driver tries to POST is
             # refused exactly as if it had no exemption at all.
+            http_post_guard = (
+                "local __sourceful_ftw_http_post = host.http_post\n"
+                f"local __sourceful_ftw_auth_path = {_lua_string(auth_post_paths[0])}\n"
+                "host.http_post = function(url, ...)\n"
+                "    local path = type(url) == \"string\" and url:match(\"^[^?]*\") or \"\"\n"
+                "    if path:sub(-#__sourceful_ftw_auth_path) == __sourceful_ftw_auth_path then\n"
+                "        return __sourceful_ftw_http_post(url, ...)\n"
+                "    end\n"
+                "    error(\"this driver declares itself read-only: "
+                "POST is allowed only for authentication\")\n"
+                "end\n"
+            )
+        elif auth_post_paths:
             http_post_guard = (
                 "local __sourceful_ftw_http_post = host.http_post\n"
                 f"local __sourceful_ftw_auth_paths = {_lua_string_list(auth_post_paths)}\n"
@@ -444,28 +460,22 @@ def _ftw_artifact(
                 "    error(\"this driver declares itself read-only: "
                 "POST is allowed only for authentication\")\n"
                 "end\n"
+            )
+        else:
+            http_post_guard = "host.http_post = __sourceful_ftw_write_denied\n"
+        if uses_http_request:
+            allow_auth = (" or (method == \"POST\" and __sourceful_ftw_is_auth(opts.url))"
+                          if auth_post_paths else "")
+            http_post_guard += (
                 "local __sourceful_ftw_http_request = host.http_request\n"
                 "if __sourceful_ftw_http_request then\n"
                 "    host.http_request = function(opts)\n"
                 "        local method = type(opts) == \"table\" and string.upper(tostring(opts.method or \"GET\")) or \"\"\n"
-                "        if method == \"GET\" or (method == \"POST\" and __sourceful_ftw_is_auth(opts.url)) then\n"
+                f"        if method == \"GET\"{allow_auth} then\n"
                 "            return __sourceful_ftw_http_request(opts)\n"
                 "        end\n"
                 "        error(\"this driver declares itself read-only: "
                 "POST is allowed only for authentication\")\n"
-                "    end\n"
-                "end\n"
-            )
-        else:
-            http_post_guard = (
-                "host.http_post = __sourceful_ftw_write_denied\n"
-                "local __sourceful_ftw_http_request = host.http_request\n"
-                "if __sourceful_ftw_http_request then\n"
-                "    host.http_request = function(opts)\n"
-                "        if type(opts) == \"table\" and string.upper(tostring(opts.method or \"GET\")) == \"GET\" then\n"
-                "            return __sourceful_ftw_http_request(opts)\n"
-                "        end\n"
-                "        __sourceful_ftw_write_denied()\n"
                 "    end\n"
                 "end\n"
             )
