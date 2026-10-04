@@ -1,5 +1,17 @@
 # Changelog
 
+## heishamon 0.8.0
+
+Read `hp_power_w` from `main/Heat_Power_Consumption` (TOP16), with a
+`power_topic` override. This is the heat-mode input, not total electrical
+input in cooling or DHW mode. The new reading remains unverified on
+hardware. Invalid negative or non-finite power values clear the reading;
+newer pumps can send −200 on this legacy topic. Power expires after
+60 seconds without its own update, even if other topics keep arriving.
+
+Use `hp_outdoor_temp_c` for outdoor temperature, matching the other
+heat-pump drivers and FTW's Heating view. Prior history keeps its old key.
+
 ## heishamon 0.7.0
 
 Declare the existing `set_heat_curve_offset` control: −3…+3 °C, in steps
@@ -315,9 +327,6 @@ Driver versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
   comments. No behaviour change.
 
 ### Added
-- **heishamon** 0.6.0 — **the pump now reports its electrical draw, and its outdoor temperature under the name every other heat pump uses.** FTW's heating view finds a heat pump by `hp_power_w` and finds nothing else if that metric is absent, so a working, hardware-verified driver had no page at all: not a chart, not a reading, not an entry. It emits `hp_power_w` from `main/Heat_Power_Consumption`, which `power_topic` overrides for a Heishamon build that names it differently, and only once that topic has arrived — a wrong name costs the power reading and nothing else. `hp_outside_temp_c` becomes `hp_outdoor_temp_c`, which is what nibe_local and myuplink report and what the view charts; the old name was read by nobody. Existing history under the old key stays where it is and stops growing
-- The Lua `DRIVER` version said 0.4.0 while the manifest said 0.5.0. Both now say 0.6.0. The drift was invisible because nothing compares them outside `make bump-driver`
-- The example config carried what reads like a real MQTT password. It is now a placeholder
 - **acuvim** 0.4.1 — Accuenergy Acuvim II three-phase revenue-grade meter,
   migrated from the Blixt L1 driver source (POI meter on Blixt
   SvK sites). One bundled FC03 float32 block + a bounded probe of the

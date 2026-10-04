@@ -26,11 +26,12 @@
 --         safe_offset: 0
 --         power_topic: Heat_Power_Consumption
 --
--- power_topic names the main/ topic carrying the pump's electrical draw in W.
--- Heishamon publishes it as Heat_Power_Consumption (TOP21) on the builds this
--- driver has been run against; set it if your build names it differently. The
--- driver emits hp_power_w only once that topic has arrived, so a wrong name
--- costs the power reading and nothing else.
+-- power_topic names a main/ topic carrying electrical power in W.
+-- The default is Heat_Power_Consumption (TOP16), the heat-mode input.
+-- It is not total input in cooling or DHW mode. Pumps with an extra data
+-- block can send invalid negative values on this legacy topic; omit them.
+-- This new reading has not been checked on hardware.
+-- Source: https://github.com/heishamon/HeishaMon/blob/main/MQTT-Topics.md
 
 DRIVER = {
   host_api_min = 1,
@@ -48,7 +49,7 @@ DRIVER = {
   verification_status = "experimental",
   verified_by = { "Rolf (Runneval)" },
   verified_at = "2026-06-21",
-  verification_notes = "Tested on WH-SXC09H3E8 (H-series) with Heishamon Large v4.1.6 on ESP32. MQTT via core-mosquitto on HA Green. Live metrics confirmed. Offset control verified via Z1_Heat_Request_Temp.",
+  verification_notes = "Existing metrics and offset control tested on WH-SXC09H3E8 (H-series) with Heishamon Large v4.1.6 on ESP32 on 2026-06-21. The new hp_power_w reading is not hardware-verified; its default topic reports heat-mode input, not total input in cooling or DHW mode.",
   -- What an operator may command, in terms a host UI can render without
   -- knowing this driver. The bounds are the defaults below; min_offset and
   -- max_offset can narrow them in config, and driver_command clamps to
@@ -126,7 +127,18 @@ function driver_poll()
 
     for _, msg in ipairs(messages) do
         local val = tonumber(msg.payload)
-        if val ~= nil then
+        if msg.topic == base_topic .. "/main/" .. power_topic then
+            -- Heat consumption cannot be negative. Some newer pumps use
+            -- -200 as an invalid value on the legacy power topic.
+            if val ~= nil and val == val and val >= 0 and val < math.huge then
+                power_w       = val
+                last_power_ts = now
+                last_msg_ts   = now
+            else
+                power_w       = nil
+                last_power_ts = 0
+            end
+        elseif val ~= nil then
             if msg.topic == base_topic .. "/main/Outside_Temp" then
                 outside_temp = val
                 last_msg_ts  = now
@@ -142,10 +154,6 @@ function driver_poll()
             elseif msg.topic == base_topic .. "/main/Z1_Heat_Request_Temp" then
                 z1_offset   = val
                 last_msg_ts = now
-            elseif msg.topic == base_topic .. "/main/" .. power_topic then
-                power_w       = val
-                last_power_ts = now
-                last_msg_ts   = now
             end
         end
     end
