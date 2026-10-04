@@ -1,5 +1,5 @@
 name: "myuplink"
-version: "1.2.2"
+version: "1.2.3"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -10,7 +10,7 @@ control: false
 tested_devices:
   - manufacturer: "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)"
     model_family: "MyUplink Heat Pump (telemetry)"
-    variants: [NIBE F1145, NIBE S1255, NIBE F730]
+    variants: [NIBE F1145, NIBE S1255, NIBE F730, NIBE F750]
     regions: []
     firmware_versions: ""
     notes: "Read-only heat-pump telemetry via MyUplink Cloud REST API v2: compressor power + hot-water/indoor/outdoor temperatures. Observe-only — no control. OAuth: authorization-code + refresh-token (connect in Settings → Devices)."
@@ -21,9 +21,9 @@ upstream_docs:
     kind: changelog
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 17549
+size_bytes: 17562
 dkb_id: "myuplink"
-sha256: "0af1e129899c4c014b2e825d3efe13887dbc7f041cde6dbcb5496cc712e67bf9"
+sha256: "1eca0cdd1cd2dabf772cba90b359d55e7c8f6e350e403623227e9a5a03b20d9c"
 signature: ""
 
 bytecode_sha256: ""

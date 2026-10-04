@@ -951,12 +951,12 @@ manufacturers:
   - name: "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)"
     model_families:
       - name: "MyUplink Heat Pump (telemetry)"
-        variants: [NIBE F1145, NIBE F730, NIBE S1255]
+        variants: [NIBE F1145, NIBE F730, NIBE F750, NIBE S1255]
         regions: []
         protocols:
           - protocol: http
             driver: "myuplink"
-            version: "1.2.2"
+            version: "1.2.3"
             ders: [heatpump]
             control: false
         firmware_versions: ""
