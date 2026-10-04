@@ -25,7 +25,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.6",
+  version      = "1.3.7",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -71,6 +71,17 @@ local last_amps_set = nil
 -- because we never sent resume_charging. We saw this in the field as
 -- "easee_a=6, easee_chg=false, ev_w=0, reason=100/52" stuck states.
 local paused_state = false
+
+-- A mid-session phase flip only takes effect when the charger restarts
+-- the session. resume_charging in the same driver_command continues that
+-- session, so the new phaseMode never latches. Field case, Easee Home +
+-- Tesla: phaseMode=3 was written mid-session and the car drew 15 A on one
+-- phase for hours until a pause/resume in the Easee app. Hold the
+-- auto-resume until a later poll shows charging has stopped.
+local phase_flip_awaiting_stop = false
+local phase_flip_pause_ms = nil
+local last_poll_ms = nil
+local last_poll_charging = nil
 
 -- command_stalled_since_ms tracks when we last wrote a non-zero amps
 -- offer that did NOT translate into actual charging. Used to surface
@@ -583,6 +594,10 @@ function driver_init(config)
 end
 
 function driver_poll()
+    -- A failed poll leaves the charger state unknown. A prior stop
+    -- observation must not allow a phase-flip resume through that gap.
+    last_poll_ms = nil
+    last_poll_charging = nil
     if not charger_serial or not email then
         return 10000
     end
@@ -603,6 +618,8 @@ function driver_poll()
     local session_wh = (obs[OBS_SESSION_ENERGY] or 0) * 1000  -- kWh → Wh
     local connected = (op_mode >= 2 and op_mode <= 6)
     local charging = (op_mode == 3)
+    last_poll_ms = host.millis()
+    last_poll_charging = charging
     -- op_mode 0 is the sentinel Easee emits when the cloud hasn't heard
     -- from the unit recently. Anything else means the charger itself is
     -- responsive even when no car is plugged in.
@@ -787,15 +804,27 @@ function driver_command(action, power_w, cmd)
 
     if action == "ev_start" then
         local ok = post_command("/commands/start_charging")
-        if ok then paused_state = false end
+        if ok then
+            paused_state = false
+            phase_flip_awaiting_stop = false
+            phase_flip_pause_ms = nil
+        end
         return ok
     elseif action == "ev_pause" then
         local ok = post_command("/commands/pause_charging")
-        if ok then paused_state = true end
+        if ok then
+            paused_state = true
+            phase_flip_awaiting_stop = false
+            phase_flip_pause_ms = nil
+        end
         return ok
     elseif action == "ev_resume" then
         local ok = post_command("/commands/resume_charging")
-        if ok then paused_state = false end
+        if ok then
+            paused_state = false
+            phase_flip_awaiting_stop = false
+            phase_flip_pause_ms = nil
+        end
         return ok
     elseif action == "ev_set_current" then
         -- Driver-level phase decision: read the operator's preferences
@@ -821,14 +850,18 @@ function driver_command(action, power_w, cmd)
             -- contactor while a session is charging: the phase count is only
             -- latched when a session (re)starts. So on a real mid-session flip
             -- pause first; the phaseMode write reconfigures, and the auto-
-            -- resume below (amps > 0 && paused_state) re-closes the contactor
-            -- on the new phase count. Operator-confirmed: a manual
-            -- pause+resume was the only thing that flipped 1Φ→3Φ. Skip on the
-            -- first command of a session (last_sent_phases == nil) — there's no
-            -- live contactor to recycle. 2026-05-30.
+            -- resume below re-closes the contactor only after a later poll
+            -- shows charging has stopped. resume_charging in this same call
+            -- would continue the session, so 1Φ→3Φ would never latch.
+            -- Operator-confirmed: a manual pause+resume was the only thing
+            -- that flipped 1Φ→3Φ. Skip on the first command of a session
+            -- (last_sent_phases == nil) — there's no live contactor to
+            -- recycle. 2026-05-30.
             if last_sent_phases ~= nil then
                 if post_command("/commands/pause_charging") then
                     paused_state = true
+                    phase_flip_awaiting_stop = true
+                    phase_flip_pause_ms = now_ms
                     host.log("info", "Easee: pause to flip phaseMode " ..
                         tostring(last_sent_phases) .. "→" .. tostring(requested_phases))
                 end
@@ -877,9 +910,16 @@ function driver_command(action, power_w, cmd)
             -- the new offer is > 0. Idempotent on the Easee side;
             -- a failure here doesn't fail the command (the offer
             -- itself succeeded, controller will retry next tick).
-            if amps > 0 and paused_state then
+            local flip_stopped = phase_flip_awaiting_stop
+                and last_poll_ms ~= nil
+                and phase_flip_pause_ms ~= nil
+                and last_poll_ms > phase_flip_pause_ms
+                and last_poll_charging == false
+            if amps > 0 and paused_state and (not phase_flip_awaiting_stop or flip_stopped) then
                 if post_command("/commands/resume_charging") then
                     paused_state = false
+                    phase_flip_awaiting_stop = false
+                    phase_flip_pause_ms = nil
                     host.log("info", "Easee: auto-resumed after pause (offer=" ..
                         tostring(amps) .. " A)")
                 end
