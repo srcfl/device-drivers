@@ -22,3 +22,9 @@ sha256: "5c322f14e58a2b9aad900813bea9438127249ebae2e76a4208cd74536703d7b6"
 signature: ""
 
 bytecode_sha256: ""
+
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/heishamon/HeishaMon/main/MQTT-Topics.md"
+    title: "HeishaMon MQTT topics"
+    kind: api_docs
+    url_stability: stable
