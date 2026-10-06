@@ -78,7 +78,7 @@ map to those DER types as follows:
 | `battery` | `battery` |
 | `meter` | `meter` |
 | `v2x_charger` | `ev_charger_port` |
-| `inverter` | Proposed in data-models v3.0.0; see the migration below |
+| `inverter` | Added in data-models v3.0.0; NovaCore registration pending, see the migration below |
 
 Blixt L1 reads host keys such as `W`, `V`, `A`, `total_import_Wh` and
 `rated_W`, and PV inputs as `pv.mppts`, a list of `{V, A, W}`. A Blixt driver
@@ -90,16 +90,18 @@ driver's keys when they already report the right values.
 Leave out a value that was not read (`nil`). Never send a made-up zero.
 Follow the target host's wire rules for absent values.
 
-#### Proposed data-models v3.0.0 migration
+#### Data-models v3.0.0 migration
 
-[srcful-data-models#10](https://github.com/srcfl/srcful-data-models/pull/10)
-proposes the `inverter` DER type, lowercase non-unit names, and `_ac` / `_dc`
-postfixes for quantities that can describe either side. NovaCore's matching
-change is [srcful-novacore#174](https://github.com/srcfl/srcful-novacore/pull/174).
-These changes are still open. The reference on `main` currently describes
-v2.0.0.
+srcful-data-models v3.0.0 is merged
+([srcful-data-models#10](https://github.com/srcfl/srcful-data-models/pull/10)),
+and the [reference on `main`](https://github.com/srcfl/srcful-data-models/blob/main/docs/REFERENCE.md)
+describes it. It adds the `inverter` DER type, lowercase non-unit names, and an
+`_ac` / `_dc` postfix on every W, V, A and Wh field; only `Hz`, `VA` and `var`
+have none. NovaCore's matching change,
+[srcful-novacore#174](https://github.com/srcfl/srcful-novacore/pull/174), is
+still open.
 
-Those proposed wire names do not change `host.emit` yet. Before a driver
+Those wire names do not change `host.emit` yet. Before a driver
 uses them, its host must accept or map them, and any receiving API must
 support them. Keep the current host keys until that work lands; a link to
 a newer data model does not add host support.
