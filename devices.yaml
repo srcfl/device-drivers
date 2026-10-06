@@ -1806,11 +1806,11 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "tesla_vehicle"
-            version: "0.2.4"
+            version: "0.2.5"
             ders: [vehicle]
             control: true
         firmware_versions: ""
-        notes: "Read-only vehicle SoC + charge limit via Tesla API-compatible HTTP endpoint (e.g. TeslaBLEProxy)."
+        notes: "Vehicle SoC and charge limit via a local BLE proxy. Telemetry recovery needs a host with unix_ms and reserve_vehicle_wake. No hardware recovery test yet."
       - name: "Tesla Vehicle (Fleet API)"
         variants: [Model 3, Model Y]
         regions: [CN, EU, NA]

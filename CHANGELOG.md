@@ -1,5 +1,12 @@
 # Changelog
 
+## tesla_vehicle 0.2.5
+
+- Recover missing, partial and old SoC with a telemetry-only wake and read.
+- Keep the BMS timestamp; cached successful responses do not renew SoC age.
+- Use Core's saved wake budget across restarts: at least 90 seconds between attempts, at most three in 30 minutes. Keep 408/503 backoff.
+- Hosts without the new wake budget and wall-clock functions do not run recovery. Physical Tesla BLE acceptance remains untested.
+
 ## heishamon 0.8.0
 
 Read `hp_power_w` from `main/Heat_Power_Consumption` (TOP16), with a

@@ -719,15 +719,15 @@ drivers:
     size_bytes: 18216
     sha256: "ed608e4a4501f7a9534296989bb083bb7960ebf8456bd760d868cb26069ea484"
   - name: "tesla_vehicle"
-    version: "0.2.4"
+    version: "0.2.5"
     tier: core
     protocol: http
     connectivity: local
     setup: [bridge]
     ders: [vehicle]
     control: true
-    size_bytes: 24166
-    sha256: "0d76b44cd01af02aea995648006148649e8c6d88e97416e37b2f509d5eecddf9"
+    size_bytes: 9530
+    sha256: "b5f35eb3f36b104ad2440742ee9cd08088ed6295cb60eaacc1edbcdb1dea422d"
   - name: "tesla_wall_connector"
     version: "0.1.1"
     tier: community

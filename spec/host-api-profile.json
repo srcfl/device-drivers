@@ -30,7 +30,9 @@
           "set_poll_interval",
           "millis",
           "set_watchdog_timeout_s",
-          "persist_secret"
+          "persist_secret",
+          "unix_ms",
+          "reserve_vehicle_wake"
         ],
         "decode": [
           "decode_i16",

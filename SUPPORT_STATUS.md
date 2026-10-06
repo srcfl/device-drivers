@@ -160,8 +160,8 @@ Catalog source is not proof that a target can install or run a driver.
 | sungrow | 1.5.10 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | tesla_cloud | 0.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | tesla_cloud | 0.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| tesla_vehicle | 0.2.4 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| tesla_vehicle | 0.2.4 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| tesla_vehicle | 0.2.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| tesla_vehicle | 0.2.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | tesla_wall_connector | 0.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | tesla_wall_connector | 0.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | teslamate_vehicle | 0.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |

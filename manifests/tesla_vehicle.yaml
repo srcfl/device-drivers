@@ -1,5 +1,5 @@
 name: "tesla_vehicle"
-version: "0.2.4"
+version: "0.2.5"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -13,12 +13,22 @@ tested_devices:
     variants: [Model Y, Model 3]
     regions: []
     firmware_versions: ""
-    notes: "Read-only vehicle SoC + charge limit via Tesla API-compatible HTTP endpoint (e.g. TeslaBLEProxy)."
+    notes: "Vehicle SoC and charge limit via a local BLE proxy. Telemetry recovery needs a host with unix_ms and reserve_vehicle_wake. No hardware recovery test yet."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 24166
+size_bytes: 9530
 dkb_id: "tesla_vehicle"
-sha256: "0d76b44cd01af02aea995648006148649e8c6d88e97416e37b2f509d5eecddf9"
+sha256: "b5f35eb3f36b104ad2440742ee9cd08088ed6295cb60eaacc1edbcdb1dea422d"
 signature: ""
 
 bytecode_sha256: ""
+
+upstream_docs:
+  - url: "https://github.com/wimaha/TeslaBleHttpProxy/blob/5f400b573eb3bb9d55ff807a9ec81e01b5f5ce2d/internal/api/models/statesConverter.go"
+    title: "BLE charge state and Unix timestamp mapping"
+    kind: api_docs
+    url_stability: committed
+  - url: "https://github.com/wimaha/TeslaBleHttpProxy/blob/5f400b573eb3bb9d55ff807a9ec81e01b5f5ce2d/internal/api/handlers/tesla.go"
+    title: "Vehicle-data cache and wake commands"
+    kind: api_docs
+    url_stability: committed
