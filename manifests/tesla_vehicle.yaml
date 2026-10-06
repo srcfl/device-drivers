@@ -16,9 +16,9 @@ tested_devices:
     notes: "Vehicle SoC and charge limit via a local BLE proxy. Telemetry recovery needs a host with unix_ms and reserve_vehicle_wake. No hardware recovery test yet."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 9530
+size_bytes: 9696
 dkb_id: "tesla_vehicle"
-sha256: "b5f35eb3f36b104ad2440742ee9cd08088ed6295cb60eaacc1edbcdb1dea422d"
+sha256: "d5b97c6ebbc376a1874898eb160f9ba8715d5a9cbf72b60794f126a99b11186d"
 signature: ""
 
 bytecode_sha256: ""

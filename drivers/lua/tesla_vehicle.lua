@@ -123,7 +123,15 @@ local function wake_vehicle()
     return false
   end
   local reply = decode(body)
-  if not reply or not (reply.result == true or (type(reply.response) == "table" and reply.response.result == true)) then
+  local accepted = false
+  local result = reply
+  for _ = 1, 3 do
+    if type(result) ~= "table" then break end
+    if result.result == false then accepted = false; break end
+    if result.result == true then accepted = true end
+    result = result.response
+  end
+  if not accepted then
     log("warn", "tesla: telemetry wake was not accepted")
     return false
   end

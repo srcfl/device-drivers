@@ -130,14 +130,18 @@ local count = #posts
 driver_command("wake_up")
 assert(#posts == count and host._poll_interval_ms == 5000)
 
--- A vehicle-side rejection is not a successful wake.
-load(true)
+-- HTTP 200 and an outer success must not hide an inner rejection.
 local good_post = host.http_post
-function host.http_post(url)
-  posts[#posts+1] = url
-  return host.json_encode({response={result=false}})
+for _, reply in ipairs({{}, {response={result=false}},
+  {result=true,response={result=false}}, {result=false,response={result=true}},
+  {response={result=true,response={result=false}}}}) do
+  load(true)
+  function host.http_post(url)
+    posts[#posts+1] = url
+    return host.json_encode(reply)
+  end
+  assert(driver_command("wake_up") == false)
 end
-assert(driver_command("wake_up") == false)
 host.http_post = good_post
 
 -- A host without durable reservations fails closed; reads continue.

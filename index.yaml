@@ -726,8 +726,8 @@ drivers:
     setup: [bridge]
     ders: [vehicle]
     control: true
-    size_bytes: 9530
-    sha256: "b5f35eb3f36b104ad2440742ee9cd08088ed6295cb60eaacc1edbcdb1dea422d"
+    size_bytes: 9696
+    sha256: "d5b97c6ebbc376a1874898eb160f9ba8715d5a9cbf72b60794f126a99b11186d"
   - name: "tesla_wall_connector"
     version: "0.1.1"
     tier: community
