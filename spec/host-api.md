@@ -25,6 +25,9 @@ writes; the host owns scheduling, so a driver must not use it to pace polling.
 
 ### `host.set_make(brand_name)`
 Set the device brand name used in telemetry payloads. Call in `driver_init()`.
+Pass the brand, not the model (`"Eastron"`, not `"SDM630"`). For data-models
+v2 the host writes it lowercase with words joined by `_` (`"Konja Power"` →
+`konja_power`).
 
 ### `host.set_model(model)`
 Set the device model. Call in `driver_init()` once the model is known from the
@@ -78,7 +81,7 @@ map to those DER types as follows:
 | `battery` | `battery` |
 | `meter` | `meter` |
 | `v2x_charger` | `ev_charger_port` |
-| `inverter` | Added in data-models v2; NovaCore registers it in srcful-novacore#174 (open), see the migration below |
+| `inverter` | Added in data-models v2; see the migration below |
 
 Blixt L1 reads host keys such as `W`, `V`, `A`, `total_import_Wh` and
 `rated_W`, and PV inputs as `pv.mppts`, a list of `{V, A, W}`. A Blixt driver
@@ -92,7 +95,7 @@ Follow the target host's wire rules for absent values.
 
 #### Data-models v2 migration
 
-srcful-data-models v2 (package 2.0.0) is on `main`. Its
+srcful-data-models v2 (package 2.3.0) is on `main`. Its
 [README](https://github.com/srcfl/srcful-data-models/blob/main/README.md) has
 the wire rules and its
 [reference](https://github.com/srcfl/srcful-data-models/blob/main/docs/REFERENCE.md)
@@ -108,9 +111,11 @@ removes that fallback.
 v2 adds the `inverter` DER type (the AC output stage only; its DC side is the
 `solar` and `battery` DERs), lowercase non-unit names, and an `_ac` / `_dc`
 postfix on every W, V, A, VA and Wh field; only `Hz` has none. Every field is
-always present, and a value that was not read is `null`. NovaCore's matching
-change, [srcful-novacore#174](https://github.com/srcfl/srcful-novacore/pull/174),
-is still open.
+always present, and a value that was not read is `null`. A battery's SoC
+window is the device's own min/max SoC, or 5–100 % when the device does not
+report one. NovaCore's v2 path
+([srcful-novacore#174](https://github.com/srcfl/srcful-novacore/pull/174)) is
+merged and runs on devnet.
 
 Those wire names do not change `host.emit` yet. Before a driver
 uses them, its host must accept or map them, and any receiving API must
