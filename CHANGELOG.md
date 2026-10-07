@@ -1,5 +1,10 @@
 # Changelog
 
+## Tests: no invented numbers
+
+- `drivers/tests/lua_harness/no_invented_numbers.lua` runs a driver twice with different registers, config and clock, then makes every read fail and every Modbus reply short. A number the driver still emits that is equal in both runs and was not read is invented: 0 W, 0 A, 0 % SoC, 50 Hz. A failed read must leave the value nil, so the host sends null. Sourceful's driver registry runs the same file on every publish.
+- `drivers/tests/test_no_invented_numbers.py` ratchets against `invented-number-baseline.json`: 44 of 91 drivers carry this debt today. A count that rises fails, a driver not listed must be clean, and a count that falls fails until the file is updated. `make invented-number-report ID=<id>` prints the fields for one driver.
+
 ## tesla_vehicle 0.2.5
 
 - Recover missing, partial and old SoC with a telemetry-only wake and read.

@@ -5,7 +5,7 @@ KIND ?= meter
 LEVEL ?= patch
 
 .PHONY: bootstrap new-driver test-driver check boundary \
-	refused-write-report absent-register-report \
+	refused-write-report absent-register-report invented-number-report \
 	sync-manifests bump-driver history ftw-baseline ftw-baseline-report \
 	host-api site watch-upstream-docs
 
@@ -39,6 +39,12 @@ absent-register-report:
 refused-write-report:
 	test -n "$(ID)"
 	./lua55 drivers/tests/lua_harness/refused_write_probe.lua . "drivers/lua/$(ID).lua"
+
+# Which fields a driver still fills with a number once its device stops
+# answering. A failed read has to stay nil, so the host sends null, not 0.
+invented-number-report:
+	test -n "$(ID)"
+	./lua55 drivers/tests/lua_harness/no_invented_numbers.lua drivers/tests/lua_harness "drivers/lua/$(ID).lua"
 
 bootstrap:
 	uv sync --frozen --extra package --extra dev
