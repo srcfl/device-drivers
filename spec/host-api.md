@@ -25,6 +25,9 @@ writes; the host owns scheduling, so a driver must not use it to pace polling.
 
 ### `host.set_make(brand_name)`
 Set the device brand name used in telemetry payloads. Call in `driver_init()`.
+Pass the brand, not the model (`"Eastron"`, not `"SDM630"`). For data-models
+v2 the host writes it lowercase with words joined by `_` (`"Konja Power"` →
+`konja_power`).
 
 ### `host.set_model(model)`
 Set the device model. Call in `driver_init()` once the model is known from the
@@ -78,7 +81,7 @@ map to those DER types as follows:
 | `battery` | `battery` |
 | `meter` | `meter` |
 | `v2x_charger` | `ev_charger_port` |
-| `inverter` | Proposed in data-models v3.0.0; see the migration below |
+| `inverter` | Added in data-models v2; see the migration below |
 
 Blixt L1 reads host keys such as `W`, `V`, `A`, `total_import_Wh` and
 `rated_W`, and PV inputs as `pv.mppts`, a list of `{V, A, W}`. A Blixt driver
@@ -90,16 +93,31 @@ driver's keys when they already report the right values.
 Leave out a value that was not read (`nil`). Never send a made-up zero.
 Follow the target host's wire rules for absent values.
 
-#### Proposed data-models v3.0.0 migration
+#### Data-models v2 migration
 
-[srcful-data-models#10](https://github.com/srcfl/srcful-data-models/pull/10)
-proposes the `inverter` DER type, lowercase non-unit names, and `_ac` / `_dc`
-postfixes for quantities that can describe either side. NovaCore's matching
-change is [srcful-novacore#174](https://github.com/srcfl/srcful-novacore/pull/174).
-These changes are still open. The reference on `main` currently describes
-v2.0.0.
+srcful-data-models v2 (package 2.3.0) is on `main`. Its
+[README](https://github.com/srcfl/srcful-data-models/blob/main/README.md) has
+the wire rules and its
+[reference](https://github.com/srcfl/srcful-data-models/blob/main/docs/REFERENCE.md)
+every field. v2 payloads are published on
+`…ders.{der_name}.telemetry.json.v2`; `json.v1` keeps the legacy format side
+by side. Nothing translates between the two, so a consumer opts in to v2. In
+v2 the `der_name` segment defaults to the DER type: `solar` (it was `pv`),
+`battery`, `inverter`, `meter`. NovaCore temporarily resolves a v2 `solar`
+segment to a DER provisioned as `pv`, until
+[srcful-novacore#185](https://github.com/srcfl/srcful-novacore/issues/185)
+removes that fallback.
 
-Those proposed wire names do not change `host.emit` yet. Before a driver
+v2 adds the `inverter` DER type (the AC output stage only; its DC side is the
+`solar` and `battery` DERs), lowercase non-unit names, and an `_ac` / `_dc`
+postfix on every W, V, A, VA and Wh field; only `Hz` has none. Every field is
+always present, and a value that was not read is `null`. A battery's SoC
+window is the device's own min/max SoC, or 5–100 % when the device does not
+report one. NovaCore's v2 path
+([srcful-novacore#174](https://github.com/srcfl/srcful-novacore/pull/174)) is
+merged and runs on devnet.
+
+Those wire names do not change `host.emit` yet. Before a driver
 uses them, its host must accept or map them, and any receiving API must
 support them. Keep the current host keys until that work lands; a link to
 a newer data model does not add host support.
