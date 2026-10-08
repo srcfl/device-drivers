@@ -399,6 +399,11 @@ all modes. They never grant control or replace a safety limit:
   from the dynamic offer in `max_a`. `device_limit_age_s` is time since the
   successful settings read. Failed reads must not reset its age. Core stops
   treating it as a current limit after two minutes.
+- `current_limited_by`: `"load_balancer"` when the charger says its own
+  load balancing, a separate load-balancing unit or a partner's circuit
+  limit holds the car below the offer or at zero. Leave it nil for the
+  charger's own limits and for the car. Core reports the car as limited
+  only when the measured power also falls short of its command.
 
 A device reading makes a response measured, nothing more. Core calls it
 confirmed only when an identified, separate site meter shows a matching

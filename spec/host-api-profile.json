@@ -213,7 +213,8 @@
         "control_power_observed_at",
         "control_power_confirmed",
         "device_limit_a",
-        "device_limit_age_s"
+        "device_limit_age_s",
+        "current_limited_by"
       ]
     },
     "repeating_structures": "A repeating structure is a plural-named array, not numbered keys. pv.mppts is a list of {V, A, W} whose length is what the device physically has. The catalog's mppt1_v/mppt2_v cannot represent a four-MPPT inverter at all.",

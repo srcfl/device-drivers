@@ -25,7 +25,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.6",
+  version      = "1.3.7",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -421,18 +421,18 @@ local REASON_LABELS = {
     [3]   = "offline fallback circuit current too low",
     [4]   = "circuit fuse too low",
     [5]   = "waiting in queue",
-    [6]   = "waiting (other cars fully charged)",
+    [6]   = "waiting in fully charged queue",
     [7]   = "illegal grid type",
-    [8]   = "no current request from primary",
-    [9]   = "max dynamic charger current too low",
-    [10]  = "phase imbalance",
-    [11]  = "equalizer communication lost",
-    [25]  = "equalizer dynamic limit too low",
-    [26]  = "equalizer static limit too low",
-    [27]  = "offline fallback equalizer too low",
-    [28]  = "fuse limit reached",
-    [29]  = "current limited by equalizer",
-    [30]  = "current limited by offline equalizer",
+    [8]   = "no current request from car",
+    [9]   = "master communication lost",
+    [10]  = "equalizer current too low",
+    [11]  = "phase not connected",
+    [25]  = "current limited by circuit fuse",
+    [26]  = "current limited by circuit max current",
+    [27]  = "current limited by dynamic circuit current",
+    [28]  = "current limited by equalizer",
+    [29]  = "current limited by circuit load balancing",
+    [30]  = "current limited by offline settings",
     [50]  = "secondary unit not requesting current",
     [51]  = "max charger current too low",
     [52]  = "max dynamic charger current too low",
@@ -443,7 +443,7 @@ local REASON_LABELS = {
     [57]  = "erratic EV",
     [75]  = "limited by cable rating",
     [76]  = "limited by schedule",
-    [77]  = "limited by charger current",
+    [77]  = "limited by charger max current",
     [78]  = "limited by dynamic charger current",
     [79]  = "car not drawing current",
     [80]  = "current ramping",
@@ -456,6 +456,20 @@ local REASON_LABELS = {
     -- problem when the wallbox is fine.
     [100] = "EV not accepting current",
 }
+
+-- Reasons in which Easee's circuit load balancing, an Equalizer or a
+-- partner's dynamic circuit current holds the car back. Easee's table
+-- words 25-30 "Current limited by ...", so the car may still charge below
+-- the offer. 77 and 78 are the charger's own limits, which Core already
+-- reads as device_limit_a and max_a.
+local LOAD_BALANCER_REASONS = {
+    [1] = true, [2] = true, [3] = true, [4] = true, [5] = true, [10] = true,
+    [25] = true, [26] = true, [27] = true, [28] = true, [29] = true, [30] = true,
+}
+
+-- A car may draw a little less than the offer, and the per-phase current
+-- below comes from total power and one voltage. A smaller gap shows nothing.
+local LIMIT_GAP_A = 2
 
 local email, password, configured_max_a
 local device_limit_a, device_limit_read_ms
@@ -621,14 +635,6 @@ function driver_poll()
         last_power_observed_at = power_observed_at
     end
 
-    local reason_code = obs[OBS_REASON_NO_CUR]
-    -- ReasonForNoCurrent describes a blocked offer. An older reason is not
-    -- a current fault while the charger reports both charging and power.
-    local reason_at = normalized_session_start(timestamps[OBS_REASON_NO_CUR])
-    local power_at = normalized_session_start(timestamps[OBS_TOTAL_POWER])
-    if charging and power_w > 100 and reason_at and power_at and reason_at <= power_at then
-        reason_code = nil
-    end
     local cable_locked = obs[OBS_CABLE_LOCKED]
     if cable_locked ~= nil then cable_locked = (cable_locked == 1 or cable_locked == true) end
     local dyn_current = obs[OBS_DYN_CURRENT]
@@ -650,6 +656,27 @@ function driver_poll()
     if power_w > 0 and (phases == 1 or phases == 3) then
         local vv = (v_obs and v_obs > 0) and v_obs or 230
         actual_amps_per_phase = power_w / vv / phases
+    end
+
+    local reason_code = obs[OBS_REASON_NO_CUR]
+    -- ReasonForNoCurrent describes a blocked offer. An older reason is not
+    -- a current fault while the charger reports both charging and power,
+    -- unless it is a load-balancing limit and the car still draws well
+    -- below the offer. Easee records the reason only when it changes, so a
+    -- limit set before the last power change can still hold.
+    local reason_at = normalized_session_start(timestamps[OBS_REASON_NO_CUR])
+    local power_at = normalized_session_start(timestamps[OBS_TOTAL_POWER])
+    if charging and power_w > 100 and reason_at and power_at and reason_at <= power_at then
+        local offer = tonumber(dyn_current) or last_amps_set
+        local held_back = LOAD_BALANCER_REASONS[reason_code] and offer and actual_amps_per_phase and
+            actual_amps_per_phase < offer - LIMIT_GAP_A
+        if not held_back then reason_code = nil end
+    end
+    -- A vendor-neutral name for Core. Core still compares the measured power
+    -- with its own command before it reports the car as limited.
+    local current_limited_by = nil
+    if connected and LOAD_BALANCER_REASONS[reason_code] then
+        current_limited_by = "load_balancer"
     end
 
     -- command_stalled: true when we've been offering >0 A for >30 s but
@@ -714,6 +741,7 @@ function driver_poll()
         state_label             = OP_MODE_LABELS[op_mode] or "unknown",
         reason_no_current       = reason_code,                 -- int: 0=ok; why NOT drawing current
         reason_no_current_label = reason_code and REASON_LABELS[reason_code], -- nil if 0/ok, string otherwise
+        current_limited_by      = current_limited_by,          -- "load_balancer" or nil
         is_online               = is_online,
         cable_locked            = cable_locked,
         device_limit_a          = device_limit_a,
