@@ -1,5 +1,5 @@
 name: "easee_cloud"
-version: "1.3.6"
+version: "1.3.7"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Easee Home/Charge via Cloud REST API. No local protocol needed."
     min_driver_version: "1.0.1"
 min_host_version: "2.0.0"
-size_bytes: 41070
+size_bytes: 42628
 dkb_id: "easee_cloud"
-sha256: "4f33149c0640c2e9d2c043e36fdf967d8b297f07da56aec934c21e81a397d22b"
+sha256: "8b1b9f980178af96fb897f275fbcd3b6a7f9a8df340f4907a9216f1596c849e4"
 signature: ""
 
 bytecode_sha256: ""
@@ -26,6 +26,10 @@ bytecode_sha256: ""
 upstream_docs:
   - url: "https://developer.easee.com/docs/charger-observation-ids"
     title: "Easee charger observations"
+    kind: api_docs
+    url_stability: stable
+  - url: "https://developer.easee.com/docs/enumerations"
+    title: "Easee enumerations (ReasonForNoCurrent)"
     kind: api_docs
     url_stability: stable
   - url: "https://developer.easee.com/reference/chargers_getongoingsessiondetails"

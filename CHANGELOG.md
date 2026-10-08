@@ -1,5 +1,12 @@
 # Changelog
 
+## easee_cloud 1.3.7
+
+- Keep a load-balancing ReasonForNoCurrent while the car charges, when the per-phase current is at least 2 A below the offer. Easee records the reason when it changes, so a limit that began before the last power change was dropped and FTW said the charger had given no reason. The offer is observation 48, or FTW's last write when that is missing. Other old reasons are still dropped while the car charges.
+- Report `current_limited_by = "load_balancer"` for codes 1–5, 10 and 25–30 while a car is connected. Core reads this name, not Easee's codes. The charger's own limits (77, 78) and the car are not the load balancer.
+- Match the labels for codes 6, 8–11, 25–30 and 77 to Easee's published table. Code 28 read "fuse limit reached"; Easee calls it "Current limited by Equalizer". The enumeration page joins `upstream_docs`.
+- Not yet seen on hardware. Easee's table defines the "Current limited by …" codes, but no raw observation from a load-balanced charger has been captured.
+
 ## Tests: no invented numbers
 
 - `drivers/tests/lua_harness/no_invented_numbers.lua` runs a driver twice with different registers, config and clock, then makes every read fail and every Modbus reply short. A number the driver still emits that is equal in both runs and was not read is invented: 0 W, 0 A, 0 % SoC, 50 Hz. A failed read must leave the value nil, so the host sends null. Sourceful's driver registry runs the same file on every publish.
