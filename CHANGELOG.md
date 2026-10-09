@@ -1,5 +1,16 @@
 # Changelog
 
+## myuplink 1.2.4
+
+Improve NIBE F750 telemetry from hardware-observed MyUplink parameter data.
+Parameter 40013 is documented as BT7 hot-water top temperature, and parameter
+40940 is exposed as the canonical hp_degree_minutes reading. Ignore the NIBE
+-32768 unavailable-value sentinel instead of emitting bogus telemetry, and
+remove embedded Unicode soft hyphens from generated metric names. The driver
+remains read-only. No F750 electrical compressor-power mapping is claimed.
+Unavailable canonical temperature points are omitted instead of being reported as 0 °C.
+
+
 ## Tests: no invented numbers
 
 - `drivers/tests/lua_harness/no_invented_numbers.lua` runs a driver twice with different registers, config and clock, then makes every read fail and every Modbus reply short. A number the driver still emits that is equal in both runs and was not read is invented: 0 W, 0 A, 0 % SoC, 50 Hz. A failed read must leave the value nil, so the host sends null. Sourceful's driver registry runs the same file on every publish.

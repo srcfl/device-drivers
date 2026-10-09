@@ -956,7 +956,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "myuplink"
-            version: "1.2.3"
+            version: "1.2.4"
             ders: [heatpump]
             control: false
         firmware_versions: ""

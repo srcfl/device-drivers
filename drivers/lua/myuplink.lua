@@ -48,7 +48,7 @@ DRIVER = {
   id           = "myuplink",
   name         = "MyUplink Heat Pump (telemetry)",
   manufacturer = "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)",
-  version      = "1.2.3",
+  version      = "1.2.4",
   protocols    = { "http" },
   capabilities = { "apicreds" },
   -- Says what the header, the description and driver_command have always
@@ -90,9 +90,10 @@ local device_id     = nil
 
 -- Parameter IDs (NIBE defaults, overridable via config)
 local PARAM_POWER        = "10012"  -- compressor power (W)
-local PARAM_HW_TEMP      = "40013"  -- BT6 hot water top temp
-local PARAM_INDOOR_TEMP  = "40033"  -- BT50 room temperature
-local PARAM_OUTDOOR_TEMP = "40004"  -- BT1 outdoor temperature
+local PARAM_HW_TEMP       = "40013"  -- BT7 hot water top temperature
+local PARAM_INDOOR_TEMP   = "40033"  -- BT50 room temperature
+local PARAM_OUTDOOR_TEMP  = "40004"  -- BT1 outdoor temperature
+local PARAM_DEGREE_MINUTES = "40940" -- F750 current degree-minute value
 
 -- ---- Helpers -------------------------------------------------------------
 
@@ -206,10 +207,16 @@ local function fetch_all_points()
     return data, by_id, nil
 end
 
+local function valid_raw(raw)
+    raw = tonumber(raw)
+    if raw == nil or raw == -32768 then return nil end
+    return raw
+end
+
 local function decode_temp(pt)
     if not pt then return nil end
-    local raw = tonumber(pt.value)
-    if not raw then return nil end
+    local raw = valid_raw(pt.value)
+    if raw == nil then return nil end
     if math.abs(raw) > 100 then return raw / 10 end  -- NIBE °C×10 encoding
     return raw
 end
@@ -251,6 +258,10 @@ end
 -- empty names fall back to the parameterId.
 local function sanitize_metric_name(name, pid)
     local s = string.lower(name or "")
+    -- MyUplink/NIBE parameter names sometimes contain U+00AD SOFT HYPHEN
+    -- inside ordinary words. Remove its UTF-8 bytes instead of turning it
+    -- into an underscore (for example "com­pressor" -> "compressor").
+    s = string.gsub(s, string.char(194, 173), "")
     s = string.gsub(s, "[^a-z0-9]+", "_")
     s = string.gsub(s, "^_+", "")
     s = string.gsub(s, "_+$", "")
@@ -301,7 +312,8 @@ function driver_init(config)
         PARAM_POWER        = ov("param_power_id",        PARAM_POWER)
         PARAM_HW_TEMP      = ov("param_hw_temp_id",      PARAM_HW_TEMP)
         PARAM_INDOOR_TEMP  = ov("param_indoor_temp_id",  PARAM_INDOOR_TEMP)
-        PARAM_OUTDOOR_TEMP = ov("param_outdoor_temp_id", PARAM_OUTDOOR_TEMP)
+        PARAM_OUTDOOR_TEMP  = ov("param_outdoor_temp_id", PARAM_OUTDOOR_TEMP)
+        PARAM_DEGREE_MINUTES = ov("param_degree_minutes_id", PARAM_DEGREE_MINUTES)
         -- base_url override exists for tests; production uses api.myuplink.com.
         if config.base_url and config.base_url ~= "" then BASE_URL = config.base_url end
         -- setup_retry_ms override exists for tests (0 = retry immediately).
@@ -351,9 +363,19 @@ function driver_poll()
         local power_w, out_unit = to_watts(raw, unit)
         host.emit_metric("hp_power_w", power_w, out_unit)
     end
-    if by_id[PARAM_HW_TEMP]      then host.emit_metric("hp_hw_top_temp_c",  decode_temp(by_id[PARAM_HW_TEMP])      or 0, "°C") end
-    if by_id[PARAM_INDOOR_TEMP]  then host.emit_metric("hp_indoor_temp_c",  decode_temp(by_id[PARAM_INDOOR_TEMP])  or 0, "°C") end
-    if by_id[PARAM_OUTDOOR_TEMP] then host.emit_metric("hp_outdoor_temp_c", decode_temp(by_id[PARAM_OUTDOOR_TEMP]) or 0, "°C") end
+    local hw_temp = decode_temp(by_id[PARAM_HW_TEMP])
+    if hw_temp ~= nil then host.emit_metric("hp_hw_top_temp_c", hw_temp, "°C") end
+
+    local indoor_temp = decode_temp(by_id[PARAM_INDOOR_TEMP])
+    if indoor_temp ~= nil then host.emit_metric("hp_indoor_temp_c", indoor_temp, "°C") end
+
+    local outdoor_temp = decode_temp(by_id[PARAM_OUTDOOR_TEMP])
+    if outdoor_temp ~= nil then host.emit_metric("hp_outdoor_temp_c", outdoor_temp, "°C") end
+
+    if by_id[PARAM_DEGREE_MINUTES] then
+        local dm = valid_raw(by_id[PARAM_DEGREE_MINUTES].value)
+        if dm ~= nil then host.emit_metric("hp_degree_minutes", dm, "DM") end
+    end
 
     -- Everything else → hp_<sanitized name> with its unit, so the UI can
     -- auto-group (temperatures / power / frequency / state / …). Skip the
@@ -361,12 +383,13 @@ function driver_poll()
     local canonical = {
         [tostring(PARAM_POWER)] = true, [tostring(PARAM_HW_TEMP)] = true,
         [tostring(PARAM_INDOOR_TEMP)] = true, [tostring(PARAM_OUTDOOR_TEMP)] = true,
+        [tostring(PARAM_DEGREE_MINUTES)] = true,
     }
     local seen = {}
     for _, pt in ipairs(data) do
         local pid = tostring(pt.parameterId or "")
         if pt.parameterId and not canonical[pid] then
-            local raw = tonumber(pt.value)
+            local raw = valid_raw(pt.value)
             if raw ~= nil then
                 local unit = pt.parameterUnit or pt.unit or ""
                 local name = sanitize_metric_name(pt.parameterName, pid)
