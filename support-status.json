@@ -1598,7 +1598,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.5.10",
+      "catalog_version": "1.6.0",
       "driver_id": "sungrow",
       "targets": {
         "blixt-l1": {

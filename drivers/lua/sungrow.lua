@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.5.10",
+  version      = "1.6.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -224,11 +224,21 @@ end
 local MISSES_BEFORE_SKIP = 3
 local miss_counts = {}
 
+-- FTW refuses a read without sending it while it waits to reconnect. That
+-- proves nothing about the register, and a two-second wait spans two polls
+-- at one per second: counting it would mark a whole block absent after one
+-- dropped packet.
+local function never_sent(ok, first, second)
+    local why = ok and second or first
+    return type(why) == "string" and why:find("reconnect backoff", 1, true) ~= nil
+end
+
 local function optional_read(address, count, kind)
     if (miss_counts[address] or 0) >= MISSES_BEFORE_SKIP then
         return nil
     end
-    local ok, registers = pcall(host.modbus_read, address, count, kind)
+    local ok, registers, err = pcall(host.modbus_read, address, count, kind)
+    if never_sent(ok, registers, err) then return nil end
     -- Check every register asked for, not just the first. A short reply leaves
     -- the rest nil, and arithmetic on nil ends the whole poll.
     if ok and registers ~= nil then
@@ -403,9 +413,34 @@ end
 
 ----------------------------------------------------------------------------
 -- Telemetry polling
+--
+-- The live view moves once a second, so power, SoC, per-phase values and the
+-- EMS readback are read on every poll. Energy counters, nameplate,
+-- temperature, frequency and fault bits change slowly and keep their
+-- five-second rate. Between those full reads each blob carries their last
+-- values, so a counter never drops out of the energy ledger -- but only on a
+-- poll whose own power read succeeded, so they never outlive the device.
+--
+-- A host that ignores the returned interval polls every five seconds, and
+-- then every poll is a full read, as before.
 ----------------------------------------------------------------------------
 
+local POLL_MS = 1000
+local FULL_READ_MS = 5000
+local last_full_read_ms = nil
+local slow = {}
+
+local function full_read_due(now_ms)
+    -- Half a poll early, so jitter cannot push each full read a second late.
+    return last_full_read_ms == nil
+        or now_ms - last_full_read_ms >= FULL_READ_MS - POLL_MS / 2
+end
+
 function driver_poll()
+    local now_ms = host.millis()
+    local full = full_read_due(now_ms)
+    if full then last_full_read_ms = now_ms end
+
     -- driver_init already asked once. Keep asking while the answer is unknown,
     -- up to DETECT_ATTEMPTS, then settle on probing.
     if model_family == nil and detect_tries < DETECT_ATTEMPTS then
@@ -444,11 +479,14 @@ function driver_poll()
     -- reachable-but-stopped inverter is no longer misreported as merely 0 W.
     -- Hybrid only: an SG string inverter answers neither, and asking fails
     -- the whole poll.
+    -- The running state is read on full polls only; the fault flag it sets
+    -- stays with the host until a later full poll clears it. The flow status
+    -- signs the battery power, so it is read with it on every poll.
     local running_state = 0
     local power_flow_status = 0
     local running_state_known = false
     if hybrid_block_worth_reading() then
-        local running_regs = optional_read(12999, 1, "input")
+        local running_regs = full and optional_read(12999, 1, "input")
         if running_regs then
             running_state = running_regs[1]
             running_state_known = true
@@ -502,35 +540,42 @@ function driver_poll()
         pv_source = "mppt_sum"
     end
 
-    -- PV lifetime energy: 13002-13003, U32 LE × 0.1 kWh
+    -- Slow readings, on full polls only: lifetime energy, rated power,
+    -- heatsink temperature and grid frequency.
     local pv_gen_wh = 0
-    if hybrid_block_worth_reading() then
-        local pvgen_regs = optional_read(13002, 2, "input")
-        if pvgen_regs then
-            pv_gen_wh = host.decode_u32_le(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
-        end
-    end
-
-    -- Rated power: 5000, U16 × 0.1 kW
-    local rated_regs = optional_read(5000, 1, "input")
     local rated_w = rated_ac_w
-    if rated_regs then
-        rated_w = rated_regs[1] * 0.1 * 1000
-        if rated_w > 0 then rated_ac_w = rated_w end
-    end
-
-    -- Heatsink temp: 5007, I16 × 0.1 C
-    local temp_regs = optional_read(5007, 1, "input")
     local heatsink_c = 0
-    if temp_regs then
-        heatsink_c = host.decode_i16(temp_regs[1]) * 0.1
-    end
-
-    -- Grid frequency: 5241, U16 × 0.01 Hz
-    local hz_regs = optional_read(5241, 1, "input")
     local hz = 0
-    if hz_regs then
-        hz = hz_regs[1] * 0.01
+    if full then
+        -- PV lifetime energy: 13002-13003, U32 LE × 0.1 kWh
+        if hybrid_block_worth_reading() then
+            local pvgen_regs = optional_read(13002, 2, "input")
+            if pvgen_regs then
+                pv_gen_wh = host.decode_u32_le(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
+            end
+        end
+
+        -- Rated power: 5000, U16 × 0.1 kW
+        local rated_regs = optional_read(5000, 1, "input")
+        if rated_regs then
+            rated_w = rated_regs[1] * 0.1 * 1000
+            if rated_w > 0 then rated_ac_w = rated_w end
+        end
+
+        -- Heatsink temp: 5007, I16 × 0.1 C
+        local temp_regs = optional_read(5007, 1, "input")
+        if temp_regs then
+            heatsink_c = host.decode_i16(temp_regs[1]) * 0.1
+        end
+
+        -- Grid frequency: 5241, U16 × 0.01 Hz
+        local hz_regs = optional_read(5241, 1, "input")
+        if hz_regs then
+            hz = hz_regs[1] * 0.01
+        end
+        slow.pv_gen_wh, slow.heatsink_c, slow.hz = pv_gen_wh, heatsink_c, hz
+    elseif pv_regs or mppt_regs then
+        pv_gen_wh, heatsink_c = slow.pv_gen_wh, slow.heatsink_c
     end
 
     host.emit("pv", {
@@ -550,27 +595,29 @@ function driver_poll()
     -- Diagnostics: long-format TS DB. Surface BOTH the primary-register
     -- reading and the MPPT-derived fallback so operators can see when
     -- the two disagree (= firmware register quirk) directly in the
-    -- metric browser.
-    host.emit_metric("pv_w_primary",     pv_w_primary)
-    host.emit_metric("pv_w_mppt_sum",    pv_w_mppt)
-    host.emit_metric("pv_raw_u32",       pv_raw_u32)
-    host.emit_metric("pv_mppt1_v",       mppt1_v)
-    host.emit_metric("pv_mppt1_a",       mppt1_a)
-    host.emit_metric("pv_mppt1_w",       mppt1_w)
-    host.emit_metric("pv_mppt2_v",       mppt2_v)
-    host.emit_metric("pv_mppt2_a",       mppt2_a)
-    host.emit_metric("pv_mppt2_w",       mppt2_w)
-    host.emit_metric("inverter_temp_c",  heatsink_c)
-    host.emit_metric("grid_hz",          hz)
-    host.emit_metric("sungrow_running_state", running_state)
-    host.emit_metric("sungrow_power_flow_status", power_flow_status)
-    host.emit_metric("sungrow_pv_curtail_method", pv_curtail_method == "feed_in" and 2 or 1)
+    -- metric browser. Metrics keep the full-read rate.
+    if full then
+        host.emit_metric("pv_w_primary",     pv_w_primary)
+        host.emit_metric("pv_w_mppt_sum",    pv_w_mppt)
+        host.emit_metric("pv_raw_u32",       pv_raw_u32)
+        host.emit_metric("pv_mppt1_v",       mppt1_v)
+        host.emit_metric("pv_mppt1_a",       mppt1_a)
+        host.emit_metric("pv_mppt1_w",       mppt1_w)
+        host.emit_metric("pv_mppt2_v",       mppt2_v)
+        host.emit_metric("pv_mppt2_a",       mppt2_a)
+        host.emit_metric("pv_mppt2_w",       mppt2_w)
+        host.emit_metric("inverter_temp_c",  heatsink_c)
+        host.emit_metric("grid_hz",          hz)
+        host.emit_metric("sungrow_running_state", running_state)
+        host.emit_metric("sungrow_power_flow_status", power_flow_status)
+        host.emit_metric("sungrow_pv_curtail_method", pv_curtail_method == "feed_in" and 2 or 1)
+    end
 
     -- Contiguous bitfields from documented input registers 13050-13079
     -- (zero-based host addresses 13049-13078). One read gives enough evidence
     -- to distinguish thermal, grid, PV/DC, battery and BMS shutdowns.
     local fault_regs = nil
-    if hybrid_block_worth_reading() then
+    if full and hybrid_block_worth_reading() then
         fault_regs = optional_read(13049, 30, "input")
     end
     local fault_values = {}
@@ -650,7 +697,7 @@ function driver_poll()
     if hybrid_block_worth_reading() then
         emsd = optional_read(13049, 3, "holding")
     end
-    if emsd then
+    if emsd and full then
         host.emit_metric("sungrow_ems_mode",  emsd[1]) -- 0=self, 2=forced, 3=ext
         host.emit_metric("sungrow_force_cmd", emsd[2]) -- 0xAA=170 chg, 0xBB=187 dis, 0xCC=204 stop
         host.emit_metric("sungrow_force_w",   emsd[3])
@@ -673,21 +720,30 @@ function driver_poll()
 
         -- Energy counters are separate reads. Add each only if it answered:
         -- a counter reported as zero would look like a reset meter.
-        local bchg_regs = optional_read(13040, 2, "input")
-        if bchg_regs then
-            battery.charge_wh =
-                host.decode_u32_le(bchg_regs[1], bchg_regs[2]) * 0.1 * 1000
-        end
+        if full then
+            local bchg_regs = optional_read(13040, 2, "input")
+            if bchg_regs then
+                battery.charge_wh =
+                    host.decode_u32_le(bchg_regs[1], bchg_regs[2]) * 0.1 * 1000
+            end
 
-        local bdis_regs = optional_read(13026, 2, "input")
-        if bdis_regs then
-            battery.discharge_wh =
-                host.decode_u32_le(bdis_regs[1], bdis_regs[2]) * 0.1 * 1000
+            local bdis_regs = optional_read(13026, 2, "input")
+            if bdis_regs then
+                battery.discharge_wh =
+                    host.decode_u32_le(bdis_regs[1], bdis_regs[2]) * 0.1 * 1000
+            end
+            slow.charge_wh, slow.discharge_wh = battery.charge_wh, battery.discharge_wh
+        else
+            battery.charge_wh, battery.discharge_wh = slow.charge_wh, slow.discharge_wh
         end
 
         host.emit("battery", battery)
-        host.emit_metric("battery_dc_v", bat_v)
-        host.emit_metric("battery_dc_a", bat_a)
+        if full then
+            host.emit_metric("battery_dc_v", bat_v)
+            host.emit_metric("battery_dc_a", bat_a)
+        end
+    elseif full then
+        slow.charge_wh, slow.discharge_wh = nil, nil
     end
 
     -- Grid meter power: 5600-5601, I32 LE, watts (positive=import, negative=export)
@@ -729,15 +785,20 @@ function driver_poll()
     -- rather than zeroed when absent: a counter reading zero looks like a
     -- meter that was reset.
     local import_wh, export_wh = nil, nil
-    if hybrid_block_worth_reading() then
-        local imp_regs = optional_read(13036, 2, "input")
-        if imp_regs then
-            import_wh = host.decode_u32_le(imp_regs[1], imp_regs[2]) * 0.1 * 1000
+    if full then
+        if hybrid_block_worth_reading() then
+            local imp_regs = optional_read(13036, 2, "input")
+            if imp_regs then
+                import_wh = host.decode_u32_le(imp_regs[1], imp_regs[2]) * 0.1 * 1000
+            end
+            local exp_regs = optional_read(13045, 2, "input")
+            if exp_regs then
+                export_wh = host.decode_u32_le(exp_regs[1], exp_regs[2]) * 0.1 * 1000
+            end
         end
-        local exp_regs = optional_read(13045, 2, "input")
-        if exp_regs then
-            export_wh = host.decode_u32_le(exp_regs[1], exp_regs[2]) * 0.1 * 1000
-        end
+        slow.import_wh, slow.export_wh = import_wh, export_wh
+    elseif mw_regs then
+        import_wh, export_wh, hz = slow.import_wh, slow.export_wh, slow.hz
     end
 
     -- 5600-5601 relay the external meter on the known SH register map. Only an
@@ -763,15 +824,17 @@ function driver_poll()
         import_wh = import_wh,
         export_wh = export_wh,
     })
-    host.emit_metric("meter_l1_w", l1_w)
-    host.emit_metric("meter_l2_w", l2_w)
-    host.emit_metric("meter_l3_w", l3_w)
-    host.emit_metric("meter_l1_v", l1_v)
-    host.emit_metric("meter_l2_v", l2_v)
-    host.emit_metric("meter_l3_v", l3_v)
-    host.emit_metric("meter_l1_a", l1_a)
-    host.emit_metric("meter_l2_a", l2_a)
-    host.emit_metric("meter_l3_a", l3_a)
+    if full then
+        host.emit_metric("meter_l1_w", l1_w)
+        host.emit_metric("meter_l2_w", l2_w)
+        host.emit_metric("meter_l3_w", l3_w)
+        host.emit_metric("meter_l1_v", l1_v)
+        host.emit_metric("meter_l2_v", l2_v)
+        host.emit_metric("meter_l3_v", l3_v)
+        host.emit_metric("meter_l1_a", l1_a)
+        host.emit_metric("meter_l2_a", l2_a)
+        host.emit_metric("meter_l3_a", l3_a)
+    end
 
     -- Feed-in fallback translation: a PV allowance is the power that may
     -- serve local load, charge the battery, or leave the site. Sungrow's
@@ -783,7 +846,7 @@ function driver_poll()
     local load_w = meter_w - bat_w + pv_w
     latest_non_export_w = math.max(0, load_w + math.max(0, bat_w))
 
-    return 5000
+    return POLL_MS
 end
 
 ----------------------------------------------------------------------------

@@ -700,14 +700,14 @@ drivers:
     size_bytes: 6631
     sha256: "94ae5e0065f5793051acb89b7ef04a679b2898908dfac6f4ffd6e8deb77fa2c0"
   - name: "sungrow"
-    version: "1.5.10"
+    version: "1.6.0"
     tier: core
     protocol: modbus
     connectivity: local
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 49876
-    sha256: "25407256014764245bedf1cfc193f94a696854ddedbd224f66fef827df92fb82"
+    size_bytes: 52811
+    sha256: "db4e378f49f6421c93621e0f101f00c64e5459a38190171003476f9f2b2cc4c1"
   - name: "tesla_cloud"
     version: "0.1.1"
     tier: community

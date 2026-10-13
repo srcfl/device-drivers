@@ -1,5 +1,22 @@
 # Changelog
 
+## sungrow 1.6.0
+
+Read the live values once a second. `driver_poll` returns 1000 ms. Each poll
+reads grid, PV and battery power, SoC, per-phase values and the EMS readback.
+Energy counters, rated power, temperature, frequency and fault bits keep the
+five-second rate. Between those reads each blob carries their last values, but
+only when its own power read succeeded this poll. FTW stores each emit whole,
+and its energy ledger starts over whenever a counter drops out.
+
+A host that ignores the returned interval still polls every five seconds, and
+then every poll reads everything, as before. FTW honours the return from
+srcfl/ftw#1616.
+
+A read FTW refused while it waited to reconnect no longer counts toward
+treating a register as absent. At one poll per second, a two-second wait would
+otherwise mark a whole block absent after one dropped packet.
+
 ## Tests: no invented numbers
 
 - `drivers/tests/lua_harness/no_invented_numbers.lua` runs a driver twice with different registers, config and clock, then makes every read fail and every Modbus reply short. A number the driver still emits that is equal in both runs and was not read is invented: 0 W, 0 A, 0 % SoC, 50 Hz. A failed read must leave the value nil, so the host sends null. Sourceful's driver registry runs the same file on every publish.

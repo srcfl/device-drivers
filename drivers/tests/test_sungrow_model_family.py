@@ -177,6 +177,8 @@ def test_fault_clears_on_a_running_state_of_zero() -> None:
 
     The previous version cleared the fault only on a non-zero value, so an
     inverter that recovered into 0x0000 stayed reported as faulted.
+
+    The running state is read on full polls, five seconds apart.
     """
     body = HEALTHY_HYBRID + f'''
 dofile("{DRIVER}")
@@ -184,6 +186,7 @@ driver_init({{}})
 local states = {{}}
 local function poll_with(state)
     host._modbus_registers.input[12999] = {{state}}
+    host._millis_counter = host._millis_counter + 5000
     pcall(driver_poll)
     states[#states + 1] = host._faulted and "1" or "0"
 end
