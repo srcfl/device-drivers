@@ -1,5 +1,12 @@
 # Changelog
 
+## pixii_pv 0.3.3
+
+Return 5000 ms from `driver_poll` instead of 1000. FTW ignored the return until
+srcfl/ftw#1616 and read this driver every five seconds. It stays at five seconds
+until it has been seen at one second on hardware. It reads MQTT, so this is
+about unproven behaviour, not bus load.
+
 ## sdm630 2.0.3
 
 Return 5000 ms from `driver_poll` instead of 1000. FTW ignored the return until
