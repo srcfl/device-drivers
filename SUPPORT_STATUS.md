@@ -112,8 +112,8 @@ Catalog source is not proof that a target can install or run a driver.
 | p1_hdlc | 2.0.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | p1_meter | 2.0.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | p1_meter | 2.0.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| pixii | 2.1.8 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| pixii | 2.1.8 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| pixii | 2.1.9 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| pixii | 2.1.9 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | pixii_pv | 0.3.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | pixii_pv | 0.3.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | remne_p1ib | 0.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |

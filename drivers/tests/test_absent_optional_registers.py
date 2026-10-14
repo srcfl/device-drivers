@@ -90,7 +90,11 @@ print("STREAMS " .. streams)
 
 
 def test_pixii_gives_up_on_an_absent_scale_factor():
-    """40288 meter_energy_sf is absent on PowerShaper firmware below CPU 2.0.23."""
+    """40288 meter_energy_sf is absent on PowerShaper firmware below CPU 2.0.23.
+
+    The clock stays put. Pixii retries a given-up register after five minutes;
+    these six polls are inside that window, so a read here means it never stopped.
+    """
     out = poll_with_absent(ROOT / "drivers" / "lua" / "pixii.lua",
                            absent=40288, present=40256,
                            config="{host = '127.0.0.1', port = 502, unit_id = 1}")

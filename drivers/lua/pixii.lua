@@ -29,7 +29,7 @@ DRIVER = {
   id           = "pixii",
   name         = "Pixii PowerShaper",
   manufacturer = "Pixii",
-  version      = "2.1.8",
+  version      = "2.1.9",
   protocols    = { "modbus" },
   capabilities = { "battery", "meter" },
   description  = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -97,33 +97,128 @@ end
 -- poll, and the stale-telemetry watchdog takes the driver offline. The site
 -- then reports nothing at all, which is worse than reporting one field less.
 -- PowerShaper firmware below CPU 2.0.23 answers Modbus exception 2 on 40288
--- (meter_energy_sf), which is how this was found in the field.
+-- (meter_energy_sf) while the rest of the device is up, which is how this
+-- was found in the field.
 --
--- Three attempts absorb a transient blip; after that we stop asking. A
--- restart re-probes, so firmware that gains the register is picked up.
+-- Three misses while other registers answer, and that register is left
+-- alone. A poll where every read fails is a different event: the device is
+-- unreachable (still booting after a power cut, or the link is down). Those
+-- misses leave the counts unchanged. Counting them retired the whole map in
+-- about fifteen seconds — three polls at five seconds — and the driver then
+-- stayed dark until a restart, because the device came up to a map that was
+-- no longer being read. The next poll that gets any answer clears the
+-- counts, so a slow boot comes back on its own.
+--
+-- A register that really is missing is probed again every five minutes, the
+-- short end of a five-to-ten minute retry. That single miss is how a
+-- firmware update is picked up; it replaces needing a restart, and it does
+-- not hold every poll in a failed state.
 --
 -- This replaces a scale-factor-only cache that gave up after one failure.
 -- Every read goes through here now: the scale factors were the fourteen
 -- registers that fix covered, and the value reads below are the twenty-three
 -- it left behind.
 local GIVE_UP_AFTER = 3
+local GIVE_UP_RETRY_MIN = 5
+local GIVE_UP_RETRY_MS = GIVE_UP_RETRY_MIN * 60 * 1000
 local read_failures = {}
+local given_up_since = {}
+
+-- Set for the body of driver_poll. Misses land in poll_failed and are
+-- committed from finish_poll_reads, so a poll whose every read failed can
+-- be dropped before it retires anything.
+local polling = false
+local poll_reads = 0
+local poll_ok = 0
+local poll_failed = {}
+local poll_now = 0
+local unreachable_streak = false
+
+local function clock_ms()
+    if polling then return poll_now end
+    if type(host.millis) == "function" then return host.millis() end
+    return 0
+end
+
+local function note_failure(addr)
+    local failures = (read_failures[addr] or 0) + 1
+    if failures > GIVE_UP_AFTER then failures = GIVE_UP_AFTER end
+    read_failures[addr] = failures
+    if failures < GIVE_UP_AFTER then return end
+    local already = given_up_since[addr] ~= nil
+    given_up_since[addr] = clock_ms()
+    if not already then
+        host.log("info", string.format(
+            "Pixii: register %d did not answer %d times while the device " ..
+            "was up; leaving it alone for %d minutes",
+            addr, GIVE_UP_AFTER, GIVE_UP_RETRY_MIN))
+    end
+end
 
 local function probe_read(addr, count, kind)
-    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    local failures = read_failures[addr] or 0
+    if failures >= GIVE_UP_AFTER then
+        local since = given_up_since[addr]
+        if since ~= nil and (clock_ms() - since) < GIVE_UP_RETRY_MS then
+            return nil
+        end
+    end
+    if polling then poll_reads = poll_reads + 1 end
     local ok, regs = pcall(host.modbus_read, addr, count, kind)
     if ok and regs and regs[1] ~= nil then
+        if given_up_since[addr] ~= nil then
+            host.log("info", string.format(
+                "Pixii: register %d answered again", addr))
+        end
         read_failures[addr] = nil
+        given_up_since[addr] = nil
+        if polling then
+            poll_ok = poll_ok + 1
+            poll_failed[addr] = nil
+        end
         return regs
     end
-    local failures = (read_failures[addr] or 0) + 1
-    read_failures[addr] = failures
-    if failures == GIVE_UP_AFTER then
-        host.log("info", string.format(
-            "Pixii: register %d did not answer %d times; leaving it alone " ..
-            "until restart", addr, GIVE_UP_AFTER))
+    if polling then
+        poll_failed[addr] = true
+    else
+        note_failure(addr)
     end
     return nil
+end
+
+local function begin_poll_reads()
+    poll_reads = 0
+    poll_ok = 0
+    poll_failed = {}
+    -- One sample for the whole poll. Sampling first keeps clock_ms() on
+    -- this instant while polling is set.
+    poll_now = 0
+    if type(host.millis) == "function" then poll_now = host.millis() end
+    polling = true
+end
+
+local function finish_poll_reads()
+    if poll_reads > 0 and poll_ok == 0 then
+        if not unreachable_streak then
+            host.log("info",
+                "Pixii: every register read failed; the device looks " ..
+                "unreachable, so register failure counts are unchanged")
+        end
+        unreachable_streak = true
+    elseif poll_ok > 0 then
+        if unreachable_streak then
+            host.log("info",
+                "Pixii: the device answered after an unreachable stretch; " ..
+                "register failure counts are cleared")
+            read_failures = {}
+            given_up_since = {}
+            unreachable_streak = false
+        end
+        for addr, _ in pairs(poll_failed) do
+            note_failure(addr)
+        end
+    end
+    polling = false
 end
 
 -- Read a single i16-typed scale factor register. SF=0 (x1 scaling) is the
@@ -358,6 +453,8 @@ function driver_poll()
     if hb_err ~= nil and hb_err ~= "" then
         host.log("warn", "Pixii: heartbeat write failed: " .. tostring(hb_err))
     end
+
+    begin_poll_reads()
 
     -- Read serial number once from SunSpec Common Model (offset 52 from
     -- the common block → absolute 40052, 16 regs ASCII).
@@ -638,6 +735,7 @@ function driver_poll()
     if meter_var_ok then host.emit_metric("meter_var", meter_var) end
     host.emit_metric("grid_hz",    meter_hz)
 
+    finish_poll_reads()
     return 5000
 end
 

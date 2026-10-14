@@ -1,5 +1,22 @@
 # Changelog
 
+## pixii 2.1.9
+
+A power cut left the driver offline until someone restarted it. Each register
+keeps its own failure count and stops being read after three misses. When the
+Pixii boots slower than FTW, every read fails for about fifteen seconds,
+three polls at five seconds, and every register is retired. The device then
+answers and the driver never asks again.
+
+Misses count on a poll where some other register answered. A poll where every
+read fails leaves the counts unchanged: the device is unreachable. The next
+poll that gets an answer clears the counts. Register 40288 on PowerShaper
+firmware below CPU 2.0.23 still stops after three misses while the device is
+answering other registers, and is tried again every five minutes.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh` (srcfl/ftw#1620).
+
 ## sungrow 1.6.0
 
 Read the live values once a second. `driver_poll` returns 1000 ms. Each poll

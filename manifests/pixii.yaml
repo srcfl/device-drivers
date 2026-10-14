@@ -1,5 +1,5 @@
 name: "pixii"
-version: "2.1.8"
+version: "2.1.9"
 tier: core
 author: "Sourceful Labs AB and community contributors"
 protocol: modbus
@@ -24,9 +24,9 @@ upstream_docs:
     title: "SunSpec model 802: battery charge and control states"
     kind: register_map
     url_stability: stable
-size_bytes: 29119
+size_bytes: 32519
 dkb_id: "pixii"
-sha256: "5fc8e600eac7a70020e01e32c531f350f49bd076cac8a5598c2c06205b05f6b8"
+sha256: "77e233e2d24e970ebff8eaacd67967f57b651677d25ce7b57a1f97c3eaeb71fe"
 signature: ""
 
 bytecode_sha256: ""
