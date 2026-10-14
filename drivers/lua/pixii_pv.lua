@@ -14,7 +14,7 @@ DRIVER = {
   id           = "pixii_pv",
   name         = "Pixii PowerShaper (PV + meter)",
   manufacturer = "Pixii",
-  version      = "0.3.3",
+  version      = "0.3.2",
   protocols    = { "mqtt" },
   capabilities = { "pv", "meter" },
   read_only    = true,
@@ -79,14 +79,9 @@ function driver_init(config)
     host.log("info", "Pixii: subscribed to meter_ext6 + meter")
 end
 
--- Five seconds until this driver has been seen at one second on hardware.
--- Hosts that honour this return would otherwise poll it every second. It
--- reads MQTT, so the hold is about unproven behaviour, not bus load.
-local POLL_MS = 5000
-
 function driver_poll()
     local messages = host.mqtt_messages()
-    if not messages then return POLL_MS end
+    if not messages then return 1000 end
 
     local pv_payload, meter_payload = nil, nil
 
@@ -167,7 +162,7 @@ function driver_poll()
         if building_w then host.emit_metric("building_ac_w", building_w) end
     end
 
-    return POLL_MS
+    return 1000
 end
 
 function driver_command(action)
