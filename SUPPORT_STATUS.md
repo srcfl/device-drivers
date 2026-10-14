@@ -124,8 +124,8 @@ Catalog source is not proof that a target can install or run a driver.
 | schneider_meter | 1.0.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | schrack_ev | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | schrack_ev | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| sdm630 | 2.0.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| sdm630 | 2.0.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| sdm630 | 2.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| sdm630 | 2.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | shelly | 1.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | shelly | 1.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | siemens_pac | 1.0.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |

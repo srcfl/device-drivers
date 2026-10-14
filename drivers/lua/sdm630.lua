@@ -14,7 +14,7 @@ DRIVER = {
     id = "sdm630",
     name = "Eastron SDM630 meter",
     manufacturer = "Eastron",
-    version = "2.0.2",
+    version = "2.0.3",
     protocols = { "modbus" },
     capabilities = { "meter" },
     read_only = true,
@@ -74,13 +74,19 @@ function driver_init(config)
     return true
 end
 
+-- Five seconds until an SDM630 has been seen at one second on hardware. It
+-- often sits on an RS485 bus shared with an inverter, and one 76-register
+-- read takes about 0.18 s at 9600 baud. Hosts that honour this return would
+-- otherwise poll it every second.
+local POLL_MS = 5000
+
 function driver_poll()
     -- One FC04 request covers the measurement window 0x0000..0x004B.
     local ok, regs = pcall(host.modbus_read, 0x0000, 76, "input")
     if not ok or not regs or #regs < 76 then
         -- Do not emit fabricated zeros on a failed primary read. Both hosts
         -- then expose staleness to their own safety/watchdog layer.
-        return 1000
+        return POLL_MS
     end
 
     local base = 0x0000
@@ -130,7 +136,7 @@ function driver_poll()
         total_export_Wh = export_wh,
     })
 
-    return 1000
+    return POLL_MS
 end
 
 function driver_command(action, value, context)

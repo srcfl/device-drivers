@@ -554,14 +554,14 @@ drivers:
     size_bytes: 3554
     sha256: "652db1569e74d8a451ddfcefb4f55d897e144b9a955608d20b4278ed6b9a2fdd"
   - name: "sdm630"
-    version: "2.0.2"
+    version: "2.0.3"
     tier: core
     protocol: modbus
     connectivity: local
     ders: [meter]
     control: false
-    size_bytes: 5024
-    sha256: "d879dd48e0ab6bf42547745659798473267e52bdaa84c93b94b5a6dc9969ac4c"
+    size_bytes: 5315
+    sha256: "fe01f6156eb956f3445f78d668e9c01a86bcd479983def73fcf4383edea82eed"
   - name: "shelly"
     version: "1.1.2"
     tier: community
