@@ -1,13 +1,5 @@
 # Changelog
 
-## sdm630 2.0.3
-
-Return 5000 ms from `driver_poll` instead of 1000. FTW ignored the return until
-srcfl/ftw#1616 and read this meter every five seconds; that PR makes the return
-count. An SDM630 often shares an RS485 bus with an inverter, and its one
-76-register read takes about 0.18 s at 9600 baud. It stays at five seconds
-until it has been seen at one second on hardware.
-
 ## sungrow 1.6.0
 
 Read the live values once a second. `driver_poll` returns 1000 ms. Each poll
