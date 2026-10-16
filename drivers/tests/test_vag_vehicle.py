@@ -112,10 +112,10 @@ def test_vag_vehicle_email_sign_in(tmp_path: Path) -> None:
     assert "vag_vehicle login: ok" in result.stdout
 
 
-def _plug_dataset(value: str, ts: str) -> str:
+def _plug_dataset(value: str, ts: str, soc: str = "63") -> str:
     return json.dumps({"vin": "WVWZZZTESTVIN0001", "Data": [
         {"key": "162c2a75-edf4-3990-b8ed-7c600b3dbc40", "dataFieldName": "battery_level_HV.value",
-         "value": "63", "timestampUtc": ts},
+         "value": soc, "timestampUtc": ts},
         {"key": "c111830c-f959-30d2-859a-ea996190d864", "dataFieldName": "plug_state",
          "value": value, "timestampUtc": ts},
     ]})
@@ -126,7 +126,7 @@ def test_vag_vehicle_plug_state(tmp_path: Path) -> None:
         ("connected", DATASET),
         ("unplugged", _plug_dataset("disconnected", "2026-09-26T07:15:00Z")),
         ("again", _plug_dataset("connected", "2026-09-26T07:30:00Z")),
-        ("unknown", _plug_dataset("invalid", "2026-09-26T07:45:00Z")),
+        ("unknown", _plug_dataset("invalid", "2026-09-26T07:45:00Z", soc="1")),
     ]
     paths = []
     for name, text in fixtures:

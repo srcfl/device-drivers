@@ -57,12 +57,14 @@ Returns wall-clock time in Unix milliseconds. `host.now_ms()` and
 `host.millis()` are uptime and cannot be compared with a vendor's timestamp.
 
 ### `host.site_location()` *(FTW, vehicle drivers)*
-Returns the site's `latitude, longitude`, or `nil` when the site has no
-position. FTW gives it only to a driver whose `DRIVER.capabilities` lists
-`vehicle`, and treats its weather pin left where the settings page put it as
-no position. A driver measures its car's distance from the site and emits
-`site_distance_m`; it never emits the car's coordinates. Check that the
-function exists before calling it: an older FTW and Blixt L1 do not have it.
+Returns the site's `latitude, longitude`, or `nil`. FTW gives it only to a
+driver from its signed channel whose signed catalog entry lists `vehicle`;
+a bundled or local file gets `nil`, whatever its own `DRIVER` table says.
+The position is the site's weather pin, and FTW treats the pin left where
+the settings page put it as no position. A driver measures its car's
+distance from the site and emits `site_distance_m`; it never emits the
+car's coordinates. Check that the function exists before calling it: an
+older FTW and Blixt L1 do not have it.
 
 ### `host.emit_metric(name, value, unit)`
 Emit one diagnostic value outside the DER telemetry schema. `unit` is optional.
@@ -111,33 +113,24 @@ emit may say where the car's cable and the car are, so FTW can tell which car
 was plugged in ([FTW docs/cars.md](https://github.com/srcfl/ftw/blob/master/docs/cars.md),
 rule 2). Every field is optional; leave out what the source does not know.
 
+Send `soc` as a percent, except a level of 1 % or less, which goes as a
+fraction (`0.01`). FTW reads 1 or less as a fraction and more as a percent;
+FTW before 0.131 reads every value as a percent. A plain `1` would read as
+100 %.
+
 | Field | Type | Meaning |
 |---|---|---|
 | `plugged` | bool | The car's own word on its charge cable: `true` in, `false` out. |
-| `plugged_since_ms` | Unix ms | When the source saw the cable take that state: its own change time (Home Assistant's `last_changed`), else the first reading that showed it. Leave it out until the driver has seen a change; a value present at the first reading has no known time. |
-| `at_site` | bool | `true` when the car is at this site, `false` when it is elsewhere, from the source's own idea of home (a Home Assistant zone). |
-| `site_distance_m` | metres | The car's distance from the site, from `host.site_location()`. FTW reads up to 300 m as here and over 1 km as elsewhere, and does not know in between. `at_site` wins when both are given. |
+| `plugged_since_ms` | Unix ms | When the source read the cable take that state. Send it only when the source reads the cable at least every 30 seconds, and leave it out until the driver has seen a change: a value present at its first reading has no known time. It is the time of the read, not of the plug-in; Home Assistant's `last_changed` is when Home Assistant read it. |
+| `at_site` | bool | `true` when the car is at this site, `false` when it is elsewhere, from the source's own idea of home (a Home Assistant zone, a TeslaMate geofence). |
+| `site_distance_m` | metres | The car's distance from the site, from `host.site_location()`. FTW reads up to 300 m as here and over 5 km as elsewhere, and does not know in between: the site's position is a weather pin. `at_site` wins when both are given. |
 
-FTW names a car when its source saw the cable go in within a minute of the
-charger's plug-in and does not say it is elsewhere, and only if no other car
-says the same. A reading the car's source made after the plug-in that says
-`at_site` false or the cable out keeps the car from being named. Read the
-cable and the place at the driver's own cadence: never wake a car only to
-learn them.
-
-#### Proposed data-models v3.0.0 migration
-
-[srcful-data-models#10](https://github.com/srcfl/srcful-data-models/pull/10)
-proposes the `inverter` DER type, lowercase non-unit names, and `_ac` / `_dc`
-postfixes for quantities that can describe either side. NovaCore's matching
-change is [srcful-novacore#174](https://github.com/srcfl/srcful-novacore/pull/174).
-These changes are still open. The reference on `main` currently describes
-v2.0.0.
-
-Those proposed wire names do not change `host.emit` yet. Before a driver
-uses them, its host must accept or map them, and any receiving API must
-support them. Keep the current host keys until that work lands; a link to
-a newer data model does not add host support.
+FTW names a car when its source read the cable go in within a minute of the
+charger's plug-in, no other charger saw a plug-in in that minute, no source
+of the car says it is elsewhere, and no other car says the same. A reading
+the car's source made after the plug-in that says `at_site` false or the
+cable out rules the car out. Read the cable and the place at the driver's
+own cadence: never wake a car only to learn them.
 
 ## Modbus
 

@@ -353,22 +353,24 @@ A vehicle driver can help FTW tell which car is on a charger. Emit
 or `site_distance_m`. The fields are in
 [`spec/host-api.md`](../spec/host-api.md#vehicle-ftw).
 
-- **Time the change, not the read.** `plugged_since_ms` is when the cable
-  took its state. Use the source's own change time when it has one; else
-  record the time of the first reading that shows a change. A value the
-  driver saw at its first reading has no known time: leave the field out.
-- **Keep the coordinates in the driver.** Get the site's position from
-  `host.site_location()`, measure the distance, and emit only
-  `site_distance_m`, rounded to the metre.
+- **Date only what you saw happen.** Send `plugged_since_ms` only when the
+  source reads the cable at least every 30 seconds. A car read every few
+  minutes shows a plug-in minutes late, and FTW would match it to the wrong
+  charger or to none. A value the driver saw at its first reading, or one a
+  broker redelivers after a reconnect, has no known time: leave it out.
+- **Prefer the source's own idea of home.** A Home Assistant zone or a
+  TeslaMate geofence gives `at_site`. Measuring against
+  `host.site_location()` is the fallback: that position is a weather pin.
+- **Keep the coordinates in the driver.** Emit only `site_distance_m`,
+  rounded to the metre.
 - **Unknown is not false.** A cable state or a place the source does not
-  know is `nil`. A wrong `false` tells FTW the car is somewhere else, and the
-  only car becomes a visitor.
+  know is `nil`. A wrong `false` tells FTW the car is somewhere else.
 - **No extra reads.** The cable and the place come with the reads the level
   already needs. Never wake a car, or add a billed request, to learn them.
+- **A level of 1 % goes as 0.01.** FTW reads a vehicle `soc` of 1 as 100 %.
 
 `home_assistant_vehicle`, `tesla_cloud`, `teslamate_vehicle` and
-`vag_vehicle` show the patterns: a source change time, a change seen between
-reads, a change seen as an MQTT message arrives, and a dataset's point time.
+`vag_vehicle` show the patterns.
 
 ## Testing
 

@@ -1,5 +1,5 @@
--- VAG plug state: plugged, and plugged_since_ms when a newer dataset shows
--- the cable change.
+-- VAG plug state: plugged, with no cable time (the portal writes every 15
+-- minutes), and a level of 1 % as 0.01.
 -- Args: connected.zip unplugged.zip again.zip unknown.zip
 
 dofile("drivers/tests/lua_harness/host_mock.lua")
@@ -54,21 +54,20 @@ local function next_file(i)
 end
 
 local r = next_file(1)
-assert(r.plugged == true, "connected")
-assert(r.plugged_since_ms == nil, "the first dataset shows no change, so no time")
+assert(r.plugged == true and r.plugged_since_ms == nil, "connected, no time")
 
 r = next_file(2)
-assert(r.plugged == false, "disconnected")
-assert(r.plugged_since_ms == 1790406900 * 1000.0, "the plug point's time, got " .. tostring(r.plugged_since_ms))
+assert(r.plugged == false and r.plugged_since_ms == nil, "disconnected, no time")
 
 driver_poll()
 r = host._emitted.vehicle[#host._emitted.vehicle]
-assert(r.plugged == false and r.plugged_since_ms == 1790406900 * 1000.0, "a replay keeps the plug state")
+assert(r.plugged == false, "a replay keeps the plug state")
 
 r = next_file(3)
-assert(r.plugged == true and r.plugged_since_ms == 1790407800 * 1000.0, "plugged in again")
+assert(r.plugged == true, "plugged in again")
 
 r = next_file(4)
-assert(r.plugged == nil and r.plugged_since_ms == nil, "an unknown plug state is not unplugged")
+assert(r.plugged == nil, "an unknown plug state is not unplugged")
+assert(r.soc == 0.01, "1 % as 0.01, got " .. tostring(r.soc))
 
 print("vag_vehicle plug: ok")

@@ -1819,7 +1819,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "tesla_vehicle"
-            version: "0.2.5"
+            version: "0.2.6"
             ders: [vehicle]
             control: true
         firmware_versions: ""
@@ -1834,7 +1834,7 @@ manufacturers:
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only vehicle SoC, charge limit and charging state via the official Tesla Fleet API. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+        notes: "Read-only vehicle SoC, charge limit, charging state and charge cable via the official Tesla Fleet API. Grant the optional vehicle_location scope to report the car's distance from the site; the coordinates stay in the driver. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
       - name: "Tesla Vehicle (TeslaMate)"
         variants: [Model 3, Model Y]
         regions: []
@@ -1845,7 +1845,7 @@ manufacturers:
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only vehicle SoC, charge limit and charging state via TeslaMate MQTT. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+        notes: "Read-only vehicle SoC, charge limit, charging state, charge cable and place via TeslaMate MQTT. Set geofence to this site's TeslaMate geofence for the place. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
       - name: "Tesla Wall Connector"
         variants: [Wall Connector Gen 3]
         regions: []

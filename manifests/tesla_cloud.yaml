@@ -13,12 +13,12 @@ tested_devices:
     variants: [Model Y, Model 3]
     regions: [EU, NA, CN]
     firmware_versions: ""
-    notes: "Read-only vehicle SoC, charge limit and charging state via the official Tesla Fleet API. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+    notes: "Read-only vehicle SoC, charge limit, charging state and charge cable via the official Tesla Fleet API. Grant the optional vehicle_location scope to report the car's distance from the site; the coordinates stay in the driver. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 22429
+size_bytes: 22431
 dkb_id: "tesla_cloud"
-sha256: "1042e9913f78c8abf5d917b3c3b013db0c2aec1ef78a9c6f16594b0f78313728"
+sha256: "deab2cc377cdae9bbc32a14e686b05830b1e094154a090a401d60f666646653e"
 signature: ""
 
 bytecode_sha256: ""

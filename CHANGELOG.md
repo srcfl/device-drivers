@@ -6,38 +6,48 @@
 
 A new read-only driver for a car whose level Home Assistant already reads. A
 Home Assistant automation publishes one JSON message over MQTT; the driver
-subscribes and holds no Home Assistant token. It reads the level, charge
-limit and charging state, and, when the automation maps them, the charge
-cable (`plugged`, with `last_changed` as `plugged_since_ms`) and the car's
-place (`at_site` from a tracker in zone home). The header carries the
-automation for the Tesla Custom Integration. Levels arrive as fractions,
-since FTW reads a vehicle `soc` of 1 as 100 %. Messages from a Model Y on the
-Tesla Custom Integration, recorded on 15 October 2026, are the test fixtures.
+subscribes, emits every 5 seconds and holds no Home Assistant token. It
+reads the level, charge limit and charging state, and, when the automation
+maps them, the charge cable (`plugged`) and the car's place (`at_site` from
+a tracker in zone home). The automation may add `plugged_since` from
+`last_changed`, but only when the integration reads the cable at least
+every 30 seconds: `last_changed` is when Home Assistant read the change.
+The header carries the automation for the Tesla Custom Integration.
+Messages from a Model Y on that integration, recorded on 15 October 2026,
+are the test fixtures.
 
 ### tesla_cloud 0.2.0
 
 Report the charge cable (`plugged`, from `conn_charge_cable`, else the
-charging state) and, when a read shows it change, `plugged_since_ms` from
-the read's timestamp. With a site position from FTW and the optional
-`vehicle_location` scope, the same `vehicle_data` read asks for
-`location_data` and the driver emits the car's distance from the site
-(`site_distance_m`), never its coordinates. A token without the scope gets
-HTTP 403 for that read; the driver then reads `charge_state` alone until it
-restarts. No request is added and no car is woken.
+charging state). No cable time: the driver reads the car minutes apart. With
+a site position from FTW and the optional `vehicle_location` scope, the same
+`vehicle_data` read asks for `location_data`, and the driver emits the car's
+distance from the site (`site_distance_m`), never its coordinates. A token
+without the scope gets HTTP 403 for that read; the driver then reads
+`charge_state` alone and asks again a day later. No request is added and no
+car is woken. A level of 1 % goes as 0.01.
 
 ### teslamate_vehicle 0.2.0
 
-Report the charge cable from TeslaMate's `plugged_in`, with
-`plugged_since_ms` when the driver sees a change arrive, and the car's
-distance from the site from `latitude` and `longitude`. The retained value
-at subscribe has no known time. The coordinates are not emitted.
+Report the charge cable from TeslaMate's `plugged_in`. A change is dated
+(`plugged_since_ms`, by the box's clock) only when a live update carries it:
+a `healthy` message within 10 seconds. A retained value, at subscribe or
+redelivered after the broker reconnects, has no known time. With `geofence`
+set to this site's TeslaMate geofence, the geofence topic gives `at_site`;
+otherwise `latitude` and `longitude` give the distance from the site. The
+coordinates are not emitted. A level of 1 % goes as 0.01.
 
 ### vag_vehicle 0.3.0
 
-Report the charge cable from the Data Act dataset's plug state, with the
-plug point's time as `plugged_since_ms` when a newer dataset shows it
-change. A plug state other than connected or disconnected is unknown, not
-unplugged. The datasets carry no position.
+Report the charge cable from the Data Act dataset's plug state. No cable
+time: the portal writes every 15 minutes. A plug state other than connected
+or disconnected is unknown, not unplugged. The datasets carry no position.
+A level of 1 % goes as 0.01.
+
+### tesla_vehicle 0.2.6
+
+A level of 1 % goes as 0.01. FTW reads a vehicle `soc` of 1 as 100 %, so a
+car at 1 % looked full.
 
 ### pixii_pv 0.3.3
 

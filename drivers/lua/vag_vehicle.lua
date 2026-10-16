@@ -31,11 +31,11 @@
 -- expires.
 --
 -- Which car is plugged in (FTW docs/cars.md, rule 2): the dataset's plug
--- state gives `plugged`, and when a newer dataset shows it change, the plug
--- point's own time gives `plugged_since_ms`. The portal writes a file about
--- every 15 minutes, so this seldom lands within the minute rule 2 needs; it
--- still lets Core ignore a car that says its cable is out. The datasets this
--- driver was written from carry no position, so it gives no site_distance_m.
+-- state gives `plugged`. The portal writes a file about every 15 minutes,
+-- too seldom to date a plug-in, so the driver sends no plugged_since_ms; a
+-- fresh "disconnected" still tells Core this car is not the one plugged in.
+-- The datasets this driver was written from carry no position, so it gives
+-- no site_distance_m.
 --
 -- Age: the SoC data point carries the time the car measured it, and the
 -- portal's Date header gives the time now, so the driver reports the
@@ -207,10 +207,8 @@ local last = {
   known_age = false,
   -- Seconds between the car's measurement and the read, when known.
   measured_age_s = nil,
-  -- The plug state and, once a dataset has shown it change, the Unix ms
-  -- of the plug point that did.
+  -- The dataset's plug state; nil when unknown.
   plugged = nil,
-  plugged_since_ms = nil,
 }
 
 -- Logs get pasted into public issues, and a VIN identifies the owner's
@@ -1070,14 +1068,22 @@ local function newest_dataset(list)
   return best
 end
 
+-- FTW reads a vehicle soc of 1 or less as a fraction, and more as a
+-- percent; FTW before 0.131 reads every value as a percent. A percent above
+-- 1 means the same to both, so only 1 % or less goes as a fraction: 0.01 is
+-- 1 % to a new FTW and 0.01 % to an old one, where a plain 1 would be 100 %.
+local function soc_value(pct)
+  if pct <= 1 then return pct / 100 end
+  return pct
+end
+
 local function emit_reading(soc, limit, state, ttf, fresh, stale)
   host.emit("vehicle", {
-    soc = soc,
+    soc = soc_value(soc),
     charge_limit_pct = limit,
     charging_state = state,
     time_to_full_min = ttf,
     plugged = last.plugged,
-    plugged_since_ms = last.plugged_since_ms,
     stale = stale,
     soc_fresh = fresh,
   })
@@ -1087,24 +1093,12 @@ end
 -- anything else is unknown, not unplugged.
 local function remember_plug(point)
   local v = point and lower(point.value) or ""
-  local plugged = nil
+  last.plugged = nil
   if v == "connected" then
-    plugged = true
+    last.plugged = true
   elseif v == "disconnected" then
-    plugged = false
+    last.plugged = false
   end
-  if plugged == nil then
-    last.plugged, last.plugged_since_ms = nil, nil
-    return
-  end
-  if last.plugged ~= nil and plugged ~= last.plugged then
-    local t = iso_epoch(point.ts)
-    -- 1000.0: an integer product overflows 32-bit Lua.
-    last.plugged_since_ms = t and t * 1000.0 or nil
-  elseif last.plugged == nil then
-    last.plugged_since_ms = nil
-  end
-  last.plugged = plugged
 end
 
 -- The reading's age now: measured age at the read plus time since.
@@ -1411,5 +1405,4 @@ function driver_cleanup()
   last.known_age = false
   last.ts_ms = 0
   last.plugged = nil
-  last.plugged_since_ms = nil
 end

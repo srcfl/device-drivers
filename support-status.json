@@ -1661,7 +1661,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.5",
+      "catalog_version": "0.2.6",
       "driver_id": "tesla_vehicle",
       "targets": {
         "blixt-l1": {

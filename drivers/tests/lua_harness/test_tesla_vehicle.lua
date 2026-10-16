@@ -152,4 +152,9 @@ body = ""
 driver_poll()
 assert(#posts == 0)
 host.reserve_vehicle_wake = reserve
+-- A level of 1 % goes as 0.01: FTW reads a plain 1 as 100 %.
+load(true)
+body = data(1, math.floor(host.unix_ms()/1000))
+driver_poll()
+assert(latest() and latest().soc == 0.01, "1 % as 0.01, got " .. tostring(latest() and latest().soc))
 print("Tesla BLE recovery: cold boot, source age, errors, restart budget and wake-only refresh pass")

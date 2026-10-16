@@ -11,7 +11,7 @@ DRIVER = {
   id           = "tesla_vehicle",
   name         = "Tesla Vehicle (BLE Proxy)",
   manufacturer = "Tesla",
-  version      = "0.2.5",
+  version      = "0.2.6",
   protocols    = { "http" },
   capabilities = { "vehicle" },
   description  = "Vehicle SoC and charge limit via a local Tesla BLE proxy, with bounded telemetry wake and charge-start support.",
@@ -81,13 +81,22 @@ local function busy(err)
   local es = tostring(err)
   return es:match("HTTP 408") or es:match("HTTP 503") or es:match("Command Disallowed")
 end
+-- FTW reads a vehicle soc of 1 or less as a fraction, and more as a
+-- percent; FTW before 0.131 reads every value as a percent. A percent above
+-- 1 means the same to both, so only 1 % or less goes as a fraction: 0.01 is
+-- 1 % to a new FTW and 0.01 % to an old one, where a plain 1 would be 100 %.
+local function soc_value(pct)
+  if pct <= 1 then return pct / 100 end
+  return pct
+end
+
 local function emit_last(fresh)
   if last.soc == nil then return end
   local now = wall_ms()
   local age = now and last.ts_ms > 0 and math.max(0, now - last.ts_ms) or nil
   if age and host.emit_metric then host.emit_metric("vehicle_soc_age_s", age / 1000, "s") end
   host.emit("vehicle", {
-    soc = last.soc,
+    soc = soc_value(last.soc),
     charge_limit_pct = last.limit,
     charging_state = last.state,
     time_to_full_min = last.ttf,

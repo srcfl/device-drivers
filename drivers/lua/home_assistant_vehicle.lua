@@ -20,7 +20,9 @@
 --   charging_state   Charging | Starting | NoPower | Stopped | Complete |
 --                    Disconnected
 --   plugged          true when the charge cable is in, false when it is out
---   plugged_since    when the cable entity took that state (last_changed)
+--   plugged_since    when the cable entity took that state (last_changed);
+--                    send it only when the integration reads the cable at
+--                    least every 30 seconds, see below
 --   at_site          true when the car's tracker is in zone home, false
 --                    when it is somewhere else
 -- source_age_s measures the car's reading, not the moment Home Assistant
@@ -29,6 +31,12 @@
 --
 -- plugged, plugged_since and at_site let FTW tell which car was plugged in
 -- (FTW docs/cars.md, rule 2). Home Assistant's zone home must be this site.
+-- last_changed is when Home Assistant read the change, not the plug-in: an
+-- integration that polls a car every few minutes dates a plug-in minutes
+-- late, and FTW would match it to the wrong charger or none. FTW counts a
+-- cable time only within a minute of a charger's plug-in, so leave
+-- plugged_since out of the template unless the integration reads the cable
+-- at least every 30 seconds while the car is at home.
 --
 -- Config (MQTT host/port/user live on the capability grant, not here):
 --
@@ -86,10 +94,12 @@
 --               'observed_at': observed,
 --               'source_age_s': as_timestamp(now()) - observed,
 --               'plugged': (cable.state == 'on') if known else none,
---               'plugged_since': as_timestamp(cable.last_changed) if known else none,
 --               'at_site': is_state(tracker, 'home') if has_value(tracker) else none
 --             } | to_json }}
 --     mode: restart
+--
+-- With an integration that reads the cable at least every 30 seconds, add
+--               'plugged_since': as_timestamp(cable.last_changed) if known else none,
 --
 -- Publish non-retained: a retained message would replay an old reading at
 -- every reconnect.
@@ -117,7 +127,7 @@ PROTOCOL = "mqtt"
 -- for the MQTT contract tests.
 local topic = "ftw/vehicle/car/state"
 
-local POLL_MS            = 1000
+local POLL_MS            = 5000
 local WATCHDOG_TIMEOUT_S = 60
 -- A car reading older than this is not fresh: Core's own live window.
 local MAX_AGE_S          = 300
@@ -160,6 +170,15 @@ local function percent(n)
   return finite(n) and n >= 0 and n <= 100
 end
 
+-- FTW reads a vehicle soc of 1 or less as a fraction, and more as a
+-- percent; FTW before 0.131 reads every value as a percent. A percent above
+-- 1 means the same to both, so only 1 % or less goes as a fraction: 0.01 is
+-- 1 % to a new FTW and 0.01 % to an old one, where a plain 1 would be 100 %.
+local function soc_value(pct)
+  if pct <= 1 then return pct / 100 end
+  return pct
+end
+
 local function bool_or_nil(v)
   if v == true or v == false then return v end
   return nil
@@ -190,11 +209,9 @@ local function usable(p)
 end
 
 local function reading_from(p)
-  -- Fractions, not percents: Core reads a vehicle soc of 1 as 100 %, so a
-  -- car at 1 % must arrive as 0.01.
   local r = {
-    soc                = p.soc_pct / 100,
-    charge_limit       = percent(p.charge_limit_pct) and p.charge_limit_pct / 100 or nil,
+    soc                = soc_value(p.soc_pct),
+    charge_limit_pct   = percent(p.charge_limit_pct) and p.charge_limit_pct or nil,
     charging_state     = CHARGING_STATES[p.charging_state] and p.charging_state or nil,
     soc_observed_at_ms = to_ms(p.observed_at),
     plugged            = bool_or_nil(p.plugged),
@@ -287,7 +304,7 @@ function driver_poll()
   local stale = now >= expires_ms
   host.emit("vehicle", {
     soc                = last.soc,
-    charge_limit       = last.charge_limit,
+    charge_limit_pct   = last.charge_limit_pct,
     charging_state     = last.charging_state,
     soc_observed_at_ms = last.soc_observed_at_ms,
     plugged            = last.plugged,

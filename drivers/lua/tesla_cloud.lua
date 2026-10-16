@@ -31,15 +31,16 @@
 -- this driver; it never posts a command.
 --
 -- Which car is plugged in (FTW docs/cars.md, rule 2). The same charge_state
--- read says whether a cable is in (conn_charge_cable, else charging_state),
--- and the driver reports plugged_since_ms when a read shows the cable change.
--- With the optional vehicle_location scope and a site position from the
--- host (host.site_location), the read also asks for location_data, and the
+-- read says whether a cable is in (conn_charge_cable, else charging_state).
+-- The driver sends no plugged_since_ms: it reads the car minutes apart, so
+-- a read that shows the cable in says nothing about when it went in. With
+-- the optional vehicle_location scope and a site position from the host
+-- (host.site_location), the read also asks for location_data, and the
 -- driver reports only the car's distance from the site (site_distance_m),
 -- never its coordinates. Without the scope Tesla refuses location_data; the
--- driver then reads charge_state alone until it restarts. Nothing here adds
--- a request or wakes the car: the cable and the place come with the reads
--- the level already needs.
+-- driver then reads charge_state alone and asks again after a day. Nothing
+-- here adds a request or wakes the car: the cable and the place come with
+-- the reads the level already needs.
 --
 -- Config:
 --   drivers:
@@ -157,13 +158,13 @@ local last = {
   charge_amps            = nil,
   charger_actual_current = nil,
   plugged                = nil,
-  -- Unix ms of the first read that showed the cable in its current state;
-  -- nil until a read has shown it change.
-  plugged_since_ms       = nil,
   site_distance_m        = nil,
 }
--- Set when Tesla refuses location_data (no vehicle_location scope).
-local location_denied = false
+-- host.millis() before which the driver does not ask for location_data:
+-- Tesla refused it (no vehicle_location scope). The owner may grant the
+-- scope later, so it asks again after LOCATION_RETRY_MS.
+local LOCATION_RETRY_MS = 86400000
+local location_denied_until = 0
 
 local function redact_http_err(err)
   if err == nil then return "ok" end
@@ -397,26 +398,19 @@ local function site_distance_from(root)
   return math.floor(distance_m(slat, slon, lat, lon) + 0.5)
 end
 
-local function remember_plug(cs)
-  local plugged = plugged_from(cs)
-  if plugged == nil then
-    last.plugged, last.plugged_since_ms = nil, nil
-    return
-  end
-  if last.plugged ~= nil and plugged ~= last.plugged then
-    local at = tonumber(cs.timestamp)
-    if not finite(at) and host.unix_ms then at = host.unix_ms() end
-    last.plugged_since_ms = finite(at) and math.floor(at) or nil
-  elseif last.plugged == nil then
-    last.plugged_since_ms = nil
-  end
-  last.plugged = plugged
+-- FTW reads a vehicle soc of 1 or less as a fraction, and more as a
+-- percent; FTW before 0.131 reads every value as a percent. A percent above
+-- 1 means the same to both, so only 1 % or less goes as a fraction: 0.01 is
+-- 1 % to a new FTW and 0.01 % to an old one, where a plain 1 would be 100 %.
+local function soc_value(pct)
+  if pct <= 1 then return pct / 100 end
+  return pct
 end
 
 local function remember(cs, root)
   local soc = tonumber(cs.battery_level)
   if soc == nil then return false end
-  remember_plug(cs)
+  last.plugged = plugged_from(cs)
   last.site_distance_m = site_distance_from(root)
   last.soc                    = soc
   last.charge_limit           = tonumber(cs.charge_limit_soc)
@@ -448,14 +442,13 @@ local function emit_vehicle(fresh)
     return
   end
   host.emit("vehicle", {
-    soc                    = last.soc,
+    soc                    = soc_value(last.soc),
     charge_limit_pct       = last.charge_limit,
     charging_state         = last.charging_state,
     time_to_full_min       = last.time_to_full,
     charge_amps            = last.charge_amps,
     charger_actual_current = last.charger_actual_current,
     plugged                = last.plugged,
-    plugged_since_ms       = last.plugged_since_ms,
     site_distance_m        = last.site_distance_m,
     stale                  = false,
     soc_fresh              = fresh,
@@ -479,13 +472,14 @@ local function fetch_vehicle_data(with_location)
 end
 
 -- charge_state, with location_data when the site has a position and Tesla
--- has not refused it. One request either way, so the place costs nothing.
+-- has not refused it lately. One request either way, so the place costs
+-- nothing.
 local function fetch_charge_state()
-  local with_location = not location_denied and site() ~= nil
+  local with_location = host.millis() >= location_denied_until and site() ~= nil
   local cs, root, err = fetch_vehicle_data(with_location)
   if with_location and err and tostring(err):match("HTTP 403") then
-    location_denied = true
-    log("info", "tesla_cloud: no vehicle_location scope; reading charge_state alone")
+    location_denied_until = host.millis() + LOCATION_RETRY_MS
+    log("info", "tesla_cloud: no vehicle_location scope; reading charge_state alone for a day")
     cs, root, err = fetch_vehicle_data(false)
   end
   return cs, root, err
@@ -636,9 +630,8 @@ function driver_cleanup()
   last.charge_amps            = nil
   last.charger_actual_current = nil
   last.plugged                = nil
-  last.plugged_since_ms       = nil
   last.site_distance_m        = nil
-  location_denied             = false
+  location_denied_until       = 0
   access_token                = nil
   token_expires_at            = 0
   next_request_ms             = 0

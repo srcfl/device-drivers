@@ -44,6 +44,7 @@
 --       config:
 --         vin: "5YJ3E1EA1KF000000"   # required — TeslaMate MQTT has no VIN
 --         car_id: 1                  # TeslaMate id, usually starts at 1
+--         # geofence: Home             # optional: this site's geofence name
 --         # topic_prefix: teslamate/cars/1   # optional override of the prefix
 --
 -- Enable MQTT in TeslaMate (MQTT_HOST in its compose) before pointing FTW
@@ -54,12 +55,17 @@
 -- lookup is added, grant capabilities.http.allowed_hosts for that host only.
 --
 -- Which car is plugged in (FTW docs/cars.md, rule 2). TeslaMate's
--- plugged_in topic gives the cable; a change the driver sees arrive gives
--- plugged_since_ms, by the box's clock. The retained value at subscribe is
--- no change: its time is unknown. latitude and longitude, with the site
--- position from the host (host.site_location), give site_distance_m; the
--- car's coordinates are not emitted. All three come with the updates
--- TeslaMate already sends.
+-- plugged_in topic gives the cable. A change gives plugged_since_ms, by the
+-- box's clock, only when a live update carries it: a healthy message within
+-- 10 seconds. A retained value, at subscribe or redelivered after the broker
+-- reconnects, comes without one, and its time is unknown.
+--
+-- The place: with `geofence` set to the name of this site's geofence in
+-- TeslaMate, the geofence topic gives at_site. Without it, latitude and
+-- longitude, with the site position from the host (host.site_location),
+-- give site_distance_m; the car's coordinates are not emitted. The
+-- geofence is the better of the two: the site position is a weather pin.
+-- All of this comes with the updates TeslaMate already sends.
 
 DRIVER = {
   host_api_min = 1,
@@ -117,11 +123,22 @@ end
 -- The car's cable and place. Kept apart from `last`: TeslaMate sends them
 -- when they change, and they do not make a level fresh.
 local plug = {
-  plugged  = nil,
-  since_ms = nil,
-  lat      = nil,
-  lon      = nil,
+  plugged    = nil,
+  since_ms   = nil,
+  -- A change waiting for a healthy message: its unix ms, and host.millis()
+  -- when it arrived.
+  pending_ms = nil,
+  pending_at = nil,
+  lat        = nil,
+  lon        = nil,
+  geofence   = nil,
 }
+-- host.millis() of the last healthy=true message.
+local healthy_at = nil
+-- This site's TeslaMate geofence, from config.
+local home_geofence = nil
+-- A plugged_in change and its healthy message arrive this close together.
+local LIVE_WITHIN_MS = 10000
 
 local last = {
   seen_ms                = 0,
@@ -228,6 +245,34 @@ end
 
 local function reset_plug()
   plug.plugged, plug.since_ms, plug.lat, plug.lon = nil, nil, nil, nil
+  plug.pending_ms, plug.pending_at, plug.geofence = nil, nil, nil
+  healthy_at = nil
+end
+
+-- A pending change becomes the cable's time when a healthy message came
+-- within LIVE_WITHIN_MS of it, and is dropped once that cannot happen.
+local function settle_plug(now)
+  if not plug.pending_at then return end
+  if healthy_at and math.abs(healthy_at - plug.pending_at) <= LIVE_WITHIN_MS then
+    plug.since_ms = plug.pending_ms
+    plug.pending_ms, plug.pending_at = nil, nil
+  elseif now - plug.pending_at > LIVE_WITHIN_MS then
+    plug.pending_ms, plug.pending_at = nil, nil
+  end
+end
+
+local function at_site()
+  if not home_geofence then return nil end
+  return plug.geofence == home_geofence
+end
+
+-- FTW reads a vehicle soc of 1 or less as a fraction, and more as a
+-- percent; FTW before 0.131 reads every value as a percent. A percent above
+-- 1 means the same to both, so only 1 % or less goes as a fraction: 0.01 is
+-- 1 % to a new FTW and 0.01 % to an old one, where a plain 1 would be 100 %.
+local function soc_value(pct)
+  if pct <= 1 then return pct / 100 end
+  return pct
 end
 
 local function reset_last()
@@ -291,7 +336,7 @@ local function emit_vehicle(fresh)
     return
   end
   host.emit("vehicle", {
-    soc                    = last.soc,
+    soc                    = soc_value(last.soc),
     charge_limit_pct       = last.charge_limit,
     charging_state         = last.charging_state,
     time_to_full_min       = last.time_to_full,
@@ -299,7 +344,8 @@ local function emit_vehicle(fresh)
     charger_actual_current = last.charger_actual_current,
     plugged                = plug.plugged,
     plugged_since_ms       = plug.since_ms,
-    site_distance_m        = site_distance(),
+    at_site                = at_site(),
+    site_distance_m        = not home_geofence and site_distance() or nil,
     stale                  = last.healthy == false,
     soc_fresh              = fresh,
   })
@@ -322,17 +368,23 @@ local function apply_message(msg)
   if key == "healthy" then
     local b = as_bool(p)
     if b ~= nil then last.healthy = b end
+    if b == true then healthy_at = host.millis() end
     return b == true
   end
   if key == "plugged_in" then
     local b = as_bool(p)
     if b == nil then return false end
     if plug.plugged ~= nil and b ~= plug.plugged then
-      plug.since_ms = host.unix_ms and host.unix_ms() or nil
-    elseif plug.plugged == nil then
       plug.since_ms = nil
+      if host.unix_ms then
+        plug.pending_ms, plug.pending_at = host.unix_ms(), host.millis()
+      end
     end
     plug.plugged = b
+    return false
+  end
+  if key == "geofence" then
+    plug.geofence = p ~= nil and tostring(p) or ""
     return false
   end
   if key == "latitude" or key == "longitude" then
@@ -417,6 +469,10 @@ function driver_init(config)
   else
     base_topic = "teslamate/cars/1"
   end
+  home_geofence = nil
+  if config.geofence ~= nil and tostring(config.geofence) ~= "" then
+    home_geofence = tostring(config.geofence)
+  end
 
   if host.set_watchdog_timeout_s then
     host.set_watchdog_timeout_s(WATCHDOG_TIMEOUT_S)
@@ -447,6 +503,7 @@ function driver_poll()
   for _, msg in ipairs(messages) do
     if apply_message(msg) then saw_charge = true end
   end
+  settle_plug(host.millis())
 
   -- Only a charge-field message or a healthy heartbeat while TeslaMate says
   -- the car is awake starts (or refreshes) the age clock. Idle polls and
@@ -466,6 +523,7 @@ end
 
 function driver_cleanup()
   reset_last()
+  home_geofence = nil
   vin = nil
   base_topic = "teslamate/cars/1"
 end

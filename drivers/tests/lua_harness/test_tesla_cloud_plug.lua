@@ -1,5 +1,6 @@
 -- tesla_cloud: which car is plugged in. The cable from charge_state, the
--- place from location_data in the same read, never the coordinates.
+-- place from location_data in the same read, never the coordinates, and no
+-- cable time: reads minutes apart cannot date a plug-in.
 dofile("drivers/tests/lua_harness/host_mock.lua")
 
 local VIN = "5YJ3E1EA1KF000000"
@@ -70,24 +71,22 @@ boot()
 local r = read(doc(PLUGGED, 1000, BESIDE))
 assert(gets[#gets] == WITH_PLACE, "one read asks for location_data, got " .. tostring(gets[#gets]))
 assert(r.plugged == true, "conn_charge_cable IEC is a cable")
-assert(r.plugged_since_ms == nil, "the first read shows no change")
+assert(r.plugged_since_ms == nil, "no cable time")
 assert(r.site_distance_m and r.site_distance_m > 20 and r.site_distance_m < 60,
   "beside the site, got " .. tostring(r.site_distance_m))
 for k in pairs(r) do
   assert(k ~= "latitude" and k ~= "longitude" and k ~= "drive_state", "coordinates left the driver: " .. k)
 end
 
--- Unplugged, then plugged in again: the read that shows the change dates it.
+-- Unplugged, then plugged in again: the cable follows, still with no time.
 r = read(doc(UNPLUGGED, 2000, BESIDE))
-assert(r.plugged == false and r.plugged_since_ms == 2000, "cable out at the read's timestamp")
+assert(r.plugged == false and r.plugged_since_ms == nil, "cable out")
 host._millis_counter = host._millis_counter + 60000
 driver_poll()
 r = host._emitted.vehicle[#host._emitted.vehicle]
-assert(r.plugged == false and r.plugged_since_ms == 2000 and r.soc_fresh == false, "a replay keeps the cable")
+assert(r.plugged == false and r.soc_fresh == false, "a replay keeps the cable")
 r = read(doc(PLUGGED, 3000, BESIDE))
-assert(r.plugged == true and r.plugged_since_ms == 3000, "cable in at the read's timestamp")
-r = read(doc(PLUGGED, 4000, BESIDE))
-assert(r.plugged_since_ms == 3000, "an unchanged cable keeps its time")
+assert(r.plugged == true and r.plugged_since_ms == nil, "cable in")
 
 -- Elsewhere.
 r = read(doc(PLUGGED, 5000, STOCKHOLM))
@@ -123,7 +122,14 @@ host._millis_counter = host._millis_counter + 1300000
 driver_poll()
 local again = 0
 for _, url in ipairs(gets) do if url == WITH_PLACE then again = again + 1 end end
-assert(asked == 1 and again == 1, "location_data is not asked again after a refusal")
+assert(asked == 1 and again == 1, "location_data is not asked again soon after a refusal")
+-- A day later the owner may have granted the scope.
+routes[WITH_PLACE] = doc(PLUGGED, 9000, BESIDE)
+host._millis_counter = host._millis_counter + 86400000
+driver_poll()
+r = host._emitted.vehicle[#host._emitted.vehicle]
+assert(gets[#gets] == WITH_PLACE and r.site_distance_m and r.site_distance_m < 60,
+  "location_data asked again after a day")
 
 -- An asleep car is not read for its cable or place either.
 boot()
@@ -133,5 +139,14 @@ driver_poll()
 for _, url in ipairs(gets) do
   assert(not url:find("vehicle_data", 1, true), "an asleep car was read")
 end
+
+-- A level of 1 % goes as 0.01: FTW reads a plain 1 as 100 %.
+boot()
+routes[WITH_PLACE] = host.json_encode({ response = { vin = VIN, state = "online",
+  charge_state = { battery_level = 1, charge_limit_soc = 80, conn_charge_cable = "IEC", timestamp = 1000 } } })
+host._millis_counter = host._millis_counter + 1300000
+driver_poll()
+r = host._emitted.vehicle[#host._emitted.vehicle]
+assert(r.soc == 0.01, "1 % as 0.01, got " .. tostring(r.soc))
 
 print("OK tesla_cloud plug")

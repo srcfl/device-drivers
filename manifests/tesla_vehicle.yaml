@@ -1,5 +1,5 @@
 name: "tesla_vehicle"
-version: "0.2.5"
+version: "0.2.6"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Vehicle SoC and charge limit via a local BLE proxy. Telemetry recovery needs a host with unix_ms and reserve_vehicle_wake. No hardware recovery test yet."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 9696
+size_bytes: 10096
 dkb_id: "tesla_vehicle"
-sha256: "d5b97c6ebbc376a1874898eb160f9ba8715d5a9cbf72b60794f126a99b11186d"
+sha256: "d1b8a2cbea20630dcab3cb306df0f6924b0f9ad7f31bcf367fb1d41ca7833350"
 signature: ""
 
 bytecode_sha256: ""
