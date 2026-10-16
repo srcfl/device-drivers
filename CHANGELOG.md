@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### pixii_pv 0.3.3
+
+Report zero PV generation when the measured phase sum is negative. Negating
+that sum used to emit positive PV power, which FTW rejects, so fresh readings
+could leave PV stale or missing after sunset. Sum the phases before limiting
+generation to zero; keep their signed diagnostic values. Missing, invalid or
+non-finite phase power emits no PV reading. Idle polls do not refresh PV.
+
 ## pixii 2.1.9
 
 A power cut left the driver offline until someone restarted it. Each register

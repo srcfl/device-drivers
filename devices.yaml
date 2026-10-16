@@ -1021,7 +1021,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "pixii_pv"
-            version: "0.3.2"
+            version: "0.3.3"
             ders: [pv, meter]
             control: false
         firmware_versions: ""

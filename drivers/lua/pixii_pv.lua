@@ -14,7 +14,7 @@ DRIVER = {
   id           = "pixii_pv",
   name         = "Pixii PowerShaper (PV + meter)",
   manufacturer = "Pixii",
-  version      = "0.3.2",
+  version      = "0.3.3",
   protocols    = { "mqtt" },
   capabilities = { "pv", "meter" },
   read_only    = true,
@@ -108,29 +108,33 @@ function driver_poll()
 
     --------------------------------------------------------------------------
     -- PV (external-CT meter on the PV feed).
-    -- Pixii reports PV as positive generation; site convention requires
-    -- negative (power leaving the grid boundary into the loads), so negate.
+    -- Pixii reports generation as positive. A negative net reading means
+    -- no generation, so report zero PV and keep signed phase diagnostics.
     --------------------------------------------------------------------------
     if pv_payload then
-        local w1 = tonumber(pv_payload.meter_w1) or 0
-        local w2 = tonumber(pv_payload.meter_w2) or 0
-        local w3 = tonumber(pv_payload.meter_w3) or 0
-        local pv = {}
-        pv.w = -(w1 + w2 + w3)
-        local kwh_imp = tonumber(pv_payload.meter_kwh_imp)
-        if kwh_imp then pv.generation_wh = kwh_imp * 1000.0 end
-        host.emit("pv", pv)
+        local w1 = tonumber(pv_payload.meter_w1)
+        local w2 = tonumber(pv_payload.meter_w2)
+        local w3 = tonumber(pv_payload.meter_w3)
+        local total = w1 and w2 and w3 and (w1 + w2 + w3)
+        -- Check before clamping: missing or non-finite power is not zero.
+        if total and total == total and total ~= math.huge and total ~= -math.huge then
+            local pv = {}
+            pv.w = -math.max(0, total)
+            local kwh_imp = tonumber(pv_payload.meter_kwh_imp)
+            if kwh_imp then pv.generation_wh = kwh_imp * 1000.0 end
+            host.emit("pv", pv)
 
-        host.emit_metric("pv_w_total", pv.w)
-        host.emit_metric("pv_l1_w", -w1)
-        host.emit_metric("pv_l2_w", -w2)
-        host.emit_metric("pv_l3_w", -w3)
-        if pv_payload.meter_v1 then host.emit_metric("pv_l1_v", tonumber(pv_payload.meter_v1)) end
-        if pv_payload.meter_v2 then host.emit_metric("pv_l2_v", tonumber(pv_payload.meter_v2)) end
-        if pv_payload.meter_v3 then host.emit_metric("pv_l3_v", tonumber(pv_payload.meter_v3)) end
-        if pv_payload.meter_a1 then host.emit_metric("pv_l1_a", tonumber(pv_payload.meter_a1)) end
-        if pv_payload.meter_a2 then host.emit_metric("pv_l2_a", tonumber(pv_payload.meter_a2)) end
-        if pv_payload.meter_a3 then host.emit_metric("pv_l3_a", tonumber(pv_payload.meter_a3)) end
+            host.emit_metric("pv_w_total", pv.w)
+            host.emit_metric("pv_l1_w", -w1)
+            host.emit_metric("pv_l2_w", -w2)
+            host.emit_metric("pv_l3_w", -w3)
+            if pv_payload.meter_v1 then host.emit_metric("pv_l1_v", tonumber(pv_payload.meter_v1)) end
+            if pv_payload.meter_v2 then host.emit_metric("pv_l2_v", tonumber(pv_payload.meter_v2)) end
+            if pv_payload.meter_v3 then host.emit_metric("pv_l3_v", tonumber(pv_payload.meter_v3)) end
+            if pv_payload.meter_a1 then host.emit_metric("pv_l1_a", tonumber(pv_payload.meter_a1)) end
+            if pv_payload.meter_a2 then host.emit_metric("pv_l2_a", tonumber(pv_payload.meter_a2)) end
+            if pv_payload.meter_a3 then host.emit_metric("pv_l3_a", tonumber(pv_payload.meter_a3)) end
+        end
     end
 
     --------------------------------------------------------------------------

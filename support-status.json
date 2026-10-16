@@ -1157,7 +1157,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.2",
+      "catalog_version": "0.3.3",
       "driver_id": "pixii_pv",
       "targets": {
         "blixt-l1": {

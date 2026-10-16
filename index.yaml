@@ -507,14 +507,14 @@ drivers:
     size_bytes: 32519
     sha256: "77e233e2d24e970ebff8eaacd67967f57b651677d25ce7b57a1f97c3eaeb71fe"
   - name: "pixii_pv"
-    version: "0.3.2"
+    version: "0.3.3"
     tier: core
     protocol: mqtt
     connectivity: local
     ders: [pv, meter]
     control: false
-    size_bytes: 6699
-    sha256: "7a27b937bdc845dff8d4032cb96ccca16242cc8378d1cbf5cfc8030660b871db"
+    size_bytes: 6980
+    sha256: "6b1a7c67e99a7b056d9a209800fc8ce3e63f47796846644eccaf8b31da3b988e"
   - name: "remne_p1ib"
     version: "0.1.0"
     tier: community
