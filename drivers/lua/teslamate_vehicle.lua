@@ -52,6 +52,14 @@
 --
 -- No HTTP. TeslaMate's UI and GraphQL are out of scope. If a later HTTP
 -- lookup is added, grant capabilities.http.allowed_hosts for that host only.
+--
+-- Which car is plugged in (FTW docs/cars.md, rule 2). TeslaMate's
+-- plugged_in topic gives the cable; a change the driver sees arrive gives
+-- plugged_since_ms, by the box's clock. The retained value at subscribe is
+-- no change: its time is unknown. latitude and longitude, with the site
+-- position from the host (host.site_location), give site_distance_m; the
+-- car's coordinates are not emitted. All three come with the updates
+-- TeslaMate already sends.
 
 DRIVER = {
   host_api_min = 1,
@@ -59,7 +67,7 @@ DRIVER = {
   id           = "teslamate_vehicle",
   name         = "Tesla Vehicle (TeslaMate)",
   manufacturer = "Tesla",
-  version      = "0.1.1",
+  version      = "0.2.0",
   protocols    = { "mqtt" },
   capabilities = { "vehicle" },
   read_only    = true,
@@ -106,6 +114,15 @@ end
 -- last published charge fields while the car was awake. TeslaMate's
 -- ISO `since` cannot be compared to host.millis() (monotonic uptime),
 -- and os.time is sandbox-forbidden in this repository.
+-- The car's cable and place. Kept apart from `last`: TeslaMate sends them
+-- when they change, and they do not make a level fresh.
+local plug = {
+  plugged  = nil,
+  since_ms = nil,
+  lat      = nil,
+  lon      = nil,
+}
+
 local last = {
   seen_ms                = 0,
   soc                    = nil,
@@ -187,7 +204,34 @@ local function reset_incoming()
   incoming.charger_actual_current = nil
 end
 
+local function finite(n)
+  return type(n) == "number" and n == n and n > -math.huge and n < math.huge
+end
+
+-- Great-circle distance in metres.
+local function distance_m(lat1, lon1, lat2, lon2)
+  local r = math.pi / 180
+  local dlat, dlon = (lat2 - lat1) * r, (lon2 - lon1) * r
+  local a = math.sin(dlat / 2) ^ 2 +
+    math.cos(lat1 * r) * math.cos(lat2 * r) * math.sin(dlon / 2) ^ 2
+  return 2 * 6371000 * math.asin(math.min(1, math.sqrt(a)))
+end
+
+local function site_distance()
+  if not host.site_location or not finite(plug.lat) or not finite(plug.lon) then
+    return nil
+  end
+  local slat, slon = host.site_location()
+  if not finite(slat) or not finite(slon) then return nil end
+  return math.floor(distance_m(slat, slon, plug.lat, plug.lon) + 0.5)
+end
+
+local function reset_plug()
+  plug.plugged, plug.since_ms, plug.lat, plug.lon = nil, nil, nil, nil
+end
+
 local function reset_last()
+  reset_plug()
   last.seen_ms                = 0
   last.soc                    = nil
   last.charge_limit           = nil
@@ -253,6 +297,9 @@ local function emit_vehicle(fresh)
     time_to_full_min       = last.time_to_full,
     charge_amps            = last.charge_amps,
     charger_actual_current = last.charger_actual_current,
+    plugged                = plug.plugged,
+    plugged_since_ms       = plug.since_ms,
+    site_distance_m        = site_distance(),
     stale                  = last.healthy == false,
     soc_fresh              = fresh,
   })
@@ -276,6 +323,25 @@ local function apply_message(msg)
     local b = as_bool(p)
     if b ~= nil then last.healthy = b end
     return b == true
+  end
+  if key == "plugged_in" then
+    local b = as_bool(p)
+    if b == nil then return false end
+    if plug.plugged ~= nil and b ~= plug.plugged then
+      plug.since_ms = host.unix_ms and host.unix_ms() or nil
+    elseif plug.plugged == nil then
+      plug.since_ms = nil
+    end
+    plug.plugged = b
+    return false
+  end
+  if key == "latitude" or key == "longitude" then
+    local n = tonumber(p)
+    if n == nil or (key == "latitude" and math.abs(n) > 90) or math.abs(n) > 180 then
+      return false
+    end
+    if key == "latitude" then plug.lat = n else plug.lon = n end
+    return false
   end
   if key == "model" then
     if payload_present(p) and host.set_model then

@@ -52,6 +52,18 @@ read with fresh values while its hardware is unavailable, so a driver that knows
 the difference must say so; the host cannot infer it from telemetry. Clear it
 with `false` once a later read shows the fault is gone.
 
+### `host.unix_ms()` *(FTW)*
+Returns wall-clock time in Unix milliseconds. `host.now_ms()` and
+`host.millis()` are uptime and cannot be compared with a vendor's timestamp.
+
+### `host.site_location()` *(FTW, vehicle drivers)*
+Returns the site's `latitude, longitude`, or `nil` when the site has no
+position. FTW gives it only to a driver whose `DRIVER.capabilities` lists
+`vehicle`, and treats its weather pin left where the settings page put it as
+no position. A driver measures its car's distance from the site and emits
+`site_distance_m`; it never emits the car's coordinates. Check that the
+function exists before calling it: an older FTW and Blixt L1 do not have it.
+
 ### `host.emit_metric(name, value, unit)`
 Emit one diagnostic value outside the DER telemetry schema. `unit` is optional.
 Use it for evidence an operator needs when a device misbehaves, not for
@@ -89,6 +101,29 @@ driver's keys when they already report the right values.
 
 Leave out a value that was not read (`nil`). Never send a made-up zero.
 Follow the target host's wire rules for absent values.
+
+#### `vehicle` *(FTW)*
+
+FTW also accepts `der_type` `"vehicle"`: a car's own telemetry, apart from the
+charger it is plugged into. Besides `soc`, `charge_limit_pct`,
+`charging_state`, `soc_fresh`, `soc_observed_at_ms` and `stale`, a vehicle
+emit may say where the car's cable and the car are, so FTW can tell which car
+was plugged in ([FTW docs/cars.md](https://github.com/srcfl/ftw/blob/master/docs/cars.md),
+rule 2). Every field is optional; leave out what the source does not know.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `plugged` | bool | The car's own word on its charge cable: `true` in, `false` out. |
+| `plugged_since_ms` | Unix ms | When the source saw the cable take that state: its own change time (Home Assistant's `last_changed`), else the first reading that showed it. Leave it out until the driver has seen a change; a value present at the first reading has no known time. |
+| `at_site` | bool | `true` when the car is at this site, `false` when it is elsewhere, from the source's own idea of home (a Home Assistant zone). |
+| `site_distance_m` | metres | The car's distance from the site, from `host.site_location()`. FTW reads up to 300 m as here and over 1 km as elsewhere, and does not know in between. `at_site` wins when both are given. |
+
+FTW names a car when its source saw the cable go in within a minute of the
+charger's plug-in and does not say it is elsewhere, and only if no other car
+says the same. A reading the car's source made after the plug-in that says
+`at_site` false or the cable out keeps the car from being named. Read the
+cable and the place at the driver's own cadence: never wake a car only to
+learn them.
 
 #### Proposed data-models v3.0.0 migration
 

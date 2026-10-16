@@ -32,7 +32,8 @@
           "set_watchdog_timeout_s",
           "persist_secret",
           "unix_ms",
-          "reserve_vehicle_wake"
+          "reserve_vehicle_wake",
+          "site_location"
         ],
         "decode": [
           "decode_i16",

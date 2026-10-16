@@ -30,6 +30,17 @@
 -- vehicle_device_data. Do not grant vehicle_cmds / vehicle_charging_cmds for
 -- this driver; it never posts a command.
 --
+-- Which car is plugged in (FTW docs/cars.md, rule 2). The same charge_state
+-- read says whether a cable is in (conn_charge_cable, else charging_state),
+-- and the driver reports plugged_since_ms when a read shows the cable change.
+-- With the optional vehicle_location scope and a site position from the
+-- host (host.site_location), the read also asks for location_data, and the
+-- driver reports only the car's distance from the site (site_distance_m),
+-- never its coordinates. Without the scope Tesla refuses location_data; the
+-- driver then reads charge_state alone until it restarts. Nothing here adds
+-- a request or wakes the car: the cable and the place come with the reads
+-- the level already needs.
+--
 -- Config:
 --   drivers:
 --     - name: tesla-cloud
@@ -58,7 +69,7 @@ DRIVER = {
   id           = "tesla_cloud",
   name         = "Tesla Vehicle (Fleet API)",
   manufacturer = "Tesla",
-  version      = "0.1.1",
+  version      = "0.2.0",
   protocols    = { "http" },
   capabilities = { "vehicle" },
   read_only    = true,
@@ -145,7 +156,14 @@ local last = {
   time_to_full           = nil,
   charge_amps            = nil,
   charger_actual_current = nil,
+  plugged                = nil,
+  -- Unix ms of the first read that showed the cable in its current state;
+  -- nil until a read has shown it change.
+  plugged_since_ms       = nil,
+  site_distance_m        = nil,
 }
+-- Set when Tesla refuses location_data (no vehicle_location scope).
+local location_denied = false
 
 local function redact_http_err(err)
   if err == nil then return "ok" end
@@ -335,9 +353,71 @@ local function charge_state_from(decoded)
   return nil
 end
 
-local function remember(cs)
+local function finite(n)
+  return type(n) == "number" and n == n and n > -math.huge and n < math.huge
+end
+
+-- The car's word on its cable: conn_charge_cable names the cable in the
+-- port ("<invalid>" when there is none), else the charging state says it.
+local function plugged_from(cs)
+  local cable = cs.conn_charge_cable
+  if type(cable) == "string" and cable ~= "" then
+    return cable ~= "<invalid>"
+  end
+  if type(cs.charging_state) == "string" and cs.charging_state ~= "" then
+    return cs.charging_state ~= "Disconnected"
+  end
+  return nil
+end
+
+-- Great-circle distance in metres.
+local function distance_m(lat1, lon1, lat2, lon2)
+  local r = math.pi / 180
+  local dlat, dlon = (lat2 - lat1) * r, (lon2 - lon1) * r
+  local a = math.sin(dlat / 2) ^ 2 +
+    math.cos(lat1 * r) * math.cos(lat2 * r) * math.sin(dlon / 2) ^ 2
+  return 2 * 6371000 * math.asin(math.min(1, math.sqrt(a)))
+end
+
+local function site()
+  if not host.site_location then return nil end
+  local lat, lon = host.site_location()
+  if not finite(lat) or not finite(lon) then return nil end
+  return lat, lon
+end
+
+-- The car's distance from the site, from location_data's drive_state.
+local function site_distance_from(root)
+  local ds = type(root) == "table" and root.drive_state
+  if type(ds) ~= "table" then return nil end
+  local lat, lon = tonumber(ds.latitude), tonumber(ds.longitude)
+  local slat, slon = site()
+  if not finite(lat) or not finite(lon) or not slat then return nil end
+  if math.abs(lat) > 90 or math.abs(lon) > 180 or (lat == 0 and lon == 0) then return nil end
+  return math.floor(distance_m(slat, slon, lat, lon) + 0.5)
+end
+
+local function remember_plug(cs)
+  local plugged = plugged_from(cs)
+  if plugged == nil then
+    last.plugged, last.plugged_since_ms = nil, nil
+    return
+  end
+  if last.plugged ~= nil and plugged ~= last.plugged then
+    local at = tonumber(cs.timestamp)
+    if not finite(at) and host.unix_ms then at = host.unix_ms() end
+    last.plugged_since_ms = finite(at) and math.floor(at) or nil
+  elseif last.plugged == nil then
+    last.plugged_since_ms = nil
+  end
+  last.plugged = plugged
+end
+
+local function remember(cs, root)
   local soc = tonumber(cs.battery_level)
   if soc == nil then return false end
+  remember_plug(cs)
+  last.site_distance_m = site_distance_from(root)
   last.soc                    = soc
   last.charge_limit           = tonumber(cs.charge_limit_soc)
   last.charge_amps            = tonumber(cs.charge_amps)
@@ -374,22 +454,41 @@ local function emit_vehicle(fresh)
     time_to_full_min       = last.time_to_full,
     charge_amps            = last.charge_amps,
     charger_actual_current = last.charger_actual_current,
+    plugged                = last.plugged,
+    plugged_since_ms       = last.plugged_since_ms,
+    site_distance_m        = last.site_distance_m,
     stale                  = false,
     soc_fresh              = fresh,
   })
 end
 
-local function fetch_charge_state()
+local function fetch_vehicle_data(with_location)
   local url = base_url .. "/api/1/vehicles/" .. vin
     .. "/vehicle_data?endpoints=charge_state"
-  local resp, err = safe_http_get(url, auth_headers())
-  if err then return nil, err end
-  local decoded, derr = decode_json(resp)
-  if derr then return nil, derr end
-  if type(decoded) == "table" and decoded.error then
-    return nil, tostring(decoded.error)
+  if with_location then
+    url = url .. "%3Blocation_data"
   end
-  return charge_state_from(decoded), nil
+  local resp, err = safe_http_get(url, auth_headers())
+  if err then return nil, nil, err end
+  local decoded, derr = decode_json(resp)
+  if derr then return nil, nil, derr end
+  if type(decoded) == "table" and decoded.error then
+    return nil, nil, tostring(decoded.error)
+  end
+  return charge_state_from(decoded), unwrap(decoded), nil
+end
+
+-- charge_state, with location_data when the site has a position and Tesla
+-- has not refused it. One request either way, so the place costs nothing.
+local function fetch_charge_state()
+  local with_location = not location_denied and site() ~= nil
+  local cs, root, err = fetch_vehicle_data(with_location)
+  if with_location and err and tostring(err):match("HTTP 403") then
+    location_denied = true
+    log("info", "tesla_cloud: no vehicle_location scope; reading charge_state alone")
+    cs, root, err = fetch_vehicle_data(false)
+  end
+  return cs, root, err
 end
 
 local function wait(ms)
@@ -487,11 +586,11 @@ function driver_poll()
     return POLL_MS
   end
 
-  local cs, ferr = fetch_charge_state()
+  local cs, root, ferr = fetch_charge_state()
   if ferr and tostring(ferr):match("HTTP 401") then
     token_expires_at = 0
     if ensure_auth() then
-      cs, ferr = fetch_charge_state()
+      cs, root, ferr = fetch_charge_state()
     end
   end
   if ferr then
@@ -509,7 +608,7 @@ function driver_poll()
     emit_vehicle(false)
     return POLL_MS
   end
-  if type(cs) ~= "table" or not remember(cs) then
+  if type(cs) ~= "table" or not remember(cs, root) then
     log("debug", "tesla_cloud: no battery_level in charge_state")
     wait(IDLE_EVERY_MS)
     emit_vehicle(false)
@@ -536,6 +635,10 @@ function driver_cleanup()
   last.time_to_full           = nil
   last.charge_amps            = nil
   last.charger_actual_current = nil
+  last.plugged                = nil
+  last.plugged_since_ms       = nil
+  last.site_distance_m        = nil
+  location_denied             = false
   access_token                = nil
   token_expires_at            = 0
   next_request_ms             = 0

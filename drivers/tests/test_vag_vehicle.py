@@ -110,3 +110,35 @@ def test_vag_vehicle_email_sign_in(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "vag_vehicle login: ok" in result.stdout
+
+
+def _plug_dataset(value: str, ts: str) -> str:
+    return json.dumps({"vin": "WVWZZZTESTVIN0001", "Data": [
+        {"key": "162c2a75-edf4-3990-b8ed-7c600b3dbc40", "dataFieldName": "battery_level_HV.value",
+         "value": "63", "timestampUtc": ts},
+        {"key": "c111830c-f959-30d2-859a-ea996190d864", "dataFieldName": "plug_state",
+         "value": value, "timestampUtc": ts},
+    ]})
+
+
+def test_vag_vehicle_plug_state(tmp_path: Path) -> None:
+    fixtures = [
+        ("connected", DATASET),
+        ("unplugged", _plug_dataset("disconnected", "2026-09-26T07:15:00Z")),
+        ("again", _plug_dataset("connected", "2026-09-26T07:30:00Z")),
+        ("unknown", _plug_dataset("invalid", "2026-09-26T07:45:00Z")),
+    ]
+    paths = []
+    for name, text in fixtures:
+        path = tmp_path / f"{name}.zip"
+        path.write_bytes(_zip(zipfile.ZIP_DEFLATED, text))
+        paths.append(str(path))
+    result = subprocess.run(
+        [str(ROOT / "lua55"), "drivers/tests/lua_harness/test_vag_vehicle_plug.lua", *paths],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "vag_vehicle plug: ok" in result.stdout

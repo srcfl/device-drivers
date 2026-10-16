@@ -346,6 +346,30 @@ make check
 `make check` regenerates `index.yaml`, `devices.yaml`, `support-status.json`
 and the manifest hashes. Commit what it produces — it fails if those are stale.
 
+## A car says where it is plugged in
+
+A vehicle driver can help FTW tell which car is on a charger. Emit
+`plugged`, and when the source knows them, `plugged_since_ms` and `at_site`
+or `site_distance_m`. The fields are in
+[`spec/host-api.md`](../spec/host-api.md#vehicle-ftw).
+
+- **Time the change, not the read.** `plugged_since_ms` is when the cable
+  took its state. Use the source's own change time when it has one; else
+  record the time of the first reading that shows a change. A value the
+  driver saw at its first reading has no known time: leave the field out.
+- **Keep the coordinates in the driver.** Get the site's position from
+  `host.site_location()`, measure the distance, and emit only
+  `site_distance_m`, rounded to the metre.
+- **Unknown is not false.** A cable state or a place the source does not
+  know is `nil`. A wrong `false` tells FTW the car is somewhere else, and the
+  only car becomes a visitor.
+- **No extra reads.** The cable and the place come with the reads the level
+  already needs. Never wake a car, or add a billed request, to learn them.
+
+`home_assistant_vehicle`, `tesla_cloud`, `teslamate_vehicle` and
+`vag_vehicle` show the patterns: a source change time, a change seen between
+reads, a change seen as an MQTT message arrives, and a dataset's point time.
+
 ## Testing
 
 The harness is at `drivers/tests/lua_harness/`. `host_mock.lua` lets you set

@@ -1,0 +1,24 @@
+name: "home_assistant_vehicle"
+version: "0.1.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: mqtt
+connectivity: local
+setup: [bridge]
+ders: [vehicle]
+control: false
+tested_devices:
+  - manufacturer: "Home Assistant"
+    model_family: "Vehicle (Home Assistant MQTT)"
+    variants: [Model Y]
+    regions: []
+    firmware_versions: ""
+    notes: "Read-only vehicle level, charge limit, charging state, charge cable and place from a JSON message a Home Assistant automation publishes. Tested with recorded messages from a Model Y on the Tesla Custom Integration; the cable and place fields have not run on a car. Does not wake or command the car."
+    min_driver_version: "0.1.0"
+min_host_version: "2.0.0"
+size_bytes: 11721
+dkb_id: "home_assistant_vehicle"
+sha256: "d86536f03989daa98629c3d525419bf3604f540027866be428e50ac3052f380a"
+signature: ""
+
+bytecode_sha256: ""

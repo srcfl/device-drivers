@@ -606,6 +606,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Community driver, untested"
+  - name: "Home Assistant"
+    model_families:
+      - name: "Vehicle (Home Assistant MQTT)"
+        variants: [Model Y]
+        regions: []
+        protocols:
+          - protocol: mqtt
+            driver: "home_assistant_vehicle"
+            version: "0.1.0"
+            ders: [vehicle]
+            control: false
+        firmware_versions: ""
+        notes: "Read-only vehicle level, charge limit, charging state, charge cable and place from a JSON message a Home Assistant automation publishes. Tested with recorded messages from a Model Y on the Tesla Custom Integration; the cable and place fields have not run on a car. Does not wake or command the car."
   - name: "Hoymiles"
     model_families:
       - name: "HM Series"
@@ -1817,7 +1830,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "tesla_cloud"
-            version: "0.1.1"
+            version: "0.2.0"
             ders: [vehicle]
             control: false
         firmware_versions: ""
@@ -1828,7 +1841,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "teslamate_vehicle"
-            version: "0.1.1"
+            version: "0.2.0"
             ders: [vehicle]
             control: false
         firmware_versions: ""
@@ -2064,7 +2077,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "vag_vehicle"
-            version: "0.2.1"
+            version: "0.3.0"
             ders: [vehicle]
             control: false
         firmware_versions: ""
