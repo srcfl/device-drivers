@@ -25,7 +25,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.7",
+  version      = "1.3.8",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -283,6 +283,45 @@ local OBS_SESSION_START   = 223
 local OBS_IDS = "48,96,103,109,120,121,124,183,194,223"
 
 local last_power_observed_at = nil
+local accepted_power_key = nil
+local accepted_power_value = nil
+
+-- Compare RFC3339 source instants independently of fractional precision and
+-- UTC offset. Wall-clock receipt time must not make an old packet current.
+local function power_time_key(stamp)
+    if type(stamp) ~= "string" then return nil end
+    local year, month, day, hour, minute, second, suffix = stamp:match(
+        "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)(.*)$")
+    if not year then return nil end
+    year, month, day = tonumber(year), tonumber(month), tonumber(day)
+    hour, minute, second = tonumber(hour), tonumber(minute), tonumber(second)
+    if year < 1970 or month < 1 or month > 12 or hour > 23 or minute > 59 or second > 59 then return nil end
+    local leap = year % 4 == 0 and (year % 100 ~= 0 or year % 400 == 0)
+    local lengths = {31, leap and 29 or 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+    if day < 1 or day > lengths[month] then return nil end
+    local fraction = ""
+    if suffix:sub(1, 1) == "." then
+        local digits, zone = suffix:match("^%.(%d+)(.*)$")
+        if not digits or #digits > 9 then return nil end
+        fraction, suffix = digits, zone
+    end
+    local offset = 0
+    if suffix ~= "Z" then
+        local sign, oh, om = suffix:match("^([+-])(%d%d):(%d%d)$")
+        if not sign then return nil end
+        oh, om = tonumber(oh), tonumber(om)
+        if oh > 23 or om > 59 then return nil end
+        offset = (oh * 60 + om) * 60 * (sign == "+" and 1 or -1)
+    end
+    local function leaps(y)
+        return math.floor(y / 4) - math.floor(y / 100) + math.floor(y / 400)
+    end
+    local days = 365 * (year - 1970) + leaps(year - 1) - leaps(1969) + day - 1
+    for m = 1, month - 1 do days = days + lengths[m] end
+    local seconds = days * 86400 + hour * 3600 + minute * 60 + second - offset
+    if seconds < 0 then return nil end
+    return string.format("%012d", seconds) .. "." .. fraction .. string.rep("0", 9 - #fraction)
+end
 local validated_session_id = nil
 local observed_session_id = nil
 local departed_session_id = nil
@@ -326,6 +365,26 @@ local function get_observations(serial)
        type(obs[OBS_SESSION_ENERGY]) ~= "number" or obs[OBS_SESSION_ENERGY] < 0) then
         invalidate_session_proof()
         return nil, "missing session measurement"
+    end
+    if mode >= 2 then
+        local key = power_time_key(timestamps[OBS_TOTAL_POWER])
+        if not key then
+            invalidate_session_proof()
+            return nil, "missing or invalid power source timestamp"
+        end
+        if accepted_power_key and key < accepted_power_key then
+            invalidate_session_proof()
+            return nil, "out-of-order power observation"
+        end
+        if key == accepted_power_key and obs[OBS_TOTAL_POWER] ~= accepted_power_value then
+            invalidate_session_proof()
+            return nil, "conflicting power at one source timestamp"
+        end
+        accepted_power_key, accepted_power_value = key, obs[OBS_TOTAL_POWER]
+    elseif mode == 1 then
+        -- A confirmed disconnect ends the session. A subsequent connection
+        -- must establish its own source ordering (including a charger reboot).
+        accepted_power_key, accepted_power_value = nil, nil
     end
     return obs, nil, timestamps
 end

@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### easee_cloud 1.3.8
+
+- Reject power observations that move backwards in source time, and conflicting values at the same physical time. Compare RFC3339 instants with UTC offsets and fractional precision normalized. An old cloud zero can no longer replace a newer sample, nor can an old positive sample resurrect an observed stop.
+- Connected chargers with missing or malformed power timestamps emit no fresh measurement. Unchanged valid values remain confirmable, and newer zero observations remain valid. A confirmed disconnect resets the session ordering.
+- Reproduced with synthetic cloud responses; not yet verified on hardware. This does not prove that delayed packets caused every field balance mismatch. No command policy or charging limit is changed.
+
 ## easee_cloud 1.3.7
 
 - Keep a load-balancing ReasonForNoCurrent while the car charges, when the per-phase current is at least 2 A below the offer. Easee records the reason when it changes, so a limit that began before the last power change was dropped and FTW said the charger had given no reason. The offer is observation 48, or FTW's last write when that is missing. Other old reasons are still dropped while the car charges.
