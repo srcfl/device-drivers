@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.3.7
+
+- Keep a load-balancing ReasonForNoCurrent while the car charges, when the per-phase current is at least 2 A below the offer. Easee records the reason when it changes, so a limit that began before the last power change was dropped and FTW said the charger had given no reason. The offer is observation 48, or FTW's last write when that is missing. Other old reasons are still dropped while the car charges.
+- Report `current_limited_by = "load_balancer"` for codes 1–5, 10 and 25–30 while a car is connected. Core reads this name, not Easee's codes. The charger's own limits (77, 78) and the car are not the load balancer.
+- Match the labels for codes 6, 8–11, 25–30 and 77 to Easee's published table. Code 28 read "fuse limit reached"; Easee calls it "Current limited by Equalizer". The enumeration page joins `upstream_docs`.
+- Not yet seen on hardware. Easee's table defines the "Current limited by …" codes, but no raw observation from a load-balanced charger has been captured.
+
 ### home_assistant_vehicle 0.1.0
 
 A new read-only driver for a car whose level Home Assistant already reads. A
