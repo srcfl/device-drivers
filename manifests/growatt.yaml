@@ -1,5 +1,5 @@
 name: "growatt"
-version: "2.1.2"
+version: "2.1.3"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -50,12 +50,12 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 9376
+size_bytes: 9923
 dkb_id: ""
-sha256: "1e9623cbf3453697f0fba429a5b8dab7d61cf9507587e616d0cd9de3cc3594c8"
+sha256: "684c788e989c6f90b7a64fd79521f913104486f2c939bf13d4aaa2fbfddd9dad"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "2.1.3: skip battery telemetry when no battery is connected (PV-only installs), fixes phantom Battery node on Overview (srcfl/ftw#1669)"
