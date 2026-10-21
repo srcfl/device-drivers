@@ -28,10 +28,13 @@ local function offer(w)
     assert(ok, "ev_set_current failed at " .. tostring(w) .. " W")
 end
 local function advance(ms) host._millis_counter = host._millis_counter + ms end
+local poll_tick = 0
 local function poll(mode, power_kw)
+    poll_tick = poll_tick + 1
+    local stamp = string.format("2026-09-25T00:21:%02dZ", 20 + poll_tick)
     host._http_responses["/observations?ids="] = host.json_encode({
         {id=109,value=mode,timestamp="2026-09-25T00:21:00Z"},
-        {id=120,value=power_kw,timestamp="2026-09-25T00:21:20Z"},
+        {id=120,value=power_kw,timestamp=stamp},
         {id=121,value=1,timestamp="2026-09-25T00:21:20Z"},
     })
     driver_poll()
