@@ -115,7 +115,7 @@ otherwise mark a whole block absent after one dropped packet.
 - Use Core's saved wake budget across restarts: at least 90 seconds between attempts, at most three in 30 minutes. Keep 408/503 backoff.
 - Hosts without the new wake budget and wall-clock functions do not run recovery. Physical Tesla BLE acceptance remains untested.
 
-## easee_cloud phase-flip follow-up
+## easee_cloud 1.3.9
 
 Resume a mid-session 1Φ↔3Φ flip only after a poll shows charging has stopped.
 Easee applies a new `phaseMode` only when the session restarts, and
