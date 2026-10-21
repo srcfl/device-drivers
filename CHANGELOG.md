@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.3.10
+
+- Support Core's two-phase car choice (`phase_mode: 2p`) and an explicit `phases: 2` driver setting. Use Easee Auto for that car and two phases for the current calculation. Easee's API value 2 means Auto; it is not a measured phase count.
+- Keep whole-amp two-phase offers within the watt and per-phase current limits. Preserve the phase count in the power diagnostic and keep explicit one-phase charging available.
+- Command and measurement tests use simulated responses. The change still needs an Easee and two-phase car test before hardware acceptance.
+
 ### easee_cloud 1.3.8
 
 - Reject power observations that move backwards in source time, and conflicting values at the same physical time. Compare RFC3339 instants with UTC offsets and fractional precision normalized. An old cloud zero can no longer replace a newer sample, nor can an old positive sample resurrect an observed stop.
