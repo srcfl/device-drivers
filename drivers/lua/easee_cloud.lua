@@ -25,7 +25,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.9",
+  version      = "1.3.10",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -48,7 +48,8 @@ local refresh_token = nil
 local token_expires_at = 0   -- millis
 local charger_serial = nil
 local phases = 3   -- populated from config.phases (if present) in driver_init
-local last_sent_phases = nil   -- tracks the last phaseMode posted to Easee
+local configured_phases = nil
+local last_sent_phases = nil   -- charging count, not Easee's phaseMode enum
 local last_phase_change_ms = 0 -- monotonic ms of the last phase flip (hysteresis)
 
 -- After every phaseMode change, Easee resets dynamicChargerCurrent to
@@ -101,9 +102,9 @@ local EASEE_MAX_A = 32
 -- pick_phases is the driver-level phase decision: given the requested
 -- charging power, the per-phase fuse ceiling, the operator's mode
 -- preference, and the time since the last flip, return how many
--- phases (1 or 3) to actually commit to this command.
+-- phases (1, 2 or 3) to use for the current calculation.
 --
---   * mode "1p" / "3p": locked, no hysteresis
+--   * mode "1p" / "2p" / "3p": fixed count, no hysteresis
 --   * mode "auto" or empty + missing fuse data: legacy 3Φ fallback
 --     (preserves pre-switching behaviour for sites that don't pass
 --     fuse data in the cmd)
@@ -120,6 +121,7 @@ local EASEE_MAX_A = 32
 local function pick_phases(mode, want_w, voltage, max_a_per_phase, split_w, hold_s, now_ms)
     local locked = mode
     if locked == "1p" then return 1 end
+    if locked == "2p" then return 2 end
     if locked ~= "auto" then return 3 end -- "" / "3p" / unknown
 
     -- Effective split: operator override → site fuse → 230 V × 16 A default.
@@ -172,7 +174,9 @@ end
 -- what the fuse tolerates.
 local function per_phase_amps(power_w, voltage, p, max_a_per_phase)
     local v = (voltage and voltage > 0) and voltage or 230
-    local raw = ((power_w or 0) / v / p) + 0.5
+    -- Two-phase offers use whole amps within the watt ceiling. Keep the
+    -- existing rounding for one- and three-phase installations.
+    local raw = ((power_w or 0) / v / p) + ((p == 2) and 0.000000001 or 0.5)
     local amps = math.floor(raw)
     if amps < 0 then amps = 0 end
     if amps > EASEE_MAX_A then amps = EASEE_MAX_A end
@@ -592,7 +596,10 @@ function driver_init(config)
     -- (silently halting the session).
     if config and tonumber(config.phases) then
         local p = math.floor(tonumber(config.phases))
-        if p == 1 or p == 2 or p == 3 then phases = p end
+        if p == 1 or p == 2 or p == 3 then
+            phases = p
+            configured_phases = p
+        end
     end
 
     -- Optional `max_charger_current` config: clamps the charger's
@@ -721,15 +728,11 @@ function driver_poll()
     -- Operators wanting "is the EV actually drawing what we asked
     -- for?" should compare actual_amps_per_phase against max_a.
     --
-    -- Only computed for the canonical 1Φ / 3Φ configurations. Earlier
-    -- driver_init permitted config.phases=2 (a misconfigured site,
-    -- or a transitional state before the first successful phaseMode
-    -- write). Dividing by 2 there would yield a "per-phase" number
-    -- that doesn't correspond to any real cabling — better to omit
-    -- the field than mislead the operator with a fictitious value.
+    -- The charging phase count comes from Core or explicit configuration,
+    -- never from Easee's phaseMode: its value 2 means Auto, not two phases.
     local actual_amps_per_phase = nil
     local v_obs = obs[OBS_VOLTAGE]
-    if power_w > 0 and (phases == 1 or phases == 3) then
+    if power_w > 0 and (phases == 1 or phases == 2 or phases == 3) then
         local vv = (v_obs and v_obs > 0) and v_obs or 230
         actual_amps_per_phase = power_w / vv / phases
     end
@@ -824,7 +827,7 @@ function driver_poll()
         device_limit_age_s      = limit_age_s,
         max_a                   = dyn_current,                 -- last-set dynamic limit (echoes our write, may lag)
         actual_amps_per_phase   = actual_amps_per_phase,       -- live per-phase A derived from totalPower
-        phases                  = phases,                      -- our committed phase count (1 or 3)
+        phases                  = phases,                      -- configured/commanded count, not a measurement
         command_stalled         = command_stalled,             -- offer>0 but contactor open >30s on stall reason
     })
 
@@ -919,6 +922,8 @@ function driver_command(action, power_w, cmd)
         -- the requested W and the voltage we know about. The Go
         -- controller does NOT pick phases; it just allocates power.
         local mode    = (cmd and type(cmd.phase_mode)       == "string") and cmd.phase_mode       or ""
+        if configured_phases == 2 and mode ~= "1p" then mode = "2p" end
+        if cmd and cmd.site_phases == 1 then mode = "1p" end
         local split   = (cmd and type(cmd.phase_split_w)    == "number") and cmd.phase_split_w    or 0
         local hold_s  = (cmd and type(cmd.min_phase_hold_s) == "number") and cmd.min_phase_hold_s or 0
         local voltage = (cmd and type(cmd.voltage)          == "number" and cmd.voltage > 0)          and cmd.voltage          or 230
@@ -929,8 +934,10 @@ function driver_command(action, power_w, cmd)
 
         -- POST phaseMode FIRST when it differs. Easee's settings
         -- endpoint accepts phaseMode = 1 (locked-1p), 2 (auto), 3
-        -- (locked-3p). We only ever lock — "auto" is our concern, not
-        -- the charger's.
+        -- (locked-3p). A two-phase car needs Easee Auto (2). Keep that
+        -- vendor enum separate from the charging count used for W→A.
+        -- https://developer.easee.com/docs/enumerations
+        local easee_phase_mode = ({[1]=1, [2]=2, [3]=3})[requested_phases]
         local phase_changed = false
         if last_sent_phases ~= requested_phases then
             -- A live phase flip (notably 1Φ→3Φ) won't move the Easee
@@ -953,7 +960,7 @@ function driver_command(action, power_w, cmd)
                         tostring(last_sent_phases) .. "→" .. tostring(requested_phases))
                 end
             end
-            local pm_err = write_setting(charger_serial, {phaseMode = requested_phases})
+            local pm_err = write_setting(charger_serial, {phaseMode = easee_phase_mode})
             if pm_err == nil then
                 phases = requested_phases
                 last_sent_phases = requested_phases
