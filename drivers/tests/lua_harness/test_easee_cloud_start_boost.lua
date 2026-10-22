@@ -1,4 +1,5 @@
--- A 6 A start is offered 7 A until the charger charges, then 6 A.
+-- A 6 A start is offered 7 A until the charger charges, then 6 A, and only
+-- while Core's cap_amps_per_phase says 7 A fits.
 dofile("drivers/tests/lua_harness/host_mock.lua")
 local driver = "drivers/lua/easee_cloud.lua"
 
@@ -40,8 +41,17 @@ local function poll(mode, kw)
     })
     driver_poll()
 end
+local function poll_fails()
+    host._http_responses["/observations?ids="] = "not json"
+    driver_poll()
+end
+local function later(ms) host._millis_counter = host._millis_counter + ms end
 
-local SIX = {phase_mode="3p", voltage=230, max_amps_per_phase=25}
+-- Core's cap for this charger is exactly 7 A: floor(7) fits.
+local SIX = {phase_mode="3p", voltage=230, max_amps_per_phase=25, cap_amps_per_phase=7}
+local function six(cap, max)
+    return {phase_mode="3p", voltage=230, max_amps_per_phase=max or 25, cap_amps_per_phase=cap}
+end
 local function order(w, cmd) return driver_command("ev_set_current", w, cmd or SIX) end
 
 -- 1. Bump on a 6 A start, hold through repeated orders, step down once charging.
@@ -57,10 +67,10 @@ assert(last_amps() == 6, "no step-down to 6 A after charging was seen")
 assert(order(4140)); assert(last_amps() == 6, "boost repeated during a running session")
 assert(count_cmd("/commands/resume_charging") == 0, "boost sent a resume")
 
--- 2. No boost when the fuse ceiling leaves no amp above 6.
+-- 2. No boost when the fuse ceiling leaves no amp above 6, whatever the cap.
 boot()
 poll(2)
-assert(order(4140, {phase_mode="3p", voltage=230, max_amps_per_phase=6.9}))
+assert(order(4140, six(7, 6.9)))
 assert(last_amps() == 6, "boost ignored a 6 A fuse ceiling")
 -- ...nor when Core gives no ceiling at all.
 boot()
@@ -118,7 +128,7 @@ assert(order(4140)); assert(last_amps() == 6, "start_boost=false ignored")
 -- 8. 1Φ: the boost is per phase too (6 A → 7 A on one phase).
 boot()
 poll(2)
-assert(order(1380, {phase_mode="1p", voltage=230, max_amps_per_phase=16}))
+assert(order(1380, {phase_mode="1p", voltage=230, max_amps_per_phase=16, cap_amps_per_phase=7.5}))
 assert(last_amps() == 7, "1p 6 A start not boosted")
 
 -- 9. Default mode clears the boost.
@@ -130,5 +140,59 @@ assert(last_amps() == 0)
 host._millis_counter = host._millis_counter + 91000
 poll(2)
 assert(last_amps() == 0, "default mode left a pending boost step-down")
+
+-- 10. Core's cap decides. An older Core sends none: no boost.
+boot()
+poll(2)
+assert(order(4140, six(nil)))
+assert(last_amps() == 6, "boost without Core's cap")
+-- Room for 6.4 A: 7 A would cross it.
+boot()
+poll(2)
+assert(order(4140, six(6.4)))
+assert(last_amps() == 6, "boost past Core's 6.4 A cap")
+-- 7 A or more fits.
+for _, cap in ipairs({7.9, 15}) do
+    boot()
+    poll(2)
+    assert(order(4140, six(cap)))
+    assert(last_amps() == 7, "no boost with a " .. cap .. " A cap")
+end
+
+-- 11. The cap falls to 6 A during a boost: 6 A at once, and the boost ends.
+boot()
+poll(2)
+assert(order(4140, six(8))); assert(last_amps() == 7)
+assert(order(4140, six(6)))
+assert(last_amps() == 6, "boost kept 7 A after Core's cap fell to 6 A")
+assert(order(4140, six(8)))
+assert(last_amps() == 6, "an ended boost started again in the same start")
+later(91000)
+poll(2)
+assert(last_amps() == 6, "ended boost stepped down again")
+
+-- 12. The fuse ceiling falls to 6 A during a boost (Codex P1): 6 A at once.
+boot()
+poll(2)
+assert(order(4140)); assert(last_amps() == 7)
+assert(order(4140, six(6, 6)))
+assert(last_amps() == 6, "boost kept 7 A after max_amps_per_phase fell to 6 A")
+
+-- 13. Observations fail past the window (Codex P2): the poll still writes
+-- 6 A, and the next order does not bring 7 A back.
+boot()
+poll(2)
+assert(order(4140)); assert(last_amps() == 7)
+later(91000)
+poll_fails()
+assert(last_amps() == 6, "boost outlived its window while observations failed")
+assert(order(4140)); assert(last_amps() == 6, "order after a failed poll wrote 7 A")
+
+-- 14. No poll at all past the window: the order itself ends the boost.
+boot()
+poll(2)
+assert(order(4140)); assert(last_amps() == 7)
+later(91000)
+assert(order(4140)); assert(last_amps() == 6, "order past the window wrote 7 A")
 
 print("easee_cloud start boost: ok")
