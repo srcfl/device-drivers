@@ -18,6 +18,7 @@
 --         email: "user@example.com"
 --         password: "secret"
 --         serial: "EHHZBKPF"    # optional — auto-detected if omitted
+--         start_boost: false    # optional — disable the 7 A start for 6 A orders
 
 DRIVER = {
   host_api_min = 1,
@@ -25,7 +26,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.6",
+  version      = "1.3.7",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -86,6 +87,23 @@ local command_stalled_since_ms = 0
 -- pauses cleanly.
 local EASEE_MIN_A = 6
 local EASEE_MAX_A = 32
+
+-- 6 A start boost. Field data (22 Oct 2026, Easee Home + Audi e-tron, 3Φ,
+-- four runs): after resume_charging with dynamicChargerCurrent=6 the
+-- charger reported a positive pilot only 5 min 2 s – 5 min 47 s later, even
+-- with a single resume. Starting at 7 A and lowering to 6 A once the car
+-- drew current started at once. evcc reports the same ~5 min firmware
+-- delay and clamps the dynamic current to 7 A before its start command.
+-- Here the boost is one amp per phase, held only until the charger reports
+-- charging (op_mode 3) or START_BOOST_MAX_MS passes, then 6 A. It is only
+-- used when the command's fuse ceiling and the charger's static limit both
+-- allow 7 A, and at most once per start. `start_boost: false` disables it.
+local START_BOOST_A = EASEE_MIN_A + 1
+local START_BOOST_MAX_MS = 90000
+local start_boost_enabled = true
+local boost_until_ms = nil     -- non-nil while 7 A is offered for a 6 A order
+local boost_spent = false      -- one boost per start; reset by a 0 A order or a stop
+local last_op_mode = nil       -- op_mode from the latest successful poll
 
 -- pick_phases is the driver-level phase decision: given the requested
 -- charging power, the per-phase fuse ceiling, the operator's mode
@@ -525,6 +543,10 @@ function driver_init(config)
         end
     end
 
+    if config and (config.start_boost == false or config.start_boost == "false") then
+        start_boost_enabled = false
+    end
+
     if not email or not password then
         host.log("error", "Easee: email and password required in driver config")
         return
@@ -748,6 +770,29 @@ function driver_poll()
         end
     end
 
+    -- 6 A start boost: step down to the ordered 6 A as soon as the charger
+    -- reports charging, or when the boost window ends without it. A failed
+    -- write keeps the boost pending so the next poll retries the step-down.
+    if boost_until_ms ~= nil then
+        if charging or now >= boost_until_ms then
+            local werr = write_setting(charger_serial, {dynamicChargerCurrent = EASEE_MIN_A})
+            if werr == nil then
+                host.log("info", "Easee: start boost ended (" ..
+                    (charging and "charging" or "timeout") .. "), dynamicChargerCurrent=6 A")
+                boost_until_ms = nil
+                last_amps_set = EASEE_MIN_A
+            else
+                host.log("warn", "Easee: start boost step-down failed (will retry next poll): " ..
+                    redact_http_err(werr))
+            end
+        end
+    end
+    -- A session that stops charging may need a new boost on its next start.
+    if last_op_mode == 3 and not charging and boost_until_ms == nil then
+        boost_spent = false
+    end
+    last_op_mode = op_mode
+
     if obs[OBS_VOLTAGE] then
         host.emit_metric("ev_voltage_v", obs[OBS_VOLTAGE])
     end
@@ -791,7 +836,11 @@ function driver_command(action, power_w, cmd)
         return ok
     elseif action == "ev_pause" then
         local ok = post_command("/commands/pause_charging")
-        if ok then paused_state = true end
+        if ok then
+            paused_state = true
+            boost_until_ms = nil
+            boost_spent = false
+        end
         return ok
     elseif action == "ev_resume" then
         local ok = post_command("/commands/resume_charging")
@@ -853,9 +902,31 @@ function driver_command(action, power_w, cmd)
         end
 
         local amps = per_phase_amps(power_w, voltage, phases, max_a)
-        local err = write_setting(charger_serial, {dynamicChargerCurrent = amps})
+        local write_a = amps
+        local boosting = false
+        if amps == EASEE_MIN_A then
+            if boost_until_ms ~= nil then
+                -- Still within the boost: keep 7 A, do not restart the window.
+                write_a, boosting = START_BOOST_A, true
+            elseif start_boost_enabled and not boost_spent and last_op_mode ~= 3 and
+                   max_a ~= nil and math.floor(max_a) >= START_BOOST_A and
+                   (device_limit_a == nil or device_limit_a >= START_BOOST_A) then
+                write_a, boosting = START_BOOST_A, true
+            end
+        end
+        local err = write_setting(charger_serial, {dynamicChargerCurrent = write_a})
         if err == nil then
-            last_amps_set = amps
+            if boosting then
+                if boost_until_ms == nil then
+                    boost_until_ms = now_ms + START_BOOST_MAX_MS
+                    boost_spent = true
+                    host.log("info", "Easee: start boost 7 A for a 6 A start (Easee delays ~5 min at 6 A)")
+                end
+            else
+                boost_until_ms = nil
+                if amps == 0 then boost_spent = false end
+            end
+            last_amps_set = write_a
             -- After a phaseMode change, schedule one re-write of
             -- dynamicChargerCurrent on the next driver_poll. Easee's
             -- cloud resets it to maxChargerCurrent during the phase
@@ -904,6 +975,8 @@ function driver_default_mode()
     if post_command("/commands/pause_charging") then
         paused_state = true
     end
+    boost_until_ms = nil
+    boost_spent = false
     local err = write_setting(charger_serial, {dynamicChargerCurrent = 0})
     if err == nil then
         last_amps_set = 0
