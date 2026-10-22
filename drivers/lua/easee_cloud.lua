@@ -96,8 +96,8 @@ local EASEE_MAX_A = 32
 -- delay and clamps the dynamic current to 7 A before its start command.
 -- Here the boost is one amp per phase, held only until the charger reports
 -- charging (op_mode 3) or START_BOOST_MAX_MS passes, then 6 A. It is only
--- used when the command's fuse ceiling and the charger's static limit both
--- allow 7 A, and at most once per start. `start_boost: false` disables it.
+-- used when the command's fuse ceiling and the charger's static limit (read
+-- from /config, never assumed) both allow 7 A, and at most once per start. `start_boost: false` disables it.
 local START_BOOST_A = EASEE_MIN_A + 1
 local START_BOOST_MAX_MS = 90000
 local start_boost_enabled = true
@@ -910,7 +910,7 @@ function driver_command(action, power_w, cmd)
                 write_a, boosting = START_BOOST_A, true
             elseif start_boost_enabled and not boost_spent and last_op_mode ~= 3 and
                    max_a ~= nil and math.floor(max_a) >= START_BOOST_A and
-                   (device_limit_a == nil or device_limit_a >= START_BOOST_A) then
+                   device_limit_a ~= nil and device_limit_a >= START_BOOST_A then
                 write_a, boosting = START_BOOST_A, true
             end
         end

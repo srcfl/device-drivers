@@ -73,6 +73,12 @@ poll(2)
 assert(order(4140))
 assert(last_amps() == 6, "boost above the charger's static limit")
 
+-- ...nor when the charger's static limit could not be read.
+boot(nil, '{}')
+poll(2)
+assert(order(4140))
+assert(last_amps() == 6, "boost with an unknown static limit")
+
 -- 3. No boost when more than 6 A is ordered.
 boot()
 poll(2)

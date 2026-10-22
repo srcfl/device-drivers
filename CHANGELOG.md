@@ -9,8 +9,8 @@ phases), a resume at 6 A gave a positive pilot only 5 min 2 s to 5 min 47 s
 later in four runs on 22 October 2026, also with a single resume; 7 A and
 then 6 A started at once. evcc reports the same delay at 6 A. The driver
 now offers 7 A per phase when a stopped charger gets a 6 A order, and only
-when the order's `max_amps_per_phase` and the charger's static limit both
-allow 7 A. It writes 6 A as soon as the charger reports charging, or after
+when the order's `max_amps_per_phase` and the charger's static limit, as
+read from its config, both allow 7 A. It writes 6 A as soon as the charger reports charging, or after
 90 s. One boost per start; a running session lowered to 6 A is not raised,
 orders above 6 A are unchanged, and no extra resume is sent.
 `start_boost: false` turns it off. Tested in the Lua harness; not yet on

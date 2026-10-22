@@ -200,8 +200,8 @@ drivers:
     setup: [vendor_portal]
     ders: [ev]
     control: true
-    size_bytes: 44640
-    sha256: "bc90198531f41da272b9e3641d22b261c9edf2031120b0184c334e5290ad3a40"
+    size_bytes: 44674
+    sha256: "00ba73e690376331148e5a5841dff2fd257c93063ef3defbca9d988adc902c08"
   - name: "esphome_dsmr"
     version: "1.0.7"
     tier: core
