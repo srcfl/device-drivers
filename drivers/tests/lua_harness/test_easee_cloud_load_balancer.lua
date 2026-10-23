@@ -17,10 +17,12 @@ local function boot()
 end
 
 -- reason_time before power_time: the reason predates the last power change.
+local power_tick = 0
 local function poll(mode, power_kw, reason, reason_time, offer_a)
+    power_tick = power_tick + 1
     local obs = {
         {id=109, value=mode, timestamp="2026-10-08T05:00:00Z"},
-        {id=120, value=power_kw, timestamp="2026-10-08T05:10:00Z"},
+        {id=120, value=power_kw, timestamp=string.format("2026-10-08T05:10:00.%09dZ", power_tick)},
         {id=121, value=12.5, timestamp="2026-10-08T05:10:00Z"},
         {id=194, value=230, timestamp="2026-10-08T05:00:00Z"},
         {id=96, value=reason, timestamp=reason_time},

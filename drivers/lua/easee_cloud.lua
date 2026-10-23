@@ -18,6 +18,7 @@
 --         email: "user@example.com"
 --         password: "secret"
 --         serial: "EHHZBKPF"    # optional — auto-detected if omitted
+--         start_boost: false    # optional — disable the 7 A start for 6 A orders
 
 DRIVER = {
   host_api_min = 1,
@@ -25,7 +26,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.7",
+  version      = "1.3.9",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -86,6 +87,23 @@ local command_stalled_since_ms = 0
 -- pauses cleanly.
 local EASEE_MIN_A = 6
 local EASEE_MAX_A = 32
+
+-- 6 A start boost. Field data (22 Oct 2026, Easee Home + Audi e-tron, 3Φ,
+-- four runs): after resume_charging with dynamicChargerCurrent=6 the
+-- charger reported a positive pilot only 5 min 2 s – 5 min 47 s later, even
+-- with a single resume. Starting at 7 A and lowering to 6 A once the car
+-- drew current started at once. evcc reports the same ~5 min firmware
+-- delay and clamps the dynamic current to 7 A before its start command.
+-- Here the boost is one amp per phase, held only until the charger reports
+-- charging (op_mode 3) or START_BOOST_MAX_MS passes, then 6 A. It is only
+-- used when 7 A fits (start_boost_fits), after a poll has seen the charger
+-- not charging, and at most once per start. `start_boost: false` disables it.
+local START_BOOST_A = EASEE_MIN_A + 1
+local START_BOOST_MAX_MS = 90000
+local start_boost_enabled = true
+local boost_until_ms = nil     -- non-nil while 7 A is offered for a 6 A order
+local boost_spent = false      -- one boost per start; reset by a 0 A order or a stop
+local last_op_mode = nil       -- op_mode from the latest successful poll; nil before the first
 
 -- pick_phases is the driver-level phase decision: given the requested
 -- charging power, the per-phase fuse ceiling, the operator's mode
@@ -283,6 +301,45 @@ local OBS_SESSION_START   = 223
 local OBS_IDS = "48,96,103,109,120,121,124,183,194,223"
 
 local last_power_observed_at = nil
+local accepted_power_key = nil
+local accepted_power_value = nil
+
+-- Compare RFC3339 source instants independently of fractional precision and
+-- UTC offset. Wall-clock receipt time must not make an old packet current.
+local function power_time_key(stamp)
+    if type(stamp) ~= "string" then return nil end
+    local year, month, day, hour, minute, second, suffix = stamp:match(
+        "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)(.*)$")
+    if not year then return nil end
+    year, month, day = tonumber(year), tonumber(month), tonumber(day)
+    hour, minute, second = tonumber(hour), tonumber(minute), tonumber(second)
+    if year < 1970 or month < 1 or month > 12 or hour > 23 or minute > 59 or second > 59 then return nil end
+    local leap = year % 4 == 0 and (year % 100 ~= 0 or year % 400 == 0)
+    local lengths = {31, leap and 29 or 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+    if day < 1 or day > lengths[month] then return nil end
+    local fraction = ""
+    if suffix:sub(1, 1) == "." then
+        local digits, zone = suffix:match("^%.(%d+)(.*)$")
+        if not digits or #digits > 9 then return nil end
+        fraction, suffix = digits, zone
+    end
+    local offset = 0
+    if suffix ~= "Z" then
+        local sign, oh, om = suffix:match("^([+-])(%d%d):(%d%d)$")
+        if not sign then return nil end
+        oh, om = tonumber(oh), tonumber(om)
+        if oh > 23 or om > 59 then return nil end
+        offset = (oh * 60 + om) * 60 * (sign == "+" and 1 or -1)
+    end
+    local function leaps(y)
+        return math.floor(y / 4) - math.floor(y / 100) + math.floor(y / 400)
+    end
+    local days = 365 * (year - 1970) + leaps(year - 1) - leaps(1969) + day - 1
+    for m = 1, month - 1 do days = days + lengths[m] end
+    local seconds = days * 86400 + hour * 3600 + minute * 60 + second - offset
+    if seconds < 0 then return nil end
+    return string.format("%012d", seconds) .. "." .. fraction .. string.rep("0", 9 - #fraction)
+end
 local validated_session_id = nil
 local observed_session_id = nil
 local departed_session_id = nil
@@ -326,6 +383,26 @@ local function get_observations(serial)
        type(obs[OBS_SESSION_ENERGY]) ~= "number" or obs[OBS_SESSION_ENERGY] < 0) then
         invalidate_session_proof()
         return nil, "missing session measurement"
+    end
+    if mode >= 2 then
+        local key = power_time_key(timestamps[OBS_TOTAL_POWER])
+        if not key then
+            invalidate_session_proof()
+            return nil, "missing or invalid power source timestamp"
+        end
+        if accepted_power_key and key < accepted_power_key then
+            invalidate_session_proof()
+            return nil, "out-of-order power observation"
+        end
+        if key == accepted_power_key and obs[OBS_TOTAL_POWER] ~= accepted_power_value then
+            invalidate_session_proof()
+            return nil, "conflicting power at one source timestamp"
+        end
+        accepted_power_key, accepted_power_value = key, obs[OBS_TOTAL_POWER]
+    elseif mode == 1 then
+        -- A confirmed disconnect ends the session. A subsequent connection
+        -- must establish its own source ordering (including a charger reboot).
+        accepted_power_key, accepted_power_value = nil, nil
     end
     return obs, nil, timestamps
 end
@@ -503,6 +580,45 @@ local function write_setting(serial, body_table)
     return err
 end
 
+-- start_boost_fits: 7 A per phase fits when Core's cap for this charger
+-- (cap_amps_per_phase: its room below the fuse and the import limit, after
+-- other chargers' share), the order's max_amps_per_phase and the charger's
+-- static limit, read from /config, all allow it. max_amps_per_phase alone is
+-- the fuse rating, not the room left: a 6 A order on a phase with room for
+-- 6.4 A would draw 7 A, Core would see an overage and stop the car, and the
+-- next start would boost again. A Core that sends no cap gets no boost.
+-- Checked on every order while a boost runs.
+local function start_boost_fits(cmd, max_a)
+    local cap = cmd and type(cmd.cap_amps_per_phase) == "number" and cmd.cap_amps_per_phase or nil
+    return cap ~= nil and math.floor(cap) >= START_BOOST_A and
+        max_a ~= nil and math.floor(max_a) >= START_BOOST_A and
+        device_limit_a ~= nil and device_limit_a >= START_BOOST_A
+end
+
+-- end_start_boost writes the ordered 6 A. A failed write leaves the boost
+-- running, so the next poll or order tries again.
+local function end_start_boost(why)
+    local werr = write_setting(charger_serial, {dynamicChargerCurrent = EASEE_MIN_A})
+    if werr ~= nil then
+        host.log("warn", "Easee: start boost step-down failed (will retry): " .. redact_http_err(werr))
+        return false
+    end
+    host.log("info", "Easee: start boost ended (" .. why .. "), dynamicChargerCurrent=6 A")
+    boost_until_ms = nil
+    last_amps_set = EASEE_MIN_A
+    return true
+end
+
+-- clear_start_boost drops the boost without a write and re-arms it. A running
+-- boost left 7 A in last_amps_set; it becomes hold_a, what the charger should
+-- hold, so a pending phaseMode re-assert cannot write 7 A outside the window
+-- and the cap check.
+local function clear_start_boost(hold_a)
+    if boost_until_ms ~= nil then last_amps_set = hold_a end
+    boost_until_ms = nil
+    boost_spent = false
+end
+
 function driver_init(config)
     host.set_make("Easee")
 
@@ -537,6 +653,10 @@ function driver_init(config)
         if m > 0 and m <= EASEE_MAX_A then
             configured_max_a = m
         end
+    end
+
+    if config and (config.start_boost == false or config.start_boost == "false") then
+        start_boost_enabled = false
     end
 
     if not email or not password then
@@ -604,6 +724,11 @@ function driver_poll()
     if not ensure_auth(email, password) then
         host.log("warn", "Easee: auth failed, skipping poll")
         return 10000
+    end
+
+    -- The boost window ends on time even when observations fail.
+    if boost_until_ms ~= nil and host.millis() >= boost_until_ms then
+        end_start_boost("timeout")
     end
 
     local obs, err, timestamps = get_observations(charger_serial)
@@ -776,6 +901,17 @@ function driver_poll()
         end
     end
 
+    -- 6 A start boost: step down to the ordered 6 A as soon as the charger
+    -- reports charging. The timeout is checked above, before observations.
+    if boost_until_ms ~= nil and charging then
+        end_start_boost("charging")
+    end
+    -- A session that stops charging may need a new boost on its next start.
+    if last_op_mode == 3 and not charging and boost_until_ms == nil then
+        boost_spent = false
+    end
+    last_op_mode = op_mode
+
     if obs[OBS_VOLTAGE] then
         host.emit_metric("ev_voltage_v", obs[OBS_VOLTAGE])
     end
@@ -819,7 +955,12 @@ function driver_command(action, power_w, cmd)
         return ok
     elseif action == "ev_pause" then
         local ok = post_command("/commands/pause_charging")
-        if ok then paused_state = true end
+        if ok then
+            paused_state = true
+            -- Keep the 6 A order, not 0 A: Core's contactor cycle sends
+            -- ev_resume after ev_pause with no new order in between.
+            clear_start_boost(EASEE_MIN_A)
+        end
         return ok
     elseif action == "ev_resume" then
         local ok = post_command("/commands/resume_charging")
@@ -881,9 +1022,46 @@ function driver_command(action, power_w, cmd)
         end
 
         local amps = per_phase_amps(power_w, voltage, phases, max_a)
-        local err = write_setting(charger_serial, {dynamicChargerCurrent = amps})
+        local write_a = amps
+        local boosting = false
+        local boost_end = nil
+        if amps == EASEE_MIN_A then
+            if boost_until_ms ~= nil then
+                -- Keep 7 A within the window while it still fits and the
+                -- charger has not started; do not restart the window.
+                -- Otherwise this write of 6 A ends the boost.
+                if now_ms >= boost_until_ms then
+                    boost_end = "timeout"
+                elseif last_op_mode == 3 then
+                    boost_end = "charging"
+                elseif not start_boost_fits(cmd, max_a) then
+                    boost_end = "no room for 7 A"
+                else
+                    write_a, boosting = START_BOOST_A, true
+                end
+            elseif start_boost_enabled and not boost_spent and start_boost_fits(cmd, max_a) and
+                last_op_mode ~= nil and last_op_mode ~= 3 then
+                -- An unknown op_mode may be charging: after a driver reload
+                -- the car can already charge at 6 A before the first poll.
+                write_a, boosting = START_BOOST_A, true
+            end
+        end
+        local err = write_setting(charger_serial, {dynamicChargerCurrent = write_a})
         if err == nil then
-            last_amps_set = amps
+            if boosting then
+                if boost_until_ms == nil then
+                    boost_until_ms = now_ms + START_BOOST_MAX_MS
+                    boost_spent = true
+                    host.log("info", "Easee: start boost 7 A for a 6 A start (Easee delays ~5 min at 6 A)")
+                end
+            else
+                if boost_end ~= nil then
+                    host.log("info", "Easee: start boost ended (" .. boost_end .. "), dynamicChargerCurrent=6 A")
+                end
+                boost_until_ms = nil
+                if amps == 0 then boost_spent = false end
+            end
+            last_amps_set = write_a
             -- After a phaseMode change, schedule one re-write of
             -- dynamicChargerCurrent on the next driver_poll. Easee's
             -- cloud resets it to maxChargerCurrent during the phase
@@ -932,6 +1110,7 @@ function driver_default_mode()
     if post_command("/commands/pause_charging") then
         paused_state = true
     end
+    clear_start_boost(0)
     local err = write_setting(charger_serial, {dynamicChargerCurrent = 0})
     if err == nil then
         last_amps_set = 0

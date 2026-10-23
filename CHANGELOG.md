@@ -2,12 +2,49 @@
 
 ## [Unreleased]
 
-### easee_cloud 1.3.7
+### easee_cloud 1.3.9
+
+- Reject power observations that move backwards in source time, and conflicting values at the same physical time. Compare RFC3339 instants with UTC offsets and fractional precision normalized. An old cloud zero can no longer replace a newer sample, nor can an old positive sample resurrect an observed stop.
+- Connected chargers with missing or malformed power timestamps emit no fresh measurement. Unchanged valid values remain confirmable, and newer zero observations remain valid. A confirmed disconnect resets the session ordering.
+- Reproduced with synthetic cloud responses; not yet verified on hardware. This does not prove that delayed packets caused every field balance mismatch. No command policy or charging limit is changed.
 
 - Keep a load-balancing ReasonForNoCurrent while the car charges, when the per-phase current is at least 2 A below the offer. Easee records the reason when it changes, so a limit that began before the last power change was dropped and FTW said the charger had given no reason. The offer is observation 48, or FTW's last write when that is missing. Other old reasons are still dropped while the car charges.
 - Report `current_limited_by = "load_balancer"` for codes 1–5, 10 and 25–30 while a car is connected. Core reads this name, not Easee's codes. The charger's own limits (77, 78) and the car are not the load balancer.
 - Match the labels for codes 6, 8–11, 25–30 and 77 to Easee's published table. Code 28 read "fuse limit reached"; Easee calls it "Current limited by Equalizer". The enumeration page joins `upstream_docs`.
 - Not yet seen on hardware. Easee's table defines the "Current limited by …" codes, but no raw observation from a load-balanced charger has been captured.
+
+### easee_cloud 1.3.8
+
+Two fixes to the 7 A start from 1.3.7, from its review. A reloaded driver
+no longer offers 7 A before its first poll: the car may already charge at
+6 A, so the driver now waits until a poll has seen the charger not charging.
+A pause or the stand-down that clears a boost now also drops the boost's 7 A
+from the current the driver re-writes after a phase change: a pause keeps
+the 6 A order and the stand-down 0 A. Before, the next poll could write 7 A
+again without the cap or the 90 s window. A pause keeps 6 A rather than
+0 A because Core's contactor cycle sends a resume after a pause with no new
+order between. Tested in the Lua harness; not yet on hardware.
+
+### easee_cloud 1.3.7
+
+Start a 6 A order at 7 A. On an Easee Home with an Audi e-tron (three
+phases), a resume at 6 A gave a positive pilot only 5 min 2 s to 5 min 47 s
+later in four runs on 22 October 2026, also with a single resume; 7 A and
+then 6 A started at once. evcc reports the same delay at 6 A. The driver now
+offers 7 A per phase when a stopped charger gets a 6 A order, and only when
+7 A fits: Core's `cap_amps_per_phase` for this charger, the order's
+`max_amps_per_phase` and the charger's static limit, as read from its
+config, must all allow 7 A. `max_amps_per_phase` is the fuse rating, not the
+room left, so a 6 A order on a phase with room for 6.4 A would otherwise draw
+7 A and Core would stop the car. A Core that does not send
+`cap_amps_per_phase` (srcfl/ftw#1809) gets no boost. Every order during a
+boost checks this again, and one that no longer fits writes 6 A at once. The
+driver writes 6 A as soon as the charger reports charging, or after 90 s,
+also when observations fail. One boost per start; a running session lowered
+to 6 A is not raised, orders above 6 A are unchanged, and no extra resume is
+sent. `start_boost: false` turns it off. Tested in the Lua harness; not yet
+on hardware with this driver.
+
 
 ### home_assistant_vehicle 0.1.0
 
