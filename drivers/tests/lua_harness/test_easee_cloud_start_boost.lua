@@ -195,4 +195,47 @@ assert(order(4140)); assert(last_amps() == 7)
 later(91000)
 assert(order(4140)); assert(last_amps() == 6, "order past the window wrote 7 A")
 
+-- 15. No boost before a poll has seen the charger not charging. After a
+-- driver reload the car may already charge at 6 A.
+boot()
+assert(order(4140)); assert(last_amps() == 6, "boost before the first poll")
+poll_fails()
+assert(order(4140)); assert(last_amps() == 6, "boost after only a failed poll")
+poll(3, 4.1)
+assert(order(4140)); assert(last_amps() == 6, "reloaded driver boosted a running session")
+poll(2)
+assert(order(4140)); assert(last_amps() == 7, "no boost once a poll saw the charger stop")
+-- A first poll that sees the charger waiting allows the boost.
+boot()
+assert(order(4140)); assert(last_amps() == 6)
+poll(2)
+assert(order(4140)); assert(last_amps() == 7, "no boost after a poll saw the charger waiting")
+
+-- 16. A pause clears the boost. The phaseMode re-assert that the first order
+-- scheduled then writes the 6 A order, not the boost's 7 A.
+boot()
+poll(2)
+assert(order(4140)); assert(last_amps() == 7)
+assert(driver_command("ev_pause", 0, {}))
+later(5000)
+poll(2)
+assert(last_amps() == 6, "re-assert after a pause wrote the cleared boost's 7 A")
+
+-- 17. Default mode clears the boost even when its 0 A write fails; the
+-- re-assert then retries 0 A instead of writing 7 A.
+boot()
+poll(2)
+assert(order(4140)); assert(last_amps() == 7)
+local http_post = host.http_post
+host.http_post = function(url, ...)
+    if url:find("/settings", 1, true) then return nil, "HTTP 503" end
+    return http_post(url, ...)
+end
+driver_default_mode()
+host.http_post = http_post
+assert(last_amps() == 7)
+later(5000)
+poll(2)
+assert(last_amps() == 0, "re-assert after default mode wrote the cleared boost's 7 A")
+
 print("easee_cloud start boost: ok")

@@ -26,7 +26,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.7",
+  version      = "1.3.8",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -96,14 +96,14 @@ local EASEE_MAX_A = 32
 -- delay and clamps the dynamic current to 7 A before its start command.
 -- Here the boost is one amp per phase, held only until the charger reports
 -- charging (op_mode 3) or START_BOOST_MAX_MS passes, then 6 A. It is only
--- used when 7 A fits (start_boost_fits), and at most once per start.
--- `start_boost: false` disables it.
+-- used when 7 A fits (start_boost_fits), after a poll has seen the charger
+-- not charging, and at most once per start. `start_boost: false` disables it.
 local START_BOOST_A = EASEE_MIN_A + 1
 local START_BOOST_MAX_MS = 90000
 local start_boost_enabled = true
 local boost_until_ms = nil     -- non-nil while 7 A is offered for a 6 A order
 local boost_spent = false      -- one boost per start; reset by a 0 A order or a stop
-local last_op_mode = nil       -- op_mode from the latest successful poll
+local last_op_mode = nil       -- op_mode from the latest successful poll; nil before the first
 
 -- pick_phases is the driver-level phase decision: given the requested
 -- charging power, the per-phase fuse ceiling, the operator's mode
@@ -536,6 +536,16 @@ local function end_start_boost(why)
     return true
 end
 
+-- clear_start_boost drops the boost without a write and re-arms it. A running
+-- boost left 7 A in last_amps_set; it becomes hold_a, what the charger should
+-- hold, so a pending phaseMode re-assert cannot write 7 A outside the window
+-- and the cap check.
+local function clear_start_boost(hold_a)
+    if boost_until_ms ~= nil then last_amps_set = hold_a end
+    boost_until_ms = nil
+    boost_spent = false
+end
+
 function driver_init(config)
     host.set_make("Easee")
 
@@ -860,8 +870,9 @@ function driver_command(action, power_w, cmd)
         local ok = post_command("/commands/pause_charging")
         if ok then
             paused_state = true
-            boost_until_ms = nil
-            boost_spent = false
+            -- Keep the 6 A order, not 0 A: Core's contactor cycle sends
+            -- ev_resume after ev_pause with no new order in between.
+            clear_start_boost(EASEE_MIN_A)
         end
         return ok
     elseif action == "ev_resume" then
@@ -941,7 +952,10 @@ function driver_command(action, power_w, cmd)
                 else
                     write_a, boosting = START_BOOST_A, true
                 end
-            elseif start_boost_enabled and not boost_spent and last_op_mode ~= 3 and start_boost_fits(cmd, max_a) then
+            elseif start_boost_enabled and not boost_spent and start_boost_fits(cmd, max_a) and
+                last_op_mode ~= nil and last_op_mode ~= 3 then
+                -- An unknown op_mode may be charging: after a driver reload
+                -- the car can already charge at 6 A before the first poll.
                 write_a, boosting = START_BOOST_A, true
             end
         end
@@ -1009,8 +1023,7 @@ function driver_default_mode()
     if post_command("/commands/pause_charging") then
         paused_state = true
     end
-    boost_until_ms = nil
-    boost_spent = false
+    clear_start_boost(0)
     local err = write_setting(charger_serial, {dynamicChargerCurrent = 0})
     if err == nil then
         last_amps_set = 0

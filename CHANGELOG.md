@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.3.8
+
+Two fixes to the 7 A start from 1.3.7, from its review. A reloaded driver
+no longer offers 7 A before its first poll: the car may already charge at
+6 A, so the driver now waits until a poll has seen the charger not charging.
+A pause or the stand-down that clears a boost now also drops the boost's 7 A
+from the current the driver re-writes after a phase change: a pause keeps
+the 6 A order and the stand-down 0 A. Before, the next poll could write 7 A
+again without the cap or the 90 s window. A pause keeps 6 A rather than
+0 A because Core's contactor cycle sends a resume after a pause with no new
+order between. Tested in the Lua harness; not yet on hardware.
+
 ### easee_cloud 1.3.7
 
 Start a 6 A order at 7 A. On an Easee Home with an Audi e-tron (three
