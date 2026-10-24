@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.4.0
+
+Read Easee's SignalR stream when the host grants a WebSocket. Easee
+recommends the stream for readings and REST for commands (support reply,
+24 October 2026); REST polling every 5 s costs about 720 requests an hour
+per charger. The driver negotiates with `streams.easee.com/hubs/products`,
+subscribes with `SubscribeWithCurrentState` and reads `ProductUpdate`
+messages into the same observations REST fills. Pushed changes reach Core
+on the next 2 s poll. While the stream is up, REST reads once a minute, and
+the driver reports only what a REST read in the last 90 s vouches for, since
+the stream cannot say that the cloud lost the charger. A stream that closes,
+goes silent for a minute or fails to subscribe drops back to REST every 5 s
+and reconnects with back-off from 5 s to 5 min; a renewed access token
+reconnects at once. Each observation keeps its newest source time, so a late
+REST reply or the replayed current state cannot replace a newer value.
+`power_max_age_s` and the confirmation fields are unchanged; commands still
+use REST. Core grants the WebSocket only when the driver config has
+`capabilities.websocket.allowed_hosts: ["streams.easee.com"]`; without it the
+driver polls REST as before. Tested in the Lua harness with a fake
+WebSocket host; not yet run against Easee's servers or on hardware.
+
 ### easee_cloud 1.3.8
 
 Two fixes to the 7 A start from 1.3.7, from its review. A reloaded driver

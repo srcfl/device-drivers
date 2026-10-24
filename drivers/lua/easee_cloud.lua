@@ -1,11 +1,12 @@
 -- Easee Cloud EV Charger Driver
 -- Emits: EV
--- Protocol: HTTPS (Easee Cloud REST API)
+-- Protocol: HTTPS (Easee Cloud REST API), optional SignalR stream
 --
 -- Authenticates with the user's Easee account (email + password from
--- config), polls charger state every 5 seconds, and emits DerEV
--- readings so the dispatch clamp keeps home batteries from feeding
--- the car.
+-- config), reads charger state and emits DerEV readings so the dispatch
+-- clamp keeps home batteries from feeding the car. With a WebSocket grant
+-- it reads Easee's SignalR stream and asks REST once a minute; without
+-- one it polls REST every 5 seconds. Commands always go through REST.
 --
 -- Config example:
 --   drivers:
@@ -13,7 +14,9 @@
 --       lua: drivers/easee_cloud.lua
 --       capabilities:
 --         http:
---           allowed_hosts: ["api.easee.com"]
+--           allowed_hosts: ["api.easee.com", "streams.easee.com"]
+--         websocket:                    # optional — enables the stream
+--           allowed_hosts: ["streams.easee.com"]
 --       config:
 --         email: "user@example.com"
 --         password: "secret"
@@ -26,12 +29,12 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.8",
+  version      = "1.4.0",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
   homepage     = "https://easee.com",
-  http_hosts   = { "api.easee.com" },
+  http_hosts   = { "api.easee.com", "streams.easee.com" },
   authors      = { "FTW contributors" },
   tested_models = { "Home", "Charge" },
   verification_status = "production",
@@ -209,6 +212,12 @@ local function safe_http_get(url, headers)
     return resp, err
 end
 
+local function safe_http_post(url, body, headers)
+    local ok, resp, err = pcall(host.http_post, url, body, headers)
+    if not ok then return nil, tostring(resp) end
+    return resp, err
+end
+
 local function safe_json_decode(s)
     if s == nil then return nil end
     local ok, data = pcall(host.json_decode, s)
@@ -299,6 +308,49 @@ local OBS_VOLTAGE         = 194
 local OBS_SESSION_START   = 223
 
 local OBS_IDS = "48,96,103,109,120,121,124,183,194,223"
+local OBS_WANTED = {}
+for id in OBS_IDS:gmatch("%d+") do OBS_WANTED[tonumber(id)] = true end
+
+-- The latest value and source time of each observation, from REST and the
+-- stream alike. Easee records an observation when it changes, so a value
+-- stays current until a newer one arrives.
+local latest, latest_at = {}, {}
+
+-- source_time_key makes an RFC 3339 UTC time comparable as a string,
+-- whatever its fractional precision: "…:05Z" and "…:05.120+00:00" become
+-- "…:05.120000000" and "…:05.120000000". Other offsets give nil.
+local function source_time_key(stamp)
+    if type(stamp) ~= "string" then return nil end
+    local base, frac, zone = stamp:match("^(%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d)(%.?%d*)(.*)$")
+    if not base or (zone ~= "Z" and zone ~= "+00:00") then return nil end
+    return base .. "." .. (frac:sub(2) .. "000000000"):sub(1, 9)
+end
+
+-- note_observation keeps the newest sample of each id. Either source can
+-- deliver an older sample late: a REST reply cached before a pushed change,
+-- or the current state the stream replays on subscribe. The same instant
+-- keeps its first spelling, so a source time never looks new because the
+-- other source wrote it differently.
+local function note_observation(id, value, at)
+    if not OBS_WANTED[id] then return end
+    local new_key, old_key = source_time_key(at), source_time_key(latest_at[id])
+    if new_key and old_key then
+        if new_key < old_key then return end
+        if new_key == old_key then at = latest_at[id] end
+    end
+    latest[id], latest_at[id] = value, at
+end
+
+-- REST sends JSON numbers and booleans. The stream sends every value as a
+-- string: "The value is always transmitted as a string, regardless of the
+-- underlying data type" (developer.easee.com/docs/signalr-stream).
+local function observation_value(value)
+    if type(value) ~= "string" then return value end
+    local word = value:lower()
+    if word == "true" then return true end
+    if word == "false" then return false end
+    return tonumber(value) or value
+end
 
 local last_power_observed_at = nil
 local validated_session_id = nil
@@ -316,34 +368,38 @@ local function invalidate_session_proof()
     last_session_mode = nil
 end
 
+-- state_problem says why a set of observations cannot be reported. op_mode 0
+-- is Easee's sign that the cloud no longer hears from the charger.
+local function state_problem(obs)
+    local mode = obs[OBS_OP_MODE]
+    if type(mode) ~= "number" or mode < 0 or mode > 6 or mode % 1 ~= 0 then
+        return "missing charger state"
+    end
+    if mode == 0 then
+        return "charger offline; connection unknown"
+    end
+    if mode >= 2 and (type(obs[OBS_TOTAL_POWER]) ~= "number" or
+       type(obs[OBS_SESSION_ENERGY]) ~= "number" or obs[OBS_SESSION_ENERGY] < 0) then
+        return "missing session measurement"
+    end
+    return nil
+end
+
+-- get_observations reads REST. The caller checks the reply with state_problem.
 local function get_observations(serial)
     local url = "https://api.easee.com/state/" .. serial .. "/observations?ids=" .. OBS_IDS
     local resp, err = safe_http_get(url, auth_headers())
-    if err then invalidate_session_proof(); return nil, err end
+    if err then return nil, err end
     local decoded = safe_json_decode(resp)
-    if type(decoded) ~= "table" then invalidate_session_proof(); return nil, "decode failed" end
+    if type(decoded) ~= "table" then return nil, "decode failed" end
     local list = decoded.observations or decoded
     local obs = {}
     local timestamps = {}
     for _, item in ipairs(list) do
         if item.id then
-            obs[item.id] = tonumber(item.value) or item.value
+            obs[item.id] = observation_value(item.value)
             timestamps[item.id] = item.timestamp
         end
-    end
-    local mode = obs[OBS_OP_MODE]
-    if type(mode) ~= "number" or mode < 0 or mode > 6 or mode % 1 ~= 0 then
-        invalidate_session_proof()
-        return nil, "missing charger state"
-    end
-    if mode == 0 then
-        invalidate_session_proof()
-        return nil, "charger offline; connection unknown"
-    end
-    if mode >= 2 and (type(obs[OBS_TOTAL_POWER]) ~= "number" or
-       type(obs[OBS_SESSION_ENERGY]) ~= "number" or obs[OBS_SESSION_ENERGY] < 0) then
-        invalidate_session_proof()
-        return nil, "missing session measurement"
     end
     return obs, nil, timestamps
 end
@@ -409,6 +465,197 @@ local function current_session_id(obs, op_mode)
        normalized_session_start(ongoing.sessionStart) ~= start then return nil end
     validated_session_id = identity
     return identity
+end
+
+-- ---- SignalR stream ----
+-- Easee pushes every observation change over SignalR and recommends it for
+-- reads, with REST for commands (support reply, 24 Oct 2026). REST polling
+-- every 5 s costs about 720 requests an hour per charger.
+--   https://developer.easee.com/docs/signalr-stream — hub, the
+--     SubscribeWithCurrentState(serial, true) call, ProductUpdate messages
+--     {mid, dataType, id, timestamp, value}
+--   https://developer.easee.com/docs/api-and-streaming
+--   https://developer.easee.com/changelog/signalr-uri-change — the hub moved
+--     from api.easee.cloud/hubs to streams.easee.com/hubs
+-- The wire format is Microsoft's SignalR JSON hub protocol over WebSockets:
+--   https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/TransportProtocols.md
+--   https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/HubProtocol.md
+-- POST {hub}/negotiate?negotiateVersion=1 returns a connectionToken; open
+-- wss://{hub}?id={token}; send {"protocol":"json","version":1}; then each
+-- JSON message ends with the 0x1E record separator. Message types used here:
+-- 1 invocation, 3 completion, 6 ping, 7 close.
+--
+-- The stream cannot say that the cloud lost the charger (REST's op_mode 0),
+-- so REST still reads once a minute while the stream is up, and the driver
+-- reports only what a REST read in the last 90 s vouches for.
+--
+-- Core grants the WebSocket only when the driver config has
+-- capabilities.websocket. Without it the driver polls REST as before.
+local STREAM_HUB = "https://streams.easee.com/hubs/products"
+local STREAM_WS = "wss://streams.easee.com/hubs/products"
+local RS = "\30"
+local STREAM_POLL_MS = 2000      -- poll cadence while streaming; Core's control loop ticks every 2 s
+local STREAM_PING_MS = 15000     -- a SignalR server drops a client silent for 30 s by default
+local STREAM_SILENT_MS = 60000   -- the server pings every 15 s; a minute of nothing is a dead stream
+local STREAM_OPEN_MS = 30000     -- handshake and subscription must finish within this
+local REST_CONFIRM_MS = 60000    -- REST cadence while the stream is up
+local REST_FRESH_MS = 90000      -- how long a REST read vouches that the cloud hears the charger
+
+local stream_state = "off"       -- off, handshake, subscribe, up; disabled without a grant
+local stream_buf = ""
+local stream_token = nil         -- the access token the open stream signed in with
+local stream_opened_ms, stream_up_ms, stream_rx_ms, stream_tx_ms = 0, 0, 0, 0
+local stream_retry_ms = 0
+local stream_failures = 0
+local rest_next_ms = 0           -- streaming only: when REST reads next
+local heard_ms = nil             -- when REST last showed the cloud hears the charger
+
+local function stream_send(text, now)
+    local ok, sent, err = pcall(host.ws_send, text .. RS)
+    if ok and sent then
+        stream_tx_ms = now
+        return true
+    end
+    return false, ok and err or sent
+end
+
+-- stream_stop closes the stream and schedules the next try. A planned stop
+-- reconnects at once. Failures back off from 5 s to 5 min; a stream that
+-- stayed up for a minute starts the count again.
+local function stream_stop(why, now, planned)
+    pcall(host.ws_close)
+    if planned then
+        stream_retry_ms = now
+    else
+        if stream_state == "up" and now - stream_up_ms >= 60000 then stream_failures = 0 end
+        stream_failures = stream_failures + 1
+        local wait = math.min(5000 * 2 ^ (stream_failures - 1), 300000)
+        stream_retry_ms = now + wait
+        if stream_state == "up" then
+            host.log("warn", "Easee: SignalR stream down (" .. why .. "); REST every 5 s until it is back")
+        else
+            host.log("warn", string.format("Easee: SignalR stream failed (%s); retry in %d s",
+                why, math.floor(wait / 1000)))
+        end
+    end
+    stream_state, stream_buf, stream_token = "off", "", nil
+end
+
+-- A missing grant is configuration, not an outage: stop trying until restart.
+local function stream_disable(why)
+    pcall(host.ws_close)
+    stream_state = "disabled"
+    host.log("info", "Easee: no SignalR stream (" .. why .. "); REST every 5 s. " ..
+        "Grant capabilities.websocket.allowed_hosts [\"streams.easee.com\"] to stream.")
+end
+
+-- Server text goes into the log; keep it short.
+local function brief(text)
+    return tostring(text):sub(1, 120)
+end
+
+local function not_granted(err)
+    local text = tostring(err)
+    return text:find("capability not granted", 1, true) or text:find("not in allowed_hosts", 1, true)
+end
+
+local function url_escape(s)
+    return (s:gsub("[^%w%-%._~]", function(c) return string.format("%%%02X", c:byte()) end))
+end
+
+local function stream_open(now)
+    if type(host.ws_open) ~= "function" then return stream_disable("host has no WebSocket") end
+    local resp, err = safe_http_post(STREAM_HUB .. "/negotiate?negotiateVersion=1", "", auth_headers())
+    if err then
+        if not_granted(err) then return stream_disable("no HTTP access to streams.easee.com") end
+        return stream_stop("negotiate: " .. redact_http_err(err), now)
+    end
+    -- A redirect to a hosted SignalR service would carry no token here.
+    local negotiated = safe_json_decode(resp)
+    local token = type(negotiated) == "table" and (negotiated.connectionToken or negotiated.connectionId)
+    if type(token) ~= "string" or token == "" then
+        return stream_stop("negotiate: no connection token", now)
+    end
+    local ok, opened, oerr = pcall(host.ws_open, STREAM_WS .. "?id=" .. url_escape(token), auth_headers())
+    if not ok or not opened then
+        local why = ok and oerr or opened
+        if not_granted(why) then return stream_disable("no WebSocket grant") end
+        -- Keep the connection token out of the log.
+        return stream_stop("open: " .. brief(tostring(why):gsub("%?[^%s\"']*", "")), now)
+    end
+    stream_state, stream_buf, stream_token = "handshake", "", access_token
+    stream_opened_ms, stream_rx_ms = now, now
+    local sent, serr = stream_send('{"protocol":"json","version":1}', now)
+    if not sent then return stream_stop("handshake: " .. tostring(serr), now) end
+end
+
+-- stream_message handles one SignalR message and returns a reason to stop.
+local function stream_message(text, now)
+    local m = safe_json_decode(text)
+    if type(m) ~= "table" then return "unreadable message" end
+    if stream_state == "handshake" then
+        -- The first message answers the handshake: {} or {"error": "..."}.
+        if m.error ~= nil then return "handshake refused: " .. brief(m.error) end
+        stream_state = "subscribe"
+        local sent, err = stream_send(host.json_encode({
+            type = 1, invocationId = "0", target = "SubscribeWithCurrentState",
+            arguments = { charger_serial, true },
+        }), now)
+        if not sent then return "subscribe: " .. tostring(err) end
+    elseif m.type == 1 and m.target == "ProductUpdate" and type(m.arguments) == "table" then
+        local u = m.arguments[1]
+        if type(u) == "table" and tostring(u.mid):upper() == charger_serial:upper() then
+            note_observation(tonumber(u.id), observation_value(u.value), u.timestamp)
+        end
+    elseif m.type == 3 and m.invocationId == "0" then
+        if m.error ~= nil then return "subscribe refused: " .. brief(m.error) end
+        stream_state, stream_up_ms = "up", now
+        host.log("info", "Easee: SignalR stream up for " .. charger_serial .. "; REST once a minute")
+    elseif m.type == 7 then
+        return "server closed" .. (m.error ~= nil and (": " .. brief(m.error)) or "")
+    end
+    return nil
+end
+
+-- stream_service connects, reads what arrived since the last poll and keeps
+-- the connection alive. It never fails the poll: REST covers any gap.
+local function stream_service(now)
+    if stream_state == "disabled" then return end
+    if stream_state ~= "off" and stream_token ~= access_token then
+        -- The stream signed in with the old token; Easee may close it when
+        -- that token expires.
+        stream_stop("token renewed", now, true)
+    end
+    if stream_state == "off" then
+        if now >= stream_retry_ms then stream_open(now) end
+        return
+    end
+    local ok, frames = pcall(host.ws_messages)
+    if not ok or type(frames) ~= "table" then frames = {} end
+    for _, frame in ipairs(frames) do
+        -- FTW's host queues "" when the connection ends.
+        if frame == "" then return stream_stop("closed", now) end
+        stream_rx_ms = now
+        stream_buf = stream_buf .. frame
+        local cut = stream_buf:find(RS, 1, true)
+        while cut do
+            local problem = stream_message(stream_buf:sub(1, cut - 1), now)
+            stream_buf = stream_buf:sub(cut + 1)
+            if problem then return stream_stop(problem, now) end
+            cut = stream_buf:find(RS, 1, true)
+        end
+    end
+    if #stream_buf > 1048576 then return stream_stop("message without end", now) end
+    local open_ok, is_open = pcall(host.ws_is_open)
+    if not open_ok or not is_open then return stream_stop("closed", now) end
+    if now - stream_rx_ms >= STREAM_SILENT_MS then return stream_stop("silent for 60 s", now) end
+    if stream_state ~= "up" and now - stream_opened_ms >= STREAM_OPEN_MS then
+        return stream_stop("no subscription within 30 s", now)
+    end
+    if now - stream_tx_ms >= STREAM_PING_MS then
+        local sent, err = stream_send('{"type":6}', now)
+        if not sent then return stream_stop("ping: " .. tostring(err), now) end
+    end
 end
 
 -- ---- State mapping ----
@@ -658,11 +905,41 @@ function driver_poll()
         end_start_boost("timeout")
     end
 
-    local obs, err, timestamps = get_observations(charger_serial)
-    if err or not obs then
-        host.log("warn", "Easee: observations poll failed: " .. redact_http_err(err))
-        return 10000
+    local now = host.millis()
+    stream_service(now)
+
+    -- Without the stream REST reads on every poll, as before. With it, REST
+    -- reads once a minute to show the cloud still hears from the charger.
+    local rest_read = false
+    if stream_state ~= "up" or now >= rest_next_ms then
+        local values, err, stamps = get_observations(charger_serial)
+        local problem = err or state_problem(values)
+        rest_next_ms = now + (problem and 10000 or REST_CONFIRM_MS)
+        if problem then
+            host.log("warn", "Easee: observations poll failed: " .. (err and redact_http_err(err) or problem))
+            -- The cloud answered that it does not hear the charger.
+            if not err then heard_ms = nil end
+        else
+            for id in pairs(OBS_WANTED) do
+                if values[id] ~= nil or stamps[id] ~= nil then
+                    note_observation(id, values[id], stamps[id])
+                end
+            end
+            heard_ms, rest_read = now, true
+        end
     end
+
+    -- Report what this poll's REST read showed, or, while the stream is up,
+    -- what it pushed since a REST read in the last 90 s. Otherwise report
+    -- nothing, as before, so stale values never look current.
+    local vouched = rest_read or
+        (stream_state == "up" and heard_ms ~= nil and now - heard_ms <= REST_FRESH_MS)
+    if not vouched or state_problem(latest) then
+        -- An unreadable charger may have changed cars during the gap.
+        invalidate_session_proof()
+        return stream_state == "up" and STREAM_POLL_MS or 10000
+    end
+    local obs, timestamps = latest, latest_at
 
     local op_mode = obs[OBS_OP_MODE] or 1
     local power_w = (obs[OBS_TOTAL_POWER] or 0) * 1000  -- kW → W
@@ -677,9 +954,10 @@ function driver_poll()
     -- Easee records an observation only when its value changes, so a steady
     -- charge keeps an old TotalPower timestamp; on hardware it stayed
     -- unchanged for over five minutes. A new value carries its source time.
-    -- An unchanged one was confirmed by this poll of a charger the cloud
-    -- still hears from (get_observations rejects op_mode 0), so omit the
-    -- source time and let the host stamp the reading when it arrives.
+    -- An unchanged one was confirmed by a REST read of a charger the cloud
+    -- still hears from (state_problem rejects op_mode 0): this poll's, or
+    -- one in the last 90 s while the stream would have pushed a change. So
+    -- omit the source time and let the host stamp the reading when it arrives.
     local power_observed_at = timestamps[OBS_TOTAL_POWER]
     if power_observed_at ~= nil and power_observed_at == last_power_observed_at then
         power_observed_at = nil
@@ -726,7 +1004,6 @@ function driver_poll()
     -- (needs operator attention). Note: connected==true is required so
     -- a disconnected cable doesn't latch the flag.
     local command_stalled = false
-    local now = host.millis()
     local stalled_reason = (reason_code == 52) or (reason_code == 53) or (reason_code == 100)
     if connected and (last_amps_set or 0) > 0 and not charging and stalled_reason then
         if command_stalled_since_ms == 0 then
@@ -767,9 +1044,10 @@ function driver_poll()
         -- reply alone does not establish a new physical power measurement.
         control_power_observed_at = timestamps[OBS_TOTAL_POWER],
         control_power_available = obs[OBS_TOTAL_POWER] ~= nil and timestamps[OBS_TOTAL_POWER] ~= nil,
-        -- The cloud records power only on change, and get_observations rejects
-        -- a charger it no longer hears from. This poll therefore confirms that
-        -- an unchanged value is still current, so a steady charge stays measured.
+        -- The cloud records power only on change, and the driver reports only
+        -- what a REST read of a charger the cloud still hears from vouches for
+        -- (see vouched above). An unchanged value is therefore still current,
+        -- so a steady charge stays measured.
         control_power_confirmed = obs[OBS_TOTAL_POWER] ~= nil and timestamps[OBS_TOTAL_POWER] ~= nil,
         power_max_age_s         = 180,
         energy_observed_at      = timestamps[OBS_SESSION_ENERGY],
@@ -849,7 +1127,7 @@ function driver_poll()
         end
     end
 
-    return 5000
+    return stream_state == "up" and STREAM_POLL_MS or 5000
 end
 
 local function post_command(path)
@@ -1034,6 +1312,8 @@ function driver_default_mode()
 end
 
 function driver_cleanup()
+    if stream_state ~= "off" and stream_state ~= "disabled" then pcall(host.ws_close) end
+    stream_state = "off"
     access_token = nil
     refresh_token = nil
 end
