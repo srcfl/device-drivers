@@ -14,9 +14,9 @@
 --       lua: drivers/easee_cloud.lua
 --       capabilities:
 --         http:
---           allowed_hosts: ["api.easee.com", "streams.easee.com"]
---         websocket:                    # optional — enables the stream
---           allowed_hosts: ["streams.easee.com"]
+--           allowed_hosts: ["api.easee.com"]
+--         websocket:                    # enables the stream on a Core that
+--           allowed_hosts: ["streams.easee.com"]  # does not read ws_hosts
 --       config:
 --         email: "user@example.com"
 --         password: "secret"
@@ -34,7 +34,8 @@ DRIVER = {
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
   homepage     = "https://easee.com",
-  http_hosts   = { "api.easee.com", "streams.easee.com" },
+  http_hosts   = { "api.easee.com" },
+  ws_hosts     = { "streams.easee.com" },
   authors      = { "FTW contributors" },
   tested_models = { "Home", "Charge" },
   verification_status = "production",
@@ -208,12 +209,6 @@ end
 -- the driver mid-poll.
 local function safe_http_get(url, headers)
     local ok, resp, err = pcall(host.http_get, url, headers)
-    if not ok then return nil, tostring(resp) end
-    return resp, err
-end
-
-local function safe_http_post(url, body, headers)
-    local ok, resp, err = pcall(host.http_post, url, body, headers)
     if not ok then return nil, tostring(resp) end
     return resp, err
 end
@@ -486,10 +481,19 @@ end
 -- The wire format is Microsoft's SignalR JSON hub protocol over WebSockets:
 --   https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/TransportProtocols.md
 --   https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/HubProtocol.md
--- POST {hub}/negotiate?negotiateVersion=1 returns a connectionToken; open
--- wss://{hub}?id={token}; send {"protocol":"json","version":1}; then each
--- JSON message ends with the 0x1E record separator. Message types used here:
--- 1 invocation, 3 completion, 6 ping, 7 close.
+-- Open wss://{hub} with the access token, send {"protocol":"json","version":1};
+-- then each JSON message ends with the 0x1E record separator. Message types
+-- used here: 1 invocation, 3 completion, 6 ping, 7 close.
+--
+-- The driver skips POST {hub}/negotiate. Its connectionToken is required
+-- only by the long polling and server-sent events transports
+-- (TransportProtocols.md); a WebSocket without one starts a new connection
+-- (HttpConnectionDispatcher.GetOrCreateConnectionAsync). Easee's hub runs on
+-- Kestrel behind an AWS load balancer that pins a client to a server with a
+-- cookie (AWSALB, seen 24 Oct 2026). The host's HTTP and WebSocket clients
+-- share no cookies, so a negotiated token could reach a server that does not
+-- know it. Skipping it also makes connecting one network call, which the
+-- host bounds; the poll and any command wait behind it.
 --
 -- The stream cannot say that the cloud lost the charger (REST's op_mode 0),
 -- so REST still reads once a minute while the stream is up, and the driver
@@ -498,9 +502,9 @@ end
 -- stream has not pushed, the stream owes it: if it does not arrive within
 -- 10 s, the stream stops and REST takes over.
 --
--- Core grants the WebSocket only when the driver config has
--- capabilities.websocket. Without it the driver polls REST as before.
-local STREAM_HUB = "https://streams.easee.com/hubs/products"
+-- Core grants the WebSocket from ws_hosts in the DRIVER table (srcfl/ftw#1822)
+-- or, on a Core that does not read it, from capabilities.websocket in the
+-- driver config. Without a grant the driver polls REST as before.
 local STREAM_WS = "wss://streams.easee.com/hubs/products"
 local RS = "\30"
 local STREAM_POLL_MS = 2000      -- poll cadence while streaming; Core's control loop ticks every 2 s
@@ -558,7 +562,7 @@ local function stream_disable(why)
     pcall(host.ws_close)
     stream_state = "disabled"
     host.log("info", "Easee: no SignalR stream (" .. why .. "); REST every 5 s. " ..
-        "Grant capabilities.websocket.allowed_hosts [\"streams.easee.com\"] to stream.")
+        "This Core needs capabilities.websocket.allowed_hosts [\"streams.easee.com\"] to stream.")
 end
 
 -- Server text goes into the log; keep it short.
@@ -571,39 +575,22 @@ local function not_granted(err)
     return text:find("capability not granted", 1, true) or text:find("not in allowed_hosts", 1, true)
 end
 
-local function url_escape(s)
-    return (s:gsub("[^%w%-%._~]", function(c) return string.format("%%%02X", c:byte()) end))
-end
-
--- Host errors carry no secrets, but an HTTP error body might echo one.
+-- Keep only the status of an HTTP error and drop any query from the text.
 local function host_err(err)
     local text = tostring(err)
     return text:match("^(HTTP %d+)") or brief(text:gsub("%?[^%s\"']*", ""))
 end
 
--- stream_open runs on the poll and can wait on the network for up to the
--- host's timeouts (15 s each for the POST and the WebSocket dial), so it
--- reads the clock again before it schedules anything.
+-- stream_open runs on the poll and waits for the WebSocket dial, which the
+-- host bounds (5 s from srcfl/ftw#1822, 15 s before), so it reads the clock
+-- again before it schedules anything.
 local function stream_open(now)
     if type(host.ws_open) ~= "function" then return stream_disable("host has no WebSocket") end
-    local resp, err = safe_http_post(STREAM_HUB .. "/negotiate?negotiateVersion=1", "", auth_headers())
-    now = host.millis()
-    if err then
-        if not_granted(err) then return stream_disable("no HTTP access to streams.easee.com") end
-        return stream_stop("negotiate: " .. host_err(err), now)
-    end
-    -- A redirect to a hosted SignalR service would carry no token here.
-    local negotiated = safe_json_decode(resp)
-    local token = type(negotiated) == "table" and (negotiated.connectionToken or negotiated.connectionId)
-    if type(token) ~= "string" or token == "" then
-        return stream_stop("negotiate: no connection token", now)
-    end
-    local ok, opened, oerr = pcall(host.ws_open, STREAM_WS .. "?id=" .. url_escape(token), auth_headers())
+    local ok, opened, oerr = pcall(host.ws_open, STREAM_WS, auth_headers())
     now = host.millis()
     if not ok or not opened then
         local why = ok and oerr or opened
         if not_granted(why) then return stream_disable("no WebSocket grant") end
-        -- host_err drops the query, which holds the connection token.
         return stream_stop("open: " .. host_err(why), now)
     end
     stream_state, stream_buf, stream_token, stream_owed = "handshake", "", access_token, nil

@@ -7,10 +7,14 @@
 Read Easee's SignalR stream when the host grants a WebSocket. Easee
 recommends the stream for readings and REST for commands (support reply,
 24 October 2026); REST polling every 5 s costs about 720 requests an hour
-per charger. The driver negotiates with `streams.easee.com/hubs/products`,
-subscribes with `SubscribeWithCurrentState` and reads `ProductUpdate`
-messages into the same observations REST fills. Pushed changes reach Core
-on the next 2 s poll.
+per charger. The driver opens a WebSocket to
+`streams.easee.com/hubs/products`, subscribes with
+`SubscribeWithCurrentState` and reads `ProductUpdate` messages into the
+same observations REST fills. Pushed changes reach Core on the next 2 s
+poll. It skips SignalR's negotiate step: Easee's hub sits behind a load
+balancer that pins a client to a server with a cookie, which the host does
+not share between its HTTP and WebSocket clients. Connecting is then one
+dial, which Core bounds.
 
 While the stream is up, REST reads once a minute. The driver reports only
 what a REST read in the last 90 s vouches for, since the stream cannot say
@@ -29,9 +33,11 @@ compares times instead of their spelling.
 
 `power_max_age_s` and the confirmation fields are unchanged; commands still
 use REST. Without the stream each REST reply is the whole state, as in
-1.3.8. Core grants the WebSocket only when the driver config has a
-`capabilities.websocket` entry, which should list `streams.easee.com` in
-`allowed_hosts`; without one the driver polls REST as before. Tested in
+1.3.8. The driver declares `ws_hosts = { "streams.easee.com" }`. A Core
+that reads it (srcfl/ftw#1822) grants the WebSocket from that and gives up
+a dial after 5 s. An older Core grants it only when the driver config has
+a `capabilities.websocket` entry listing `streams.easee.com`, and its dial
+can take 15 s; without one the driver polls REST as before. Tested in
 the Lua harness with a fake WebSocket host; not yet run against Easee's
 servers or on hardware.
 

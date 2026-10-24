@@ -19,7 +19,7 @@ local function count(func, needle)
     return n
 end
 local function rest_reads() return count("http_get", "/observations?ids=") end
-local function negotiations() return count("http_post", "/negotiate") end
+local function attempts() return count("ws_open") end
 
 local function samples()
     local rows = host._emitted.ev or {}
@@ -62,9 +62,6 @@ local function setup(granted, serial)
         '{"accessToken":"tok-a","refreshToken":"ref-a","expiresIn":3600}'
     host._http_responses["/config"] = '{"maxChargerCurrent":16}'
     host._http_responses["/sessions/ongoing"] = '{}'
-    host._http_responses["/negotiate?negotiateVersion=1"] =
-        '{"negotiateVersion":1,"connectionId":"c-1","connectionToken":"ct/1+",' ..
-        '"availableTransports":[{"transport":"WebSockets","transferFormats":["Text","Binary"]}]}'
     rest(3, 7.2, "2026-10-24T10:00:00Z")
     dofile(driver)
     driver_init({email="test@example.invalid", password="test", serial=serial or SERIAL})
@@ -106,7 +103,8 @@ end
 setup(false)
 assert(poll() == 5000)
 for _ = 1, 5 do assert(poll(5000) == 5000) end
-assert(negotiations() == 1 and count("ws_open") == 1, "retried the stream without a grant")
+assert(attempts() == 1, "retried the stream without a grant")
+assert(count("http_post", "streams.easee.com") == 0, "posted to the stream host")
 assert(rest_reads() == 6, "REST did not read on every poll")
 local granted_hint = false
 for _, line in ipairs(host._logs) do
@@ -117,13 +115,10 @@ assert(granted_hint, "the log does not say how to enable the stream")
 -- 2. Negotiate, open, handshake and subscribe.
 setup(true)
 connect()
-local neg
-for _, call in ipairs(host._calls) do
-    if call.func == "http_post" and call.args[1]:find("/negotiate", 1, true) then neg = call end
-end
-assert(neg.args[1] == "https://streams.easee.com/hubs/products/negotiate?negotiateVersion=1", neg.args[1])
-assert(neg.args[3].Authorization == "Bearer tok-a", "negotiate without the access token")
-assert(host._ws_url == "wss://streams.easee.com/hubs/products?id=ct%2F1%2B", host._ws_url)
+-- No negotiate: a WebSocket connects directly, so no load-balancer cookie
+-- has to match a negotiated token.
+assert(count("http_post", "streams.easee.com") == 0, "negotiated before connecting")
+assert(host._ws_url == "wss://streams.easee.com/hubs/products", host._ws_url)
 assert(host._ws_headers.Authorization == "Bearer tok-a", "stream opened without the access token")
 
 -- 3. A pushed change reaches the next sample with its source time, without
@@ -174,12 +169,12 @@ assert(ev.power_observed_at == nil and ev.control_power_observed_at == "2026-10-
 -- which the driver tries 5 s later.
 host._ws_server_close()
 reads = rest_reads()
-local negs = negotiations()
+local negs = attempts()
 assert(poll(2000) == 5000, "a closed stream kept the stream cadence")
 assert(rest_reads() == reads + 1, "no REST read after the stream closed")
 local _, before = samples()
 assert(poll(5000) == 5000)
-assert(negotiations() == negs + 1, "no reconnect after 5 s")
+assert(attempts() == negs + 1, "no reconnect after 5 s")
 local _, after = samples()
 assert(after == before + 1 and rest_reads() == reads + 2, "REST fallback did not report")
 push("{}")
@@ -198,17 +193,17 @@ end
 assert(silent_polls >= 28, "dropped a quiet stream too soon: " .. silent_polls)
 
 -- Failed reconnects back off: 5 s, then 10 s.
-host._ws_open_error = 'ws dial: Get "wss://streams.easee.com/hubs/products?id=ct%2F1%2B": bad handshake'
-negs = negotiations()
+host._ws_open_error = 'ws dial: Get "wss://streams.easee.com/hubs/products?access_token=tok-a": bad handshake'
+negs = attempts()
 local tries = {}
 for t = 1, 20 do
     poll(1000)
-    if negotiations() > negs then tries[#tries + 1] = t; negs = negotiations() end
+    if attempts() > negs then tries[#tries + 1] = t; negs = attempts() end
 end
 assert(#tries == 2 and tries[2] - tries[1] == 10, "no back-off between failed reconnects")
 local open_failed = false
 for _, line in ipairs(host._logs) do
-    assert(not line:find("ct%2F1", 1, true) and not line:find("ct/1", 1, true), "connection token in the log: " .. line)
+    assert(not line:find("tok-a", 1, true), "access token in the log: " .. line)
     if line:find("bad handshake", 1, true) then open_failed = true end
 end
 assert(open_failed, "the failed open was not logged")
@@ -248,10 +243,10 @@ setup(true)
 connect()
 host._http_responses["/accounts/refresh_token"] =
     '{"accessToken":"tok-b","refreshToken":"ref-b","expiresIn":3600}'
-negs = negotiations()
+negs = attempts()
 later(3541000)
 poll()
-assert(negotiations() == negs + 1, "a renewed token did not reconnect the stream")
+assert(attempts() == negs + 1, "a renewed token did not reconnect the stream")
 assert(host._ws_headers.Authorization == "Bearer tok-b", "the stream kept the old token")
 
 -- 9. A refused subscription stops the stream and REST carries on.
