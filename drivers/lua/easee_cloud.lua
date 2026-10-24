@@ -517,7 +517,7 @@ local stream_token = nil         -- the access token the open stream signed in w
 local stream_opened_ms, stream_up_ms, stream_rx_ms, stream_tx_ms = 0, 0, 0, 0
 local stream_retry_ms = 0
 local stream_failures = 0
-local stream_owed = nil          -- {id, key, since}: a change REST saw that the stream has not pushed
+local stream_owed = nil          -- {id, key, value, since, why}: a reading the stream has not delivered
 local rest_next_ms = 0           -- streaming only: when REST reads next
 local heard_ms = nil             -- when REST last showed the cloud hears the charger
 local last_blocked = nil         -- why the streamed state was last not reportable, for the log
@@ -612,19 +612,36 @@ local function stream_open(now)
     if not sent then return stream_stop("handshake: " .. tostring(serr), now) end
 end
 
+-- Only state, power and energy are owed: what Core needs to report and
+-- control. Diagnostic readings may change without a push.
+local function owed_kind(id)
+    return id == OBS_OP_MODE or id == OBS_TOTAL_POWER or id == OBS_SESSION_ENERGY
+end
+
+local function owe(id, key, value, now, why)
+    if not stream_owed then
+        stream_owed = { id = id, key = key, value = value, since = now, why = why }
+    end
+end
+
 -- stream_update records a pushed sample. One Core could not read, with a
 -- time that is not RFC 3339 UTC, is skipped, and so is a state, power or
 -- energy reading that is not a number; the stream then owes that reading.
+-- Before the subscription completes the stream replays its current state,
+-- which can be older than a REST read just before it; the newer one stays.
 local function stream_update(id, value, at, now)
     if not OBS_WANTED[id] then return end
     local key = source_time_key(at)
-    local needed = id == OBS_OP_MODE or id == OBS_TOTAL_POWER or id == OBS_SESSION_ENERGY
-    if not key or (needed and type(value) ~= "number") then
-        if needed and not stream_owed then stream_owed = { id = id, key = "", since = now } end
+    if not key or (owed_kind(id) and type(value) ~= "number") then
+        if owed_kind(id) then owe(id, "", nil, now, "sent a reading it cannot use") end
         return
     end
+    local held = source_time_key(latest_at[id])
+    if stream_state ~= "up" and held and key < held then return end
     note_observation(id, value, at, true)
-    if stream_owed and stream_owed.id == id and key >= stream_owed.key then stream_owed = nil end
+    if stream_owed and stream_owed.id == id and (key >= stream_owed.key or value == stream_owed.value) then
+        stream_owed = nil
+    end
 end
 
 -- stream_message handles one SignalR message and returns a reason to stop.
@@ -689,7 +706,7 @@ local function stream_service(now)
     if not open_ok or not is_open then return stream_stop("closed", now) end
     if now - stream_rx_ms >= STREAM_SILENT_MS then return stream_stop("silent for 60 s", now) end
     if stream_owed and now - stream_owed.since >= STREAM_OWED_MS then
-        return stream_stop("missed a change REST saw", now)
+        return stream_stop(stream_owed.why, now)
     end
     if stream_state ~= "up" and now - stream_opened_ms >= STREAM_OPEN_MS then
         return stream_stop("no subscription within 30 s", now)
@@ -969,8 +986,8 @@ function driver_poll()
             if not streaming then latest, latest_at, latest_pushed = {}, {}, {} end
             for id in pairs(OBS_WANTED) do
                 if values[id] ~= nil or stamps[id] ~= nil then
-                    if note_observation(id, values[id], stamps[id], false) and streaming and not stream_owed then
-                        stream_owed = { id = id, key = source_time_key(stamps[id]), since = now }
+                    if note_observation(id, values[id], stamps[id], false) and streaming and owed_kind(id) then
+                        owe(id, source_time_key(stamps[id]), values[id], now, "missed a change REST saw")
                     end
                 end
             end

@@ -14,12 +14,14 @@ on the next 2 s poll.
 
 While the stream is up, REST reads once a minute. The driver reports only
 what a REST read in the last 90 s vouches for, since the stream cannot say
-that the cloud lost the charger. When REST shows a change the stream has
-not pushed, the stream has 10 s to deliver it; otherwise the driver drops
-the stream. A stream that closes, goes silent for a minute or fails to
+that the cloud lost the charger. When REST shows a state, power or energy
+change the stream has not pushed, the stream has 10 s to deliver it;
+otherwise the driver drops the stream. A stream that closes, goes silent for a minute or fails to
 subscribe also drops back to REST every 5 s and reconnects with back-off
 from 5 s to 5 min; a renewed access token reconnects at once. A REST reply
-older than a pushed value does not replace it. A pushed reading without an
+older than a pushed value does not replace it, and the current state the
+stream replays on subscribe does not replace a newer REST read. Once
+subscribed, the stream's order wins. A pushed reading without an
 RFC 3339 UTC time is skipped, and so is a state, power or energy reading
 that is not a number; the stream then owes the state, power or energy. The
 check that hides an older ReasonForNoCurrent while the car charges now

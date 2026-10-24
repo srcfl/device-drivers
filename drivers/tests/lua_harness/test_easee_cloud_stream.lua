@@ -374,4 +374,56 @@ for _ = 1, 3 do poll(5000) end
 assert(count("ws_open") == 1 and not host._ws_is_open, "retried a host the allowlist refuses")
 assert(logged("no SignalR stream (no WebSocket grant)"), "the refusal was not logged")
 
+-- 16. Only state, power and energy are owed; REST's diagnostic readings
+-- may change without a push. A push of the owed value settles the debt
+-- even with a coarser time.
+local function rest_with_voltage(volts, at)
+    host._http_responses["/observations?ids="] = host.json_encode({
+        {id=109, value=3, timestamp="2026-10-24T10:00:01Z"},
+        {id=120, value=7.2, timestamp="2026-10-24T10:00:01Z"},
+        {id=121, value=12.5, timestamp="2026-10-24T10:00:00Z"},
+        {id=194, value=volts, timestamp=at},
+    })
+end
+setup(true)
+rest_with_voltage(230.0, "2026-10-24T10:00:00Z")
+connect()
+rest_with_voltage(231.5, "2026-10-24T10:00:55Z")
+until_rest()
+for _ = 1, 8 do assert(tick() == 2000, "a diagnostic reading REST saw first stopped the stream") end
+assert(samples().w == 7200, "the diagnostic-only REST read changed power")
+host._http_responses["/observations?ids="] = host.json_encode({
+    {id=109, value=3, timestamp="2026-10-24T10:00:01Z"},
+    {id=120, value=5.5, timestamp="2026-10-24T10:01:40.500Z"},
+    {id=121, value=12.5, timestamp="2026-10-24T10:00:00Z"},
+})
+until_rest()
+push(update(120, "5.5", "2026-10-24T10:01:40Z"))
+for _ = 1, 8 do assert(tick() == 2000, "a push of the owed value with a coarser time stopped the stream") end
+
+-- Once up, the stream's order wins: a pushed sample applies even when its
+-- time is older than the one before it.
+push(update(120, "4.0", "2026-10-24T10:01:30Z"))
+tick()
+assert(samples().w == 4000, "a pushed sample did not apply")
+
+-- The replayed current state does not undo a newer REST read.
+setup(true)
+rest(3, 0, "2026-10-24T10:00:05Z")
+connect()
+ev = samples()
+assert(ev.w == 0, "the replay replaced a newer REST read: " .. tostring(ev.w))
+
+-- 17. An older ReasonForNoCurrent is hidden while the car charges, also
+-- when the two times are written with different precision.
+setup(false)
+host._http_responses["/observations?ids="] = host.json_encode({
+    {id=96, value=100, timestamp="2026-10-24T10:00:30Z"},
+    {id=109, value=3, timestamp="2026-10-24T10:00:00Z"},
+    {id=120, value=7.2, timestamp="2026-10-24T10:00:30.120Z"},
+    {id=121, value=12.5, timestamp="2026-10-24T10:00:30.120Z"},
+})
+poll()
+assert(samples().reason_no_current == nil, "an older reason showed while charging")
+
 print("Easee SignalR stream: passed")
