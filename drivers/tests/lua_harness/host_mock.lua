@@ -57,6 +57,7 @@ host._modbus_read_error = nil
 host._modbus_read_fail_addresses = {}
 host._modbus_read_short_counts = {}
 host._ws_granted     = false -- config has capabilities.websocket
+host._ws_allowed_hosts = nil -- capabilities.websocket.allowed_hosts; nil = any host
 host._ws_is_open     = false
 host._ws_url         = nil   -- URL and headers of the last successful ws_open
 host._ws_headers     = nil
@@ -109,6 +110,7 @@ function host.reset()
     host._modbus_read_short_counts = {}
     host._serial_buffer  = ""
     host._ws_granted     = false
+    host._ws_allowed_hosts = nil
     host._ws_is_open     = false
     host._ws_url         = nil
     host._ws_headers     = nil
@@ -367,12 +369,23 @@ end
 -- WebSocket functions, as FTW's host.ws_* (go/internal/drivers/lua.go and
 -- ws_cap.go). Without capabilities.websocket ws_open fails with FTW's
 -- message. ws_messages drains the inbox; FTW queues "" when the connection
--- ends, so a test closes the connection with host._ws_server_close().
+-- ends, also after the driver's own ws_close, so a test closes the
+-- connection with host._ws_server_close().
 ---------------------------------------------------------------------------
 
 function host.ws_open(url, headers)
     record_call("ws_open", url, headers)
     if not host._ws_granted then return nil, "ws: capability not granted" end
+    if host._ws_allowed_hosts then
+        local name = tostring(url):match("^wss?://([^/:?]+)")
+        local allowed = false
+        for _, h in ipairs(host._ws_allowed_hosts) do
+            if name and h:lower() == name:lower() then allowed = true end
+        end
+        if not allowed then
+            return nil, string.format('ws: host "%s" (port 443) not in allowed_hosts', tostring(name))
+        end
+    end
     if host._ws_open_error then return nil, host._ws_open_error end
     if host._ws_is_open then return true end -- FTW: no-op on an open connection
     host._ws_is_open, host._ws_url, host._ws_headers = true, url, headers
@@ -402,6 +415,7 @@ end
 
 function host.ws_close()
     record_call("ws_close")
+    if host._ws_is_open then table.insert(host._ws_inbox, "") end
     host._ws_is_open = false
 end
 

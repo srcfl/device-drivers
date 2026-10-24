@@ -54,7 +54,7 @@ local function sent(i)
     return host.json_decode(text:sub(1, -2)), text
 end
 
-local function setup(granted)
+local function setup(granted, serial)
     host.reset()
     host._millis_step = 0
     host._ws_granted = granted
@@ -67,7 +67,22 @@ local function setup(granted)
         '"availableTransports":[{"transport":"WebSockets","transferFormats":["Text","Binary"]}]}'
     rest(3, 7.2, "2026-10-24T10:00:00Z")
     dofile(driver)
-    driver_init({email="test@example.invalid", password="test", serial=SERIAL})
+    driver_init({email="test@example.invalid", password="test", serial=serial or SERIAL})
+end
+
+-- tick is a stream poll: the server's ping, then 2 s.
+local function tick() push('{"type":6}'); return poll(2000) end
+
+local function until_rest()
+    local before = rest_reads()
+    repeat tick() until rest_reads() > before
+end
+
+local function logged(text)
+    for _, line in ipairs(host._logs) do
+        if line:find(text, 1, true) then return true end
+    end
+    return false
 end
 
 -- connect walks a fresh driver from the first poll to a stream that is up.
@@ -249,5 +264,114 @@ reads = rest_reads()
 assert(poll(5000) == 5000, "a refused subscription came up")
 assert(rest_reads() == reads + 1, "REST stopped after a refused subscription")
 assert(not host._ws_is_open, "a refused stream stayed open")
+
+-- 10. Without the stream a REST reply is the whole state, as in 1.3.8: an
+-- id it leaves out does not keep an earlier reply's value, and a stamp from
+-- the future does not hold a value.
+setup(false)
+poll()
+host._http_responses["/observations?ids="] = host.json_encode({
+    {id=109, value=1, timestamp="2026-10-24T10:01:00Z"},
+})
+poll(5000)
+ev = samples()
+assert(ev.connected == false and ev.w == 0 and ev.session_wh == 0, "an omitted id kept its old value")
+assert(ev.control_power_available == false and ev.control_power_confirmed == false,
+    "an omitted power reading was confirmed")
+rest(3, 7.2, "2026-10-24T13:00:00Z")
+poll(5000)
+rest(3, 0, "2026-10-24T10:05:00Z")
+poll(5000)
+assert(samples().w == 0, "a REST stamp from the future held its value")
+
+-- 11. A change REST sees first is owed by the stream. A push still on its
+-- way keeps the stream up; one that never comes stops it after 10 s.
+setup(true)
+connect()
+rest(3, 5.0, "2026-10-24T10:00:40Z")
+until_rest()
+assert(samples().w == 5000, "REST's newer value was not used")
+push(update(120, "5.0", "2026-10-24T10:00:40Z"))
+for _ = 1, 8 do assert(tick() == 2000, "a push on its way stopped the stream") end
+rest(3, 6.0, "2026-10-24T10:01:40Z")
+until_rest()
+local waited = 0
+while tick() == 2000 do
+    waited = waited + 1
+    assert(waited < 10, "a stream that missed a change stayed up")
+end
+assert(waited == 4, "a missed change stopped the stream after " .. waited .. " polls, not 10 s")
+assert(logged("missed a change REST saw"), "the missed change was not logged")
+
+-- 12. A pushed reading Core cannot read is skipped and owed; a pushed
+-- op_mode 0 stops reports and says why.
+setup(true)
+connect()
+push(update(120, "", "2026-10-24T10:00:50Z"), update(121, "13.0", "2026-10-24 10:00:50"))
+tick()
+ev = samples()
+assert(ev.w == 7200 and ev.session_wh == 12500, "an unreadable push changed the sample")
+waited = 0
+while tick() == 2000 do
+    waited = waited + 1
+    assert(waited < 10, "an unreadable push left the stream up")
+end
+setup(true)
+connect()
+local _, shown = samples()
+push(update(109, "0", "2026-10-24T10:00:50Z"))
+tick()
+assert(select(2, samples()) == shown, "reported a charger the stream says is offline")
+assert(logged("not reporting streamed state: charger offline"), "the stop was not logged")
+
+-- 13. Protocol edges: a message split across frames, a close message, a
+-- refused handshake, a subscription that never completes, and a
+-- connection the host reports closed without the end marker.
+setup(true)
+poll()
+push("{}")
+poll(5000)
+local whole = host.json_encode(update(120, "4.4", "2026-10-24T10:00:02Z")) .. RS
+table.insert(host._ws_inbox, whole:sub(1, 20))
+table.insert(host._ws_inbox, whole:sub(21) .. host.json_encode({type=3, invocationId=sent(2).invocationId}) .. RS)
+assert(poll(5000) == 2000, "the stream did not come up")
+assert(samples().w == 4400, "a message split across frames was lost")
+push({type=7, error="Server is shutting down", allowReconnect=true})
+assert(poll(2000) == 5000, "a close message did not stop the stream")
+assert(logged("server closed: Server is shutting down"), "the close was not logged")
+
+setup(true)
+poll()
+push({error="Requested protocol 'json' is not available"})
+assert(poll(5000) == 5000 and not host._ws_is_open, "a refused handshake stayed open")
+assert(logged("handshake refused"), "the refused handshake was not logged")
+
+setup(true)
+poll()
+for _ = 1, 5 do poll(5000) end
+assert(host._ws_is_open, "gave up on the subscription before 30 s")
+poll(5000)
+assert(not host._ws_is_open, "a stream that never subscribed stayed open")
+
+setup(true)
+connect()
+host._ws_is_open = false
+assert(tick() == 5000, "a connection the host reports closed stayed up")
+
+-- 14. A lower-case serial in the config subscribes in upper case and
+-- matches Easee's mid.
+setup(true, "eh123456")
+connect()
+push(update(120, "1.1", "2026-10-24T10:00:03Z"))
+tick()
+assert(samples().w == 1100, "an update for the configured charger was ignored")
+
+-- 15. A WebSocket allowlist without streams.easee.com disables the stream.
+setup(true)
+host._ws_allowed_hosts = {"websocket-api.tibber.com"}
+poll()
+for _ = 1, 3 do poll(5000) end
+assert(count("ws_open") == 1 and not host._ws_is_open, "retried a host the allowlist refuses")
+assert(logged("no SignalR stream (no WebSocket grant)"), "the refusal was not logged")
 
 print("Easee SignalR stream: passed")

@@ -10,18 +10,28 @@ recommends the stream for readings and REST for commands (support reply,
 per charger. The driver negotiates with `streams.easee.com/hubs/products`,
 subscribes with `SubscribeWithCurrentState` and reads `ProductUpdate`
 messages into the same observations REST fills. Pushed changes reach Core
-on the next 2 s poll. While the stream is up, REST reads once a minute, and
-the driver reports only what a REST read in the last 90 s vouches for, since
-the stream cannot say that the cloud lost the charger. A stream that closes,
-goes silent for a minute or fails to subscribe drops back to REST every 5 s
-and reconnects with back-off from 5 s to 5 min; a renewed access token
-reconnects at once. Each observation keeps its newest source time, so a late
-REST reply or the replayed current state cannot replace a newer value.
+on the next 2 s poll.
+
+While the stream is up, REST reads once a minute. The driver reports only
+what a REST read in the last 90 s vouches for, since the stream cannot say
+that the cloud lost the charger. When REST shows a change the stream has
+not pushed, the stream has 10 s to deliver it; otherwise the driver drops
+the stream. A stream that closes, goes silent for a minute or fails to
+subscribe also drops back to REST every 5 s and reconnects with back-off
+from 5 s to 5 min; a renewed access token reconnects at once. A REST reply
+older than a pushed value does not replace it. A pushed reading without an
+RFC 3339 UTC time is skipped, and so is a state, power or energy reading
+that is not a number; the stream then owes the state, power or energy. The
+check that hides an older ReasonForNoCurrent while the car charges now
+compares times instead of their spelling.
+
 `power_max_age_s` and the confirmation fields are unchanged; commands still
-use REST. Core grants the WebSocket only when the driver config has
-`capabilities.websocket.allowed_hosts: ["streams.easee.com"]`; without it the
-driver polls REST as before. Tested in the Lua harness with a fake
-WebSocket host; not yet run against Easee's servers or on hardware.
+use REST. Without the stream each REST reply is the whole state, as in
+1.3.8. Core grants the WebSocket only when the driver config has a
+`capabilities.websocket` entry, which should list `streams.easee.com` in
+`allowed_hosts`; without one the driver polls REST as before. Tested in
+the Lua harness with a fake WebSocket host; not yet run against Easee's
+servers or on hardware.
 
 ### easee_cloud 1.3.8
 
