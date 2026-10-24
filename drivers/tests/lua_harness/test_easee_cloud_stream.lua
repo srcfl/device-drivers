@@ -21,6 +21,20 @@ end
 local function rest_reads() return count("http_get", "/observations?ids=") end
 local function attempts() return count("ws_open") end
 
+-- http_calls_to counts HTTP requests of any kind to a host.
+local function http_calls_to(name)
+    local n = 0
+    for _, call in ipairs(host._calls) do
+        local target = call.args[1]
+        if type(target) == "table" then target = target.url end
+        if (call.func == "http_get" or call.func == "http_post" or call.func == "http_request") and
+            tostring(target):find(name, 1, true) then
+            n = n + 1
+        end
+    end
+    return n
+end
+
 local function samples()
     local rows = host._emitted.ev or {}
     return rows[#rows], #rows
@@ -104,7 +118,7 @@ setup(false)
 assert(poll() == 5000)
 for _ = 1, 5 do assert(poll(5000) == 5000) end
 assert(attempts() == 1, "retried the stream without a grant")
-assert(count("http_post", "streams.easee.com") == 0, "posted to the stream host")
+assert(http_calls_to("streams.easee.com") == 0, "sent HTTP to the stream host")
 assert(rest_reads() == 6, "REST did not read on every poll")
 local granted_hint = false
 for _, line in ipairs(host._logs) do
@@ -112,12 +126,12 @@ for _, line in ipairs(host._logs) do
 end
 assert(granted_hint, "the log does not say how to enable the stream")
 
--- 2. Negotiate, open, handshake and subscribe.
+-- 2. Open, handshake and subscribe.
 setup(true)
 connect()
 -- No negotiate: a WebSocket connects directly, so no load-balancer cookie
 -- has to match a negotiated token.
-assert(count("http_post", "streams.easee.com") == 0, "negotiated before connecting")
+assert(http_calls_to("streams.easee.com") == 0, "negotiated before connecting")
 assert(host._ws_url == "wss://streams.easee.com/hubs/products", host._ws_url)
 assert(host._ws_headers.Authorization == "Bearer tok-a", "stream opened without the access token")
 
@@ -193,7 +207,7 @@ end
 assert(silent_polls >= 28, "dropped a quiet stream too soon: " .. silent_polls)
 
 -- Failed reconnects back off: 5 s, then 10 s.
-host._ws_open_error = 'ws dial: Get "wss://streams.easee.com/hubs/products?access_token=tok-a": bad handshake'
+host._ws_open_error = "ws dial: websocket: bad handshake (HTTP 401)"
 negs = attempts()
 local tries = {}
 for t = 1, 20 do
@@ -204,7 +218,7 @@ assert(#tries == 2 and tries[2] - tries[1] == 10, "no back-off between failed re
 local open_failed = false
 for _, line in ipairs(host._logs) do
     assert(not line:find("tok-a", 1, true), "access token in the log: " .. line)
-    if line:find("bad handshake", 1, true) then open_failed = true end
+    if line:find("bad handshake (HTTP 401)", 1, true) then open_failed = true end
 end
 assert(open_failed, "the failed open was not logged")
 

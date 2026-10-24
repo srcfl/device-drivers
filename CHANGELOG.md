@@ -34,10 +34,12 @@ compares times instead of their spelling.
 `power_max_age_s` and the confirmation fields are unchanged; commands still
 use REST. Without the stream each REST reply is the whole state, as in
 1.3.8. The driver declares `ws_hosts = { "streams.easee.com" }`. A Core
-that reads it (srcfl/ftw#1822) grants the WebSocket from that and gives up
-a dial after 5 s. An older Core grants it only when the driver config has
-a `capabilities.websocket` entry listing `streams.easee.com`, and its dial
-can take 15 s; without one the driver polls REST as before. Tested in
+that reads it (srcfl/ftw#1822) grants the WebSocket from that, because an
+Easee config already grants HTTP, and gives up a dial after 5 s. An older
+Core grants it only when the driver config has a `capabilities.websocket`
+entry listing `streams.easee.com`, and its dial can take 15 s; without one
+the driver polls REST as before. The signed channel's copy of a driver does
+not carry `ws_hosts` yet, so it streams only with that config entry. Tested in
 the Lua harness with a fake WebSocket host; not yet run against Easee's
 servers or on hardware.
 

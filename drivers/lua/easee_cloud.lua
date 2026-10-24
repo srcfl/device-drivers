@@ -561,8 +561,9 @@ end
 local function stream_disable(why)
     pcall(host.ws_close)
     stream_state = "disabled"
-    host.log("info", "Easee: no SignalR stream (" .. why .. "); REST every 5 s. " ..
-        "This Core needs capabilities.websocket.allowed_hosts [\"streams.easee.com\"] to stream.")
+    host.log("info", "Easee: no SignalR stream (" .. why .. "); REST every 5 s. Streaming needs " ..
+        "WebSocket access to streams.easee.com: ws_hosts on a Core that reads it, or " ..
+        "capabilities.websocket in the driver config.")
 end
 
 -- Server text goes into the log; keep it short.
