@@ -756,6 +756,30 @@ def test_config_secrets_reach_the_generated_header(tmp_path: Path) -> None:
     assert 'config_secrets = { "client_secret", "refresh_token" },' in header
 
 
+def test_ws_hosts_reach_the_generated_header(tmp_path: Path) -> None:
+    # A Core that reads DRIVER.ws_hosts grants the WebSocket from it
+    # (srcfl/ftw#1822), and it reads only this header. Without the field a
+    # signed copy of a streaming driver can never open its stream.
+    repo, config_path = single_driver_repo(tmp_path, "easee_cloud")
+
+    entry = _load_channel(config_path, repo)[0]
+
+    assert entry["metadata"]["ws_hosts"] == ["streams.easee.com"]
+    header = entry["raw"].decode("utf-8").split("DRIVER = __sourceful_ftw_metadata", 1)[0]
+    assert 'ws_hosts = { "streams.easee.com" },' in header
+
+
+def test_drivers_without_ws_hosts_keep_their_header(tmp_path: Path) -> None:
+    # Published versions must not change bytes, so a driver that declares no
+    # ws_hosts gets no new field.
+    repo, config_path = single_driver_repo(tmp_path, "myuplink")
+
+    entry = _load_channel(config_path, repo)[0]
+
+    assert "ws_hosts" not in entry["metadata"]
+    assert "ws_hosts" not in entry["raw"].decode("utf-8").split("DRIVER = __sourceful_ftw_metadata", 1)[0]
+
+
 def test_driver_locator_skips_non_module_decoys() -> None:
     source = '''-- DRIVER = { id = "commented" }
 --[=[ DRIVER = { id = "long-commented" } ]=]

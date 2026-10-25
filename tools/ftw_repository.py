@@ -394,6 +394,7 @@ def _ftw_artifact(
     capabilities = metadata.get("capabilities", [])
     tested_models = metadata.get("tested_models", [])
     config_secrets = metadata.get("config_secrets", [])
+    ws_hosts = metadata.get("ws_hosts", [])
     fields = [
         f"    id = {_lua_string(metadata['id'])},",
         f"    name = {_lua_string(metadata['name'])},",
@@ -419,6 +420,8 @@ def _ftw_artifact(
         fields.append(f"    tested_models = {_lua_string_list(tested_models)},")
     if config_secrets:
         fields.append(f"    config_secrets = {_lua_string_list(config_secrets)},")
+    if ws_hosts:
+        fields.append(f"    ws_hosts = {_lua_string_list(ws_hosts)},")
     # A driver that declares itself read-only keeps the guards: those are
     # meters and telemetry gateways stating what they are. A driver the catalog
     # marks control: true keeps the control path it was ported with.
@@ -740,6 +743,15 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             config_secrets = _string_list_field(body, "config_secrets")
             if config_secrets:
                 metadata["config_secrets"] = config_secrets
+            # ws_hosts names the hosts a driver streams from; a Core that
+            # reads it grants the WebSocket for them (srcfl/ftw#1822). As
+            # with config_secrets, Core sees only this header. An owner
+            # installs a channel version by choice, never automatically.
+            # Only drivers that declare it change. http_hosts stays out:
+            # adding it would change the bytes of versions already published.
+            ws_hosts = _string_list_field(body, "ws_hosts")
+            if ws_hosts:
+                metadata["ws_hosts"] = ws_hosts
 
         if auth_post_path and not controls:
             metadata["auth_post_path"] = auth_post_path

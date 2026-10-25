@@ -38,10 +38,11 @@ that reads it (srcfl/ftw#1822) grants the WebSocket from that, because an
 Easee config already grants HTTP, and gives up a dial after 5 s. An older
 Core grants it only when the driver config has a `capabilities.websocket`
 entry listing `streams.easee.com`, and its dial can take 15 s; without one
-the driver polls REST as before. The signed channel's copy of a driver does
-not carry `ws_hosts` yet, so it streams only with that config entry. Tested in
-the Lua harness with a fake WebSocket host; not yet run against Easee's
-servers or on hardware.
+the driver polls REST as before. The signed channel's copy now carries
+`ws_hosts` in its generated header, so an owner who picks 1.4.0 from the
+beta channel on such a Core streams too; no other driver's signed bytes
+change. Tested in the Lua harness with a fake WebSocket host; not yet run
+against Easee's servers or on hardware.
 
 ### myuplink 1.2.4
 
