@@ -48,7 +48,7 @@ DRIVER = {
   id           = "myuplink",
   name         = "MyUplink Heat Pump (telemetry)",
   manufacturer = "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)",
-  version      = "1.2.3",
+  version      = "1.2.4",
   protocols    = { "http" },
   capabilities = { "apicreds" },
   -- Says what the header, the description and driver_command have always
@@ -76,6 +76,33 @@ local BASE_URL = "https://api.myuplink.com"
 local access_token     = nil
 local token_expires_at = 0
 local refresh_token    = nil   -- rotated on each refresh; persisted via host.persist_secret
+-- A rotated refresh_token the host has not stored yet. If myUplink retires
+-- the old token when it issues a new one, a token held only in memory is
+-- lost on the next reload or restart, and signing in again needs the browser
+-- consent. So the token is stored after each poll's reading, and a failed
+-- store is retried on every poll until it succeeds. After the reading: once
+-- Core waits out a busy database, one store can take 5 s, and it must not
+-- hold a reading back. Not at driver_cleanup: a reconnect has just stored a
+-- fresh token by then, and this older one must not replace it.
+local unsaved_token    = nil
+local persist_failures = 0
+
+-- Poll timing. Core marks a driver offline when no reading has arrived for
+-- 60 s (site.watchdog_timeout_s) and caps a wait returned from driver_poll at
+-- 30 s. One host HTTP request may take up to 15 s before it times out.
+-- myUplink normally answers in under half a second, but on one home box in
+-- October 2026 about two requests an hour hit that 15 s timeout, and in 109
+-- of 124 cases the next poll worked. Waiting the full 30 s after such a
+-- failure left 75 s without a reading (30 s wait, 15 s timeout, 30 s wait),
+-- so every slow request marked the pump offline. A failed poll is now
+-- retried once after 2 s, so the gap stays near 47 s plus the next answer.
+-- A second failure in a row waits the full 30 s: two failures in a row are
+-- an outage of a minute or more, and Core should show that. At most one
+-- quick retry per outage keeps the driver far below myUplink's documented
+-- limit of 25 requests a minute.
+local POLL_MS          = 30000
+local RETRY_SOON_MS    = 2000
+local retried          = false  -- the last poll failed and was retried soon
 
 -- Self-heal: NIBE/MyUplink is touchy right after consent (token propagation /
 -- rate-limit), so the first auth or device-detect can fail. Rather than idle
@@ -103,6 +130,28 @@ local function url_encode(s)
 end
 
 -- ---- Auth ----------------------------------------------------------------
+
+-- Store the rotated refresh_token if the host has not got it yet. Warn on
+-- the first failure only, so a host that can never store it warns once per
+-- rotation, as before, rather than on every poll.
+local function save_rotated_token()
+    if not unsaved_token then return end
+    local ok, perr = host.persist_secret("refresh_token", unsaved_token)
+    if ok then
+        if persist_failures > 0 then
+            host.log("info", "MyUplink: rotated refresh_token persisted after "
+                .. persist_failures .. " failed attempt(s)")
+        end
+        unsaved_token = nil
+        persist_failures = 0
+        return
+    end
+    persist_failures = persist_failures + 1
+    if persist_failures == 1 then
+        host.log("warn", "MyUplink: could not persist rotated refresh_token, will retry on each poll: "
+            .. tostring(perr))
+    end
+end
 
 local function fetch_token()
     if not refresh_token then
@@ -144,10 +193,8 @@ local function fetch_token()
     -- KV, so this never triggers a config-reload loop.
     if data.refresh_token and data.refresh_token ~= "" and data.refresh_token ~= refresh_token then
         refresh_token = data.refresh_token
-        local ok, perr = host.persist_secret("refresh_token", refresh_token)
-        if not ok then
-            host.log("warn", "MyUplink: could not persist rotated refresh_token: " .. tostring(perr))
-        end
+        unsaved_token = refresh_token
+        persist_failures = 0
     end
     return true
 end
@@ -325,22 +372,33 @@ function driver_init(config)
     if not try_setup() then
         host.log("warn", "MyUplink: initial setup did not complete — will retry automatically")
     end
+    save_rotated_token()
 end
 
-function driver_poll()
-    if not client_id or not client_secret or not refresh_token then return 30000 end
+-- The wait after a failed sign-in or read: 2 s the first time, then the
+-- full poll. See POLL_MS.
+local function after_failure()
+    if retried then return POLL_MS end
+    retried = true
+    return RETRY_SOON_MS
+end
+
+-- Sign in if needed, read, emit. Returns the wait before the next poll.
+local function read_and_emit()
     -- Not yet set up (first auth/detect failed, or just connected) → retry
     -- with backoff. Self-heals the "only works after a manual restart" case.
     if not device_id then
         if not try_setup() then return 30000 end
     end
-    if not ensure_auth() then return 30000 end
+    if not ensure_auth() then return after_failure() end
 
     local data, by_id, err = fetch_all_points()
     if err then
-        host.log("warn", "MyUplink: poll failed: " .. err)
-        return 30000
+        local wait = after_failure()
+        host.log("warn", "MyUplink: poll failed (next try in " .. math.floor(wait / 1000) .. " s): " .. err)
+        return wait
     end
+    retried = false
 
     -- Canonical headline metrics: stable names the dashboard card + history
     -- depend on, mapped from fixed parameter IDs.
@@ -384,7 +442,14 @@ function driver_poll()
         end
     end
 
-    return 60000
+    return POLL_MS
+end
+
+function driver_poll()
+    if not client_id or not client_secret or not refresh_token then return 30000 end
+    local wait = read_and_emit()
+    save_rotated_token()
+    return wait
 end
 
 function driver_command(_action, _power_w, _cmd)
@@ -403,4 +468,8 @@ function driver_cleanup()
     -- next driver_init; clear it so a hot-reload starts from a clean slate.
     refresh_token    = nil
     last_setup_ms    = nil
+    -- Not stored here on purpose; see unsaved_token.
+    unsaved_token    = nil
+    persist_failures = 0
+    retried          = false
 end

@@ -968,7 +968,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.3",
+      "catalog_version": "1.2.4",
       "driver_id": "myuplink",
       "targets": {
         "blixt-l1": {
