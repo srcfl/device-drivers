@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### myuplink 1.2.4
+
+One slow request no longer marks the heat pump offline. Core marks a driver
+offline after 60 s without a reading, and a host HTTP request may take 15 s
+before it times out. After a failed read the driver waited 30 s, so one
+timed-out request left 75 s without a reading. On one home box from 22 to 25
+October 2026 that happened 124 times; in 109 of them the next read worked.
+The driver now retries a failed read or sign-in once after 2 s, which keeps
+that gap near 47 s. A second failure in a row waits the full 30 s, so an
+outage of a minute or more still shows as offline, and the driver stays far
+below myUplink's limit of 25 requests a minute. A good read now asks for
+30 s, the wait Core already used: Core holds a returned wait to 30 s at most.
+A failed read still emits nothing.
+
+A rotated `refresh_token` that the host could not store is now stored on the
+next poll. Before, a failed store (SQLite busy, seen once on 25 October) left
+the new token only in memory until the next rotation, about an hour later. A
+reload or restart in that hour started from the old token; if myUplink no
+longer accepts it, the driver cannot sign in until the owner connects again.
+The driver warns once, and logs when the store succeeds. It does not store
+the token in `driver_cleanup`, where a reconnect may just have stored a newer
+one. Tested in the Lua harness and against FTW's Go host with a read that
+stalls past the 15 s timeout; not yet run on the box.
+
 ### easee_cloud 1.3.8
 
 Two fixes to the 7 A start from 1.3.7, from its review. A reloaded driver
