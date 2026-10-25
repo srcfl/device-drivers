@@ -425,6 +425,17 @@ all modes. They never grant control or replace a safety limit:
   from the dynamic offer in `max_a`. `device_limit_age_s` is time since the
   successful settings read. Failed reads must not reset its age. Core stops
   treating it as a current limit after two minutes.
+- `current_limit_a`: the current per phase the charger lets the car take
+  now, while the car charges and that current is below the host's last
+  order, which the charger reads back. Set it only from a value that
+  answers that order: one the charger reported at or after it took the
+  order, or any once the order has stood long enough for the value to
+  move. Leave it nil otherwise.
+- `current_limited_by`: `"load_balancer"` when the charger's own load
+  balancing sets `current_limit_a`, shown by an allocation that is below
+  the order and explains the limit. Leave it nil when the cause is not
+  shown. An older vendor reason code is not proof of a cause. Core says
+  the car is limited only when its measured power also falls short.
 
 A device reading makes a response measured, nothing more. Core calls it
 confirmed only when an identified, separate site meter shows a matching

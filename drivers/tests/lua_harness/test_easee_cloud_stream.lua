@@ -275,8 +275,9 @@ assert(rest_reads() == reads + 1, "REST stopped after a refused subscription")
 assert(not host._ws_is_open, "a refused stream stayed open")
 
 -- 10. Without the stream a REST reply is the whole state, as in 1.3.8: an
--- id it leaves out does not keep an earlier reply's value, and a stamp from
--- the future does not hold a value.
+-- id it leaves out does not keep an earlier reply's value. A reply whose
+-- power time goes back is not used (srcfl/device-drivers#183), but a stamp
+-- from the future holds a value for 30 s at most.
 setup(false)
 poll()
 host._http_responses["/observations?ids="] = host.json_encode({
@@ -290,8 +291,14 @@ assert(ev.control_power_available == false and ev.control_power_confirmed == fal
 rest(3, 7.2, "2026-10-24T13:00:00Z")
 poll(5000)
 rest(3, 0, "2026-10-24T10:05:00Z")
+local _, held = samples()
 poll(5000)
-assert(samples().w == 0, "a REST stamp from the future held its value")
+local _, after_back = samples()
+assert(after_back == held, "a reply whose power time went back was used")
+for _ = 1, 5 do poll(5000) end
+assert(samples().w == 7200, "the order started again before 30 s")
+poll(5000)
+assert(samples().w == 0, "a REST stamp from the future held its value for over 30 s")
 
 -- 11. A change REST sees first is owed by the stream. A push still on its
 -- way keeps the stream up; one that never comes stops it after 10 s.

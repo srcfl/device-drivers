@@ -3,7 +3,9 @@
 dofile("drivers/tests/lua_harness/host_mock.lua")
 local driver = "drivers/lua/easee_cloud.lua"
 
+local sample = 0
 local function boot(cfg, config_body)
+    sample = 0
     host.reset()
     host._http_responses["/accounts/login"] = '{"accessToken":"test","expiresIn":3600}'
     host._http_responses["/config"] = config_body or '{"maxChargerCurrent":16}'
@@ -35,9 +37,11 @@ local function count_cmd(path)
     return n
 end
 
-local function poll(mode, kw)
+local function poll(mode, kw, stamp)
+    sample = sample + 1
+    stamp = stamp or string.format("2026-10-23T10:00:%02dZ", sample)
     host._http_responses["/observations?ids="] = host.json_encode({
-        {id=109,value=mode}, {id=120,value=kw or 0}, {id=121,value=1}, {id=124,value=100},
+        {id=109,value=mode}, {id=120,value=kw or 0,timestamp=stamp}, {id=121,value=1}, {id=124,value=100},
     })
     driver_poll()
 end
@@ -237,5 +241,28 @@ assert(last_amps() == 7)
 later(5000)
 poll(2)
 assert(last_amps() == 0, "re-assert after default mode wrote the cleared boost's 7 A")
+
+-- 18. A rejected power timestamp cannot establish a stopped charger after
+-- reload, or falsely report charging and end a boost. Fresh data recovers.
+boot()
+poll(2, 0, "invalid")
+assert(order(4140)); assert(last_amps() == 6, "invalid first observation enabled boost")
+poll(2)
+assert(order(4140)); assert(last_amps() == 7)
+local rows = #(host._emitted.ev or {})
+poll(3, 4.8, "2026-10-23T10:00:01Z")
+assert(#(host._emitted.ev or {}) == rows, "stale power emitted during boost")
+assert(last_amps() == 7, "stale charging observation ended boost")
+poll(3, 4.8)
+assert(last_amps() == 6, "fresh charging observation did not end boost")
+
+-- 19. Rejecting old data must not prevent the bounded boost timing out.
+boot()
+poll(2)
+assert(order(4140)); assert(last_amps() == 7)
+later(91000)
+poll(2, 0, "2026-10-23T10:00:00Z")
+assert(last_amps() == 6, "rejected observation extended boost past timeout")
+assert(order(4140)); assert(last_amps() == 6, "boost restarted after rejection and timeout")
 
 print("easee_cloud start boost: ok")
