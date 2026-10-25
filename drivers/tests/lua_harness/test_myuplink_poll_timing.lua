@@ -199,11 +199,97 @@ expect(count_logs("persisted after 3 failed attempt(s)") == 1, "recovery is logg
 poll()
 expect(#fake.persisted == 1, "a stored token is not written again")
 
--- The next rotation is stored at once and replaces the old one.
+-- The next rotation is stored in the same poll and replaces the old one.
 start({ expires_in = 0 })
 poll()
 expect(fake.persisted[#fake.persisted] == "rotated-" .. fake.refreshes,
     "each rotation is stored: " .. tostring(fake.persisted[#fake.persisted]))
+
+-- Rotations while the host keeps refusing: once it accepts, the newest token
+-- is stored, never an older one, and never an older one after a newer one.
+start({ expires_in = 0, persist_fail = 100 })
+poll(); poll(); poll()
+expect(fake.refreshes == 3, "three polls, three rotations, got " .. fake.refreshes)
+expect(#fake.persisted == 0, "nothing stored while the host refuses")
+fake.persist_fail = 0
+poll()
+local newest = 0
+for _, v in ipairs(fake.persisted) do
+    local n = tonumber(v:match("^rotated%-(%d+)$")) or -1
+    expect(n >= newest, "older token " .. v .. " stored after a newer one")
+    newest = math.max(newest, n)
+end
+expect(fake.persisted[#fake.persisted] == "rotated-" .. fake.refreshes,
+    "the last stored token is the latest, got " .. tostring(fake.persisted[#fake.persisted]))
+
+---------------------------------------------------------------------------
+-- A store comes after the reading. Once Core waits out a busy database, one
+-- store can take 5 s; it must not hold back the reading of that poll.
+---------------------------------------------------------------------------
+
+start({ expires_in = 0 })
+local emitted_before_store = nil
+function host.persist_secret(key, value)
+    if emitted_before_store == nil then
+        emitted_before_store = host._metrics["hp_power_w"] ~= nil
+    end
+    return true
+end
+host._metrics = {}
+poll()
+expect(emitted_before_store == true, "the reading is emitted before the rotated token is stored")
+
+start({ expires_in = 0, persist_fail = 1 })
+host._metrics = {}
+fake.points_fail = 1
+poll()
+expect(#fake.persisted == 0 and fake.persist_fail == 0,
+    "a poll whose read failed still tries the store")
+poll()
+expect(#fake.persisted >= 1, "and stores on the next poll")
+
+-- The same run loop as above, with a clock: every store blocks 5 s and
+-- fails, and every poll signs in again. One timed-out read must still keep
+-- the gap between readings under the 60 s watchdog.
+local function gap_with_slow_store(outcomes)
+    start({ expires_in = 0 })
+    local now = 0
+    function host.millis() return now end
+    function host.persist_secret() now = now + 5000; return false, BUSY end
+    local get = host.http_get
+    local post = host.http_post
+    local timeout_next = false
+    function host.http_get(url, headers)
+        if timeout_next then now = now + 15000; timeout_next = false; return nil, TIMEOUT end
+        now = now + 300
+        return get(url, headers)
+    end
+    function host.http_post(url, body, headers)
+        now = now + 300
+        return post(url, body, headers)
+    end
+    local last_emit, longest = nil, 0
+    for _, outcome in ipairs(outcomes) do
+        host._metrics = {}
+        timeout_next = outcome == "timeout"
+        local w = math.min(math.max(poll() or 30000, 1000), 30000)
+        local emit_at = host._metrics["hp_power_w"] and host._metrics["hp_power_w"].at
+        if emit_at then
+            if last_emit then longest = math.max(longest, emit_at - last_emit) end
+            last_emit = emit_at
+        end
+        now = now + w
+    end
+    return longest / 1000
+end
+local mock_emit_metric, mock_millis = host.emit_metric, host.millis
+function host.emit_metric(name, value, unit)
+    mock_emit_metric(name, value, unit)
+    host._metrics[name].at = host.millis()
+end
+local slow_gap = gap_with_slow_store({ "ok", "ok", "timeout", "ok", "ok" })
+expect(slow_gap < 60, "a 5 s store and one timed-out read stay under 60 s, got " .. slow_gap)
+host.emit_metric, host.millis = mock_emit_metric, mock_millis
 
 ---------------------------------------------------------------------------
 -- driver_cleanup never stores: a reconnect may just have stored a fresh

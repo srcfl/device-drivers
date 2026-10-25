@@ -79,9 +79,11 @@ local refresh_token    = nil   -- rotated on each refresh; persisted via host.pe
 -- A rotated refresh_token the host has not stored yet. If myUplink retires
 -- the old token when it issues a new one, a token held only in memory is
 -- lost on the next reload or restart, and signing in again needs the browser
--- consent. So a failed store is retried on every poll until it succeeds.
--- Not at driver_cleanup: a reconnect has just stored a fresh token by then,
--- and this older one must not replace it.
+-- consent. So the token is stored after each poll's reading, and a failed
+-- store is retried on every poll until it succeeds. After the reading: once
+-- Core waits out a busy database, one store can take 5 s, and it must not
+-- hold a reading back. Not at driver_cleanup: a reconnect has just stored a
+-- fresh token by then, and this older one must not replace it.
 local unsaved_token    = nil
 local persist_failures = 0
 
@@ -193,7 +195,6 @@ local function fetch_token()
         refresh_token = data.refresh_token
         unsaved_token = refresh_token
         persist_failures = 0
-        save_rotated_token()
     end
     return true
 end
@@ -371,6 +372,7 @@ function driver_init(config)
     if not try_setup() then
         host.log("warn", "MyUplink: initial setup did not complete — will retry automatically")
     end
+    save_rotated_token()
 end
 
 -- The wait after a failed sign-in or read: 2 s the first time, then the
@@ -381,9 +383,8 @@ local function after_failure()
     return RETRY_SOON_MS
 end
 
-function driver_poll()
-    if not client_id or not client_secret or not refresh_token then return 30000 end
-    save_rotated_token()
+-- Sign in if needed, read, emit. Returns the wait before the next poll.
+local function read_and_emit()
     -- Not yet set up (first auth/detect failed, or just connected) → retry
     -- with backoff. Self-heals the "only works after a manual restart" case.
     if not device_id then
@@ -442,6 +443,13 @@ function driver_poll()
     end
 
     return POLL_MS
+end
+
+function driver_poll()
+    if not client_id or not client_secret or not refresh_token then return 30000 end
+    local wait = read_and_emit()
+    save_rotated_token()
+    return wait
 end
 
 function driver_command(_action, _power_w, _cmd)

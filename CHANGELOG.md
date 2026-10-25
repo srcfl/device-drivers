@@ -21,9 +21,10 @@ next poll. Before, a failed store (SQLite busy, seen once on 25 October) left
 the new token only in memory until the next rotation, about an hour later. A
 reload or restart in that hour started from the old token; if myUplink no
 longer accepts it, the driver cannot sign in until the owner connects again.
-The driver warns once, and logs when the store succeeds. It does not store
-the token in `driver_cleanup`, where a reconnect may just have stored a newer
-one. Tested in the Lua harness and against FTW's Go host with a read that
+The store comes after the poll's reading, so a slow store does not hold the
+reading back. The driver warns once, and logs when the store succeeds. It
+does not store the token in `driver_cleanup`, where a reconnect may just have
+stored a newer one. Tested in the Lua harness and against FTW's Go host with a read that
 stalls past the 15 s timeout; not yet run on the box.
 
 ### easee_cloud 1.3.8
