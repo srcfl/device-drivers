@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.5.0
+
+Expose the actual pilot current and its source/change timestamp separately
+from the dynamic current setting. Record a fresh confirmation only when
+that observation is accepted from REST or SignalR; a poll of other values
+does not refresh the pilot. Reject unusable, future or expired pilot and
+allocation evidence before it can explain a charging shortfall. Unchanged
+pilot values may retain an old source timestamp when freshly confirmed.
+Paired Core feedback changes distinguish a proven load-balancing limit
+from an otherwise unexplained pilot limit (srcfl/ftw#1874).
+
 ### easee_cloud 1.4.1
 
 Report when Easee's own load balancing holds the car below FTW's order. A

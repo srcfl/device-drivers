@@ -443,7 +443,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.4.1",
+      "catalog_version": "1.5.0",
       "driver_id": "easee_cloud",
       "targets": {
         "blixt-l1": {
