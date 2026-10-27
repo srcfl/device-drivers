@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### sungrow 1.6.1
+
+An inverter that drops off the network no longer loses registers or its
+release. FTW's random site rig takes the inverter offline for 20 to 90 s.
+Every read and write then fails, and the driver counted those failures as the
+device refusing them.
+
+- Reads: 12999, 13000 and the PV registers were dropped for the session after
+  three failed polls. 13000 signs the battery, so FTW read a discharge as a
+  charge for the rest of the run. A failed read now counts only when the
+  device answers with a Modbus exception, or when another read in the same
+  poll returned data. The first poll that reads data after a poll that read
+  nothing starts every count over.
+- Writes: three failed writes marked the EMS block absent, so the watchdog's
+  release was reported as held without being written. The inverter kept its
+  last forced command for up to five minutes. Only a Modbus exception now
+  counts toward that, and a reconnect resets the count. Once this driver has
+  put the inverter in forced mode, the release is always written, and is never
+  reported as held, until the inverter takes it.
+
+Gateway exceptions 0x0A and 0x0B and the busy exception 0x06 do not count:
+they say the device could not answer, not that the register is missing.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
 ### easee_cloud 1.4.0
 
 Read Easee's SignalR stream when the host grants a WebSocket. Easee
