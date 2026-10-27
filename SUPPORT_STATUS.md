@@ -158,8 +158,8 @@ Catalog source is not proof that a target can install or run a driver.
 | solis_string | 1.1.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | sonnen | 2.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | sonnen | 2.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| sungrow | 1.6.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| sungrow | 1.6.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| sungrow | 1.6.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| sungrow | 1.6.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | tesla_cloud | 0.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | tesla_cloud | 0.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | tesla_vehicle | 0.2.6 | ftw-core | not_assessed | — | not_recorded | not_assessed |
