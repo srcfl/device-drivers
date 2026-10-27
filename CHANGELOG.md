@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### myuplink 1.3.0
+
+Improve NIBE F750 telemetry from hardware-observed MyUplink parameter data.
+Parameter 40013 is documented as BT7 hot-water top temperature, and parameter
+40940 is exposed as the canonical hp_degree_minutes reading. Ignore the NIBE
+-32768 unavailable-value sentinel instead of emitting bogus telemetry, and
+remove embedded Unicode soft hyphens from generated metric names. Unavailable
+canonical temperature points are omitted instead of being reported as 0 °C.
+The driver remains read-only. No F750 electrical compressor-power mapping is
+claimed. Preserve 1.2.4's failed-read retry and rotated-token persistence.
+
 ### easee_cloud 1.4.0
 
 Read Easee's SignalR stream when the host grants a WebSocket. Easee
