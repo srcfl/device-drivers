@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### tesla_wall_connector 0.1.2
+
+An idle Wall Connector no longer shows charge power. With no car on the
+cable and the contactor open, the unit reads 0 V on its output legs and
+about 0.5–1 A of sensor offset. The leg sum was 0, so the driver fell back to
+`grid_v × vehicle_current_a`, the voltage on the grid side of the open
+contactor times the offset, and reported about 180–290 W to a car that was
+not there. Charge power is now 0 W while the contactor is open or
+`vehicle_connected` is false. `charging` follows the same rule. A reply
+without `contactor_closed` falls back to the EVSE charging states. Power
+through a closed contactor is unchanged.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
 ### sungrow 1.6.1
 
 An inverter that drops off the network no longer loses registers or its

@@ -26,7 +26,7 @@ DRIVER = {
   id           = "tesla_wall_connector",
   name         = "Tesla Wall Connector",
   manufacturer = "Tesla",
-  version      = "0.1.1",
+  version      = "0.1.2",
   protocols    = { "http" },
   capabilities = { "ev" },
   read_only    = true,
@@ -131,7 +131,18 @@ local function phase_power(v, a)
   return v * a
 end
 
-local function charge_power(vitals)
+-- The contactor joins the car to the grid. While it is open, or no car is
+-- on the cable, no current reaches a car: an idle unit still reads about
+-- 0.5–1 A of sensor offset on its legs, and that is not load. A reply
+-- without contactor_closed falls back to the EVSE state.
+local function contactor_closed(state, vitals)
+  if vitals.vehicle_connected == false then return false end
+  if vitals.contactor_closed ~= nil then return vitals.contactor_closed == true end
+  return state == EVSE_CHARGE_LOW or state == EVSE_CHARGE_FULL
+end
+
+local function charge_power(state, vitals)
+  if not contactor_closed(state, vitals) then return 0 end
   if split_phase then
     local w = (as_number(vitals.grid_v) or 0) * (as_number(vitals.vehicle_current_a) or 0)
     if w < 0 then w = 0 end
@@ -140,6 +151,8 @@ local function charge_power(vitals)
   local w = phase_power(vitals.voltageA_v, vitals.currentA_a)
     + phase_power(vitals.voltageB_v, vitals.currentB_a)
     + phase_power(vitals.voltageC_v, vitals.currentC_a)
+  -- No usable leg voltage: with the contactor closed the car sees the
+  -- measured grid voltage.
   if w <= 0 then
     local fallback = (as_number(vitals.grid_v) or 0) * (as_number(vitals.vehicle_current_a) or 0)
     if fallback > 0 then w = fallback end
@@ -156,16 +169,11 @@ local function active_phases(vitals)
   return n
 end
 
-local function is_charging(state, vitals)
-  if state == EVSE_CHARGE_LOW or state == EVSE_CHARGE_FULL then return true end
-  return vitals.contactor_closed == true
-end
-
 local function is_connected(state, vitals)
   if vitals.vehicle_connected == true then return true end
   return state == EVSE_CONNECTED or state == EVSE_READY
     or state == EVSE_HANDSHAKE or state == EVSE_FINISHED
-    or state == EVSE_WAIT_CAR or is_charging(state, vitals)
+    or state == EVSE_WAIT_CAR or contactor_closed(state, vitals)
 end
 
 function driver_init(config)
@@ -209,10 +217,10 @@ function driver_poll()
   end
 
   local state = as_number(vitals.evse_state) or EVSE_IDLE
-  local power_w = charge_power(vitals)
+  local power_w = charge_power(state, vitals)
   local session_wh = as_number(vitals.session_energy_wh) or 0
   local connected = is_connected(state, vitals)
-  local charging = is_charging(state, vitals)
+  local charging = contactor_closed(state, vitals)
   local phases = active_phases(vitals)
 
   host.emit("ev", {

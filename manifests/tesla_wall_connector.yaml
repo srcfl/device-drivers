@@ -1,5 +1,5 @@
 name: "tesla_wall_connector"
-version: "0.1.1"
+version: "0.1.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -15,9 +15,9 @@ tested_devices:
     notes: "Tesla Wall Connector Gen 3 on the LAN. Observation only; no local current setpoint."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 8162
+size_bytes: 8716
 dkb_id: "tesla_wall_connector"
-sha256: "66b6313eda4f68a92a7cc55931baa2408cb6cbb249145f7e6005456fb821d284"
+sha256: "46990348a27e84a0f749f4f54db3ef0201806fc9034efe69571f8e5a65dd877b"
 signature: ""
 
 bytecode_sha256: ""
