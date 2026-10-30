@@ -739,14 +739,14 @@ drivers:
     size_bytes: 10096
     sha256: "d1b8a2cbea20630dcab3cb306df0f6924b0f9ad7f31bcf367fb1d41ca7833350"
   - name: "tesla_wall_connector"
-    version: "0.1.1"
+    version: "0.1.2"
     tier: community
     protocol: http
     connectivity: local
     ders: [ev]
     control: false
-    size_bytes: 8162
-    sha256: "66b6313eda4f68a92a7cc55931baa2408cb6cbb249145f7e6005456fb821d284"
+    size_bytes: 8786
+    sha256: "c365aad2a1216fad870b7dadb32e87feed75627714eeb8160f22cec4db651a80"
   - name: "teslamate_vehicle"
     version: "0.2.0"
     tier: community
