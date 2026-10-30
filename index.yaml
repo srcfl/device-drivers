@@ -745,8 +745,8 @@ drivers:
     connectivity: local
     ders: [ev]
     control: false
-    size_bytes: 8716
-    sha256: "46990348a27e84a0f749f4f54db3ef0201806fc9034efe69571f8e5a65dd877b"
+    size_bytes: 8786
+    sha256: "c365aad2a1216fad870b7dadb32e87feed75627714eeb8160f22cec4db651a80"
   - name: "teslamate_vehicle"
     version: "0.2.0"
     tier: community

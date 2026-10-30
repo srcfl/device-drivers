@@ -44,7 +44,8 @@ assert(host._metrics.ev_power_w.value == 0, "ev_power_w must match w")
 -- The raw sensor reading stays visible as a diagnostic.
 assert(host._metrics.ev_l1_a.value == 0.8 and host._metrics.ev_l1_v.value == 0)
 
--- A larger offset sample (the diagram showed 284 W) is still no load.
+-- A larger offset sample is still no load. The same report's flow
+-- diagram showed 284 W; 1.2 A × 236.7 V is one pair that gives it.
 r = poll((idle:gsub('"vehicle_current_a":0.8', '"vehicle_current_a":1.2')
   :gsub('"grid_v":230.0', '"grid_v":236.7')))
 assert(r.w == 0, "offset sample reported " .. tostring(r.w) .. " W")
@@ -65,9 +66,10 @@ r = poll((idle:gsub('"vehicle_connected":false', '"vehicle_connected":true')
   :gsub('"evse_state":1', '"evse_state":11')))
 assert(r.w == 0 and r.charging == false, "state 11 with open contactor")
 
--- No car on the cable: nothing reaches a car, whatever the contactor says.
+-- A contactor that says closed while every leg reads 0 V: the grid
+-- voltage must not stand in for the 0 V the charger measured.
 r = poll((idle:gsub('"contactor_closed":false', '"contactor_closed":true')))
-assert(r.w == 0 and r.charging == false, "closed contactor without a car")
+assert(r.w == 0, "closed contactor at 0 V reported " .. tostring(r.w) .. " W")
 
 -- Split-phase installs use grid_v × vehicle_current_a: the same gate holds.
 r = poll(idle, { split_phase = true })
@@ -93,12 +95,24 @@ r = poll([[{"contactor_closed":true,"vehicle_connected":true,"grid_v":230,
 near(r.w, 3680, 0.01, "one-phase charging")
 assert(r.phases == 1 and r.charging == true)
 
--- Contactor closed but no usable leg voltage: the contactor joins the
--- car to the grid, so the measured grid voltage applies.
+-- Power measured through a closed contactor counts even if the cable
+-- flag disagrees: a status flag does not cancel measured volts and amps.
+r = poll([[{"contactor_closed":true,"vehicle_connected":false,"grid_v":230,
+"vehicle_current_a":16,"currentA_a":16,"voltageA_v":230,"voltageB_v":0,"voltageC_v":0,
+"session_energy_wh":1,"evse_state":11}]])
+near(r.w, 3680, 0.01, "closed contactor, measured leg")
+
+-- Contactor closed, legs read about 0 V: no power from grid_v.
 r = poll([[{"contactor_closed":true,"vehicle_connected":true,"grid_v":230,
 "vehicle_current_a":10,"voltageA_v":2,"voltageB_v":1,"voltageC_v":0,
 "session_energy_wh":1,"evse_state":11}]])
-near(r.w, 2300, 0.01, "closed contactor, grid voltage")
+assert(r.w == 0, "legs at 0 V reported " .. tostring(r.w) .. " W")
+
+-- A reply with no leg voltage at all: the car sees the measured grid
+-- voltage through the closed contactor.
+r = poll([[{"contactor_closed":true,"vehicle_connected":true,"grid_v":230,
+"vehicle_current_a":10,"session_energy_wh":1,"evse_state":11}]])
+near(r.w, 2300, 0.01, "no leg voltages, grid voltage")
 
 -- Split-phase charging: grid_v × vehicle_current_a.
 r = poll([[{"contactor_closed":true,"vehicle_connected":true,"grid_v":240,
