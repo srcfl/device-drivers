@@ -1682,7 +1682,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.1.1",
+      "catalog_version": "0.1.2",
       "driver_id": "tesla_wall_connector",
       "targets": {
         "blixt-l1": {

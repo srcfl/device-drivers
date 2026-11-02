@@ -1852,7 +1852,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "tesla_wall_connector"
-            version: "0.1.1"
+            version: "0.1.2"
             ders: [ev]
             control: false
         firmware_versions: ""
