@@ -31,6 +31,14 @@
 --   meter:  +W import, -W export
 --   pv:     -W generation
 --   battery:+W charge, -W discharge
+--
+-- Meter schema compatibility: some Zap firmware serves the local data model
+-- v2 (srcful-data-models 2.3.0, "version":"v2" in /data/json), which renames
+-- every meter field with an "_ac" suffix and lowercases the L1/L2/L3 phase
+-- prefix (e.g. "L1_V" -> "l1_V_ac", "W" -> "W_ac"; "Hz" is unchanged either
+-- way). This driver reads both v1 and v2 field names for the meter DER; see
+-- https://github.com/srcfl/device-drivers/issues/170 for the full v2 scope
+-- (pv -> solar, battery, DC/AC split), which is not yet covered here.
 
 DRIVER = {
   host_api_min = 1,
@@ -38,7 +46,7 @@ DRIVER = {
   id           = "zap",
   name         = "Sourceful Zap (P1/HAN meter)",
   manufacturer = "Sourceful",
-  version      = "3.1.1",
+  version      = "3.1.2",
   protocols    = { "http" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -377,15 +385,30 @@ local meter_fields = {
     { "total_export_wh", "total_export_Wh", "Wh" },
 }
 
+-- Data model v2 renames every meter field with an "_ac" suffix and
+-- lowercases the L1/L2/L3 phase prefix (e.g. "L1_V" -> "l1_V_ac"); "Hz" is
+-- unchanged. Try the v1 name first, then the v2 variants, so this driver
+-- reads either firmware generation without needing to branch on "version".
+local function raw_field(raw, name)
+    if raw[name] ~= nil then return raw[name] end
+    if raw[name .. "_ac"] ~= nil then return raw[name .. "_ac"] end
+    local lowered = name:gsub("^L(%d)_", "l%1_")
+    if lowered ~= name then
+        if raw[lowered] ~= nil then return raw[lowered] end
+        if raw[lowered .. "_ac"] ~= nil then return raw[lowered .. "_ac"] end
+    end
+    return nil
+end
+
 local function emit_meter(data)
     if type(data) ~= "table" or type(data.meter) ~= "table" then return false end
     local raw = data.meter
-    local w = number(raw.W)
+    local w = number(raw_field(raw, "W"))
     if w == nil then return false end
 
     local meter_reading = { w = w }
     for _, mapping in ipairs(meter_fields) do
-        local value = number(raw[mapping[2]])
+        local value = number(raw_field(raw, mapping[2]))
         if value ~= nil then
             meter_reading[mapping[1]] = value
             host.emit_metric("meter_" .. mapping[1], value, mapping[3])
