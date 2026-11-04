@@ -1098,6 +1098,17 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "Same H2-Protocol map as the three-phase hybrid. Ampere.StoragePro / EKD-Solar is a rebadged HS2. Telemetry only."
+      - name: "eManager C1 Pro"
+        variants: [eManager C1 Pro]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "saj-emanager"
+            version: "0.1.1"
+            ders: [pv, battery, meter]
+            control: false
+        firmware_versions: ""
+        notes: "Site controller in front of 1..N CHS2/CH2 C&I hybrids. Modbus TCP only, port 502; the register sheet marks RTU as not supported. Telemetry only, decoded from the community eManager/SEC-C workbook. Not tested on hardware. First check is Castellum Örebro (3x CHS2 50 kW). Control 0x8400-0x8405 is documented and not written."
   - name: "SMA"
     model_families:
       - name: "SMA Home Manager 2.0"
