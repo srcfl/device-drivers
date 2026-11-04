@@ -2,9 +2,13 @@
 
 The register sheet is the community workbook on
 stanus74/home-assistant-saj-h2-modbus discussion 182. Nothing here was read
-off a live controller. The numbers below are the sheet's own scales applied
-to a fixture, including the two sign assumptions (battery discharge-positive,
-grid import-positive) and high-word-first int32.
+off a live controller.
+
+Site signs, same as the other drivers: generation is negative, battery
+charge and grid import are positive, battery discharge and grid export are
+negative. The H2 wire is the other way round on the battery only, so the
+fixture's battery word is discharge-positive and the assertions are the
+site watts. 32-bit values are high word first.
 """
 
 from __future__ import annotations
@@ -228,9 +232,9 @@ print("RATED " .. tostring(host._rated_w))
 print("FAULT " .. tostring(host._faulted))
 print("COUNT " .. metric("saj_emanager_device_count"))
 print("DIVISOR " .. metric("saj_emanager_phase_scale_divisor"))
-print("LOAD " .. metric("saj_emanager_load_w"))
-print("INV " .. metric("saj_emanager_inv_w"))
-print("GEN " .. metric("saj_emanager_gen_w"))
+print("LOAD " .. metric("saj_emanager_load_w_vendor"))
+print("INV " .. metric("saj_emanager_inv_w_vendor"))
+print("GEN " .. metric("saj_emanager_gen_w_vendor"))
 print("CAP " .. metric("saj_emanager_battery_capacity_raw"))
 print("FEED " .. metric("saj_emanager_vendor_feed_in_wh"))
 print("SELL " .. metric("saj_emanager_vendor_sell_wh"))
@@ -285,20 +289,22 @@ def test_three_inverter_plant_in_site_convention():
     assert out["SLOT_COUNT"] == str(DEVICE_COUNT * 12)
 
     assert out["PV_EMITS"] == "1"
+    # Generation is negative, same as the other drivers.
     assert float(out["PV_W"]) == -PV_W
+    assert float(out["PV_W"]) < 0
     assert float(out["PV_WH"]) == PV_ENERGY_RAW * 10
 
-    # Vendor discharge-positive charging (-6000) flips to site +6000.
+    # Wire -6000 is charging on a discharge-positive register. Site charge is +.
     assert out["BAT_EMITS"] == "1"
-    assert float(out["BAT_W"]) == -BAT_W_VENDOR
+    assert float(out["BAT_W"]) == 6000
     assert math.isclose(float(out["BAT_SOC"]), SOC_RAW / 10000, rel_tol=1e-6)
     assert float(out["BAT_CHG"]) == BAT_CHARGE_RAW * 10
     assert float(out["BAT_DIS"]) == BAT_DISCHARGE_RAW * 10
     assert out["CAP"] == str(CAP_RAW)
 
-    # Vendor import-positive export stays negative. Not divided by 3.
+    # Wire -2500 is export on an import-positive register. Site export is −.
     assert out["MET_EMITS"] == "1"
-    assert float(out["MET_W"]) == GRID_W_VENDOR
+    assert float(out["MET_W"]) == -2500
     assert math.isclose(float(out["MET_HZ"]), L1_HZ_RAW / 100, rel_tol=1e-6)
     assert math.isclose(float(out["MET_L1V"]), L1_V_RAW / 10, rel_tol=1e-6)
     assert math.isclose(float(out["MET_L1A"]), L1_A_RAW / 10, rel_tol=1e-6)
@@ -317,6 +323,40 @@ def test_three_inverter_plant_in_site_convention():
     assert float(out["LOAD"]) == LOAD_W_VENDOR
     assert float(out["INV"]) == INV_W_VENDOR
     assert out["GEN"] == "nil"
+
+
+def _i32_words(value: int) -> tuple[int, int]:
+    hi, lo = _i32_regs(value)
+    return hi, lo
+
+
+def test_site_signs_both_directions():
+    """Sourceful: charge/import positive, discharge/export/generation negative.
+
+    Same boundary as drivers/lua/saj.lua. The H2 wire is discharge-positive
+    on the battery and import-positive on the grid; this driver flips only
+    the battery.
+    """
+    charging = poll_once()
+    assert float(charging["BAT_W"]) == 6000
+    assert float(charging["MET_W"]) == -2500
+    assert float(charging["MET_L1W"]) == -800
+    assert float(charging["PV_W"]) == -PV_W
+
+    discharge_hi, discharge_lo = _i32_words(4500)  # wire: discharging
+    import_hi, import_lo = _i32_words(1800)       # wire: importing
+    phase_hi, phase_lo = _i32_words(400)          # wire: L1 importing
+    out = poll_once(
+        f"host._modbus_registers.holding[{REG_SUMMARY}][8] = {discharge_hi}\n"
+        f"host._modbus_registers.holding[{REG_SUMMARY}][9] = {discharge_lo}\n"
+        f"host._modbus_registers.holding[{REG_SUMMARY}][13] = {import_hi}\n"
+        f"host._modbus_registers.holding[{REG_SUMMARY}][14] = {import_lo}\n"
+        f"host._modbus_registers.holding[{REG_PHASES}][4] = {phase_hi}\n"
+        f"host._modbus_registers.holding[{REG_PHASES}][5] = {phase_lo}")
+    assert float(out["BAT_W"]) == -4500
+    assert float(out["MET_W"]) == 1800
+    assert float(out["MET_L1W"]) == 400
+    assert float(out["PV_W"]) < 0
 
 
 def test_summed_voltage_and_frequency_are_divided_power_is_not():
@@ -368,7 +408,7 @@ def test_battery_from_power_alone():
     """A non-zero battery watt is a pack, even when SoC and capacity read 0."""
     out = poll_once(pack="power")
     assert out["BAT_EMITS"] == "1"
-    assert float(out["BAT_W"]) == -BAT_W_VENDOR
+    assert float(out["BAT_W"]) == 6000
     assert float(out["BAT_SOC"]) == 0.0
 
 
@@ -376,7 +416,7 @@ def test_soc_sentinel_is_omitted():
     out = poll_once(pack="soc_sentinel")
     assert out["BAT_EMITS"] == "1"
     assert out["BAT_SOC"] == "nil"
-    assert float(out["BAT_W"]) == -BAT_W_VENDOR
+    assert float(out["BAT_W"]) == 6000
 
 
 def test_device_zero_is_emitted_a_failed_read_is_not():
@@ -435,7 +475,7 @@ def test_energy_failure_omits_counters():
         f'host._modbus_read_fail_addresses[{REG_ENERGY}] = "Illegal Data Address"')
     assert float(out["PV_W"]) == -PV_W
     assert out["PV_WH"] == "nil"
-    assert float(out["BAT_W"]) == -BAT_W_VENDOR
+    assert float(out["BAT_W"]) == 6000
     assert out["BAT_CHG"] == "nil"
     assert out["BAT_DIS"] == "nil"
     assert out["FEED"] == "nil"

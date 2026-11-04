@@ -58,27 +58,30 @@
 -- the SAJ Modbus PDFs. UNVERIFIED on an eManager. A swapped pair of a
 -- negative power would be a huge value, not a sign flip of the real watts.
 --
--- ═══ Signs — UNVERIFIED on this map ═══════════════════════════════════════
+-- ═══ Signs ═════════════════════════════════════════════════════════════════
 --
--- The realtime sheet never says which direction is positive. Two neighbouring
--- sources disagree about how much to trust a SAJ power word:
+-- Positive watts flow INTO the site. Same rule as every other driver here
+-- (docs/WRITING-A-DRIVER.md, drivers/lua/saj.lua):
+--   pv.W        always negative — generation
+--   battery.W   positive = charging, negative = discharging
+--   meter.W     positive = import, negative = export
 --
---   H2 (drivers/lua/saj.lua, evcc saj-h2):
---     PV magnitude, battery discharge-positive, grid import-positive.
---   eManager setpoints 0x8402 / 0x8405 (this sheet, not a measurement):
---     positive discharges to the grid, negative charges / imports.
---   CH2 direct map (OpenEMS): the power word is NOT trusted. Direction
---     registers 0x7BEF / 0x7BF0 decide. This sheet has no such registers.
+-- The realtime sheet never says which direction is positive on the wire.
+-- The conversion, in one place each:
+--   TotalPVPower (0x848F) is uint32, a magnitude. Negated.
+--   TotalBatteryPower (0x8491) is assumed discharge-positive, which is the
+--     H2 register and what the 0x8405 setpoint text describes. Negated, so
+--     a charging pack is positive here. UNVERIFIED on this aggregate word.
+--   TotalGridPowerWatt (0x8496) and the per-phase watts are assumed
+--     import-positive, which is the H2 grid word and already the site rule.
+--     Not negated. Phase current follows that (positive into the site).
+--     UNVERIFIED on this aggregate word.
+--   CH2's own map does not trust the power word; it uses direction registers
+--     this sheet does not have.
 --
--- What this driver does, in one place each, until Castellum says otherwise:
---   pv.W       TotalPVPower is uint32. Treated as a magnitude and negated.
---   battery.W  assumed discharge-positive, negated to site charge-positive.
---   meter.W    assumed import-positive, matching H2 and the site rule, so
---              the value is not negated. Phase watts follow the same rule.
---   phase amps assumed the same way (positive into the site). Not negated.
---
--- Load (0x8493) and inverter (0x848D) power are int32 with no stated sign.
--- They are metrics under the vendor's own sign, not DER fields.
+-- Load (0x8493), inverter (0x848D) and generator (0x8498) power are int32
+-- with no stated sign. They are metrics named *_vendor and are not DER
+-- fields, so a positive word there is not a site-signed watt.
 --
 -- ═══ Voltage and frequency may be summed — the sheet does not say so ═════
 --
@@ -161,7 +164,7 @@ DRIVER = {
   id           = "saj-emanager",
   name         = "SAJ eManager C1 Pro",
   manufacturer = "SAJ",
-  version      = "0.1.0",
+  version      = "0.1.1",
   host_api_min = 1,
   host_api_max = 1,
   protocols    = { "modbus" },
@@ -286,12 +289,15 @@ local function soc_fraction(raw)
     return raw / 10000
 end
 
--- ASSUMPTION, unverified: grid import is already positive.
+-- Site meter watts: positive imports, negative exports.
+-- Wire assumption (H2, unverified here): already import-positive, so no flip.
 local function grid_watts(vendor)
     return vendor
 end
 
--- ASSUMPTION, unverified: battery discharge is positive on the wire.
+-- Site battery watts: positive charges, negative discharges.
+-- Wire assumption (H2 and the 0x8405 text, unverified here): positive on
+-- 0x8491 is discharge, so negate once.
 local function battery_watts(vendor)
     if vendor == nil then return nil end
     return -vendor
@@ -457,16 +463,18 @@ local function decode_summary(regs)
     local user = u32_at(regs, IDX_USERCAP)
     local soc_raw = regs[IDX_SOC]
 
+    -- No stated sign on these three. Keep the raw word off the DER streams.
     local inv_w = i32_at(regs, IDX_INV)
-    if inv_w ~= nil then host.emit_metric("saj_emanager_inv_w", inv_w) end
+    if inv_w ~= nil then host.emit_metric("saj_emanager_inv_w_vendor", inv_w) end
     local load_w = i32_at(regs, IDX_LOAD)
-    if load_w ~= nil then host.emit_metric("saj_emanager_load_w", load_w) end
+    if load_w ~= nil then host.emit_metric("saj_emanager_load_w_vendor", load_w) end
     local gen_w = i32_at(regs, IDX_GEN)
     if gen_w ~= nil and gen_w ~= 0 then
-        host.emit_metric("saj_emanager_gen_w", gen_w)
+        host.emit_metric("saj_emanager_gen_w_vendor", gen_w)
     end
 
     local pv = {}
+    -- Generation is negative in every driver in this repository.
     if pv_w ~= nil then pv.W = -pv_w end
 
     local meter = {}

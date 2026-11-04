@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### saj-emanager 0.1.1
+
+Emitted power uses the same signs as the other drivers. Generation is
+negative. Battery power is positive when charging and negative when
+discharging. Grid power is positive on import and negative on export.
+
+The H2 wire is discharge-positive on the battery, so `0x8491` is negated
+once at the boundary. The H2 grid word is already import-positive, so
+`0x8496` and the phase watts are not. Inverter, load and generator words
+have no stated sign and stay on `*_vendor` metrics, off the DER streams.
+Still unverified on an eManager.
+
 ### saj-emanager 0.1.0
 
 Read-only telemetry for a SAJ eManager C1 Pro in front of one or more CHS2/CH2
@@ -14,9 +26,12 @@ hybrids. Modbus TCP only, port 502. The register sheet marks RTU as not supporte
   value cannot be one phase and the quotient can. The register sheet does not
   say those registers are summed. Eniris does, and only for voltage and
   frequency. Power is never divided.
-- Signs and 32-bit word order follow the H2 driver (high word first, battery
-  discharge-positive, grid import-positive). The eManager sheet does not state
-  either. Both are unverified.
+- Emitted signs match the rest of the catalog. Generation is negative.
+  Battery power is positive when charging and negative when discharging
+  (the H2 wire is discharge-positive, so `0x8491` is negated). Grid power is
+  positive on import and negative on export (the H2 wire already is, so
+  `0x8496` is not negated). Word order is high word first. The eManager
+  sheet states none of this. All three are unverified.
 - `0x8400`–`0x8405` are documented, including the ±11000 setpoint scaling and
   the SEC-C map that reuses the same addresses, and are not written.
 - Not run on hardware. The first site to check is Castellum Örebro.

@@ -1104,7 +1104,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "saj-emanager"
-            version: "0.1.0"
+            version: "0.1.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
