@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### zap 3.1.3
+
+`read_pv` and `read_battery` read again on Zap firmware 7.x. Data model v2 calls
+the PV DER `solar`, puts power and energy on one side (`_ac` or `_dc`), and moves
+the ratings to `/api/devices`, so 3.1.2 found no PV and no battery power there.
+
+- PV and battery read on both the 1.x and the v2 names. A value v2 sends as
+  `null` stays unknown.
+- An AC-side voltage or current is not reported as the battery's own.
+- The `inverter` DER is not counted as another resource, and `ev_charger_port`
+  counts as a charger.
+
+Checked through FTW's Lua host on firmware 7.0.3, against a real Zap-P1 with a
+simulated Solis. Not checked against a real inverter. Without `read_pv` and
+`read_battery` the driver still reads the meter and nothing else.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
 ### zap 3.1.2
 
 The P1/HAN site meter reads again on Zap firmware serving the data model v2

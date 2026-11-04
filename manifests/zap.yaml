@@ -1,5 +1,5 @@
 name: "zap"
-version: "3.1.2"
+version: "3.1.3"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -15,9 +15,9 @@ tested_devices:
     notes: "P1/HAN site meter from a Sourceful Zap. PV and battery telemetry from devices on Zap are opt-in (read_pv / read_battery) and read-only. Prefer a native FTW driver; use Zap as the reader only when it already owns the bus."
     min_driver_version: "3.1.0"
 min_host_version: "2.0.0"
-size_bytes: 28162
+size_bytes: 30379
 dkb_id: "zap"
-sha256: "5be6d7793a9daa074557182e4333443b382a7a34427dd07143d90f27a8cf01b6"
+sha256: "b11198e45d761599939b8201c0969514bbbbc6c2571dcf56d12959cf9ade2b5d"
 signature: ""
 
 bytecode_sha256: ""

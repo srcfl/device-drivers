@@ -1,10 +1,4 @@
-"""Exercise zap.lua's meter reading against the v1 and v2 Zap local API schemas.
-
-Draft for drivers/tests/test_zap_meter_schema.py in srcfl/device-drivers,
-paired with drivers/tests/lua_harness/test_zap_meter_schema.lua. Modeled on
-the existing test_esphome_dsmr_aliases.py, which runs the equivalent
-field-aliasing check for a different driver through the same lua55 harness.
-"""
+"""Exercise zap.lua's meter reading against the v1 and v2 Zap local API schemas."""
 
 from pathlib import Path
 import re

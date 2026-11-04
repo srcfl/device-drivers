@@ -32,13 +32,17 @@
 --   pv:     -W generation
 --   battery:+W charge, -W discharge
 --
--- Meter schema compatibility: some Zap firmware serves the local data model
--- v2 (srcful-data-models 2.3.0, "version":"v2" in /data/json), which renames
--- every meter field with an "_ac" suffix and lowercases the L1/L2/L3 phase
--- prefix (e.g. "L1_V" -> "l1_V_ac", "W" -> "W_ac"; "Hz" is unchanged either
--- way). This driver reads both v1 and v2 field names for the meter DER; see
--- https://github.com/srcfl/device-drivers/issues/170 for the full v2 scope
--- (pv -> solar, battery, DC/AC split), which is not yet covered here.
+-- Data model v2: Zap firmware 7.x serves the local API in data model v2
+-- ("version":"v2" in /data/json). Older firmware uses the 1.x names. This
+-- driver reads both, and a value v2 sends as null stays unknown. v2 moved:
+--   meter:   W -> W_ac, L1_V -> l1_V_ac, total_import_Wh -> total_import_Wh_ac
+--   pv:      the DER is "solar"; power and energy are on one side, _ac or _dc;
+--            mppt1_V -> mppt[1].V_dc; heatsink_C -> inverter.temperature_C
+--   battery: power and energy likewise; V -> V_dc, A -> A_dc;
+--            SoC_nom_fract -> soc_nom_fract; heatsink_C -> temperature_C
+--   ratings: from /api/devices: rated_power_W_ac on the "inverter" DER,
+--            installed_power_W_dc on "solar", rated_power_W_dc and
+--            capacity_Wh_dc on "battery"
 
 DRIVER = {
   host_api_min = 1,
@@ -46,7 +50,7 @@ DRIVER = {
   id           = "zap",
   name         = "Sourceful Zap (P1/HAN meter)",
   manufacturer = "Sourceful",
-  version      = "3.1.2",
+  version      = "3.1.3",
   protocols    = { "http" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -57,7 +61,7 @@ DRIVER = {
   verification_status = "production",
   verified_by = { "erikarenhill@fortytwo:3d" },
   verified_at = "2026-07-17",
-  verification_notes = "P1/HAN live-hardware verified against the official Zap Local API (srcful-zap-x-firmware 96e0258). PV aggregation was live-hardware verified on the same API before the 3.0 meter-only cut; it returns as an operator opt-in. Battery payloads are contract-tested against the firmware serializers. Inverters, batteries and chargers found on Zap are not ingested unless read_pv / read_battery is set.",
+  verification_notes = "P1/HAN live-hardware verified against the official Zap Local API (srcful-zap-x-firmware 96e0258). PV aggregation was live-hardware verified on the same API before the 3.0 meter-only cut; it returns as an operator opt-in. Battery payloads are contract-tested against the firmware serializers. Inverters, batteries and chargers found on Zap are not ingested unless read_pv / read_battery is set. Data model v2 checked 2026-11-04 on firmware 7.0.3: the meter on a Zap-HAN with a real meter; PV and battery on a Zap-P1 with a simulated Solis, not on a real inverter.",
   tested_models = { "Sourceful Zap (ESP32-C3 controller firmware)" },
   connection_defaults = {
     host = "zap.local",
@@ -96,6 +100,24 @@ local function number(v)
     local n = tonumber(v)
     if n == nil or n ~= n or n == math.huge or n == -math.huge then return nil end
     return n
+end
+
+local function positive(v)
+    local n = number(v)
+    if n ~= nil and n > 0 then return n end
+    return nil
+end
+
+-- Data model v2 sends a power or energy value on one side, _ac or _dc, and the
+-- other side null. A 1.x payload has the plain name.
+local function sided(raw, name)
+    return number(raw[name]) or number(raw[name .. "_ac"]) or number(raw[name .. "_dc"])
+end
+
+-- A battery's or a string's own voltage and current. An AC-side value is the
+-- grid's, not theirs.
+local function dc_side(raw, name)
+    return number(raw[name]) or number(raw[name .. "_dc"])
 end
 
 local function cfg_true(v)
@@ -252,22 +274,29 @@ local function discover_devices()
                         if der.type == "meter" then
                             rec.meter = true
                             if not first_meter then first_meter = sn end
-                        elseif der.type == "pv" then
+                        elseif der.type == "pv" or der.type == "solar" then
                             if read_pv then
                                 rec.pv = true
-                                rec.pv_rated_w = number(der.rated_power) or number(der.installed_power) or rec.pv_rated_w
+                                rec.pv_rated_w = number(der.rated_power) or number(der.installed_power)
+                                    or number(der.installed_power_W_dc) or rec.pv_rated_w
                             else
                                 add_other(extras, seen, "PV inverter")
                             end
                         elseif der.type == "battery" then
                             if read_battery then
                                 rec.battery = true
-                                rec.battery_rated_w = number(der.rated_power) or rec.battery_rated_w
-                                rec.battery_capacity_wh = number(der.capacity) or rec.battery_capacity_wh
+                                rec.battery_rated_w = number(der.rated_power) or number(der.rated_power_W_dc)
+                                    or rec.battery_rated_w
+                                rec.battery_capacity_wh = number(der.capacity) or number(der.capacity_Wh_dc)
+                                    or rec.battery_capacity_wh
                             else
                                 add_other(extras, seen, "battery")
                             end
-                        elseif der.type == "v2x_charger" or der.type == "ev" then
+                        elseif der.type == "inverter" then
+                            -- The AC stage and rating of a device already
+                            -- listed, not a resource of its own.
+                            rec.inverter_rated_w = positive(der.rated_power_W_ac) or rec.inverter_rated_w
+                        elseif der.type == "v2x_charger" or der.type == "ev" or der.type == "ev_charger_port" then
                             add_other(extras, seen, "charger")
                         elseif der.type ~= nil and der.type ~= "" and der.type ~= "meter" then
                             add_other(extras, seen, tostring(der.type))
@@ -454,6 +483,11 @@ local function snapshot_map()
     return out
 end
 
+local function mppt_input(pv, index)
+    local inputs = type(pv.mppt) == "table" and pv.mppt or {}
+    return type(inputs[index]) == "table" and inputs[index] or {}
+end
+
 local function emit_pv(snapshots)
     local source_count = count_kind("pv")
     if source_count == 0 then return end
@@ -467,14 +501,14 @@ local function emit_pv(snapshots)
 
     for _, rec in ipairs(tracked) do
         local data = snapshots[rec.sn]
-        local pv = data and data.pv
+        local pv = data and (data.pv or data.solar)
         if rec.pv and type(pv) == "table" then
-            local rated = number(pv.rated_power_W) or rec.pv_rated_w
+            local rated = number(pv.rated_power_W) or rec.inverter_rated_w or rec.pv_rated_w
             if rated and rated > 0 then
                 total_rated_w = total_rated_w + rated
                 any_rating = true
             end
-            local w = sane_power(pv.W, rated)
+            local w = sane_power(sided(pv, "W"), rated)
             if w ~= nil and w <= 0 then
                 total_w = total_w + w
                 any_power = true
@@ -485,18 +519,20 @@ local function emit_pv(snapshots)
                 host.log("warn", "Zap: rejected positive PV power for " .. rec.sn .. ": " .. w .. "W")
             end
 
-            local generation = bounded(pv.total_generation_Wh, 0, nil)
+            local generation = bounded(sided(pv, "total_generation_Wh"), 0, nil)
             if generation ~= nil then
                 total_generation_wh = total_generation_wh + generation
                 any_generation = true
             end
 
             local tag = source_count > 1 and ("_" .. metric_tag(rec.sn)) or ""
-            emit_optional_metric("pv_heatsink_c" .. tag, number(pv.heatsink_C), "°C")
-            emit_optional_metric("pv_mppt1_v" .. tag, number(pv.mppt1_V), "V")
-            emit_optional_metric("pv_mppt1_a" .. tag, number(pv.mppt1_A), "A")
-            emit_optional_metric("pv_mppt2_v" .. tag, number(pv.mppt2_V), "V")
-            emit_optional_metric("pv_mppt2_a" .. tag, number(pv.mppt2_A), "A")
+            local inverter = type(data.inverter) == "table" and data.inverter or {}
+            local mppt1, mppt2 = mppt_input(pv, 1), mppt_input(pv, 2)
+            emit_optional_metric("pv_heatsink_c" .. tag, number(pv.heatsink_C) or number(inverter.temperature_C), "°C")
+            emit_optional_metric("pv_mppt1_v" .. tag, number(pv.mppt1_V) or number(mppt1.V_dc), "V")
+            emit_optional_metric("pv_mppt1_a" .. tag, number(pv.mppt1_A) or number(mppt1.A_dc), "A")
+            emit_optional_metric("pv_mppt2_v" .. tag, number(pv.mppt2_V) or number(mppt2.V_dc), "V")
+            emit_optional_metric("pv_mppt2_a" .. tag, number(pv.mppt2_A) or number(mppt2.A_dc), "A")
         end
     end
 
@@ -544,7 +580,7 @@ local function emit_battery(snapshots)
                 total_rated_w = total_rated_w + rated
                 any_rating = true
             end
-            local w = sane_power(battery.W, rated)
+            local w = sane_power(sided(battery, "W"), rated)
             if w ~= nil then
                 total_w = total_w + w
                 any_power = true
@@ -552,7 +588,7 @@ local function emit_battery(snapshots)
 
             -- Firmware SoC_nom_fract is 0-1. Identifier keeps the
             -- catalog check that soc is already a fraction, not percent.
-            local soc_already_fract = bounded(battery.SoC_nom_fract, 0, 1)
+            local soc_already_fract = bounded(number(battery.SoC_nom_fract) or number(battery.soc_nom_fract), 0, 1)
             local soc = soc_already_fract
             if soc ~= nil then
                 soc_sum = soc_sum + soc
@@ -565,17 +601,17 @@ local function emit_battery(snapshots)
                 end
             end
 
-            local charge = bounded(battery.total_charge_Wh, 0, nil)
+            local charge = bounded(sided(battery, "total_charge_Wh"), 0, nil)
             if charge ~= nil then total_charge_wh = total_charge_wh + charge; any_charge_energy = true end
-            local discharge = bounded(battery.total_discharge_Wh, 0, nil)
+            local discharge = bounded(sided(battery, "total_discharge_Wh"), 0, nil)
             if discharge ~= nil then total_discharge_wh = total_discharge_wh + discharge; any_discharge_energy = true end
 
             local tag = source_count > 1 and ("_" .. metric_tag(rec.sn)) or ""
             if source_count > 1 and w ~= nil then host.emit_metric("battery_w" .. tag, w, "W") end
             if source_count > 1 and soc ~= nil then host.emit_metric("battery_soc" .. tag, soc, "fraction") end
-            emit_optional_metric("battery_dc_v" .. tag, number(battery.V), "V")
-            emit_optional_metric("battery_dc_a" .. tag, number(battery.A), "A")
-            emit_optional_metric("battery_temp_c" .. tag, number(battery.heatsink_C), "°C")
+            emit_optional_metric("battery_dc_v" .. tag, dc_side(battery, "V"), "V")
+            emit_optional_metric("battery_dc_a" .. tag, dc_side(battery, "A"), "A")
+            emit_optional_metric("battery_temp_c" .. tag, number(battery.heatsink_C) or number(battery.temperature_C), "°C")
         end
     end
 
@@ -600,9 +636,9 @@ local function emit_battery(snapshots)
     if any_rating then battery_reading.rated_w = total_rated_w end
 
     if source_count == 1 and single then
-        battery_reading.v = number(single.V)
-        battery_reading.a = number(single.A)
-        battery_reading.temp_c = number(single.heatsink_C)
+        battery_reading.v = dc_side(single, "V")
+        battery_reading.a = dc_side(single, "A")
+        battery_reading.temp_c = number(single.heatsink_C) or number(single.temperature_C)
     end
 
     host.emit("battery", battery_reading)
