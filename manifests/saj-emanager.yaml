@@ -1,0 +1,38 @@
+name: "saj-emanager"
+version: "0.1.0"
+tier: community
+author: "Sourceful Labs AB"
+protocol: modbus
+connectivity: local
+ders: [pv, battery, meter]
+control: false
+tested_devices:
+  - manufacturer: "SAJ"
+    model_family: "eManager C1 Pro"
+    variants: ["eManager C1 Pro"]
+    regions: []
+    firmware_versions: ""
+    notes: "Site controller in front of 1..N CHS2/CH2 C&I hybrids. Modbus TCP only, port 502; the register sheet marks RTU as not supported. Telemetry only, decoded from the community eManager/SEC-C workbook. Not tested on hardware. First check is Castellum Örebro (3x CHS2 50 kW). Control 0x8400-0x8405 is documented and not written."
+    min_driver_version: "0.1.0"
+upstream_docs:
+  - url: "https://github.com/stanus74/home-assistant-saj-h2-modbus/discussions/182"
+    title: "Community eManager/SEC-C Modbus workbook (discussion attachment, not an official SAJ map)"
+    kind: register_map
+    url_stability: volatile
+  - url: "https://docs.eniris.com/en/Controller/Devices/PV-hybrid-and-battery-inverters/SAJ"
+    title: "Eniris SmartgridOne SAJ eManager-C1 Pro connection notes"
+    kind: other
+    url_stability: stable
+  - url: "https://www.saj-electric.com/hubfs/Guides%20and%20Manuals/eManager/eManager_User_Manual_V3_en.pdf"
+    title: "SAJ eManager user manual V3 (home controller; LAN Modbus, not the C&I register map)"
+    kind: manual
+    url_stability: stable
+min_host_version: "2.0.0"
+size_bytes: 24558
+dkb_id: ""
+sha256: "643df6850d158b005ca52e8a579295a18c26916fb1ab01c185adc91407e33a05"
+signature: ""
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "Read-only aggregate telemetry for the eManager C1 Pro over Modbus TCP. No control writes. Not tested on hardware."
