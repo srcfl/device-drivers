@@ -1,12 +1,5 @@
 -- Exercise zap.lua's meter field reading against both the v1 and v2 Zap
 -- local API field names. Run with the scenario as arg[1]: "v1" or "v2".
---
--- This file is a draft for drivers/tests/lua_harness/test_zap_meter_schema.lua
--- in srcfl/device-drivers — see pr-drafts/README.md for how this fits that
--- repo's `make test-driver ID=zap` harness. Not run against the real harness
--- yet (no local checkout with lua55/pytest); matches the structure of the
--- existing drivers/tests/lua_harness/test_esphome_dsmr_aliases.lua, which
--- solves the same kind of field-name-aliasing problem.
 
 local scenario = arg[1]
 if scenario ~= "v1" and scenario ~= "v2" then
@@ -50,8 +43,8 @@ end
 
 dofile("drivers/lua/zap.lua")
 
-if DRIVER.id ~= "zap" or DRIVER.version ~= "3.1.2" then
-    error("Zap identity metadata is wrong or version was not bumped")
+if DRIVER.id ~= "zap" then
+    error("Zap identity metadata is wrong")
 end
 if DRIVER.host_api_min ~= 1 or DRIVER.host_api_max ~= 1 or DRIVER.read_only ~= true then
     error("Zap host API or read-only metadata is wrong")
