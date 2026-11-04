@@ -536,14 +536,14 @@ drivers:
     size_bytes: 10858
     sha256: "38749fb157e0929c26c31ccb9e8013e3ee81f584349be1dd7cc60792b9e3adeb"
   - name: "saj-emanager"
-    version: "0.1.1"
+    version: "0.1.2"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 25082
-    sha256: "4efc62ef56d5736e24895929d478a78788586796bb2d45be64acdd5051df640f"
+    size_bytes: 24245
+    sha256: "db7692001df4fcd19130c1a7e5b0f61f425f519bf2ba92be4ae1371c345da792"
   - name: "saj"
     version: "1.2.0"
     tier: community

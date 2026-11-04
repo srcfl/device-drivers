@@ -1,5 +1,5 @@
 name: "saj-emanager"
-version: "0.1.1"
+version: "0.1.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -28,11 +28,11 @@ upstream_docs:
     kind: manual
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 25082
+size_bytes: 24245
 dkb_id: ""
-sha256: "4efc62ef56d5736e24895929d478a78788586796bb2d45be64acdd5051df640f"
+sha256: "db7692001df4fcd19130c1a7e5b0f61f425f519bf2ba92be4ae1371c345da792"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Site signs match the catalog: PV negative, battery positive when charging, grid positive on import. Still read-only and untested on hardware."
+changelog: "Brand key saj. Drop emit_metric; the NovaCore registry does not provide it. Still read-only and untested on hardware."

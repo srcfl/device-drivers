@@ -79,9 +79,9 @@
 --   CH2's own map does not trust the power word; it uses direction registers
 --     this sheet does not have.
 --
--- Load (0x8493), inverter (0x848D) and generator (0x8498) power are int32
--- with no stated sign. They are metrics named *_vendor and are not DER
--- fields, so a positive word there is not a site-signed watt.
+-- Load (0x8493), inverter (0x848D) and generator (0x8498) are int32 with
+-- no stated sign. They are left unpublished: a DER field would invent a
+-- sign, and the NovaCore registry host does not provide emit_metric.
 --
 -- ═══ Voltage and frequency may be summed — the sheet does not say so ═════
 --
@@ -113,15 +113,15 @@
 -- in 0.01%..100.00%, or battery power is non-zero. A real 0% pack that still
 -- reports capacity is emitted, SoC and all.
 --
--- The capacity unit on the sheet is "K", not kWh and not Wh. The raw word
--- is a presence signal and a metric. It is not converted.
+-- The capacity unit on the sheet is "K", not kWh and not Wh. A non-zero
+-- word means a pack is present. It is not converted and not published.
 --
 -- ═══ Energy direction ═════════════════════════════════════════════════════
 --
 -- PV generation, battery charge and battery discharge totals are named on
 -- the sheet and are copied onto the DER. FeedIn (0x852E) and Sell (0x8536)
--- are not: SAJ uses both words for both directions in different PDFs. They
--- are metrics under the vendor names, not meter import/export.
+-- are not published: SAJ uses both words for both directions in different
+-- PDFs, so neither is meter import or export.
 --
 -- ═══ Control 0x8400-0x8405 — NOT IMPLEMENTED ══════════════════════════════
 --
@@ -164,7 +164,7 @@ DRIVER = {
   id           = "saj-emanager",
   name         = "SAJ eManager C1 Pro",
   manufacturer = "SAJ",
-  version      = "0.1.1",
+  version      = "0.1.2",
   host_api_min = 1,
   host_api_max = 1,
   protocols    = { "modbus" },
@@ -222,8 +222,6 @@ local ENERGY_WORDS  = 80
 local PAIR_TOTAL_PV      = 3  -- 0x8506
 local PAIR_TOTAL_BAT_CHG = 7  -- 0x850E
 local PAIR_TOTAL_BAT_DIS = 11 -- 0x8516
-local PAIR_TOTAL_FEED_IN = 23 -- 0x852E
-local PAIR_TOTAL_SELL    = 27 -- 0x8536
 
 -- MPVMode 5 is "Fault" on the sheet.
 local MODE_FAULT = 5
@@ -333,6 +331,7 @@ end
 local GIVE_UP_AFTER = 3
 local read_failures = {}
 local announced = false
+local scale_logged = false
 
 local function complete(regs, count)
     if regs == nil then return false end
@@ -420,14 +419,23 @@ end
 local function note_identity(device_count, devices)
     local sn = first_sn(devices)
     if sn then host.set_sn(sn) end
-    if device_count ~= nil then
-        host.emit_metric("saj_emanager_device_count", device_count)
-    end
     if announced or device_count == nil then return end
     announced = true
     host.log("info", string.format(
         "SAJ eManager: DeviceNum=%d first SN=%s",
         device_count, sn or "(none)"))
+end
+
+-- One line, once. The registry host has no emit_metric, and the voltage
+-- check at Castellum needs to see whether the sum was divided.
+local function note_phase_scale(divided, device_count, phases_ok)
+    if scale_logged or not phases_ok then return end
+    if device_count == nil or device_count < 1 then return end
+    scale_logged = true
+    local divisor = 1
+    if divided then divisor = device_count end
+    host.log("info", string.format(
+        "SAJ eManager: phase voltage/frequency divisor %d", divisor))
 end
 
 ----------------------------------------------------------------------------
@@ -445,7 +453,6 @@ end
 local function decode_summary(regs)
     local mode = regs[IDX_MODE]
     if mode ~= nil and mode ~= 0xFFFF then
-        host.emit_metric("saj_emanager_mpv_mode", mode)
         if mode == MODE_FAULT then
             host.set_device_fault(true, "MPVMode 5 fault")
         else
@@ -463,16 +470,6 @@ local function decode_summary(regs)
     local user = u32_at(regs, IDX_USERCAP)
     local soc_raw = regs[IDX_SOC]
 
-    -- No stated sign on these three. Keep the raw word off the DER streams.
-    local inv_w = i32_at(regs, IDX_INV)
-    if inv_w ~= nil then host.emit_metric("saj_emanager_inv_w_vendor", inv_w) end
-    local load_w = i32_at(regs, IDX_LOAD)
-    if load_w ~= nil then host.emit_metric("saj_emanager_load_w_vendor", load_w) end
-    local gen_w = i32_at(regs, IDX_GEN)
-    if gen_w ~= nil and gen_w ~= 0 then
-        host.emit_metric("saj_emanager_gen_w_vendor", gen_w)
-    end
-
     local pv = {}
     -- Generation is negative in every driver in this repository.
     if pv_w ~= nil then pv.W = -pv_w end
@@ -487,12 +484,6 @@ local function decode_summary(regs)
         if site_bat ~= nil then battery.W = site_bat end
         local soc = soc_fraction(soc_raw)
         if soc ~= nil then battery.SoC_nom_fract = soc end
-        if cap ~= nil then
-            host.emit_metric("saj_emanager_battery_capacity_raw", cap)
-        end
-        if user ~= nil then
-            host.emit_metric("saj_emanager_battery_available_raw", user)
-        end
     end
 
     return pv, meter, battery
@@ -534,11 +525,6 @@ local function apply_energy(pv, battery, regs)
         if chg ~= nil then battery.total_charge_Wh = chg end
         if dis ~= nil then battery.total_discharge_Wh = dis end
     end
-    -- Vendor names, deliberately not import_wh / export_wh.
-    local feed = pair_wh(regs, PAIR_TOTAL_FEED_IN)
-    local sell = pair_wh(regs, PAIR_TOTAL_SELL)
-    if feed ~= nil then host.emit_metric("saj_emanager_vendor_feed_in_wh", feed) end
-    if sell ~= nil then host.emit_metric("saj_emanager_vendor_sell_wh", sell) end
 end
 
 local function emit_der(kind, fields)
@@ -550,7 +536,8 @@ end
 ----------------------------------------------------------------------------
 
 function driver_init(config)
-    host.set_make("SAJ")
+    -- NovaCore brand key from /brands. "SAJ" is rejected.
+    host.set_make("saj")
     host.set_model("eManager C1 Pro")
 end
 
@@ -569,11 +556,7 @@ function driver_poll()
     if phases then
         divided = apply_phases(meter, phases, device_count)
     end
-    if divided and device_count ~= nil then
-        host.emit_metric("saj_emanager_phase_scale_divisor", device_count)
-    elseif phases and device_count ~= nil and device_count >= 1 then
-        host.emit_metric("saj_emanager_phase_scale_divisor", 1)
-    end
+    note_phase_scale(divided, device_count, phases ~= nil)
 
     local energy = probe_read(REG_ENERGY, ENERGY_WORDS, "holding")
     if energy then
@@ -603,5 +586,6 @@ end
 
 function driver_cleanup()
     announced = false
+    scale_logged = false
     read_failures = {}
 end
