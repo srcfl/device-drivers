@@ -197,11 +197,6 @@ local function field(obj, key)
     if obj == nil or obj[key] == nil then return "nil" end
     return tostring(obj[key])
 end
-local function metric(name)
-    local m = host._metrics[name]
-    if m == nil or m.value == nil then return "nil" end
-    return tostring(m.value)
-end
 local pv = last(host._emitted["pv"])
 local bat = last(host._emitted["battery"])
 local met = last(host._emitted["meter"])
@@ -230,14 +225,7 @@ print("MODEL " .. tostring(host._model))
 print("SN " .. tostring(host._sn))
 print("RATED " .. tostring(host._rated_w))
 print("FAULT " .. tostring(host._faulted))
-print("COUNT " .. metric("saj_emanager_device_count"))
-print("DIVISOR " .. metric("saj_emanager_phase_scale_divisor"))
-print("LOAD " .. metric("saj_emanager_load_w_vendor"))
-print("INV " .. metric("saj_emanager_inv_w_vendor"))
-print("GEN " .. metric("saj_emanager_gen_w_vendor"))
-print("CAP " .. metric("saj_emanager_battery_capacity_raw"))
-print("FEED " .. metric("saj_emanager_vendor_feed_in_wh"))
-print("SELL " .. metric("saj_emanager_vendor_sell_wh"))
+print("LOGS " .. table.concat(host._logs, " || "))
 local slot_reads, slot_count, control_reads, bad_kind = 0, 0, 0, 0
 for _, call in ipairs(host._calls) do
     if call.func == "modbus_read" then
@@ -275,10 +263,10 @@ def test_three_inverter_plant_in_site_convention():
     out = poll_once()
 
     assert out["INTERVAL"] == "5000"
-    assert out["MAKE"] == "SAJ"
+    assert out["MAKE"] == "saj"
     assert out["MODEL"] == "eManager C1 Pro"
     assert out["SN"] == SERIALS[0]
-    assert out["COUNT"] == "3"
+    assert "DeviceNum=3" in out["LOGS"]
     assert out["RATED"] == str(RATED_W)
     assert out["FAULT"] == "false"
     assert out["BAD_KIND"] == "0"
@@ -300,7 +288,6 @@ def test_three_inverter_plant_in_site_convention():
     assert math.isclose(float(out["BAT_SOC"]), SOC_RAW / 10000, rel_tol=1e-6)
     assert float(out["BAT_CHG"]) == BAT_CHARGE_RAW * 10
     assert float(out["BAT_DIS"]) == BAT_DISCHARGE_RAW * 10
-    assert out["CAP"] == str(CAP_RAW)
 
     # Wire -2500 is export on an import-positive register. Site export is −.
     assert out["MET_EMITS"] == "1"
@@ -313,16 +300,11 @@ def test_three_inverter_plant_in_site_convention():
     assert float(out["MET_L2W"]) == L2_W
     assert float(out["MET_L3W"]) == L3_W
     assert math.isclose(float(out["MET_L3V"]), (L1_V_RAW + 2) / 10, rel_tol=1e-6)
-    # Sheet scale was already one phase, so the divisor stays 1.
-    assert out["DIVISOR"] == "1"
-    # FeedIn / Sell stay vendor metrics. They are not import and export.
+    # Sheet scale was already one phase, so the logged divisor stays 1.
+    assert "divisor 1" in out["LOGS"]
+    # FeedIn / Sell are not import and export. Direction is unconfirmed.
     assert out["MET_IMPORT"] == "nil"
     assert out["MET_EXPORT"] == "nil"
-    assert float(out["FEED"]) == FEED_IN_RAW * 10
-    assert float(out["SELL"]) == SELL_RAW * 10
-    assert float(out["LOAD"]) == LOAD_W_VENDOR
-    assert float(out["INV"]) == INV_W_VENDOR
-    assert out["GEN"] == "nil"
 
 
 def _i32_words(value: int) -> tuple[int, int]:
@@ -366,7 +348,7 @@ def test_summed_voltage_and_frequency_are_divided_power_is_not():
     assert math.isclose(float(out["MET_L1V"]), L1_V_RAW / 10, rel_tol=1e-6)
     assert math.isclose(float(out["MET_HZ"]), L1_HZ_RAW / 100, rel_tol=1e-6)
     assert math.isclose(float(out["MET_L3V"]), (L1_V_RAW + 2) / 10, rel_tol=1e-6)
-    assert out["DIVISOR"] == "3"
+    assert "divisor 3" in out["LOGS"]
     # Current and power are not part of that correction.
     assert math.isclose(float(out["MET_L1A"]), L1_A_RAW / 10, rel_tol=1e-6)
     assert float(out["MET_L1W"]) == L1_W
@@ -379,15 +361,15 @@ def test_implausible_voltage_that_does_not_divide_cleanly_is_left_alone():
     out = poll_once(
         f"host._modbus_registers.holding[{REG_PHASES}][1] = 4000")
     assert math.isclose(float(out["MET_L1V"]), 400.0, rel_tol=1e-6)
-    assert out["DIVISOR"] == "1"
+    assert "divisor 1" in out["LOGS"]
 
 
 def test_sum_is_not_guessed_when_device_count_did_not_answer():
     out = poll_once(
         f'host._modbus_read_fail_addresses[{REG_DEVICE_NUM}] = "timeout"\n'
         f"host._modbus_registers.holding[{REG_PHASES}][3] = 15000")
-    assert out["COUNT"] == "nil"
-    assert out["DIVISOR"] == "nil"
+    assert "DeviceNum=" not in out["LOGS"]
+    assert "divisor" not in out["LOGS"]
     assert out["SN"] == "nil"
     assert out["SLOT_READS"] == "0"
     # 150.00 Hz stays 150.00 Hz. Inventing a divisor of 3 would hide that.
@@ -398,7 +380,6 @@ def test_sum_is_not_guessed_when_device_count_did_not_answer():
 def test_no_battery_when_capacity_soc_and_power_are_zero():
     out = poll_once(pack="no")
     assert out["BAT_EMITS"] == "0"
-    assert out["CAP"] == "nil"
     assert out["PV_EMITS"] == "1"
     assert out["MET_EMITS"] == "1"
     assert float(out["PV_W"]) == -PV_W
@@ -459,7 +440,7 @@ def test_short_phase_block_does_not_zero_fill():
     assert out["MET_L1V"] == "nil"
     assert out["MET_L1W"] == "nil"
     assert out["MET_HZ"] == "nil"
-    assert out["DIVISOR"] == "nil"
+    assert "divisor" not in out["LOGS"]
 
 
 def test_phase_failure_keeps_the_totals():
@@ -478,8 +459,6 @@ def test_energy_failure_omits_counters():
     assert float(out["BAT_W"]) == 6000
     assert out["BAT_CHG"] == "nil"
     assert out["BAT_DIS"] == "nil"
-    assert out["FEED"] == "nil"
-    assert out["SELL"] == "nil"
 
 
 def test_int32_sentinel_is_not_a_power():
@@ -493,7 +472,7 @@ def test_int32_sentinel_is_not_a_power():
 
 def test_zero_devices_does_not_scan_slots():
     out = poll_once(count=0)
-    assert out["COUNT"] == "0"
+    assert "DeviceNum=0" in out["LOGS"]
     assert out["SLOT_READS"] == "0"
     assert out["SN"] == "nil"
     assert out["PV_EMITS"] == "1"
@@ -501,7 +480,7 @@ def test_zero_devices_does_not_scan_slots():
 
 def test_sentinel_device_count_does_not_scan_slots():
     out = poll_once(count=0xFFFF)
-    assert out["COUNT"] == "nil"
+    assert "DeviceNum=" not in out["LOGS"]
     assert out["SLOT_READS"] == "0"
 
 
@@ -569,6 +548,8 @@ def test_source_is_tcp_only_and_does_not_read_or_write_control():
     code = _code_without_comments()
     assert "RTU is not supported" in text
     assert re.search(r"port\s*=\s*502", text)
+    assert 'set_make("saj")' in code
+    assert "host.emit_metric" not in code
     # Mentioning the block in a string is the documentation. Reading or
     # writing it is the bug.
     assert not re.search(r"modbus_read\s*\([^)]*0x8400", code)

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### saj-emanager 0.1.2
+
+The NovaCore device-support registry accepts this driver.
+
+- `host.set_make` is the brand key `saj`. `SAJ` is not a key in `/brands`.
+  Same correction the SAJ H2 driver took in 1.0.2.
+- `host.emit_metric` is not a host function in that registry. Device count
+  and the phase-scale divisor are one log line each. Inverter, load,
+  generator, raw capacity, and the FeedIn/Sell counters are not published:
+  the first three have no stated sign, capacity is not a known Wh unit, and
+  FeedIn versus Sell is still an open direction question.
+
 ### saj-emanager 0.1.1
 
 Emitted power uses the same signs as the other drivers. Generation is
