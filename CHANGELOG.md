@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### zap 3.1.2
+
+The P1/HAN site meter reads again on Zap firmware serving the data model v2
+local API. That firmware renames every meter field with an `_ac` suffix and
+lowercases the `L1`/`L2`/`L3` phase prefix (`W` → `W_ac`, `L1_V` → `l1_V_ac`;
+`Hz` is unchanged). `emit_meter` read the v1 names unconditionally, so a Zap
+on v2 firmware gave FTW no meter reading at all — `driver_poll` logged
+`Zap: site-meter payload unavailable` every cycle and FTW lost its site
+meter, with no site meter data for the home's grid import/export.
+
+- `emit_meter` now tries the v1 field name first, then the `_ac` suffix,
+  then the lowercased-phase-prefix `_ac` variant, so it reads either
+  firmware generation without checking `version` explicitly.
+- Scoped to the meter DER only. `pv`/`battery` (`emit_pv`/`emit_battery`)
+  have the identical `.W`-style field assumption against v2 and are not
+  covered here — see #170 for that broader scope (`pv` → `solar` rename,
+  `_dc`/`_ac` split, `null`-vs-`0` handling).
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
 ### tesla_wall_connector 0.1.2
 
 An idle Wall Connector no longer shows charge power. With no car on the

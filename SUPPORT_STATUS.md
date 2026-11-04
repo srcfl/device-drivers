@@ -180,8 +180,8 @@ Catalog source is not proof that a target can install or run a driver.
 | victron_mqtt | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | wallbox | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | wallbox | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| zap | 3.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| zap | 3.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| zap | 3.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| zap | 3.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | zaptec | 1.0.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | zaptec | 1.0.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | zaptec_cloud | 0.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
