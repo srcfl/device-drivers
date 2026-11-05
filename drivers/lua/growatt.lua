@@ -21,7 +21,7 @@ DRIVER = {
   id           = "growatt",
   name         = "Growatt hybrid inverter",
   manufacturer = "Growatt",
-  version      = "2.1.2",
+  version      = "2.1.3",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -181,14 +181,23 @@ function driver_poll()
         bat_temp = btemp_regs[1] * 0.1
     end
 
-    host.emit("battery", {
-        w      = bat_w,
-        v      = bat_v,
-        soc    = bat_soc,
-        temp_c = bat_temp,
-    })
-    host.emit_metric("battery_dc_v",   bat_v)
-    host.emit_metric("battery_temp_c", bat_temp)
+    -- A PV-only Growatt (no battery connected) still answers the battery
+    -- registers with 0, which made FTW render a phantom "Battery" node on
+    -- Overview even though no battery exists. A real battery reports a
+    -- terminal voltage and/or SoC above 0 even at rest, so treat all-zero
+    -- battery readings as "no battery present" and skip the emit.
+    --   see srcfl/ftw#1669
+    local has_battery = bat_v > 0 or bat_soc > 0 or bat_charge_w > 0 or bat_discharge_w > 0
+    if has_battery then
+        host.emit("battery", {
+            w      = bat_w,
+            v      = bat_v,
+            soc    = bat_soc,
+            temp_c = bat_temp,
+        })
+        host.emit_metric("battery_dc_v",   bat_v)
+        host.emit_metric("battery_temp_c", bat_temp)
+    end
 
     -- ---- Meter ----
 
