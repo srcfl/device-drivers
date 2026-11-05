@@ -56,6 +56,15 @@ host._modbus_write_attempts = 0
 host._modbus_read_error = nil
 host._modbus_read_fail_addresses = {}
 host._modbus_read_short_counts = {}
+host._ws_granted     = false -- config has capabilities.websocket
+host._ws_allowed_hosts = nil -- capabilities.websocket.allowed_hosts; nil = any host
+host._ws_is_open     = false
+host._ws_url         = nil   -- URL and headers of the last successful ws_open
+host._ws_headers     = nil
+host._ws_inbox       = {}    -- inbound text frames; "" ends the connection
+host._ws_sent        = {}    -- outbound text frames, in order
+host._ws_open_error  = nil   -- set to fail ws_open
+host._ws_send_error  = nil   -- set to fail ws_send
 
 -- Internal counters
 host._millis_counter = 0
@@ -100,6 +109,15 @@ function host.reset()
     host._modbus_read_fail_addresses = {}
     host._modbus_read_short_counts = {}
     host._serial_buffer  = ""
+    host._ws_granted     = false
+    host._ws_allowed_hosts = nil
+    host._ws_is_open     = false
+    host._ws_url         = nil
+    host._ws_headers     = nil
+    host._ws_inbox       = {}
+    host._ws_sent        = {}
+    host._ws_open_error  = nil
+    host._ws_send_error  = nil
     host._millis_counter = 0
 end
 
@@ -345,6 +363,65 @@ end
 function host.mqtt_publish(topic, payload)
     record_call("mqtt_publish", topic, payload)
     return true
+end
+
+---------------------------------------------------------------------------
+-- WebSocket functions, as FTW's host.ws_* (go/internal/drivers/lua.go and
+-- ws_cap.go). Without capabilities.websocket ws_open fails with FTW's
+-- message. ws_messages drains the inbox; FTW queues "" when the connection
+-- ends, also after the driver's own ws_close, so a test closes the
+-- connection with host._ws_server_close().
+---------------------------------------------------------------------------
+
+function host.ws_open(url, headers)
+    record_call("ws_open", url, headers)
+    if not host._ws_granted then return nil, "ws: capability not granted" end
+    if host._ws_allowed_hosts then
+        local name = tostring(url):match("^wss?://([^/:?]+)")
+        local allowed = false
+        for _, h in ipairs(host._ws_allowed_hosts) do
+            if name and h:lower() == name:lower() then allowed = true end
+        end
+        if not allowed then
+            return nil, string.format('ws: host "%s" (port 443) not in allowed_hosts', tostring(name))
+        end
+    end
+    if host._ws_open_error then return nil, host._ws_open_error end
+    if host._ws_is_open then return true end -- FTW: no-op on an open connection
+    host._ws_is_open, host._ws_url, host._ws_headers = true, url, headers
+    host._ws_inbox = {} -- FTW drops frames left from an earlier connection
+    return true
+end
+
+function host.ws_send(text)
+    record_call("ws_send", text)
+    if host._ws_send_error then return nil, host._ws_send_error end
+    if not host._ws_is_open then return nil, "ws not open" end
+    table.insert(host._ws_sent, text)
+    return true
+end
+
+function host.ws_messages()
+    record_call("ws_messages")
+    local frames = host._ws_inbox
+    host._ws_inbox = {}
+    return frames
+end
+
+function host.ws_is_open()
+    record_call("ws_is_open")
+    return host._ws_is_open
+end
+
+function host.ws_close()
+    record_call("ws_close")
+    if host._ws_is_open then table.insert(host._ws_inbox, "") end
+    host._ws_is_open = false
+end
+
+function host._ws_server_close()
+    host._ws_is_open = false
+    table.insert(host._ws_inbox, "")
 end
 
 ---------------------------------------------------------------------------

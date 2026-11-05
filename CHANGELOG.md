@@ -2,6 +2,241 @@
 
 ## [Unreleased]
 
+### saj-emanager 0.1.2
+
+The NovaCore device-support registry accepts this driver.
+
+- `host.set_make` is the brand key `saj`. `SAJ` is not a key in `/brands`.
+  Same correction the SAJ H2 driver took in 1.0.2.
+- `host.emit_metric` is not a host function in that registry. Device count
+  and the phase-scale divisor are one log line each. Inverter, load,
+  generator, raw capacity, and the FeedIn/Sell counters are not published:
+  the first three have no stated sign, capacity is not a known Wh unit, and
+  FeedIn versus Sell is still an open direction question.
+
+### saj-emanager 0.1.1
+
+Emitted power uses the same signs as the other drivers. Generation is
+negative. Battery power is positive when charging and negative when
+discharging. Grid power is positive on import and negative on export.
+
+The H2 wire is discharge-positive on the battery, so `0x8491` is negated
+once at the boundary. The H2 grid word is already import-positive, so
+`0x8496` and the phase watts are not. Inverter, load and generator words
+have no stated sign and stay on `*_vendor` metrics, off the DER streams.
+Still unverified on an eManager.
+
+### saj-emanager 0.1.0
+
+Read-only telemetry for a SAJ eManager C1 Pro in front of one or more CHS2/CH2
+hybrids. Modbus TCP only, port 502. The register sheet marks RTU as not supported.
+
+- PV, grid and battery come from the aggregate block at `0x848A`. Battery
+  telemetry is emitted only when capacity, SoC or battery power says a pack
+  is there. A failed or short read is left out; it is not reported as 0 W.
+- Phase voltage and frequency are divided by `DeviceNum` only when the scaled
+  value cannot be one phase and the quotient can. The register sheet does not
+  say those registers are summed. Eniris does, and only for voltage and
+  frequency. Power is never divided.
+- Emitted signs match the rest of the catalog. Generation is negative.
+  Battery power is positive when charging and negative when discharging
+  (the H2 wire is discharge-positive, so `0x8491` is negated). Grid power is
+  positive on import and negative on export (the H2 wire already is, so
+  `0x8496` is not negated). Word order is high word first. The eManager
+  sheet states none of this. All three are unverified.
+- `0x8400`–`0x8405` are documented, including the ±11000 setpoint scaling and
+  the SEC-C map that reuses the same addresses, and are not written.
+- Not run on hardware. The first site to check is Castellum Örebro.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### zap 3.1.3
+
+`read_pv` and `read_battery` read again on Zap firmware 7.x. Data model v2 calls
+the PV DER `solar`, puts power and energy on one side (`_ac` or `_dc`), and moves
+the ratings to `/api/devices`, so 3.1.2 found no PV and no battery power there.
+
+- PV and battery read on both the 1.x and the v2 names. A value v2 sends as
+  `null` stays unknown.
+- An AC-side voltage or current is not reported as the battery's own.
+- The `inverter` DER is not counted as another resource, and `ev_charger_port`
+  counts as a charger.
+
+Checked through FTW's Lua host on firmware 7.0.3, against a real Zap-P1 with a
+simulated Solis. Not checked against a real inverter. Without `read_pv` and
+`read_battery` the driver still reads the meter and nothing else.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### zap 3.1.2
+
+The P1/HAN site meter reads again on Zap firmware serving the data model v2
+local API. That firmware renames every meter field with an `_ac` suffix and
+lowercases the `L1`/`L2`/`L3` phase prefix (`W` → `W_ac`, `L1_V` → `l1_V_ac`;
+`Hz` is unchanged). `emit_meter` read the v1 names unconditionally, so a Zap
+on v2 firmware gave FTW no meter reading at all — `driver_poll` logged
+`Zap: site-meter payload unavailable` every cycle and FTW lost its site
+meter, with no site meter data for the home's grid import/export.
+
+- `emit_meter` now tries the v1 field name first, then the `_ac` suffix,
+  then the lowercased-phase-prefix `_ac` variant, so it reads either
+  firmware generation without checking `version` explicitly.
+- Scoped to the meter DER only. `pv`/`battery` (`emit_pv`/`emit_battery`)
+  have the identical `.W`-style field assumption against v2 and are not
+  covered here — see #170 for that broader scope (`pv` → `solar` rename,
+  `_dc`/`_ac` split, `null`-vs-`0` handling).
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### tesla_wall_connector 0.1.2
+
+An idle Wall Connector no longer shows charge power. With no car on the
+cable and the contactor open, the unit reads 0 V on its output legs and
+about 0.5–1 A of sensor offset. The leg sum was 0, so the driver fell back to
+`grid_v × vehicle_current_a`: the voltage on the grid side of the open
+contactor times the offset. One field report showed 184 W, and 284 W in the
+flow diagram, with no car present. That fallback is the only path in 0.1.1
+that gives power with every leg at 0 V.
+
+- Charge power and `charging` now need a closed contactor. A reply without
+  `contactor_closed` falls back to `vehicle_connected` and then the EVSE
+  charging states.
+- The `grid_v` fallback now runs only when the reply has no leg voltage at
+  all. A leg that reads 0 V carries no power.
+- Split-phase installs and measured leg power through a closed contactor do
+  not change.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### sungrow 1.6.1
+
+An inverter that drops off the network no longer loses registers or its
+release. FTW's random site rig takes the inverter offline for 20 to 90 s.
+Every read and write then fails, and the driver counted those failures as the
+device refusing them.
+
+- Reads: 12999, 13000 and the PV registers were dropped for the session after
+  three failed polls. 13000 signs the battery, so FTW read a discharge as a
+  charge for the rest of the run. A failed read now counts only when the
+  device answers with a Modbus exception, or when another read in the same
+  poll returned data. The first poll that reads data after a poll that read
+  nothing starts every count over.
+- Writes: three failed writes marked the EMS block absent, so the watchdog's
+  release was reported as held without being written. The inverter kept its
+  last forced command for up to five minutes. Only a Modbus exception now
+  counts toward that, and a reconnect resets the count. Once this driver has
+  put the inverter in forced mode, the release is always written, and is never
+  reported as held, until the inverter takes it.
+
+Gateway exceptions 0x0A and 0x0B and the busy exception 0x06 do not count:
+they say the device could not answer, not that the register is missing.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### easee_cloud 1.4.0
+
+Read Easee's SignalR stream when the host grants a WebSocket. Easee
+recommends the stream for readings and REST for commands (support reply,
+24 October 2026); REST polling every 5 s costs about 720 requests an hour
+per charger. The driver opens a WebSocket to
+`streams.easee.com/hubs/products`, subscribes with
+`SubscribeWithCurrentState` and reads `ProductUpdate` messages into the
+same observations REST fills. Pushed changes reach Core on the next 2 s
+poll. It skips SignalR's negotiate step: Easee's hub sits behind a load
+balancer that pins a client to a server with a cookie, which the host does
+not share between its HTTP and WebSocket clients. Connecting is then one
+dial, which Core bounds.
+
+While the stream is up, REST reads once a minute. The driver reports only
+what a REST read in the last 90 s vouches for, since the stream cannot say
+that the cloud lost the charger. When REST shows a state, power or energy
+change the stream has not pushed, the stream has 10 s to deliver it;
+otherwise the driver drops the stream. A stream that closes, goes silent for a minute or fails to
+subscribe also drops back to REST every 5 s and reconnects with back-off
+from 5 s to 5 min; a renewed access token reconnects at once. A REST reply
+older than a pushed value does not replace it, and the current state the
+stream replays on subscribe does not replace a newer REST read. Once
+subscribed, the stream's order wins. A pushed reading without an
+RFC 3339 UTC time is skipped, and so is a state, power or energy reading
+that is not a number; the stream then owes the state, power or energy. The
+check that hides an older ReasonForNoCurrent while the car charges now
+compares times instead of their spelling.
+
+`power_max_age_s` and the confirmation fields are unchanged; commands still
+use REST. Without the stream each REST reply is the whole state, as in
+1.3.8. The driver declares `ws_hosts = { "streams.easee.com" }`. A Core
+that reads it (srcfl/ftw#1822) grants the WebSocket from that, because an
+Easee config already grants HTTP, and gives up a dial after 5 s. An older
+Core grants it only when the driver config has a `capabilities.websocket`
+entry listing `streams.easee.com`, and its dial can take 15 s; without one
+the driver polls REST as before. The signed channel's copy now carries
+`ws_hosts` in its generated header, so an owner who picks 1.4.0 from the
+beta channel on such a Core streams too; no other driver's signed bytes
+change. Tested in the Lua harness with a fake WebSocket host; not yet run
+against Easee's servers or on hardware.
+
+### myuplink 1.2.4
+
+One slow request no longer marks the heat pump offline. Core marks a driver
+offline after 60 s without a reading, and a host HTTP request may take 15 s
+before it times out. After a failed read the driver waited 30 s, so one
+timed-out request left 75 s without a reading. On one home box from 22 to 25
+October 2026 that happened 124 times; in 109 of them the next read worked.
+The driver now retries a failed read or sign-in once after 2 s, which keeps
+that gap near 47 s. A second failure in a row waits the full 30 s, so an
+outage of a minute or more still shows as offline, and the driver stays far
+below myUplink's limit of 25 requests a minute. A good read now asks for
+30 s, the wait Core already used: Core holds a returned wait to 30 s at most.
+A failed read still emits nothing.
+
+A rotated `refresh_token` that the host could not store is now stored on the
+next poll. Before, a failed store (SQLite busy, seen once on 25 October) left
+the new token only in memory until the next rotation, about an hour later. A
+reload or restart in that hour started from the old token; if myUplink no
+longer accepts it, the driver cannot sign in until the owner connects again.
+The store comes after the poll's reading, so a slow store does not hold the
+reading back. The driver warns once, and logs when the store succeeds. It
+does not store the token in `driver_cleanup`, where a reconnect may just have
+stored a newer one. Tested in the Lua harness and against FTW's Go host with a read that
+stalls past the 15 s timeout; not yet run on the box.
+
+### easee_cloud 1.3.8
+
+Two fixes to the 7 A start from 1.3.7, from its review. A reloaded driver
+no longer offers 7 A before its first poll: the car may already charge at
+6 A, so the driver now waits until a poll has seen the charger not charging.
+A pause or the stand-down that clears a boost now also drops the boost's 7 A
+from the current the driver re-writes after a phase change: a pause keeps
+the 6 A order and the stand-down 0 A. Before, the next poll could write 7 A
+again without the cap or the 90 s window. A pause keeps 6 A rather than
+0 A because Core's contactor cycle sends a resume after a pause with no new
+order between. Tested in the Lua harness; not yet on hardware.
+
+### easee_cloud 1.3.7
+
+Start a 6 A order at 7 A. On an Easee Home with an Audi e-tron (three
+phases), a resume at 6 A gave a positive pilot only 5 min 2 s to 5 min 47 s
+later in four runs on 22 October 2026, also with a single resume; 7 A and
+then 6 A started at once. evcc reports the same delay at 6 A. The driver now
+offers 7 A per phase when a stopped charger gets a 6 A order, and only when
+7 A fits: Core's `cap_amps_per_phase` for this charger, the order's
+`max_amps_per_phase` and the charger's static limit, as read from its
+config, must all allow 7 A. `max_amps_per_phase` is the fuse rating, not the
+room left, so a 6 A order on a phase with room for 6.4 A would otherwise draw
+7 A and Core would stop the car. A Core that does not send
+`cap_amps_per_phase` (srcfl/ftw#1809) gets no boost. Every order during a
+boost checks this again, and one that no longer fits writes 6 A at once. The
+driver writes 6 A as soon as the charger reports charging, or after 90 s,
+also when observations fail. One boost per start; a running session lowered
+to 6 A is not raised, orders above 6 A are unchanged, and no extra resume is
+sent. `start_boost: false` turns it off. Tested in the Lua harness; not yet
+on hardware with this driver.
+
 ### home_assistant_vehicle 0.1.0
 
 A new read-only driver for a car whose level Home Assistant already reads. A

@@ -1,11 +1,12 @@
 -- Easee Cloud EV Charger Driver
 -- Emits: EV
--- Protocol: HTTPS (Easee Cloud REST API)
+-- Protocol: HTTPS (Easee Cloud REST API), optional SignalR stream
 --
 -- Authenticates with the user's Easee account (email + password from
--- config), polls charger state every 5 seconds, and emits DerEV
--- readings so the dispatch clamp keeps home batteries from feeding
--- the car.
+-- config), reads charger state and emits DerEV readings so the dispatch
+-- clamp keeps home batteries from feeding the car. With a WebSocket grant
+-- it reads Easee's SignalR stream and asks REST once a minute; without
+-- one it polls REST every 5 seconds. Commands always go through REST.
 --
 -- Config example:
 --   drivers:
@@ -14,10 +15,13 @@
 --       capabilities:
 --         http:
 --           allowed_hosts: ["api.easee.com"]
+--         websocket:                    # enables the stream on a Core that
+--           allowed_hosts: ["streams.easee.com"]  # does not read ws_hosts
 --       config:
 --         email: "user@example.com"
 --         password: "secret"
 --         serial: "EHHZBKPF"    # optional — auto-detected if omitted
+--         start_boost: false    # optional — disable the 7 A start for 6 A orders
 
 DRIVER = {
   host_api_min = 1,
@@ -25,12 +29,13 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.3.6",
+  version      = "1.4.0",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
   homepage     = "https://easee.com",
   http_hosts   = { "api.easee.com" },
+  ws_hosts     = { "streams.easee.com" },
   authors      = { "FTW contributors" },
   tested_models = { "Home", "Charge" },
   verification_status = "production",
@@ -86,6 +91,23 @@ local command_stalled_since_ms = 0
 -- pauses cleanly.
 local EASEE_MIN_A = 6
 local EASEE_MAX_A = 32
+
+-- 6 A start boost. Field data (22 Oct 2026, Easee Home + Audi e-tron, 3Φ,
+-- four runs): after resume_charging with dynamicChargerCurrent=6 the
+-- charger reported a positive pilot only 5 min 2 s – 5 min 47 s later, even
+-- with a single resume. Starting at 7 A and lowering to 6 A once the car
+-- drew current started at once. evcc reports the same ~5 min firmware
+-- delay and clamps the dynamic current to 7 A before its start command.
+-- Here the boost is one amp per phase, held only until the charger reports
+-- charging (op_mode 3) or START_BOOST_MAX_MS passes, then 6 A. It is only
+-- used when 7 A fits (start_boost_fits), after a poll has seen the charger
+-- not charging, and at most once per start. `start_boost: false` disables it.
+local START_BOOST_A = EASEE_MIN_A + 1
+local START_BOOST_MAX_MS = 90000
+local start_boost_enabled = true
+local boost_until_ms = nil     -- non-nil while 7 A is offered for a 6 A order
+local boost_spent = false      -- one boost per start; reset by a 0 A order or a stop
+local last_op_mode = nil       -- op_mode from the latest successful poll; nil before the first
 
 -- pick_phases is the driver-level phase decision: given the requested
 -- charging power, the per-phase fuse ceiling, the operator's mode
@@ -281,6 +303,55 @@ local OBS_VOLTAGE         = 194
 local OBS_SESSION_START   = 223
 
 local OBS_IDS = "48,96,103,109,120,121,124,183,194,223"
+local OBS_WANTED = {}
+for id in OBS_IDS:gmatch("%d+") do OBS_WANTED[tonumber(id)] = true end
+
+-- The latest value and source time of each observation, from REST and the
+-- stream alike. Easee records an observation when it changes, so a value
+-- stays current until a newer one arrives.
+local latest, latest_at, latest_pushed = {}, {}, {}
+
+-- source_time_key makes an RFC 3339 UTC time comparable as a string,
+-- whatever its fractional precision: "…:05Z" and "…:05.120+00:00" become
+-- "…:05.120000000" and "…:05.120000000". Other offsets give nil.
+local function source_time_key(stamp)
+    if type(stamp) ~= "string" then return nil end
+    local base, frac, zone = stamp:match("^(%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d)(%.?%d*)(.*)$")
+    if not base or (zone ~= "Z" and zone ~= "+00:00") then return nil end
+    return base .. "." .. (frac:sub(2) .. "000000000"):sub(1, 9)
+end
+
+-- note_observation records a sample. SignalR delivers one connection's
+-- messages in order, so a pushed sample always applies. A REST reply can be
+-- older than what the stream pushed since, cached before the change; then it
+-- does not apply. Otherwise REST applies as it always has, so one bad stamp
+-- cannot hold a value. The same instant keeps its first spelling, so a
+-- source time never looks new because the other source wrote it
+-- differently. Returns true when REST brought a newer, different value.
+local function note_observation(id, value, at, pushed)
+    if not OBS_WANTED[id] then return false end
+    local new_key, old_key = source_time_key(at), source_time_key(latest_at[id])
+    local newer = false
+    if new_key and old_key then
+        if not pushed and latest_pushed[id] and new_key < old_key then return false end
+        if new_key == old_key then at = latest_at[id] end
+        newer = new_key > old_key
+    end
+    local changed = value ~= latest[id]
+    latest[id], latest_at[id], latest_pushed[id] = value, at, pushed
+    return not pushed and newer and changed
+end
+
+-- REST sends JSON numbers and booleans. The stream sends every value as a
+-- string: "The value is always transmitted as a string, regardless of the
+-- underlying data type" (developer.easee.com/docs/signalr-stream).
+local function observation_value(value)
+    if type(value) ~= "string" then return value end
+    local word = value:lower()
+    if word == "true" then return true end
+    if word == "false" then return false end
+    return tonumber(value) or value
+end
 
 local last_power_observed_at = nil
 local validated_session_id = nil
@@ -298,34 +369,38 @@ local function invalidate_session_proof()
     last_session_mode = nil
 end
 
+-- state_problem says why a set of observations cannot be reported. op_mode 0
+-- is Easee's sign that the cloud no longer hears from the charger.
+local function state_problem(obs)
+    local mode = obs[OBS_OP_MODE]
+    if type(mode) ~= "number" or mode < 0 or mode > 6 or mode % 1 ~= 0 then
+        return "missing charger state"
+    end
+    if mode == 0 then
+        return "charger offline; connection unknown"
+    end
+    if mode >= 2 and (type(obs[OBS_TOTAL_POWER]) ~= "number" or
+       type(obs[OBS_SESSION_ENERGY]) ~= "number" or obs[OBS_SESSION_ENERGY] < 0) then
+        return "missing session measurement"
+    end
+    return nil
+end
+
+-- get_observations reads REST. The caller checks the reply with state_problem.
 local function get_observations(serial)
     local url = "https://api.easee.com/state/" .. serial .. "/observations?ids=" .. OBS_IDS
     local resp, err = safe_http_get(url, auth_headers())
-    if err then invalidate_session_proof(); return nil, err end
+    if err then return nil, err end
     local decoded = safe_json_decode(resp)
-    if type(decoded) ~= "table" then invalidate_session_proof(); return nil, "decode failed" end
+    if type(decoded) ~= "table" then return nil, "decode failed" end
     local list = decoded.observations or decoded
     local obs = {}
     local timestamps = {}
     for _, item in ipairs(list) do
         if item.id then
-            obs[item.id] = tonumber(item.value) or item.value
+            obs[item.id] = observation_value(item.value)
             timestamps[item.id] = item.timestamp
         end
-    end
-    local mode = obs[OBS_OP_MODE]
-    if type(mode) ~= "number" or mode < 0 or mode > 6 or mode % 1 ~= 0 then
-        invalidate_session_proof()
-        return nil, "missing charger state"
-    end
-    if mode == 0 then
-        invalidate_session_proof()
-        return nil, "charger offline; connection unknown"
-    end
-    if mode >= 2 and (type(obs[OBS_TOTAL_POWER]) ~= "number" or
-       type(obs[OBS_SESSION_ENERGY]) ~= "number" or obs[OBS_SESSION_ENERGY] < 0) then
-        invalidate_session_proof()
-        return nil, "missing session measurement"
     end
     return obs, nil, timestamps
 end
@@ -391,6 +466,243 @@ local function current_session_id(obs, op_mode)
        normalized_session_start(ongoing.sessionStart) ~= start then return nil end
     validated_session_id = identity
     return identity
+end
+
+-- ---- SignalR stream ----
+-- Easee pushes every observation change over SignalR and recommends it for
+-- reads, with REST for commands (support reply, 24 Oct 2026). REST polling
+-- every 5 s costs about 720 requests an hour per charger.
+--   https://developer.easee.com/docs/signalr-stream — hub, the
+--     SubscribeWithCurrentState(serial, true) call, ProductUpdate messages
+--     {mid, dataType, id, timestamp, value}
+--   https://developer.easee.com/docs/api-and-streaming
+--   https://developer.easee.com/changelog/signalr-uri-change — the hub moved
+--     from api.easee.cloud/hubs to streams.easee.com/hubs
+-- The wire format is Microsoft's SignalR JSON hub protocol over WebSockets:
+--   https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/TransportProtocols.md
+--   https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/HubProtocol.md
+-- Open wss://{hub} with the access token, send {"protocol":"json","version":1};
+-- then each JSON message ends with the 0x1E record separator. Message types
+-- used here: 1 invocation, 3 completion, 6 ping, 7 close.
+--
+-- The driver skips POST {hub}/negotiate. Its connectionToken is required
+-- only by the long polling and server-sent events transports
+-- (TransportProtocols.md); a WebSocket without one starts a new connection
+-- (HttpConnectionDispatcher.GetOrCreateConnectionAsync). Easee's hub runs on
+-- Kestrel behind an AWS load balancer that pins a client to a server with a
+-- cookie (AWSALB, seen 24 Oct 2026). The host's HTTP and WebSocket clients
+-- share no cookies, so a negotiated token could reach a server that does not
+-- know it. Skipping it also makes connecting one network call, which the
+-- host bounds; the poll and any command wait behind it.
+--
+-- The stream cannot say that the cloud lost the charger (REST's op_mode 0),
+-- so REST still reads once a minute while the stream is up, and the driver
+-- reports only what a REST read in the last 90 s vouches for. A connected
+-- stream can also stop delivering. When a REST read shows a change the
+-- stream has not pushed, the stream owes it: if it does not arrive within
+-- 10 s, the stream stops and REST takes over.
+--
+-- Core grants the WebSocket from ws_hosts in the DRIVER table (srcfl/ftw#1822)
+-- or, on a Core that does not read it, from capabilities.websocket in the
+-- driver config. Without a grant the driver polls REST as before.
+local STREAM_WS = "wss://streams.easee.com/hubs/products"
+local RS = "\30"
+local STREAM_POLL_MS = 2000      -- poll cadence while streaming; Core's control loop ticks every 2 s
+local STREAM_PING_MS = 15000     -- a SignalR server drops a client silent for 30 s by default
+local STREAM_SILENT_MS = 60000   -- the server pings every 15 s; a minute of nothing is a dead stream
+local STREAM_OPEN_MS = 30000     -- handshake and subscription must finish within this
+local STREAM_OWED_MS = 10000     -- how long a change REST saw may wait for the stream
+local REST_CONFIRM_MS = 60000    -- REST cadence while the stream is up
+local REST_FRESH_MS = 90000      -- how long a REST read vouches that the cloud hears the charger
+
+local stream_state = "off"       -- off, handshake, subscribe, up; disabled without a grant
+local stream_buf = ""
+local stream_token = nil         -- the access token the open stream signed in with
+local stream_opened_ms, stream_up_ms, stream_rx_ms, stream_tx_ms = 0, 0, 0, 0
+local stream_retry_ms = 0
+local stream_failures = 0
+local stream_owed = nil          -- {id, key, value, since, why}: a reading the stream has not delivered
+local rest_next_ms = 0           -- streaming only: when REST reads next
+local heard_ms = nil             -- when REST last showed the cloud hears the charger
+local last_blocked = nil         -- why the streamed state was last not reportable, for the log
+
+local function stream_send(text, now)
+    local ok, sent, err = pcall(host.ws_send, text .. RS)
+    if ok and sent then
+        stream_tx_ms = now
+        return true
+    end
+    return false, ok and err or sent
+end
+
+-- stream_stop closes the stream and schedules the next try. A planned stop
+-- reconnects at once. Failures back off from 5 s to 5 min; a REST read that
+-- finds the stream complete starts the count again.
+local function stream_stop(why, now, planned)
+    pcall(host.ws_close)
+    stream_owed = nil
+    if planned then
+        stream_retry_ms = now
+    else
+        stream_failures = stream_failures + 1
+        local wait = math.min(5000 * 2 ^ (stream_failures - 1), 300000)
+        stream_retry_ms = now + wait
+        if stream_state == "up" then
+            host.log("warn", "Easee: SignalR stream down (" .. why .. "); REST every 5 s until it is back")
+        else
+            host.log("warn", string.format("Easee: SignalR stream failed (%s); retry in %d s",
+                why, math.floor(wait / 1000)))
+        end
+    end
+    stream_state, stream_buf, stream_token = "off", "", nil
+end
+
+-- A missing grant is configuration, not an outage: stop trying until restart.
+local function stream_disable(why)
+    pcall(host.ws_close)
+    stream_state = "disabled"
+    host.log("info", "Easee: no SignalR stream (" .. why .. "); REST every 5 s. Streaming needs " ..
+        "WebSocket access to streams.easee.com: ws_hosts on a Core that reads it, or " ..
+        "capabilities.websocket in the driver config.")
+end
+
+-- Server text goes into the log; keep it short.
+local function brief(text)
+    return tostring(text):sub(1, 120)
+end
+
+local function not_granted(err)
+    local text = tostring(err)
+    return text:find("capability not granted", 1, true) or text:find("not in allowed_hosts", 1, true)
+end
+
+-- Keep only the status of an HTTP error and drop any query from the text.
+local function host_err(err)
+    local text = tostring(err)
+    return text:match("^(HTTP %d+)") or brief(text:gsub("%?[^%s\"']*", ""))
+end
+
+-- stream_open runs on the poll and waits for the WebSocket dial, which the
+-- host bounds (5 s from srcfl/ftw#1822, 15 s before), so it reads the clock
+-- again before it schedules anything.
+local function stream_open(now)
+    if type(host.ws_open) ~= "function" then return stream_disable("host has no WebSocket") end
+    local ok, opened, oerr = pcall(host.ws_open, STREAM_WS, auth_headers())
+    now = host.millis()
+    if not ok or not opened then
+        local why = ok and oerr or opened
+        if not_granted(why) then return stream_disable("no WebSocket grant") end
+        return stream_stop("open: " .. host_err(why), now)
+    end
+    stream_state, stream_buf, stream_token, stream_owed = "handshake", "", access_token, nil
+    stream_opened_ms, stream_rx_ms = now, now
+    local sent, serr = stream_send('{"protocol":"json","version":1}', now)
+    if not sent then return stream_stop("handshake: " .. tostring(serr), now) end
+end
+
+-- Only state, power and energy are owed: what Core needs to report and
+-- control. Diagnostic readings may change without a push.
+local function owed_kind(id)
+    return id == OBS_OP_MODE or id == OBS_TOTAL_POWER or id == OBS_SESSION_ENERGY
+end
+
+local function owe(id, key, value, now, why)
+    if not stream_owed then
+        stream_owed = { id = id, key = key, value = value, since = now, why = why }
+    end
+end
+
+-- stream_update records a pushed sample. One Core could not read, with a
+-- time that is not RFC 3339 UTC, is skipped, and so is a state, power or
+-- energy reading that is not a number; the stream then owes that reading.
+-- Before the subscription completes the stream replays its current state,
+-- which can be older than a REST read just before it; the newer one stays.
+local function stream_update(id, value, at, now)
+    if not OBS_WANTED[id] then return end
+    local key = source_time_key(at)
+    if not key or (owed_kind(id) and type(value) ~= "number") then
+        if owed_kind(id) then owe(id, "", nil, now, "sent a reading it cannot use") end
+        return
+    end
+    local held = source_time_key(latest_at[id])
+    if stream_state ~= "up" and held and key < held then return end
+    note_observation(id, value, at, true)
+    if stream_owed and stream_owed.id == id and (key >= stream_owed.key or value == stream_owed.value) then
+        stream_owed = nil
+    end
+end
+
+-- stream_message handles one SignalR message and returns a reason to stop.
+local function stream_message(text, now)
+    local m = safe_json_decode(text)
+    if type(m) ~= "table" then return "unreadable message" end
+    if stream_state == "handshake" then
+        -- The first message answers the handshake: {} or {"error": "..."}.
+        if m.error ~= nil then return "handshake refused: " .. brief(m.error) end
+        stream_state = "subscribe"
+        local sent, err = stream_send(host.json_encode({
+            type = 1, invocationId = "0", target = "SubscribeWithCurrentState",
+            -- Easee serials are upper case; a config may not be.
+            arguments = { charger_serial:upper(), true },
+        }), now)
+        if not sent then return "subscribe: " .. tostring(err) end
+    elseif m.type == 1 and m.target == "ProductUpdate" and type(m.arguments) == "table" then
+        local u = m.arguments[1]
+        if type(u) == "table" and tostring(u.mid):upper() == charger_serial:upper() then
+            stream_update(tonumber(u.id), observation_value(u.value), u.timestamp, now)
+        end
+    elseif m.type == 3 and m.invocationId == "0" then
+        if m.error ~= nil then return "subscribe refused: " .. brief(m.error) end
+        stream_state, stream_up_ms = "up", now
+        host.log("info", "Easee: SignalR stream up for " .. charger_serial .. "; REST once a minute")
+    elseif m.type == 7 then
+        return "server closed" .. (m.error ~= nil and (": " .. brief(m.error)) or "")
+    end
+    return nil
+end
+
+-- stream_service connects, reads what arrived since the last poll and keeps
+-- the connection alive. It never fails the poll: REST covers any gap.
+local function stream_service(now)
+    if stream_state == "disabled" then return end
+    if stream_state ~= "off" and stream_token ~= access_token then
+        -- The stream signed in with the old token; Easee may close it when
+        -- that token expires.
+        stream_stop("token renewed", now, true)
+    end
+    if stream_state == "off" then
+        if now >= stream_retry_ms then stream_open(now) end
+        return
+    end
+    local ok, frames = pcall(host.ws_messages)
+    if not ok or type(frames) ~= "table" then frames = {} end
+    for _, frame in ipairs(frames) do
+        -- FTW's host queues "" when the connection ends.
+        if frame == "" then return stream_stop("closed", now) end
+        stream_rx_ms = now
+        stream_buf = stream_buf .. frame
+        local cut = stream_buf:find(RS, 1, true)
+        while cut do
+            local problem = stream_message(stream_buf:sub(1, cut - 1), now)
+            stream_buf = stream_buf:sub(cut + 1)
+            if problem then return stream_stop(problem, now) end
+            cut = stream_buf:find(RS, 1, true)
+        end
+    end
+    if #stream_buf > 1048576 then return stream_stop("message without end", now) end
+    local open_ok, is_open = pcall(host.ws_is_open)
+    if not open_ok or not is_open then return stream_stop("closed", now) end
+    if now - stream_rx_ms >= STREAM_SILENT_MS then return stream_stop("silent for 60 s", now) end
+    if stream_owed and now - stream_owed.since >= STREAM_OWED_MS then
+        return stream_stop(stream_owed.why, now)
+    end
+    if stream_state ~= "up" and now - stream_opened_ms >= STREAM_OPEN_MS then
+        return stream_stop("no subscription within 30 s", now)
+    end
+    if now - stream_tx_ms >= STREAM_PING_MS then
+        local sent, err = stream_send('{"type":6}', now)
+        if not sent then return stream_stop("ping: " .. tostring(err), now) end
+    end
 end
 
 -- ---- State mapping ----
@@ -489,6 +801,45 @@ local function write_setting(serial, body_table)
     return err
 end
 
+-- start_boost_fits: 7 A per phase fits when Core's cap for this charger
+-- (cap_amps_per_phase: its room below the fuse and the import limit, after
+-- other chargers' share), the order's max_amps_per_phase and the charger's
+-- static limit, read from /config, all allow it. max_amps_per_phase alone is
+-- the fuse rating, not the room left: a 6 A order on a phase with room for
+-- 6.4 A would draw 7 A, Core would see an overage and stop the car, and the
+-- next start would boost again. A Core that sends no cap gets no boost.
+-- Checked on every order while a boost runs.
+local function start_boost_fits(cmd, max_a)
+    local cap = cmd and type(cmd.cap_amps_per_phase) == "number" and cmd.cap_amps_per_phase or nil
+    return cap ~= nil and math.floor(cap) >= START_BOOST_A and
+        max_a ~= nil and math.floor(max_a) >= START_BOOST_A and
+        device_limit_a ~= nil and device_limit_a >= START_BOOST_A
+end
+
+-- end_start_boost writes the ordered 6 A. A failed write leaves the boost
+-- running, so the next poll or order tries again.
+local function end_start_boost(why)
+    local werr = write_setting(charger_serial, {dynamicChargerCurrent = EASEE_MIN_A})
+    if werr ~= nil then
+        host.log("warn", "Easee: start boost step-down failed (will retry): " .. redact_http_err(werr))
+        return false
+    end
+    host.log("info", "Easee: start boost ended (" .. why .. "), dynamicChargerCurrent=6 A")
+    boost_until_ms = nil
+    last_amps_set = EASEE_MIN_A
+    return true
+end
+
+-- clear_start_boost drops the boost without a write and re-arms it. A running
+-- boost left 7 A in last_amps_set; it becomes hold_a, what the charger should
+-- hold, so a pending phaseMode re-assert cannot write 7 A outside the window
+-- and the cap check.
+local function clear_start_boost(hold_a)
+    if boost_until_ms ~= nil then last_amps_set = hold_a end
+    boost_until_ms = nil
+    boost_spent = false
+end
+
 function driver_init(config)
     host.set_make("Easee")
 
@@ -523,6 +874,10 @@ function driver_init(config)
         if m > 0 and m <= EASEE_MAX_A then
             configured_max_a = m
         end
+    end
+
+    if config and (config.start_boost == false or config.start_boost == "false") then
+        start_boost_enabled = false
     end
 
     if not email or not password then
@@ -592,11 +947,60 @@ function driver_poll()
         return 10000
     end
 
-    local obs, err, timestamps = get_observations(charger_serial)
-    if err or not obs then
-        host.log("warn", "Easee: observations poll failed: " .. redact_http_err(err))
-        return 10000
+    -- The boost window ends on time even when observations fail.
+    if boost_until_ms ~= nil and host.millis() >= boost_until_ms then
+        end_start_boost("timeout")
     end
+
+    stream_service(host.millis())
+
+    -- Without the stream REST reads on every poll, as before. With it, REST
+    -- reads once a minute to show the cloud still hears from the charger.
+    local streaming = stream_state == "up"
+    local rest_due = not streaming or host.millis() >= rest_next_ms
+    local values, err, stamps
+    if rest_due then values, err, stamps = get_observations(charger_serial) end
+    local now = host.millis()
+    local rest_read = false
+    if rest_due then
+        local problem = err or state_problem(values)
+        rest_next_ms = now + (problem and 10000 or REST_CONFIRM_MS)
+        if problem then
+            host.log("warn", "Easee: observations poll failed: " .. (err and redact_http_err(err) or problem))
+            -- The cloud answered that it does not hear the charger.
+            if not err then heard_ms = nil end
+        else
+            -- Without the stream the reply is the whole state, as before.
+            if not streaming then latest, latest_at, latest_pushed = {}, {}, {} end
+            for id in pairs(OBS_WANTED) do
+                if values[id] ~= nil or stamps[id] ~= nil then
+                    if note_observation(id, values[id], stamps[id], false) and streaming and owed_kind(id) then
+                        owe(id, source_time_key(stamps[id]), values[id], now, "missed a change REST saw")
+                    end
+                end
+            end
+            -- A REST read that finds the stream complete resets its back-off.
+            if streaming and not stream_owed then stream_failures = 0 end
+            heard_ms, rest_read = now, true
+        end
+    end
+
+    -- Report what this poll's REST read showed, or, while the stream is up,
+    -- what it pushed since a REST read in the last 90 s. Otherwise report
+    -- nothing, as before, so stale values never look current.
+    local vouched = rest_read or
+        (stream_state == "up" and heard_ms ~= nil and now - heard_ms <= REST_FRESH_MS)
+    local blocked = vouched and state_problem(latest)
+    if blocked and blocked ~= last_blocked then
+        host.log("warn", "Easee: not reporting streamed state: " .. blocked)
+    end
+    last_blocked = blocked or nil
+    if not vouched or blocked then
+        -- An unreadable charger may have changed cars during the gap.
+        invalidate_session_proof()
+        return stream_state == "up" and STREAM_POLL_MS or 10000
+    end
+    local obs, timestamps = latest, latest_at
 
     local op_mode = obs[OBS_OP_MODE] or 1
     local power_w = (obs[OBS_TOTAL_POWER] or 0) * 1000  -- kW → W
@@ -611,9 +1015,10 @@ function driver_poll()
     -- Easee records an observation only when its value changes, so a steady
     -- charge keeps an old TotalPower timestamp; on hardware it stayed
     -- unchanged for over five minutes. A new value carries its source time.
-    -- An unchanged one was confirmed by this poll of a charger the cloud
-    -- still hears from (get_observations rejects op_mode 0), so omit the
-    -- source time and let the host stamp the reading when it arrives.
+    -- An unchanged one was confirmed by a REST read of a charger the cloud
+    -- still hears from (state_problem rejects op_mode 0): this poll's, or
+    -- one in the last 90 s while the stream would have pushed a change. So
+    -- omit the source time and let the host stamp the reading when it arrives.
     local power_observed_at = timestamps[OBS_TOTAL_POWER]
     if power_observed_at ~= nil and power_observed_at == last_power_observed_at then
         power_observed_at = nil
@@ -624,8 +1029,8 @@ function driver_poll()
     local reason_code = obs[OBS_REASON_NO_CUR]
     -- ReasonForNoCurrent describes a blocked offer. An older reason is not
     -- a current fault while the charger reports both charging and power.
-    local reason_at = normalized_session_start(timestamps[OBS_REASON_NO_CUR])
-    local power_at = normalized_session_start(timestamps[OBS_TOTAL_POWER])
+    local reason_at = source_time_key(timestamps[OBS_REASON_NO_CUR])
+    local power_at = source_time_key(timestamps[OBS_TOTAL_POWER])
     if charging and power_w > 100 and reason_at and power_at and reason_at <= power_at then
         reason_code = nil
     end
@@ -660,7 +1065,6 @@ function driver_poll()
     -- (needs operator attention). Note: connected==true is required so
     -- a disconnected cable doesn't latch the flag.
     local command_stalled = false
-    local now = host.millis()
     local stalled_reason = (reason_code == 52) or (reason_code == 53) or (reason_code == 100)
     if connected and (last_amps_set or 0) > 0 and not charging and stalled_reason then
         if command_stalled_since_ms == 0 then
@@ -701,9 +1105,10 @@ function driver_poll()
         -- reply alone does not establish a new physical power measurement.
         control_power_observed_at = timestamps[OBS_TOTAL_POWER],
         control_power_available = obs[OBS_TOTAL_POWER] ~= nil and timestamps[OBS_TOTAL_POWER] ~= nil,
-        -- The cloud records power only on change, and get_observations rejects
-        -- a charger it no longer hears from. This poll therefore confirms that
-        -- an unchanged value is still current, so a steady charge stays measured.
+        -- The cloud records power only on change, and the driver reports only
+        -- what a REST read of a charger the cloud still hears from vouches for
+        -- (see vouched above). An unchanged value is therefore still current,
+        -- so a steady charge stays measured.
         control_power_confirmed = obs[OBS_TOTAL_POWER] ~= nil and timestamps[OBS_TOTAL_POWER] ~= nil,
         power_max_age_s         = 180,
         energy_observed_at      = timestamps[OBS_SESSION_ENERGY],
@@ -748,6 +1153,17 @@ function driver_poll()
         end
     end
 
+    -- 6 A start boost: step down to the ordered 6 A as soon as the charger
+    -- reports charging. The timeout is checked above, before observations.
+    if boost_until_ms ~= nil and charging then
+        end_start_boost("charging")
+    end
+    -- A session that stops charging may need a new boost on its next start.
+    if last_op_mode == 3 and not charging and boost_until_ms == nil then
+        boost_spent = false
+    end
+    last_op_mode = op_mode
+
     if obs[OBS_VOLTAGE] then
         host.emit_metric("ev_voltage_v", obs[OBS_VOLTAGE])
     end
@@ -772,7 +1188,7 @@ function driver_poll()
         end
     end
 
-    return 5000
+    return stream_state == "up" and STREAM_POLL_MS or 5000
 end
 
 local function post_command(path)
@@ -791,7 +1207,12 @@ function driver_command(action, power_w, cmd)
         return ok
     elseif action == "ev_pause" then
         local ok = post_command("/commands/pause_charging")
-        if ok then paused_state = true end
+        if ok then
+            paused_state = true
+            -- Keep the 6 A order, not 0 A: Core's contactor cycle sends
+            -- ev_resume after ev_pause with no new order in between.
+            clear_start_boost(EASEE_MIN_A)
+        end
         return ok
     elseif action == "ev_resume" then
         local ok = post_command("/commands/resume_charging")
@@ -853,9 +1274,46 @@ function driver_command(action, power_w, cmd)
         end
 
         local amps = per_phase_amps(power_w, voltage, phases, max_a)
-        local err = write_setting(charger_serial, {dynamicChargerCurrent = amps})
+        local write_a = amps
+        local boosting = false
+        local boost_end = nil
+        if amps == EASEE_MIN_A then
+            if boost_until_ms ~= nil then
+                -- Keep 7 A within the window while it still fits and the
+                -- charger has not started; do not restart the window.
+                -- Otherwise this write of 6 A ends the boost.
+                if now_ms >= boost_until_ms then
+                    boost_end = "timeout"
+                elseif last_op_mode == 3 then
+                    boost_end = "charging"
+                elseif not start_boost_fits(cmd, max_a) then
+                    boost_end = "no room for 7 A"
+                else
+                    write_a, boosting = START_BOOST_A, true
+                end
+            elseif start_boost_enabled and not boost_spent and start_boost_fits(cmd, max_a) and
+                last_op_mode ~= nil and last_op_mode ~= 3 then
+                -- An unknown op_mode may be charging: after a driver reload
+                -- the car can already charge at 6 A before the first poll.
+                write_a, boosting = START_BOOST_A, true
+            end
+        end
+        local err = write_setting(charger_serial, {dynamicChargerCurrent = write_a})
         if err == nil then
-            last_amps_set = amps
+            if boosting then
+                if boost_until_ms == nil then
+                    boost_until_ms = now_ms + START_BOOST_MAX_MS
+                    boost_spent = true
+                    host.log("info", "Easee: start boost 7 A for a 6 A start (Easee delays ~5 min at 6 A)")
+                end
+            else
+                if boost_end ~= nil then
+                    host.log("info", "Easee: start boost ended (" .. boost_end .. "), dynamicChargerCurrent=6 A")
+                end
+                boost_until_ms = nil
+                if amps == 0 then boost_spent = false end
+            end
+            last_amps_set = write_a
             -- After a phaseMode change, schedule one re-write of
             -- dynamicChargerCurrent on the next driver_poll. Easee's
             -- cloud resets it to maxChargerCurrent during the phase
@@ -904,6 +1362,7 @@ function driver_default_mode()
     if post_command("/commands/pause_charging") then
         paused_state = true
     end
+    clear_start_boost(0)
     local err = write_setting(charger_serial, {dynamicChargerCurrent = 0})
     if err == nil then
         last_amps_set = 0
@@ -914,6 +1373,8 @@ function driver_default_mode()
 end
 
 function driver_cleanup()
+    if stream_state ~= "off" and stream_state ~= "disabled" then pcall(host.ws_close) end
+    stream_state = "off"
     access_token = nil
     refresh_token = nil
 end

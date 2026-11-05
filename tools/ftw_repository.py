@@ -286,6 +286,70 @@ def _lua_has_top_level_field(body: str, name: str) -> bool:
     return False
 
 
+def _lua_top_level_string_list(body: str, name: str) -> list[str]:
+    """The quoted strings of ``name = { ... }`` at the top level of a table body.
+
+    A network grant is read this way rather than with a regex: a host that is
+    commented out, or only mentioned in a description, must not reach the
+    signed header. A list holding anything but strings grants nothing.
+    """
+    depth = 0
+    i = 0
+    while i < len(body):
+        skipped = _lua_skip_comment_or_string(body, i)
+        if skipped is not None:
+            i = skipped
+            continue
+        char = body[i]
+        if char == "{":
+            depth += 1
+            i += 1
+            continue
+        if char == "}":
+            depth -= 1
+            i += 1
+            continue
+        if depth == 0 and (char.isalpha() or char == "_"):
+            end = i + 1
+            while end < len(body) and (body[end].isalnum() or body[end] == "_"):
+                end += 1
+            if body[i:end] == name:
+                cursor = _lua_skip_whitespace_and_comments(body, end)
+                if body[cursor:cursor + 1] == "=" and body[cursor + 1:cursor + 2] != "=":
+                    cursor = _lua_skip_whitespace_and_comments(body, cursor + 1)
+                    if body[cursor:cursor + 1] != "{":
+                        return []
+                    return _lua_string_items(body, cursor + 1)
+            i = end
+            continue
+        i += 1
+    return []
+
+
+def _lua_string_items(body: str, start: int) -> list[str]:
+    """The quoted strings of a table that opened just before ``start``."""
+    values: list[str] = []
+    i = start
+    while True:
+        i = _lua_skip_whitespace_and_comments(body, i)
+        if i >= len(body):
+            return []
+        if body[i] == "}":
+            return values
+        if body[i] in {",", ";"}:
+            i += 1
+            continue
+        if body[i] not in {'"', "'"}:
+            return []
+        end = _lua_skip_comment_or_string(body, i)
+        if end is None or end > len(body) or body[end - 1] != body[i]:
+            return []
+        value = body[i + 1:end - 1].strip()
+        if value and value not in values:
+            values.append(value)
+        i = end
+
+
 def _string_field(body: str, name: str, *, required: bool = False) -> str:
     match = re.search(rf"\b{re.escape(name)}\s*=\s*[\"']([^\"']*)[\"']", body)
     if match:
@@ -394,6 +458,7 @@ def _ftw_artifact(
     capabilities = metadata.get("capabilities", [])
     tested_models = metadata.get("tested_models", [])
     config_secrets = metadata.get("config_secrets", [])
+    ws_hosts = metadata.get("ws_hosts", [])
     fields = [
         f"    id = {_lua_string(metadata['id'])},",
         f"    name = {_lua_string(metadata['name'])},",
@@ -419,6 +484,8 @@ def _ftw_artifact(
         fields.append(f"    tested_models = {_lua_string_list(tested_models)},")
     if config_secrets:
         fields.append(f"    config_secrets = {_lua_string_list(config_secrets)},")
+    if ws_hosts:
+        fields.append(f"    ws_hosts = {_lua_string_list(ws_hosts)},")
     # A driver that declares itself read-only keeps the guards: those are
     # meters and telemetry gateways stating what they are. A driver the catalog
     # marks control: true keeps the control path it was ported with.
@@ -740,6 +807,15 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             config_secrets = _string_list_field(body, "config_secrets")
             if config_secrets:
                 metadata["config_secrets"] = config_secrets
+            # ws_hosts names the hosts a driver streams from; a Core that
+            # reads it grants the WebSocket for them (srcfl/ftw#1822). As
+            # with config_secrets, Core sees only this header. An owner
+            # installs a channel version by choice, never automatically.
+            # Only drivers that declare it change. http_hosts stays out:
+            # adding it would change the bytes of versions already published.
+            ws_hosts = _lua_top_level_string_list(body, "ws_hosts")
+            if ws_hosts:
+                metadata["ws_hosts"] = ws_hosts
 
         if auth_post_path and not controls:
             metadata["auth_post_path"] = auth_post_path
