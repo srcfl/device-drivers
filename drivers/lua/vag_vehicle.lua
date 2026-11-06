@@ -73,7 +73,7 @@ DRIVER = {
   id           = "vag_vehicle",
   name         = "VAG Vehicle (EU Data Act)",
   manufacturer = "Volkswagen Group",
-  version      = "0.3.0",
+  version      = "0.3.1",
   protocols    = { "http" },
   capabilities = { "vehicle" },
   read_only    = true,
@@ -930,14 +930,30 @@ local function api_get(path, extra)
   return r.body
 end
 
--- The newest point among the candidates wins; on a tie, the earlier
--- candidate. Points are numbered in dataset order.
+-- Choose by measured timestamp, then dataset order; the same row keeps
+-- the earlier candidate priority.
+-- Compare measurement times before dataset order. A missing timestamp
+-- cannot replace a known one. Equal or unknown times retain row ordering.
+local function point_is_newer(candidate, current)
+  if current == nil then return true end
+  local ct, bt = iso_epoch(candidate.ts), iso_epoch(current.ts)
+  if ct ~= nil and bt == nil then return true end
+  if ct == nil and bt ~= nil then return false end
+  if ct ~= nil then
+    if ct ~= bt then return ct > bt end
+    local cf = tonumber("0." .. (candidate.ts:match("%.(%d+)") or "0"))
+    local bf = tonumber("0." .. (current.ts:match("%.(%d+)") or "0"))
+    if cf ~= bf then return cf > bf end
+  end
+  return candidate.seq > current.seq
+end
+
 local function lookup(points, ids)
   if not points then return nil end
   local best = nil
   for i = 1, #ids do
     local p = points[ids[i]]
-    if p and p.value ~= nil and p.value ~= "" and (best == nil or p.seq > best.seq) then
+    if p and p.value ~= nil and p.value ~= "" and point_is_newer(p, best) then
       best = p
     end
   end
@@ -961,8 +977,10 @@ local function upper(s)
 end
 
 local function index_points(data)
-  local points = {}
-  if type(data) ~= "table" then return points end
+  local points, soc_candidates = {}, {}
+  local soc_ids = {}
+  for _, id in ipairs(SOC_IDS) do soc_ids[id] = true end
+  if type(data) ~= "table" then return points, soc_candidates end
   for i = 1, #data do
     local dp = data[i]
     if type(dp) == "table" and dp.value ~= nil and tostring(dp.value) ~= "" then
@@ -973,11 +991,55 @@ local function index_points(data)
         ts = dp.timestampUtc or dp.TimestampUtc,
         seq = i,
       }
-      if rec.key and rec.key ~= "" then points[rec.key] = rec end
-      if rec.name and rec.name ~= "" then points[rec.name] = rec end
+      if soc_ids[rec.key] or soc_ids[rec.name] then
+        soc_candidates[#soc_candidates + 1] = rec
+      end
+      if rec.key and rec.key ~= "" and point_is_newer(rec, points[rec.key]) then
+        points[rec.key] = rec
+      end
+      if rec.name and rec.name ~= "" and point_is_newer(rec, points[rec.name]) then
+        points[rec.name] = rec
+      end
     end
   end
-  return points
+  return points, soc_candidates
+end
+
+-- One bounded diagnostic per downloaded dataset. Keep only SoC fields,
+-- including candidates discarded during indexing; never log the raw dataset.
+local function log_soc_selection(filename, candidates, selected)
+  local function safe(value)
+    return tostring(value or "unknown"):gsub("[^%w%._:%+%-]", "_"):sub(1, 100)
+  end
+  local reason = "no_candidate"
+  if selected then
+    local ts = iso_epoch(selected.ts)
+    reason = ts and "timestamp" or "dataset_order_no_valid_timestamp"
+    if ts then
+      local fraction = selected.ts:match("%.(%d+)") or "0"
+      for _, p in ipairs(candidates) do
+        if p ~= selected and iso_epoch(p.ts) == ts and
+            tonumber("0." .. (p.ts:match("%.(%d+)") or "0")) == tonumber("0." .. fraction) then
+          reason = "timestamp_then_dataset_order"
+        end
+      end
+    end
+  end
+  log("info", "vag: soc selection file=" .. safe(filename) ..
+    " fetched_at_epoch_s=" .. tostring(server_now_s or "unknown") ..
+    " candidates=" .. tostring(#candidates) ..
+    " selected_row=" .. tostring(selected and selected.seq or "none") ..
+    " reason=" .. reason)
+  for i = 1, math.min(#candidates, 32) do
+    local p = candidates[i]
+    log("info", "vag: soc candidate row=" .. tostring(p.seq) ..
+      " key=" .. safe(p.key) .. " name=" .. safe(p.name) ..
+      " value=" .. safe(p.value) .. " timestamp=" .. safe(p.ts) ..
+      " selected=" .. tostring(p == selected))
+  end
+  if #candidates > 32 then
+    log("info", "vag: soc candidates truncated=" .. tostring(#candidates - 32))
+  end
 end
 
 -- Tesla-shaped vocabulary Core ranks in telemetry.VehicleConnectedRank.
@@ -1325,14 +1387,15 @@ function driver_poll()
   -- Read each file once, even one that turns out useless.
   last_file = name
 
-  local points, perr = parse_dataset(zip)
+  local points, candidates_or_error = parse_dataset(zip)
   if not points then
-    log("warn", "vag: dataset decode failed: " .. tostring(perr))
+    log("warn", "vag: dataset decode failed: " .. tostring(candidates_or_error))
     emit_last()
     return POLL_INTERVAL_MS
   end
 
   local soc_p = lookup(points, SOC_IDS)
+  log_soc_selection(name, candidates_or_error or {}, soc_p)
   local soc = soc_p and num(soc_p.value) or nil
   if soc == nil then
     log("debug", "vag: dataset had no SoC field")
