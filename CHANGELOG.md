@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### vag_vehicle 0.3.1
+
+- Choose the newest measured telemetry point by timestamp, both when indexing
+  duplicate keys/names and when selecting between candidate fields. An older
+  row later in a portal dataset no longer hides a newer SoC reading.
+- Prefer valid timestamps over missing or invalid ones. Equal or unavailable
+  timestamps retain the existing dataset-order fallback.
+
 ### saj-emanager 0.1.2
 
 The NovaCore device-support registry accepts this driver.

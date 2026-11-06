@@ -142,3 +142,12 @@ def test_vag_vehicle_plug_state(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "vag_vehicle plug: ok" in result.stdout
+
+
+def test_vag_vehicle_timestamp_selection() -> None:
+    result = subprocess.run(
+        [str(ROOT / "lua55"), "drivers/tests/lua_harness/test_vag_vehicle_timestamp.lua"],
+        cwd=ROOT, text=True, capture_output=True, check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "vag_vehicle timestamps: ok" in result.stdout

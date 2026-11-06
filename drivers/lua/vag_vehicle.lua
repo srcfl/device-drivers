@@ -73,7 +73,7 @@ DRIVER = {
   id           = "vag_vehicle",
   name         = "VAG Vehicle (EU Data Act)",
   manufacturer = "Volkswagen Group",
-  version      = "0.3.0",
+  version      = "0.3.1",
   protocols    = { "http" },
   capabilities = { "vehicle" },
   read_only    = true,
@@ -930,14 +930,30 @@ local function api_get(path, extra)
   return r.body
 end
 
--- The newest point among the candidates wins; on a tie, the earlier
--- candidate. Points are numbered in dataset order.
+-- Choose by measured timestamp, then dataset order; the same row keeps
+-- the earlier candidate priority.
+-- Compare measurement times before dataset order. A missing timestamp
+-- cannot replace a known one. Equal or unknown times retain row ordering.
+local function point_is_newer(candidate, current)
+  if current == nil then return true end
+  local ct, bt = iso_epoch(candidate.ts), iso_epoch(current.ts)
+  if ct ~= nil and bt == nil then return true end
+  if ct == nil and bt ~= nil then return false end
+  if ct ~= nil then
+    if ct ~= bt then return ct > bt end
+    local cf = tonumber("0." .. (candidate.ts:match("%.(%d+)") or "0"))
+    local bf = tonumber("0." .. (current.ts:match("%.(%d+)") or "0"))
+    if cf ~= bf then return cf > bf end
+  end
+  return candidate.seq > current.seq
+end
+
 local function lookup(points, ids)
   if not points then return nil end
   local best = nil
   for i = 1, #ids do
     local p = points[ids[i]]
-    if p and p.value ~= nil and p.value ~= "" and (best == nil or p.seq > best.seq) then
+    if p and p.value ~= nil and p.value ~= "" and point_is_newer(p, best) then
       best = p
     end
   end
@@ -973,8 +989,12 @@ local function index_points(data)
         ts = dp.timestampUtc or dp.TimestampUtc,
         seq = i,
       }
-      if rec.key and rec.key ~= "" then points[rec.key] = rec end
-      if rec.name and rec.name ~= "" then points[rec.name] = rec end
+      if rec.key and rec.key ~= "" and point_is_newer(rec, points[rec.key]) then
+        points[rec.key] = rec
+      end
+      if rec.name and rec.name ~= "" and point_is_newer(rec, points[rec.name]) then
+        points[rec.name] = rec
+      end
     end
   end
   return points
