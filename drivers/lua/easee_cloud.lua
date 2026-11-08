@@ -29,7 +29,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.4.0",
+  version      = "1.4.1",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -1100,6 +1100,10 @@ function driver_poll()
         charging                = charging,
         request_active          = request_active,
         session_wh              = session_wh,
+        -- Easee moves session energy in steps of about 1 kWh, in its own
+        -- time. It is right for what a session delivered, and too coarse to
+        -- say when the energy flowed, so Core's energy record uses power.
+        session_wh_coarse       = true,
         power_observed_at       = power_observed_at,
         -- Control verification needs distinct source samples. A fresh cloud
         -- reply alone does not establish a new physical power measurement.
