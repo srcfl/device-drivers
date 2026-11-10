@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### ctc_ecozenith 0.1.0
+
+New read-only driver for the CTC EcoZenith i250/i255 controller over Modbus
+TCP (CTC's BMS register list). It reports outdoor, flow, return, radiator,
+heat-pump in/out and hot-water temperatures, compressor speed and status,
+immersion heater power, and the heat curve's room setting, inclination and
+adjustment. A room temperature is reported only when a room sensor is fitted.
+The controller has no register for the compressor's electrical input, so the
+driver reports no `hp_power_w`.
+
+The controller does not answer an address it lacks; the request just times
+out. The driver therefore reads only registers CTC lists for the i250, and
+gives up on any that stop answering after three polls.
+
 ### easee_cloud 1.4.1
 
 The driver says its session energy is coarse, with `session_wh_coarse`. Easee
