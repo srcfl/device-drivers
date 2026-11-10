@@ -301,7 +301,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye-svk"
-            version: "0.2.2"
+            version: "0.2.3"
             ders: [battery]
             control: true
         firmware_versions: ""
