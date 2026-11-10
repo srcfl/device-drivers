@@ -78,8 +78,16 @@ local NO_TEMP      = -32768 -- nothing measured
 local TEMP_ERROR   = 2000   -- 200.0 °C, a sensor error
 local SETPOINT_OFF = -200   -- -20.0 °C, off or no control
 
+-- Applied with host.set_poll_interval: an interval returned from driver_poll
+-- is capped at 30 s by the host, so returning 60000 alone would poll the
+-- hub twice as often as meant. Returned too, so the two always agree.
 local POLL_MS  = 60000
 local RETRY_MS = 30000
+
+local function next_poll(ms)
+    host.set_poll_interval(ms)
+    return ms
+end
 
 local url      = nil
 local headers  = nil
@@ -144,7 +152,7 @@ function driver_init(config)
 end
 
 function driver_poll()
-    if not url or not headers then return RETRY_MS end
+    if not url or not headers then return next_poll(RETRY_MS) end
 
     local ok, body, err = pcall(host.http_get, url, headers)
     if not ok then err = tostring(body); body = nil end
@@ -153,13 +161,13 @@ function driver_poll()
         -- fresh. A 401 is a wrong or reset secret.
         host.log("warn", "Wiser: hub did not answer: " .. tostring(err))
         host.emit_metric("wiser_poll_ok", 0, "")
-        return RETRY_MS
+        return next_poll(RETRY_MS)
     end
     local dok, data = pcall(host.json_decode, body)
     if not dok or type(data) ~= "table" then
         host.log("warn", "Wiser: hub answer was not JSON")
         host.emit_metric("wiser_poll_ok", 0, "")
-        return RETRY_MS
+        return next_poll(RETRY_MS)
     end
 
     read_identity(data)
@@ -200,7 +208,7 @@ function driver_poll()
     end
 
     host.emit_metric("wiser_poll_ok", 1, "")
-    return POLL_MS
+    return next_poll(POLL_MS)
 end
 
 function driver_cleanup()

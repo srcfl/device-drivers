@@ -830,8 +830,8 @@ drivers:
     setup: [device_ui]
     ders: [heatpump]
     control: false
-    size_bytes: 8072
-    sha256: "5ed78200fe13ac005bd0771dd60d3c407e4a5aed2a5527b7b748b552941ae06d"
+    size_bytes: 8418
+    sha256: "ba2295c6b284c7a90254a83ebf8772427f64edfdb2bb245271cb34ca0909606c"
   - name: "zap"
     version: "3.1.3"
     tier: core
