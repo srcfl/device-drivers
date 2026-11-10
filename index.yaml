@@ -420,8 +420,8 @@ drivers:
     connectivity: local
     ders: [heatpump]
     control: false
-    size_bytes: 12186
-    sha256: "b08443ae0abb43122e370b237cce1ba73396ffc2ec19793bd7f26f334aabd77c"
+    size_bytes: 14651
+    sha256: "d19354c6aef75a31ca0bc1d50b5c59a1139d3903607742446f92322e55f44933"
   - name: "mennekes"
     version: "1.0.3"
     tier: community

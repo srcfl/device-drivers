@@ -20,9 +20,9 @@ upstream_docs:
     kind: register_map
     url_stability: unknown
 min_host_version: "2.0.0"
-size_bytes: 12186
+size_bytes: 14651
 dkb_id: "lk_arc"
-sha256: "b08443ae0abb43122e370b237cce1ba73396ffc2ec19793bd7f26f334aabd77c"
+sha256: "d19354c6aef75a31ca0bc1d50b5c59a1139d3903607742446f92322e55f44933"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
