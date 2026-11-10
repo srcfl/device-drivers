@@ -140,14 +140,70 @@ expect("lk_poll_ok", 0)
 absent("zone_1_temp_c")
 absent("lk_operating_mode")
 
--- One zone stops answering after the scan: its readings stop, the rest go on.
+-- Zones 1 and 2 are one request (input 100..207), zone 3 its own (300).
+local function reads_of(addr)
+    local n, counts = 0, {}
+    for _, c in ipairs(host._calls or {}) do
+        if c.func == "modbus_read" and (addr == nil or c.args[1] == addr) then
+            n = n + 1
+            counts[#counts + 1] = c.args[1] .. ":" .. c.args[2] .. ":" .. c.args[3]
+        end
+    end
+    return n, table.concat(counts, " ")
+end
+
+-- The scan poll: actuators, six zone pairs, two holding requests (zones
+-- 1-2 and 3), the mode, and the identity.
+gateway()
+local n, list = reads_of(nil)
+if n ~= 11 then fail("scan poll requests " .. n .. ": " .. list) end
+if not list:find("100:108:input", 1, true) then fail("zones 1-2 not one request: " .. list) end
+if not list:find("100:103:holding", 1, true) then fail("holding 1-2 not one request: " .. list) end
+
+-- An ordinary poll: actuators and two zone requests, nothing else. The
+-- setpoint is not read, and not re-emitted from the last read either.
+host._calls = {}
+host._metrics = {}
+driver_poll()
+n, list = reads_of(nil)
+if n ~= 3 then fail("ordinary poll requests " .. n .. ": " .. list) end
+expect("zone_1_temp_c", 20.0, "°C")
+expect("zone_3_temp_c", 18.9, "°C")
+absent("zone_1_setpoint_c")
+absent("lk_operating_mode")
+
+-- Every fifth poll reads the settings again.
+for _ = 1, 3 do driver_poll() end
+host._metrics = {}
+driver_poll()
+expect("zone_1_setpoint_c", 23.0, "°C")
+expect("zone_3_setpoint_c", 24.0, "°C")
+expect("lk_operating_mode", 1)
+
+-- Zone 3 stops answering after the scan: its readings stop, the rest go on.
 gateway()
 host._metrics = {}
-host._modbus_read_fail_addresses[200] = "timeout"
+host._modbus_read_fail_addresses[300] = "timeout"
 driver_poll()
-absent("zone_2_temp_c")
+absent("zone_3_temp_c")
 expect("zone_1_temp_c", 20.0, "°C")
+expect("zone_2_temp_c", 20.9, "°C")
 expect("lk_poll_ok", 1)
+
+-- A scan in which zones 3-4 do not answer keeps zone 3 from the last scan
+-- and is repeated after five polls, not half an hour.
+gateway()
+for _ = 1, 29 do driver_poll() end            -- up to the next scan
+host._modbus_read_fail_addresses[300] = "timeout"
+host._metrics = {}
+driver_poll()                                  -- the incomplete scan
+absent("zone_3_temp_c")
+host._modbus_read_fail_addresses[300] = nil
+host._calls = {}
+for _ = 1, 5 do driver_poll() end
+local scans = select(1, reads_of(1100))        -- zones 11-12, only scanned
+if scans ~= 1 then fail("incomplete scan repeated " .. scans .. " times in 5 polls") end
+expect("zone_3_temp_c", 18.9, "°C")
 
 -- A register that keeps failing is left alone after three polls, and the
 -- next zone scan (30 polls on) tries it again.

@@ -34,9 +34,23 @@
 --   - "Gateway number of zones" (3:00051) read 0 on a gateway with three
 --     paired zones. It is not used.
 --   - The gateway answers any unit id.
---   - It is slow: a single read can take over a second. So zones are found
---     once and re-checked every ZONE_RESCAN_POLLS polls, and each poll reads
---     only the zones that exist, eight registers at most per request.
+--   - It is slow, at least over Wi-Fi: ping answered in 0.6-1.8 s and a
+--     single read took up to about 3 s, sometimes past the host's 5 s
+--     request timeout. The host withholds a whole poll's telemetry when any
+--     read in it fails to reach the device, so the driver keeps the number
+--     of requests per poll small:
+--       * Two neighbouring zones are one request. Zone n+1's block starts
+--         100 registers after zone n's, so 108 input registers from zone
+--         n's base cover both, within Modbus' 125. The gateway answers
+--         zeros, not an exception, for the undocumented addresses between
+--         (checked across 0-5000).
+--       * Setpoints, overrides and the operating mode change by hand, not
+--         by the minute, and are read every SETTINGS_EVERY polls.
+--       * Zones are found once and re-checked every ZONE_RESCAN_POLLS polls.
+--     With three zones a poll is three requests (actuators, zones 1-2,
+--     zone 3), and six on a settings poll.
+--   - It accepts one TCP connection at a time. Another Modbus client on
+--     the same gateway makes FTW's reads time out.
 --
 -- PRIVACY
 --   The thermostat addresses are hardware identifiers. They are read only to
@@ -83,8 +97,8 @@ local ZONE_STRIDE   = 100
 local ZONE_IN_COUNT = 8   -- input +0..+7
 local ZONE_HR_COUNT = 3   -- holding +0..+2
 
-local REG_SERIAL        = 0   -- input 0..3, 64-bit serial
-local REG_VERSION       = 4   -- input 4..6, major/minor/micro
+local REG_IDENTITY      = 0   -- input 0..3 serial (64-bit), 4..6 version
+local IDENTITY_COUNT    = 7
 local REG_ACTUATORS     = 60  -- input 60..71
 local ACTUATOR_COUNT    = 12
 local REG_MODE          = 0   -- holding 0
@@ -97,6 +111,8 @@ local ACTUATOR_OPEN   = 1
 local POLL_MS           = 60000
 local ZONE_RESCAN_POLLS = 30  -- about every half hour
 local WATCHDOG_S        = 180
+local SETTINGS_EVERY    = 5   -- polls, so about every five minutes
+local RESCAN_AFTER_GAP  = 5   -- polls until an incomplete scan is repeated
 
 -------------------------------------------------------------------------------
 -- Bounded reads. A failed read is nil and nothing is emitted from it. A
@@ -211,18 +227,13 @@ local IDENTITY_ATTEMPTS = 3
 local function read_identity()
     if identity_done or identity_tries >= IDENTITY_ATTEMPTS then return end
     identity_tries = identity_tries + 1
-    local serial = read(REG_SERIAL, 4, "input")
-    local version = read(REG_VERSION, 3, "input")
-    if serial then
-        host.set_sn(string.format("%04X%04X%04X%04X",
-            serial[1], serial[2], serial[3], serial[4]))
-    end
-    if version then
-        local v = string.format("%d.%d.%d", version[1], version[2], version[3])
-        host.set_model("LK Arc (software " .. v .. ")")
-        host.log("info", "LK: gateway software " .. v)
-    end
-    identity_done = serial ~= nil and version ~= nil
+    local id = read(REG_IDENTITY, IDENTITY_COUNT, "input")
+    if not id then return end
+    host.set_sn(string.format("%04X%04X%04X%04X", id[1], id[2], id[3], id[4]))
+    local v = string.format("%d.%d.%d", id[5], id[6], id[7])
+    host.set_model("LK Arc (software " .. v .. ")")
+    host.log("info", "LK: gateway software " .. v)
+    identity_done = true
 end
 
 -------------------------------------------------------------------------------
@@ -238,10 +249,40 @@ function driver_init(config)
     host.set_poll_interval(POLL_MS)
 end
 
-local function poll_zone(n, input, actuators)
-    local holding = read(n * ZONE_STRIDE, ZONE_HR_COUNT, "holding")
-    emit_zone(n, input, holding, actuators)
+-- Read the per-zone block of `count` registers for each zone in `wanted`
+-- (a sorted list). Two neighbouring wanted zones share one request.
+-- Returns zone number -> its `count` registers; a zone whose request failed
+-- is missing.
+local function read_zones(kind, wanted, count)
+    local want = {}
+    for _, n in ipairs(wanted) do want[n] = true end
+    local out, done = {}, {}
+    for _, n in ipairs(wanted) do
+        if not done[n] then
+            local first = (n % 2 == 1) and n or n - 1
+            local pair = want[first] and want[first + 1]
+            local base = pair and first or n
+            local regs = read(base * ZONE_STRIDE,
+                pair and (ZONE_STRIDE + count) or count, kind)
+            local members = pair and { first, first + 1 } or { n }
+            for i, m in ipairs(members) do
+                done[m] = true
+                if regs then
+                    local off = (i - 1) * ZONE_STRIDE
+                    local block = {}
+                    for k = 1, count do block[k] = regs[off + k] end
+                    out[m] = block
+                end
+            end
+        end
+    end
+    return out
 end
+
+local ALL_ZONES = {}
+for n = 1, MAX_ZONES do ALL_ZONES[n] = n end
+
+local poll_count = 0
 
 function driver_poll()
     local scanning = zones == nil or polls_since_scan >= ZONE_RESCAN_POLLS
@@ -250,6 +291,8 @@ function driver_poll()
         forget_failures()
         if not identity_done then identity_tries = 0 end
     end
+    local settings_poll = scanning or poll_count % SETTINGS_EVERY == 0
+    poll_count = poll_count + 1
 
     local actuators = read(REG_ACTUATORS, ACTUATOR_COUNT, "input")
     if actuators then
@@ -261,42 +304,47 @@ function driver_poll()
             end
         end
     end
+    local any = actuators ~= nil
 
-    local mode = read(REG_MODE, 1, "holding")
-    if mode then emit("lk_operating_mode", mode[1], "") end
-
-    local any = actuators ~= nil or mode ~= nil
-    if scanning then
-        -- Every zone is asked; the answer for a paired one is its reading
-        -- for this poll too, so nothing is read twice and each zone is
-        -- reported as soon as it is known.
-        local found, answered = {}, false
+    -- A scan asks every zone; the answer for a paired one is also its
+    -- reading for this poll, so nothing is read twice.
+    local inputs = read_zones("input", scanning and ALL_ZONES or zones, ZONE_IN_COUNT)
+    if scanning and next(inputs) ~= nil then
+        -- A zone whose request failed keeps what the last scan said about
+        -- it, and an incomplete scan is repeated after RESCAN_AFTER_GAP
+        -- polls rather than half an hour later.
+        local known, found, complete = {}, {}, true
+        for _, n in ipairs(zones or {}) do known[n] = true end
         for n = 1, MAX_ZONES do
-            local input = read(n * ZONE_STRIDE, ZONE_IN_COUNT, "input")
-            if input then
-                answered = true
-                if has_thermostat(input) then
-                    found[#found + 1] = n
-                    poll_zone(n, input, actuators)
-                end
+            if inputs[n] then
+                if has_thermostat(inputs[n]) then found[#found + 1] = n end
+            else
+                complete = false
+                if known[n] then found[#found + 1] = n end
             end
         end
-        if answered then
-            zones = found
-            polls_since_scan = 0
-            any = true
-            host.log("info", string.format("LK: %d zone(s) with a thermostat", #found))
-        end
-    else
-        for _, n in ipairs(zones) do
-            local input = read(n * ZONE_STRIDE, ZONE_IN_COUNT, "input")
-            if input then
-                any = true
-                poll_zone(n, input, actuators)
-            end
-        end
+        zones = found
+        polls_since_scan = complete and 0 or (ZONE_RESCAN_POLLS - RESCAN_AFTER_GAP)
+        host.log("info", string.format("LK: %d zone(s) with a thermostat%s",
+            #found, complete and "" or " (scan incomplete)"))
     end
     polls_since_scan = polls_since_scan + 1
+
+    local present = {}
+    for _, n in ipairs(zones or {}) do
+        if inputs[n] then present[#present + 1] = n; any = true end
+    end
+
+    local holdings = {}
+    if settings_poll and #present > 0 then
+        holdings = read_zones("holding", present, ZONE_HR_COUNT)
+        local mode = read(REG_MODE, 1, "holding")
+        if mode then emit("lk_operating_mode", mode[1], "") end
+    end
+
+    for _, n in ipairs(present) do
+        emit_zone(n, inputs[n], holdings[n], actuators)
+    end
 
     read_identity()
 
