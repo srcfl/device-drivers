@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### wiser_heat 0.1.0
+
+New read-only driver for the Schneider Electric / Drayton Wiser heating hub
+over its local HTTPS API. It reports each room's temperature and setpoint,
+each smoke alarm's temperature, and each heating channel's demand and relay
+state, from one GET of `/data/domain/` per minute. The hub's secret is a
+masked config value, and its self-signed certificate is pinned with
+`tls_pin_sha256`.
+
+A room with nothing assigned reports -32768 and a setpoint of -20.0 °C, and
+neither is emitted. A device the hub shows as offline has its temperature
+left out, since the hub would keep serving the last value.
+
 ### easee_cloud 1.4.1
 
 The driver says its session energy is coarse, with `session_wh_coarse`. Easee

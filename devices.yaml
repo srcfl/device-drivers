@@ -1238,6 +1238,17 @@ manufacturers:
         notes: "115200 baud, 8N1, DSMR v5.0.2 (SE) or EON payload (HU)"
   - name: "Schneider Electric"
     model_families:
+      - name: "Wiser Hub R gen 2"
+        variants: [WT704R1B30S4]
+        regions: [SE]
+        protocols:
+          - protocol: http
+            driver: "wiser_heat"
+            version: "0.1.0"
+            ders: [heatpump]
+            control: false
+        firmware_versions: "4.50.4"
+        notes: "Read-only over the hub's local HTTPS API (SECRET header, self-signed certificate pinned via tls_pin_sha256). Tested with one smoke alarm and no thermostat or valve; room temperatures from real thermostats are decoded but not yet seen on hardware."
       - name: "iEM3xxx/PM5xxx"
         variants: [PM5100, PM5110, PM5300, PM5310, PM5330, PM5340, PM710, iEM3150, iEM3155, iEM3250, iEM3255, iEM3350, iEM3355]
         regions: []
