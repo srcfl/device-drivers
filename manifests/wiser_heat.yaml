@@ -1,0 +1,26 @@
+name: "wiser_heat"
+version: "0.1.0"
+tier: community
+author: "hannesb90 with the help of Claude Code"
+protocol: http
+connectivity: local
+setup: [device_ui]
+ders: [heatpump]
+control: false
+tested_devices:
+  - manufacturer: "Schneider Electric"
+    model_family: "Wiser Hub R gen 2"
+    variants: [WT704R1B30S4]
+    regions: [SE]
+    firmware_versions: "4.50.4"
+    notes: "Read-only over the hub's local HTTPS API (SECRET header, self-signed certificate pinned via tls_pin_sha256). Tested with one smoke alarm and no thermostat or valve; room temperatures from real thermostats are decoded but not yet seen on hardware."
+    min_driver_version: "0.1.0"
+min_host_version: "2.0.0"
+size_bytes: 8072
+dkb_id: "wiser_heat"
+sha256: "5ed78200fe13ac005bd0771dd60d3c407e4a5aed2a5527b7b748b552941ae06d"
+signature: ""
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "First version: read-only Wiser hub rooms, smoke alarm temperatures and heating channel demand."
