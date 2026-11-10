@@ -1,0 +1,30 @@
+name: "lk_arc"
+version: "0.1.0"
+tier: community
+author: "hannesb90 with the help of Claude Code"
+protocol: modbus
+connectivity: local
+ders: [heatpump]
+control: false
+tested_devices:
+  - manufacturer: "LK Systems"
+    model_family: "LK Arc"
+    variants: [LK Arc gateway]
+    regions: [SE]
+    firmware_versions: "gateway software 0.53.0"
+    notes: "Read-only underfloor heating telemetry over Modbus TCP: per-zone room temperature, humidity, setpoint, thermostat battery and signal, actuator state. Wire address is LK's listed register number minus one. Zones without a paired thermostat read all zeros and are skipped."
+    min_driver_version: "0.1.0"
+upstream_docs:
+  - url: "https://www.lksystems.no/download/6236/SENOFIEN.33.J.4._LK%20Arc%20Modbus%20Registers_20261009.pdf"
+    title: "LK Arc Modbus Registers (SENOFIEN.33.J.4, 2026-10-09)"
+    kind: register_map
+    url_stability: unknown
+min_host_version: "2.0.0"
+size_bytes: 12186
+dkb_id: "lk_arc"
+sha256: "b08443ae0abb43122e370b237cce1ba73396ffc2ec19793bd7f26f334aabd77c"
+signature: ""
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "First version: read-only LK Arc underfloor heating telemetry over Modbus TCP."
