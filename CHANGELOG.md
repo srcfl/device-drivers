@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### lk_arc 0.1.0
+
+New read-only driver for the LK Systems LK Arc underfloor heating gateway
+over Modbus TCP, from LK's published register list. Per zone it reports
+room temperature, humidity, setpoint, override state, thermostat battery
+and signal strength, and how many of the zone's actuators are open. Zones
+are found from their thermostat address and re-checked every half hour;
+the addresses themselves are never emitted.
+
 ### easee_cloud 1.4.1
 
 The driver says its session energy is coarse, with `session_wh_coarse`. Easee

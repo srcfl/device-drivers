@@ -913,6 +913,19 @@ manufacturers:
             control: false
         firmware_versions: ""
         notes: "SunSpec compliant, port 1502"
+  - name: "LK Systems"
+    model_families:
+      - name: "LK Arc"
+        variants: [LK Arc gateway]
+        regions: [SE]
+        protocols:
+          - protocol: modbus
+            driver: "lk_arc"
+            version: "0.1.0"
+            ders: [heatpump]
+            control: false
+        firmware_versions: "gateway software 0.53.0"
+        notes: "Read-only underfloor heating telemetry over Modbus TCP: per-zone room temperature, humidity, setpoint, thermostat battery and signal, actuator state. Wire address is LK's listed register number minus one. Zones without a paired thermostat read all zeros and are skipped."
   - name: "Landis+Gyr"
     model_families:
       - name: "E350"
