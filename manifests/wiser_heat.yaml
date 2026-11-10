@@ -16,9 +16,9 @@ tested_devices:
     notes: "Read-only over the hub's local HTTPS API (SECRET header, self-signed certificate pinned via tls_pin_sha256). Tested with one smoke alarm and no thermostat or valve; room temperatures from real thermostats are decoded but not yet seen on hardware."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 8072
+size_bytes: 8418
 dkb_id: "wiser_heat"
-sha256: "5ed78200fe13ac005bd0771dd60d3c407e4a5aed2a5527b7b748b552941ae06d"
+sha256: "ba2295c6b284c7a90254a83ebf8772427f64edfdb2bb245271cb34ca0909606c"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""

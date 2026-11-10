@@ -71,8 +71,19 @@ local function run(body, config)
 end
 
 -- The hub as it answered.
+
+-- The interval the host will actually use: the last set_poll_interval.
+local function set_interval()
+    local ms
+    for _, call in ipairs(host._calls) do
+        if call.func == "set_poll_interval" then ms = call.args[1] end
+    end
+    return ms
+end
 local interval = run(HUB_R_GEN2)
 if interval ~= 60000 then fail("poll interval " .. tostring(interval)) end
+-- The host caps a returned interval at 30 s; the minute has to be set.
+if set_interval() ~= 60000 then fail("set_poll_interval " .. tostring(set_interval())) end
 if host._make ~= "Wiser" then fail("make " .. tostring(host._make)) end
 if host._model ~= "WT704R1B30S4" then fail("model " .. tostring(host._model)) end
 if host._sn ~= "HUB-UUID" then fail("sn " .. tostring(host._sn)) end
@@ -111,6 +122,7 @@ dofile(ROOT .. "drivers/lua/wiser_heat.lua")
 driver_init({ base_url = "https://hub.test", secret = "s" })
 local retry = driver_poll()
 if retry ~= 30000 then fail("retry interval " .. tostring(retry)) end
+if set_interval() ~= 30000 then fail("set retry interval " .. tostring(set_interval())) end
 absent("smoke_alarm_1_temp_c")
 absent("heating_channel_1_demand_pct")
 expect("wiser_poll_ok", 0)
