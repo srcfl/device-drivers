@@ -94,6 +94,8 @@ Catalog source is not proof that a target can install or run a driver.
 | kostal | 2.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | kstar | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | kstar | 1.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| lk_arc | 0.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| lk_arc | 0.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | mennekes | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | mennekes | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | myuplink | 1.2.4 | ftw-core | not_assessed | — | not_recorded | not_assessed |
