@@ -64,7 +64,7 @@ DRIVER = {
     id = "deye-svk",
     name = "Deye SUN hybrid — lean SvK fast-poll variant",
     manufacturer = "Deye",
-    version = "0.2.2",
+    version = "0.2.3",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -359,7 +359,9 @@ function driver_poll()
 
     -- Energy headroom (Wh) — operator SoC band + capacity, dispatchable.
     local chg_eh_wh, dis_eh_wh = 0, 0
-    if battery_capacity_wh > 0 then
+    -- bat_soc is nil when the SoC read failed this poll; skip the headroom
+    -- instead of raising a Lua error (same guard as the 50-125k-svk drivers).
+    if battery_capacity_wh > 0 and bat_soc then
         local soc_pct_int = math.floor(bat_soc * 100 + 0.5)
         local span = soc_max_pct - soc_min_pct
         if span > 0 then
