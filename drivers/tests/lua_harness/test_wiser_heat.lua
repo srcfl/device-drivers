@@ -199,6 +199,51 @@ run((HUB_CFMT:gsub('"RoomId": 6,(%s+)"DisplayedSignalStrength": "VeryGood"',
 absent("heating_actuator_8_floor_temp_c")
 absent("heating_actuator_8_floor_max_c")
 
+-- Estimated power: none without a configured load.
+run(HUB_CFMT)
+absent("heating_actuator_8_power_est_w")
+
+local function with_load(body, entry)
+    return run(body, { host = "hub.test", secret = "s", floor_heating = { entry } })
+end
+local demand45 = (HUB_CFMT:gsub('"PercentageDemand": 0,(%s+)"ControlOutputState"',
+                               '"PercentageDemand": 45,%1"ControlOutputState"'))
+
+-- area_m2 x the default 110 W/m2, times the room's demand.
+with_load(demand45, { actuator = 8, area_m2 = 4.5 })
+expect("heating_actuator_8_power_est_w", 223, "W")   -- 4.5 x 110 x 0.45
+-- The owner's own W/m2.
+with_load(demand45, { actuator = 8, area_m2 = 4.5, w_per_m2 = 150 })
+expect("heating_actuator_8_power_est_w", 304, "W")   -- 675 x 0.45
+-- The cable's own rating wins over the area.
+with_load(demand45, { actuator = 8, area_m2 = 4.5, rated_w = 600 })
+expect("heating_actuator_8_power_est_w", 270, "W")
+-- Demand 0: 0 W is a reading here, the relay is off for the whole cycle.
+with_load(HUB_CFMT, { actuator = 8, area_m2 = 4.5 })
+expect("heating_actuator_8_power_est_w", 0, "W")
+-- Full demand.
+with_load(p8, { actuator = 8, rated_w = 600 })
+expect("heating_actuator_8_power_est_w", 600, "W")
+-- A typing error is refused, not emitted.
+with_load(demand45, { actuator = 8, area_m2 = 450 })
+absent("heating_actuator_8_power_est_w")
+with_load(demand45, { actuator = 8, rated_w = 60000 })
+absent("heating_actuator_8_power_est_w")
+-- Another actuator's load does not apply to this one.
+with_load(demand45, { actuator = 9, area_m2 = 4.5 })
+absent("heating_actuator_8_power_est_w")
+-- An offline thermostat: no estimate from the hub's cached demand.
+with_load((demand45:gsub('"RoomId": 6,(%s+)"DisplayedSignalStrength": "VeryGood"',
+                         '"RoomId": 6,%1"DisplayedSignalStrength": "Offline"')),
+          { actuator = 8, area_m2 = 4.5 })
+absent("heating_actuator_8_power_est_w")
+-- The hub does not answer: nothing, estimate included.
+host.reset()
+dofile(ROOT .. "drivers/lua/wiser_heat.lua")
+driver_init({ host = "hub.test", secret = "s", floor_heating = { { actuator = 8, area_m2 = 4.5 } } })
+driver_poll()
+absent("heating_actuator_8_power_est_w")
+
 -- The sensor type is logged once, and again when it changes.
 local function sensor_logs()
     local n = 0

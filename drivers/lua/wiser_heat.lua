@@ -18,6 +18,8 @@
 --                 heating_actuator_<id>_floor_temp_c  floor sensor, 0.1 °C
 --                 heating_actuator_<id>_floor_max_c   floor upper limit
 --                 heating_actuator_<id>_floor_min_c   floor lower limit
+--                 heating_actuator_<id>_power_est_w   estimated draw, only
+--                                                     when configured (below)
 --   - each SmokeAlarmDevice: smoke_alarm_<id>_temp_c  MeasuredTemperature
 --   - each HeatingChannel:   heating_channel_<id>_demand_pct  PercentageDemand
 --                            heating_channel_<id>_relay_on    HeatingRelayState
@@ -53,6 +55,21 @@
 --   floor reading is emitted only while the sensor status is
 --   Normal_Operation.
 --
+-- ESTIMATED POWER
+--   A Renova CFMT switches its load with a relay and measures no power:
+--   the hub reports InstantaneousDemand and CurrentSummationDelivered as 0
+--   with the relay on. When the owner states the load, the driver emits
+--   heating_actuator_<id>_power_est_w = rated W x room PercentageDemand.
+--   The thermostat drives the relay time-proportionally over its cycle
+--   (CycleTime_10, ten minutes), so the demand is the share of the cycle the
+--   relay is on, and the product is the average draw over the cycle, not
+--   the instant one. It is a metric, not a power stream: it is an estimate
+--   and must not be added to a measured site balance. The rated W is, per
+--   actuator id, either rated_w (the heating cable or mat's own rating, best
+--   when known) or area_m2 x w_per_m2 (w_per_m2 defaults to 110, a common
+--   rating for floor heating mats in bathrooms). Nothing is emitted for an
+--   actuator without a configured load.
+--
 -- STALENESS
 --   The hub answers from its own cache. A device whose Device entry shows
 --   DisplayedSignalStrength "Offline" or "NoSignal" has its temperature
@@ -74,6 +91,11 @@
 --       config:
 --         host: "<hub-ip>"
 --         secret: "<hub secret>"          # masked via config_secrets
+--         floor_heating:                  # optional, per heating actuator id
+--           - actuator: 8
+--             area_m2: 4.5                # x w_per_m2 (default 110)
+--             # w_per_m2: 130             # the owner's own rating per m²
+--             # rated_w: 600              # or the cable's total rating
 --       capabilities:
 --         http:
 --           allowed_hosts: ["<hub-ip>"]
@@ -110,11 +132,19 @@ local SETPOINT_OFF = -200   -- -20.0 °C, off or no control
 local POLL_MS  = 60000
 local RETRY_MS = 30000
 
+local DEFAULT_W_PER_M2 = 110
+-- Bounds on a configured load. 16 A x 230 V is the most a CFMT relay
+-- switches; a figure outside these is a typing error, not a floor.
+local MAX_RATED_W  = 3680
+local MAX_AREA_M2  = 200
+local MAX_W_PER_M2 = 300
+
 local function next_poll(ms)
     host.set_poll_interval(ms)
     return ms
 end
 
+local rated_w  = {}  -- actuator id -> configured load in W
 local url      = nil
 local headers  = nil
 local identity = false
@@ -179,6 +209,35 @@ function driver_init(config)
         if port and port ~= "443" then url = url .. ":" .. port end
         url = url .. "/data/domain/"
     end
+    rated_w = {}
+    local fh = config.floor_heating
+    if type(fh) == "table" then
+        for _, e in ipairs(fh) do
+            local id = type(e) == "table" and tonumber(e.actuator) or nil
+            local w = nil
+            if id then
+                local rw, area = tonumber(e.rated_w), tonumber(e.area_m2)
+                local per = tonumber(e.w_per_m2) or DEFAULT_W_PER_M2
+                if rw ~= nil then
+                    if rw > 0 and rw <= MAX_RATED_W then w = rw end
+                elseif area ~= nil and area > 0 and area <= MAX_AREA_M2
+                        and per > 0 and per <= MAX_W_PER_M2 then
+                    w = area * per
+                    if w > MAX_RATED_W then w = nil end
+                end
+            end
+            if w then
+                rated_w[id] = w
+                host.log("info", string.format(
+                    "Wiser: heating actuator %d load %.0f W (estimate)", id, w))
+            else
+                host.log("warn", "Wiser: floor_heating entry ignored: needs actuator and "
+                    .. "rated_w (1-" .. MAX_RATED_W .. " W) or area_m2 (1-" .. MAX_AREA_M2
+                    .. " m2) with w_per_m2 (1-" .. MAX_W_PER_M2 .. ")")
+            end
+        end
+    end
+
     local secret = s(config.secret)
     if secret then headers = { SECRET = secret, Accept = "application/json" } end
     if not url then host.log("warn", "Wiser: no host configured") end
@@ -211,9 +270,11 @@ function driver_poll()
         if d.id ~= nil then devices[d.id] = d end
     end
 
+    local room_demand = {}
     for _, r in ipairs(data.Room or {}) do
         local id = tonumber(r.id)
         if id then
+            room_demand[id] = tonumber(r.PercentageDemand)
             emit("room_" .. id .. "_temp_c", temp(r.CalculatedTemperature), "°C")
             local sp = tonumber(r.CurrentSetPoint)
             if sp ~= nil and sp > SETPOINT_OFF then
@@ -244,6 +305,15 @@ function driver_poll()
             end
             emit(p .. "_floor_max_c", temp(f.MaximumTemperature), "°C")
             emit(p .. "_floor_min_c", temp(f.MinimumTemperature), "°C")
+        end
+        local w = id and rated_w[id]
+        if w and device_online(devices, a.DeviceId) then
+            local dev = devices[a.DeviceId]
+            local demand = room_demand[tonumber(dev.RoomId)]
+            if demand ~= nil and demand >= 0 and demand <= 100 then
+                emit("heating_actuator_" .. id .. "_power_est_w",
+                    math.floor(w * demand / 100 + 0.5), "W")
+            end
         end
     end
 
