@@ -13,8 +13,10 @@ The controller has no register for the compressor's electrical input, so the
 driver reports no `hp_power_w`.
 
 The controller does not answer an address it lacks; the request just times
-out. The driver therefore reads only registers CTC lists for the i250, and
-gives up on any that stop answering after three polls.
+out. The driver therefore reads only registers CTC lists for the i250. One
+that stops answering for three polls is retried less and less often, at most
+every 10 minutes, and never given up for good: the controller also refuses
+reads while another client holds its connection.
 
 ### easee_cloud 1.4.1
 
