@@ -111,15 +111,22 @@ local POLL_MS = 30000
 
 -------------------------------------------------------------------------------
 -- Bounded reads. A register that does not answer three polls in a row is
--- left alone until restart: on this controller a missing register costs a
--- full timeout, and paying it every poll would be an outage arriving slowly.
+-- backed off: skipped for 1, 2, 4 ... polls, at most MAX_SKIP_POLLS, then
+-- tried again. On this controller a missing register costs a full timeout,
+-- so paying it every poll would be an outage arriving slowly. It is never
+-- given up for good: the controller also refuses reads for a while when
+-- another client holds its connection, and a driver that gave up then stayed
+-- offline until restart although the pump was answering again.
 -------------------------------------------------------------------------------
 
-local GIVE_UP_AFTER = 3
+local BACK_OFF_AFTER = 3
+local MAX_SKIP_POLLS = 20 -- 10 min at POLL_MS
 local read_failures = {}
+local skip_until = {}
+local poll_no = 0
 
 local function probe_read(addr, count)
-    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    if skip_until[addr] and poll_no < skip_until[addr] then return nil end
     local ok, regs = pcall(host.modbus_read, addr, count, "holding")
     if ok and regs then
         for i = 1, count do
@@ -127,15 +134,23 @@ local function probe_read(addr, count)
         end
     end
     if ok and regs then
+        if (read_failures[addr] or 0) >= BACK_OFF_AFTER then
+            host.log("info", string.format("CTC: register %d answers again", addr))
+        end
         read_failures[addr] = nil
+        skip_until[addr] = nil
         return regs
     end
     local failures = (read_failures[addr] or 0) + 1
     read_failures[addr] = failures
-    if failures == GIVE_UP_AFTER then
-        host.log("info", string.format(
-            "CTC: register %d did not answer %d times; leaving it alone " ..
-            "until restart", addr, GIVE_UP_AFTER))
+    if failures >= BACK_OFF_AFTER then
+        local wait = math.min(1 << (failures - BACK_OFF_AFTER), MAX_SKIP_POLLS)
+        skip_until[addr] = poll_no + 1 + wait
+        if failures == BACK_OFF_AFTER then
+            host.log("info", string.format(
+                "CTC: register %d did not answer %d times; retrying less " ..
+                "often, at most every %d polls", addr, BACK_OFF_AFTER, MAX_SKIP_POLLS))
+        end
     end
     return nil
 end
@@ -205,6 +220,7 @@ function driver_init(config)
 end
 
 function driver_poll()
+    poll_no = poll_no + 1
     read_identity()
 
     local block = probe_read(REG_BLOCK_START, BLOCK_COUNT)
@@ -257,9 +273,9 @@ function driver_poll()
     if adjust then emit("hp_curve_adjustment_c", s16(adjust[1]) / 10, "°C") end
 
     -- hp_poll_ok follows the 16-register block only, on purpose: it holds the
-    -- status and the main temperatures. Once that block is given up on it
-    -- stays 0 until restart, even while the single reads still answer, so a
-    -- pump that lost its main block does not look healthy.
+    -- status and the main temperatures. While that block is backed off it
+    -- stays 0, even if the single reads still answer, so a pump that lost
+    -- its main block does not look healthy.
     host.emit_metric("hp_poll_ok", block and 1 or 0, "")
     return POLL_MS
 end

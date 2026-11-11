@@ -130,6 +130,36 @@ absent("hp_return_temp_c")
 expect("hp_poll_ok", 0)
 expect("hp_hw_top_temp_c", 57.0, "°C")
 
+-- The main block stops answering for a while, as when another client holds
+-- the controller's connection, then answers again. The driver backs off but
+-- must come back by itself, without a restart.
+host.reset()
+h = host._modbus_registers.holding
+h[62000] = 40
+h[62276] = 570
+host._modbus_read_fail_addresses[62000] = "timeout"
+dofile(ROOT .. "drivers/lua/ctc_ecozenith.lua")
+driver_init({})
+for _ = 1, 6 do driver_poll() end
+absent("hp_outdoor_temp_c")
+host._modbus_read_fail_addresses[62000] = nil
+local back_after
+for n = 1, 25 do
+    host._metrics = {}
+    driver_poll()
+    if host._metrics["hp_outdoor_temp_c"] then
+        back_after = n
+        break
+    end
+end
+if not back_after then
+    fail("main block never read again after it recovered")
+elseif back_after > 21 then
+    fail("main block back only after " .. back_after .. " polls")
+end
+expect("hp_outdoor_temp_c", 4.0, "°C")
+expect("hp_poll_ok", 1)
+
 if failed > 0 then
     print("FAILED " .. failed)
     os.exit(1)
