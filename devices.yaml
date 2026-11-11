@@ -1238,6 +1238,17 @@ manufacturers:
         notes: "115200 baud, 8N1, DSMR v5.0.2 (SE) or EON payload (HU)"
   - name: "Schneider Electric"
     model_families:
+      - name: "Renova Connected Thermostat 16 A"
+        variants: [WDE011680]
+        regions: [SE]
+        protocols:
+          - protocol: http
+            driver: "wiser_heat"
+            version: "0.1.0"
+            ders: [heatpump]
+            control: false
+        firmware_versions: "1.0.59"
+        notes: "Read through the Wiser hub, on electric floor heating with a 15 kOhm floor sensor, in presets P8 (floor control) and P6 (room control with floor limit). Room air temperature matched the thermostat display, and the floor sensor (after setting NTC_15K) matched an IR reading of the floor surface; room demand and output state followed the relay through a heat and cool-down cycle. The floor lower limit is decoded but was not configured."
       - name: "Wiser Hub R gen 2"
         variants: [WT704R1B30S4]
         regions: [SE]
@@ -1248,7 +1259,7 @@ manufacturers:
             ders: [heatpump]
             control: false
         firmware_versions: "4.50.4"
-        notes: "Read-only over the hub's local HTTPS API (SECRET header, self-signed certificate pinned via tls_pin_sha256). Tested with one smoke alarm and no thermostat or valve; room temperatures from real thermostats are decoded but not yet seen on hardware."
+        notes: "Read-only over the hub's local HTTPS API (SECRET header, self-signed certificate pinned via tls_pin_sha256). Tested with smoke alarms and one Renova CFMT 16 A floor thermostat; radiator valves (iTRV) and room stats are not seen on hardware."
       - name: "iEM3xxx/PM5xxx"
         variants: [PM5100, PM5110, PM5300, PM5310, PM5330, PM5340, PM710, iEM3150, iEM3155, iEM3250, iEM3255, iEM3350, iEM3355]
         regions: []
