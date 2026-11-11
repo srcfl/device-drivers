@@ -22,6 +22,12 @@ or air. Checked on a Renova CFMT 16 A in presets P8 and P6. The hub reports
 the configured floor sensor type but cannot see the probe: a 15 kOhm probe
 set as 10 kOhm read about 9 °C low. The driver logs the type when it changes.
 
+A floor thermostat measures no power, so the owner can state its load per
+actuator, as `rated_w` or as `area_m2` times `w_per_m2` (default 110 W/m²).
+The driver then emits `heating_actuator_<id>_power_est_w`, the load times the
+room's demand: the average draw over the relay's cycle. It is a metric, not a
+power stream, so it never enters a measured site balance.
+
 ### easee_cloud 1.4.1
 
 The driver says its session energy is coarse, with `session_wh_coarse`. Easee
