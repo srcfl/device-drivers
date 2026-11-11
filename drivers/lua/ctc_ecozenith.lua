@@ -32,6 +32,21 @@
 --     as absent for the temperatures where 0 cannot be a real reading.
 --   - One open connection served 18 reads in 0.16 s. It is a normal Modbus
 --     TCP server once it is only asked about registers it has.
+--   - It serves one client at a time. While FTW held its connection on
+--     2026-11-11, a second client was reset on its first request, every
+--     time. Another BMS, a phone app over Modbus or a test script therefore
+--     makes FTW's reads fail for as long as it is connected; see the back-off
+--     in probe_read.
+--
+-- WHAT THE TEMPERATURES ARE, CHECKED AGAINST THE DISPLAY (2026-11-11)
+--   - 62011 "Heating system 1: Primary flow" is the flow to the heating
+--     system after the mixing valve: hp_flow_temp_c. The display showed
+--     23 °C flow with setpoint 24 °C, and 62007 "Heating system 1:
+--     Temperature setpoint primary flow" read 24.0: hp_flow_setpoint_c.
+--   - 62006 "Radiator Water" is not that flow. It is the tank water the
+--     mixing valve draws from, shown on the display as radiator water 35 °C
+--     with setpoint 35 °C while the flow was 23-25 °C. Its setpoint matched
+--     the lower tank setpoint (62274). hp_radiator_temp_c keeps CTC's name.
 --
 -- POWER
 --   The controller does not report the compressor's electrical input. The
@@ -84,6 +99,7 @@ local BLOCK_COUNT       = 16
 local REG_OUTDOOR       = 62000 -- Outdoor temperature, 0.1 °C
 local REG_STATUS        = 62005 -- Status code, see STATUS below
 local REG_RADIATOR      = 62006 -- Radiator water, 0.1 °C
+local REG_HS1_FLOW_SET  = 62007 -- Heating system 1: primary flow setpoint, 0.1 °C
 local REG_HS1_FLOW      = 62011 -- Heating system 1: primary flow, 0.1 °C
 local REG_RETURN        = 62015 -- Return temp, 0.1 °C
 local REG_HP1_STATUS    = 62017 -- Heat pump 1 (A1) status code
@@ -232,6 +248,7 @@ function driver_poll()
         emit("hp_ctc_status", s16(at(REG_STATUS)), "")
         emit("hp_radiator_temp_c", temp(at(REG_RADIATOR)), "°C")
         emit("hp_flow_temp_c", temp(at(REG_HS1_FLOW)), "°C")
+        emit("hp_flow_setpoint_c", temp(at(REG_HS1_FLOW_SET)), "°C")
         emit("hp_return_temp_c", temp(at(REG_RETURN)), "°C")
     end
 
@@ -297,3 +314,10 @@ end
 --   1023  Setpoint offset heat HC1
 --   1029  Setpoint flow temp HC1
 -- All are in the i250 column. None has been written to a pump yet.
+--
+-- The settings registers are writable too, and keep their value like a
+-- change on the display. On 2026-11-11 61517 (room 1 curve adjustment,
+-- factor 0.1) was written on an i255 with function code 16 from -30 to 30
+-- (-3.0 to +3.0 °C), with FTW's driver paused because of the one-client
+-- limit above. 61517 read back 30 and the flow setpoint 62007 went from
+-- 24.0 to 30.0 °C at 4 °C outdoor: the adjustment moves the curve 1:1.
