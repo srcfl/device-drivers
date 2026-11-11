@@ -10,7 +10,9 @@ demand and output state, each floor thermostat's floor sensor temperature
 and floor limits, each smoke alarm's temperature, and each heating channel's
 demand and relay state, from one GET of `/data/domain/` per minute. The hub's secret is a
 masked config value, and its self-signed certificate is pinned with
-`tls_pin_sha256`.
+`tls_pin_sha256`. A floor thermostat's floor temperature is kept while its floor limit
+holds the output off (`Output_Thermal_Limit`), and
+`heating_actuator_<id>_floor_limit_active` says so.
 
 A room with nothing assigned reports -32768 and a setpoint of -20.0 °C, and
 neither is emitted. A device the hub shows as offline has its temperature

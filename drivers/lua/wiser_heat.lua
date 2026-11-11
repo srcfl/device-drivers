@@ -18,6 +18,9 @@
 --                 heating_actuator_<id>_floor_temp_c  floor sensor, 0.1 °C
 --                 heating_actuator_<id>_floor_max_c   floor upper limit
 --                 heating_actuator_<id>_floor_min_c   floor lower limit
+--                 heating_actuator_<id>_floor_limit_active  1 while the
+--                                                     floor limit holds
+--                                                     the output off
 --                 heating_actuator_<id>_power_est_w   estimated draw, only
 --                                                     when configured (below)
 --   - each SmokeAlarmDevice: smoke_alarm_<id>_temp_c  MeasuredTemperature
@@ -52,8 +55,27 @@
 --   on the test site a 15 kOhm probe configured as 10 kOhm read 17.4 °C
 --   while the floor surface measured 26.6-27.5 °C, and after setting
 --   NTC_15K it read 27.0 °C. The type is logged when it changes, and the
---   floor reading is emitted only while the sensor status is
---   Normal_Operation.
+--   floor reading is emitted only while the sensor status says the probe
+--   reads: Normal_Operation, or Output_Thermal_Limit (below).
+--   On 2026-11-11 three CFMTs on one hub had NTC_10K, NTC_12K and NTC_15K
+--   probes; with each set to its own type, all three read within 0.7 °C of
+--   the tiled floor surface measured with an IR thermometer.
+--
+-- FLOOR LIMIT
+--   When the floor limit holds the output off, the sensor status is
+--   Output_Thermal_Limit and the room's FloorSensorState is BeyondMaximum.
+--   The probe still reads (23.8 °C on 2026-11-11, a valid reading), so the
+--   floor temperature is kept and floor_limit_active says the output is
+--   being held off by the limit, not by the room's own demand.
+--
+-- SETPOINT RANGE FOLLOWS THE FLOOR LIMITS
+--   With a floor sensor fitted, the hub sets the room's air setpoint range
+--   (ClimateCapabilities MinimumHeatSetpoint/MaximumHeatSetpoint) to the
+--   floor limits. With the lower floor limit at 22 °C the room could not be
+--   set under 22 °C air, and a 20 °C schedule ran at 22 °C. Lowering the
+--   floor limit to 19 °C in the app moved the air minimum to 19 °C with it.
+--   room_<id>_setpoint_c is therefore the effective setpoint, which can be
+--   above what the schedule asks for.
 --
 -- ESTIMATED POWER
 --   A Renova CFMT switches its load with a relay and measures no power:
@@ -69,6 +91,20 @@
 --   when known) or area_m2 x w_per_m2 (w_per_m2 defaults to 110, a common
 --   rating for floor heating mats in bathrooms). Nothing is emitted for an
 --   actuator without a configured load.
+--
+-- NOTES FOR A LATER CONTROL (not used: this driver is read-only)
+--   Measured on 2026-11-11, firmware 4.50.4:
+--   - PATCH /data/v2/domain/Room/<id> with {"RequestOverride": {"Type":
+--     "Manual", "SetPoint": <0.1 °C>, "DurationMinutes": <n>}} sets a timed
+--     override. The hub rounds its end (OverrideTimeoutUnixTime) to a
+--     quarter hour, and when it ends the room returns by itself to its
+--     manual setpoint or schedule: a device-side timed hold.
+--     {"RequestOverride": {"Type": "None"}} cancels it.
+--   - The floor limits cannot be written locally: a PATCH of
+--     HeatingActuator FloorTemperatureSensor.MinimumTemperature answers
+--     200 and changes nothing. Only the app sets them.
+--   - A room whose schedule is removed goes to Manual mode at -200 (off),
+--     not to its last setpoint.
 --
 -- STALENESS
 --   The hub answers from its own cache. A device whose Device entry shows
@@ -116,7 +152,7 @@ DRIVER = {
   authors      = { "hannesb90", "Claude (Anthropic)" },
   tested_models = { "Wiser Hub R gen 2 (WT704R1B30S4)", "Renova Connected Thermostat 16 A (WDE011680)" },
   verification_status = "experimental",
-  verification_notes  = "Checked against one Wiser Hub R gen 2 (WT704R1B30S4, firmware 4.50.4) with smoke alarms and one Renova CFMT 16 A floor thermostat (WDE011680) on electric floor heating, on 2026-11-10 and 2026-11-11, in both the floor-control (P8) and room-with-floor-limit (P6) presets. Radiator valves (iTRV) and room stats are decoded only as rooms; not seen.",
+  verification_notes  = "Checked against one Wiser Hub R gen 2 (WT704R1B30S4, firmware 4.50.4) with smoke alarms and three Renova CFMT 16 A floor thermostats (WDE011680) on electric floor heating under tiles, on 2026-11-10 and 2026-11-11, in both the floor-control (P8) and room-with-floor-limit (P6) presets. Their NTC_10K, NTC_12K and NTC_15K floor probes read within 0.7 °C of the measured floor surface, and one was seen held off by its floor limit (Output_Thermal_Limit). Radiator valves (iTRV) and room stats are decoded only as rooms; not seen.",
   config_secrets = { "secret" },
 }
 
@@ -300,8 +336,9 @@ function driver_poll()
                     .. tostring(f.SensorType) .. ", status " .. tostring(f.Status))
             end
             local p = "heating_actuator_" .. id
-            if f.Status == "Normal_Operation" then
+            if f.Status == "Normal_Operation" or f.Status == "Output_Thermal_Limit" then
                 emit(p .. "_floor_temp_c", temp(f.MeasuredTemperature), "°C")
+                emit(p .. "_floor_limit_active", f.Status == "Output_Thermal_Limit" and 1 or 0, "")
             end
             emit(p .. "_floor_max_c", temp(f.MaximumTemperature), "°C")
             emit(p .. "_floor_min_c", temp(f.MinimumTemperature), "°C")

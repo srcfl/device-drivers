@@ -187,11 +187,21 @@ expect("room_6_demand_pct", 100, "%")
 expect("room_6_output_on", 1)
 expect("heating_actuator_8_floor_min_c", 22.0, "°C")
 
+expect("heating_actuator_8_floor_limit_active", 0)
+
+-- The floor limit holds the output off (entrance, 2026-11-11): the probe
+-- still reads, so the floor temperature stays and the limit is flagged.
+run((HUB_CFMT:gsub('"Status": "Normal_Operation"', '"Status": "Output_Thermal_Limit"')
+             :gsub('"FloorSensorState": "InRange"', '"FloorSensorState": "BeyondMaximum"')))
+expect("heating_actuator_8_floor_temp_c", 26.3, "°C")
+expect("heating_actuator_8_floor_limit_active", 1)
+
 -- A floor sensor not in normal operation: its reading is not emitted,
 -- the configured limits still are.
 run((HUB_CFMT:gsub('"Status": "Normal_Operation"', '"Status": "Open_Circuit"')))
 absent("heating_actuator_8_floor_temp_c")
 expect("heating_actuator_8_floor_max_c", 30.0, "°C")
+absent("heating_actuator_8_floor_limit_active")
 
 -- An offline thermostat: the hub's cached floor reading is not fresh.
 run((HUB_CFMT:gsub('"RoomId": 6,(%s+)"DisplayedSignalStrength": "VeryGood"',
