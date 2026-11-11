@@ -5,7 +5,7 @@
 ### ctc_ecozenith 0.1.0
 
 New read-only driver for the CTC EcoZenith i250/i255 controller over Modbus
-TCP (CTC's BMS register list). It reports outdoor, flow, return, radiator,
+TCP (CTC's BMS register list). It reports outdoor, flow, flow setpoint, return, radiator,
 heat-pump in/out and hot-water temperatures, compressor speed and status,
 immersion heater power, and the heat curve's room setting, inclination and
 adjustment. A room temperature is reported only when a room sensor is fitted.

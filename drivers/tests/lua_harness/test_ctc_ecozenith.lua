@@ -70,6 +70,7 @@ if host._make ~= "CTC" then fail("make " .. tostring(host._make)) end
 expect("hp_outdoor_temp_c", 4.0, "°C")
 expect("hp_radiator_temp_c", 33.0, "°C")
 expect("hp_flow_temp_c", 26.0, "°C")
+expect("hp_flow_setpoint_c", 28.0, "°C")
 expect("hp_return_temp_c", 25.0, "°C")
 expect("hp_inlet_temp_c", 28.0, "°C")
 expect("hp_outlet_temp_c", 31.1, "°C")
