@@ -116,6 +116,104 @@ run((HUB_R_GEN2:gsub('"DisplayedSignalStrength": "Good"', '"DisplayedSignalStren
 absent("smoke_alarm_1_temp_c")
 expect("heating_channel_1_demand_pct", 0, "%")
 
+-- No floor thermostat fields for a room with nothing assigned.
+run(HUB_R_GEN2)
+absent("room_1_temp_is_floor")
+absent("room_1_demand_pct")
+absent("room_1_output_on")
+
+-- HUB_CFMT is what the same hub returned on 2026-11-11 with a Renova CFMT
+-- 16 A floor thermostat (WDE011680) on electric floor heating, in preset P6
+-- (room control on the air sensor, floor sensor as limit), identifiers
+-- replaced and unrelated fields removed.
+local HUB_CFMT = [[{
+ "Device": [
+  {"id": 0, "ProductType": "Controller", "ModelIdentifier": "WT704R1B30S4",
+   "ActiveFirmwareVersion": "4.50.4", "DisplayedSignalStrength": "VeryGood",
+   "UUID": "HUB-UUID"},
+  {"id": 8, "ProductType": "CFMT", "ProductIdentifier": "RenovaCFMT16A",
+   "ProductModel": "WDE011680", "ModelIdentifier": "Unknown", "RoomId": 6,
+   "DisplayedSignalStrength": "VeryGood"}
+ ],
+ "Room": [
+  {"id": 6, "Name": "Room", "Mode": "Auto", "DemandType": "Modulating",
+   "CalculatedTemperature": 242, "CurrentSetPoint": 200,
+   "FloorSensorState": "InRange", "PercentageDemand": 0,
+   "ControlOutputState": "Off", "SetpointOrigin": "FromManualOverride",
+   "InputTemperatureType": "Air"}
+ ],
+ "HeatingActuator": [
+  {"id": 8, "DeviceId": 8, "ThermostatApplication": "OccupiedSpace",
+   "HeatingEmitter": "Floor", "ControlLoop": "PI",
+   "LocalTemperatureSourceSelect": "Ambient", "OutputType": "Relay",
+   "OutputRelayEnabled": true,
+   "FloorTemperatureSensor": {"MaximumTemperature": 300, "Offset": 0,
+    "SensorType": "NTC_15K", "MeasuredTemperature": 263,
+    "Status": "Normal_Operation"},
+   "MeasuredTemperature": 242, "OccupiedHeatingSetPoint": 200,
+   "InstantaneousDemand": 0}
+ ],
+ "HeatingChannel": [
+  {"id": 1, "Name": "Channel-1", "PercentageDemand": 0,
+   "DemandOnOffOutput": "Off", "HeatingRelayState": "Off"}
+ ]
+}]]
+
+-- P6: the room is air, the floor sensor is reported on its own.
+run(HUB_CFMT)
+expect("room_6_temp_c", 24.2, "°C")
+expect("room_6_setpoint_c", 20.0, "°C")
+expect("room_6_temp_is_floor", 0)
+expect("room_6_demand_pct", 0, "%")
+expect("room_6_output_on", 0)
+expect("heating_actuator_8_floor_temp_c", 26.3, "°C")
+expect("heating_actuator_8_floor_max_c", 30.0, "°C")
+-- No lower limit configured: none emitted.
+absent("heating_actuator_8_floor_min_c")
+
+-- P8 as the hub showed it on 2026-11-11 before the change: the room
+-- temperature is the floor sensor's, and the relay is on.
+local p8 = HUB_CFMT
+    :gsub('"InputTemperatureType": "Air"', '"InputTemperatureType": "Floor"')
+    :gsub('"ControlOutputState": "Off"', '"ControlOutputState": "On"')
+    :gsub('"PercentageDemand": 0,(%s+)"ControlOutputState"', '"PercentageDemand": 100,%1"ControlOutputState"')
+    :gsub('"CalculatedTemperature": 242', '"CalculatedTemperature": 263')
+    :gsub('"FloorTemperatureSensor": {"MaximumTemperature": 300,',
+          '"FloorTemperatureSensor": {"MaximumTemperature": 300, "MinimumTemperature": 220,')
+run(p8)
+expect("room_6_temp_c", 26.3, "°C")
+expect("room_6_temp_is_floor", 1)
+expect("room_6_demand_pct", 100, "%")
+expect("room_6_output_on", 1)
+expect("heating_actuator_8_floor_min_c", 22.0, "°C")
+
+-- A floor sensor not in normal operation: its reading is not emitted,
+-- the configured limits still are.
+run((HUB_CFMT:gsub('"Status": "Normal_Operation"', '"Status": "Open_Circuit"')))
+absent("heating_actuator_8_floor_temp_c")
+expect("heating_actuator_8_floor_max_c", 30.0, "°C")
+
+-- An offline thermostat: the hub's cached floor reading is not fresh.
+run((HUB_CFMT:gsub('"RoomId": 6,(%s+)"DisplayedSignalStrength": "VeryGood"',
+                   '"RoomId": 6,%1"DisplayedSignalStrength": "Offline"')))
+absent("heating_actuator_8_floor_temp_c")
+absent("heating_actuator_8_floor_max_c")
+
+-- The sensor type is logged once, and again when it changes.
+local function sensor_logs()
+    local n = 0
+    for _, l in ipairs(host._logs) do
+        if l:find("floor sensor", 1, true) then n = n + 1 end
+    end
+    return n
+end
+run(HUB_CFMT)
+driver_poll()
+if sensor_logs() ~= 1 then fail("sensor type logged " .. sensor_logs() .. " times, want 1") end
+host._http_responses[URL] = (HUB_CFMT:gsub("NTC_15K", "NTC_10K"))
+driver_poll()
+if sensor_logs() ~= 2 then fail("changed sensor type logged " .. sensor_logs() .. " times, want 2") end
+
 -- The hub does not answer (wrong secret, or offline): nothing is emitted.
 host.reset()
 dofile(ROOT .. "drivers/lua/wiser_heat.lua")

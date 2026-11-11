@@ -9,6 +9,15 @@
 --   JSON. From it:
 --   - each Room:  room_<id>_temp_c       CalculatedTemperature, 0.1 °C
 --                 room_<id>_setpoint_c   CurrentSetPoint, 0.1 °C
+--                 room_<id>_temp_is_floor 1 when the room is controlled on
+--                                         floor temperature, 0 on air
+--                 room_<id>_demand_pct   PercentageDemand
+--                 room_<id>_output_on    ControlOutputState
+--   - each HeatingActuator with a floor sensor (e.g. a Renova CFMT 16 A
+--     floor thermostat):
+--                 heating_actuator_<id>_floor_temp_c  floor sensor, 0.1 °C
+--                 heating_actuator_<id>_floor_max_c   floor upper limit
+--                 heating_actuator_<id>_floor_min_c   floor lower limit
 --   - each SmokeAlarmDevice: smoke_alarm_<id>_temp_c  MeasuredTemperature
 --   - each HeatingChannel:   heating_channel_<id>_demand_pct  PercentageDemand
 --                            heating_channel_<id>_relay_on    HeatingRelayState
@@ -26,6 +35,23 @@
 --     setpoint at or below it is "no setpoint", not -20 °C.
 --   The Wiser community libraries also treat 2000 (200.0 °C) as a sensor
 --   error; it is dropped as well.
+--
+-- ROOM TEMPERATURE CAN BE A FLOOR TEMPERATURE
+--   A floor thermostat in a floor-control preset (Renova CFMT P7/P8) makes
+--   the room's CalculatedTemperature the floor sensor's reading
+--   (InputTemperatureType "Floor"); in a room preset with floor limit (P6)
+--   it is the thermostat's air sensor ("Air") and the floor sensor only
+--   bounds it. room_<id>_temp_is_floor says which, so 26 °C of floor is not
+--   read as 26 °C of air.
+--
+-- FLOOR SENSOR TYPE
+--   The hub reports the configured sensor type (NTC_10K, NTC_15K, ...) but
+--   cannot know the probe in the floor. A wrong type still reads plausibly:
+--   on the test site a 15 kOhm probe configured as 10 kOhm read 17.4 °C
+--   while the floor surface measured 26.6-27.5 °C, and after setting
+--   NTC_15K it read 27.0 °C. The type is logged when it changes, and the
+--   floor reading is emitted only while the sensor status is
+--   Normal_Operation.
 --
 -- STALENESS
 --   The hub answers from its own cache. A device whose Device entry shows
@@ -63,12 +89,12 @@ DRIVER = {
   protocols    = { "http" },
   capabilities = { "apicreds" },
   read_only    = true,
-  description  = "Schneider Electric / Drayton Wiser heating hub via its local HTTPS API. Read-only: room temperatures and setpoints, smoke alarm temperatures, heating channel demand.",
+  description  = "Schneider Electric / Drayton Wiser heating hub via its local HTTPS API. Read-only: room temperatures, setpoints and demand, floor thermostat floor temperature and limits, smoke alarm temperatures, heating channel demand.",
   homepage     = "https://www.se.com/ww/en/product-range/65635-wiser-heating/",
   authors      = { "hannesb90", "Claude (Anthropic)" },
-  tested_models = { "Wiser Hub R gen 2 (WT704R1B30S4)" },
+  tested_models = { "Wiser Hub R gen 2 (WT704R1B30S4)", "Renova Connected Thermostat 16 A (WDE011680)" },
   verification_status = "experimental",
-  verification_notes  = "Checked against one Wiser Hub R gen 2 (WT704R1B30S4, firmware 4.50.4) with one smoke alarm and no thermostat or valve, on 2026-11-10. Room temperatures from real thermostats are decoded but not yet seen.",
+  verification_notes  = "Checked against one Wiser Hub R gen 2 (WT704R1B30S4, firmware 4.50.4) with smoke alarms and one Renova CFMT 16 A floor thermostat (WDE011680) on electric floor heating, on 2026-11-10 and 2026-11-11, in both the floor-control (P8) and room-with-floor-limit (P6) presets. Radiator valves (iTRV) and room stats are decoded only as rooms; not seen.",
   config_secrets = { "secret" },
 }
 
@@ -109,6 +135,12 @@ local function emit(name, value, unit)
 end
 
 local OFFLINE = { Offline = true, NoSignal = true }
+local ON_OFF  = { On = 1, Off = 0 }
+local IS_FLOOR = { Floor = 1, Air = 0 }
+
+-- Last floor sensor type and status logged per actuator, so a change is
+-- logged once rather than every minute.
+local floor_seen = {}
 
 local function device_online(devices, id)
     local d = devices[id]
@@ -185,6 +217,31 @@ function driver_poll()
             if sp ~= nil and sp > SETPOINT_OFF then
                 emit("room_" .. id .. "_setpoint_c", temp(sp), "°C")
             end
+            -- A room with nothing assigned has none of these fields.
+            if temp(r.CalculatedTemperature) ~= nil then
+                emit("room_" .. id .. "_temp_is_floor", IS_FLOOR[r.InputTemperatureType], "")
+            end
+            emit("room_" .. id .. "_demand_pct", tonumber(r.PercentageDemand), "%")
+            emit("room_" .. id .. "_output_on", ON_OFF[r.ControlOutputState], "")
+        end
+    end
+
+    for _, a in ipairs(data.HeatingActuator or {}) do
+        local id = tonumber(a.id)
+        local f = a.FloorTemperatureSensor
+        if id and type(f) == "table" and device_online(devices, a.DeviceId) then
+            local seen = tostring(f.SensorType) .. "/" .. tostring(f.Status)
+            if floor_seen[id] ~= seen then
+                floor_seen[id] = seen
+                host.log("info", "Wiser: heating actuator " .. id .. " floor sensor "
+                    .. tostring(f.SensorType) .. ", status " .. tostring(f.Status))
+            end
+            local p = "heating_actuator_" .. id
+            if f.Status == "Normal_Operation" then
+                emit(p .. "_floor_temp_c", temp(f.MeasuredTemperature), "°C")
+            end
+            emit(p .. "_floor_max_c", temp(f.MaximumTemperature), "°C")
+            emit(p .. "_floor_min_c", temp(f.MinimumTemperature), "°C")
         end
     end
 

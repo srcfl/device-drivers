@@ -13,14 +13,21 @@ tested_devices:
     variants: [WT704R1B30S4]
     regions: [SE]
     firmware_versions: "4.50.4"
-    notes: "Read-only over the hub's local HTTPS API (SECRET header, self-signed certificate pinned via tls_pin_sha256). Tested with one smoke alarm and no thermostat or valve; room temperatures from real thermostats are decoded but not yet seen on hardware."
+    notes: "Read-only over the hub's local HTTPS API (SECRET header, self-signed certificate pinned via tls_pin_sha256). Tested with smoke alarms and one Renova CFMT 16 A floor thermostat; radiator valves (iTRV) and room stats are not seen on hardware."
+    min_driver_version: "0.1.0"
+  - manufacturer: "Schneider Electric"
+    model_family: "Renova Connected Thermostat 16 A"
+    variants: [WDE011680]
+    regions: [SE]
+    firmware_versions: "1.0.59"
+    notes: "Read through the Wiser hub, on electric floor heating with a 15 kOhm floor sensor, in presets P8 (floor control) and P6 (room control with floor limit). Room air temperature matched the thermostat display, and the floor sensor (after setting NTC_15K) matched an IR reading of the floor surface; room demand and output state followed the relay through a heat and cool-down cycle. The floor lower limit is decoded but was not configured."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 8418
+size_bytes: 11712
 dkb_id: "wiser_heat"
-sha256: "ba2295c6b284c7a90254a83ebf8772427f64edfdb2bb245271cb34ca0909606c"
+sha256: "5b912156eaed6c894a9977689fdfc0fae306ba083e3cc232034e852d52888988"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "First version: read-only Wiser hub rooms, smoke alarm temperatures and heating channel demand."
+changelog: "First version: read-only Wiser hub rooms, floor thermostats, smoke alarm temperatures and heating channel demand."
