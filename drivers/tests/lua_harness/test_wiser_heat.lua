@@ -66,7 +66,7 @@ local function run(body, config)
     host.reset()
     host._http_responses[URL] = body
     dofile(ROOT .. "drivers/lua/wiser_heat.lua")
-    driver_init(config or { base_url = "https://hub.test", secret = "s" })
+    driver_init(config or { host = "hub.test", secret = "s" })
     return driver_poll()
 end
 
@@ -217,7 +217,7 @@ if sensor_logs() ~= 2 then fail("changed sensor type logged " .. sensor_logs() .
 -- The hub does not answer (wrong secret, or offline): nothing is emitted.
 host.reset()
 dofile(ROOT .. "drivers/lua/wiser_heat.lua")
-driver_init({ base_url = "https://hub.test", secret = "s" })
+driver_init({ host = "hub.test", secret = "s" })
 local retry = driver_poll()
 if retry ~= 30000 then fail("retry interval " .. tostring(retry)) end
 if set_interval() ~= 30000 then fail("set retry interval " .. tostring(set_interval())) end
@@ -230,10 +230,24 @@ run("<html>Bad request</html>")
 absent("smoke_alarm_1_temp_c")
 expect("wiser_poll_ok", 0)
 
+-- A base_url in config is not honoured: the secret goes only to
+-- https://<host>/.
+host.reset()
+host._http_responses[URL] = HUB_R_GEN2
+dofile(ROOT .. "drivers/lua/wiser_heat.lua")
+driver_init({ host = "hub.test", base_url = "http://elsewhere.test", secret = "s" })
+driver_poll()
+for _, c in ipairs(host._calls or {}) do
+    if c.func == "http_get" and c.args[1] ~= URL then
+        fail("called " .. tostring(c.args[1]) .. ", want " .. URL)
+    end
+end
+expect("wiser_poll_ok", 1)
+
 -- No secret: the driver does not call the hub at all.
 host.reset()
 dofile(ROOT .. "drivers/lua/wiser_heat.lua")
-driver_init({ base_url = "https://hub.test" })
+driver_init({ host = "hub.test" })
 driver_poll()
 for _, c in ipairs(host._calls or {}) do
     if c.func == "http_get" then fail("called the hub without a secret") end

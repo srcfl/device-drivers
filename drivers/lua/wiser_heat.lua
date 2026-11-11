@@ -167,16 +167,18 @@ function driver_init(config)
     host.set_make("Wiser")
     config = config or {}
     local function s(v) return (v ~= nil and v ~= "") and tostring(v) or nil end
-    -- base_url override exists for tests; production builds it from host.
-    local base = s(config.base_url)
-    if not base and s(config.host) then
+    -- The URL is always built from host, and always HTTPS: the request
+    -- carries the hub's secret, and an empty allowed_hosts lets the host
+    -- reach any address, so no config value may point it elsewhere or at
+    -- clear-text HTTP.
+    if s(config.host) then
         -- The hub serves HTTPS on 443. A port is added only when the owner
         -- configured another, so allowed_hosts can stay the bare address.
         local port = s(config.port)
-        base = "https://" .. s(config.host)
-        if port and port ~= "443" then base = base .. ":" .. port end
+        url = "https://" .. s(config.host)
+        if port and port ~= "443" then url = url .. ":" .. port end
+        url = url .. "/data/domain/"
     end
-    if base then url = base .. "/data/domain/" end
     local secret = s(config.secret)
     if secret then headers = { SECRET = secret, Accept = "application/json" } end
     if not url then host.log("warn", "Wiser: no host configured") end
