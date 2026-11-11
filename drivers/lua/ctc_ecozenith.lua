@@ -256,6 +256,10 @@ function driver_poll()
     local adjust = probe_read(REG_HS1_ADJUST, 1)
     if adjust then emit("hp_curve_adjustment_c", s16(adjust[1]) / 10, "°C") end
 
+    -- hp_poll_ok follows the 16-register block only, on purpose: it holds the
+    -- status and the main temperatures. Once that block is given up on it
+    -- stays 0 until restart, even while the single reads still answer, so a
+    -- pump that lost its main block does not look healthy.
     host.emit_metric("hp_poll_ok", block and 1 or 0, "")
     return POLL_MS
 end
