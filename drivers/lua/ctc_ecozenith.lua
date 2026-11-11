@@ -95,8 +95,11 @@ local REG_HP1_RPS       = 62193 -- Heat pump 1 (A1) current RPS, 0.1
 local REG_ROOM1         = 62203 -- Current room temp 1, 0.1 °C
 local REG_DISPLAY_SW    = 62244 -- 62244 month*100+day, 62245 year
 local REG_PRODUCT_TYPE  = 62253 -- Product type code
-local REG_TANK          = 62274 -- 62274 lower tank setpoint, 62275, 62276 DHW
-local TANK_COUNT        = 3
+local REG_LOWER_TANK_SET = 62274 -- Lower tank setpoint, 0.1 °C
+-- 62275 (DHW lower) sits between these two but is not in the i250 column,
+-- so the two are read singly: a controller without it would not answer a
+-- read that spans it, and the DHW top temperature would go with it.
+local REG_HW_TOP         = 62276 -- DHW top temperature, 0.1 °C
 local REG_HS1_ROOM_SET  = 61509 -- Heating system 1: room setting, 0.1 °C
 local REG_HS1_INCLINE   = 61513 -- Heating system 1: curve inclination, 0.1
 local REG_HS1_ADJUST    = 61517 -- Room 1: curve adjustment, 0.1 °C
@@ -238,13 +241,11 @@ function driver_poll()
     local room = probe_read(REG_ROOM1, 1)
     if room then emit("hp_indoor_temp_c", fitted_temp(room[1]), "°C") end
 
-    local tank = probe_read(REG_TANK, TANK_COUNT)
-    if tank then
-        emit("hp_lower_tank_setpoint_c", fitted_temp(tank[1]), "°C")
-        -- tank[2] (62275, DHW lower) is not in the i250 column; it is read
-        -- only because it sits between two registers that are.
-        emit("hp_hw_top_temp_c", fitted_temp(tank[3]), "°C")
-    end
+    local lower_set = probe_read(REG_LOWER_TANK_SET, 1)
+    if lower_set then emit("hp_lower_tank_setpoint_c", fitted_temp(lower_set[1]), "°C") end
+
+    local hw_top = probe_read(REG_HW_TOP, 1)
+    if hw_top then emit("hp_hw_top_temp_c", fitted_temp(hw_top[1]), "°C") end
 
     local room_set = probe_read(REG_HS1_ROOM_SET, 1)
     if room_set then emit("hp_room_setpoint_c", temp(room_set[1]), "°C") end
