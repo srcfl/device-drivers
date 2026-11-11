@@ -33,7 +33,7 @@ local function absent(name)
     end
 end
 
-local function i255(overrides)
+local function i255(overrides, setup)
     host.reset()
     local h = host._modbus_registers.holding
     -- 62000..62015 as one block, exactly as read.
@@ -57,6 +57,7 @@ local function i255(overrides)
     h[61513] = 350
     h[61517] = 10
     for addr, v in pairs(overrides or {}) do h[addr] = v end
+    if setup then setup() end
     dofile(ROOT .. "drivers/lua/ctc_ecozenith.lua")
     driver_init({})
     return driver_poll()
@@ -101,6 +102,20 @@ absent("hp_flow_temp_c")
 -- Outdoor 0.0 °C is a real reading and must not be dropped.
 i255({ [62000] = 0 })
 expect("hp_outdoor_temp_c", 0, "°C")
+
+-- Every read is a documented i250 register: 62275 (DHW lower) is not one,
+-- and a controller without it does not answer a read that spans it.
+i255({ [62275] = nil }, function()
+    host._modbus_read_fail_addresses[62275] = "timeout"
+    for addr = 62273, 62275 do host._modbus_read_short_counts[addr] = 62275 - addr end
+end)
+expect("hp_lower_tank_setpoint_c", 35.0, "°C")
+expect("hp_hw_top_temp_c", 57.0, "°C")
+for _, c in ipairs(host._calls) do
+    if c.func == "modbus_read" and c.args[1] <= 62275 and c.args[1] + c.args[2] - 1 >= 62275 then
+        fail("read spans 62275: " .. c.args[1] .. " x" .. c.args[2])
+    end
+end
 
 -- The main block does not answer: nothing from it, and the poll says so.
 host.reset()
