@@ -23,9 +23,9 @@ tested_devices:
     notes: "Read through the Wiser hub, on electric floor heating under tiles, in presets P8 (floor control) and P6 (room control with floor limit), on three thermostats with 10, 12 and 15 kOhm floor sensors. Room air temperature matched the thermostat display, and each floor sensor, set to its own type, read within 0.7 °C of an IR reading of the floor surface; one was seen held off by its floor limit (Output_Thermal_Limit) while its probe still read; room demand and output state followed the relay through a heat and cool-down cycle. The floor lower limit is decoded but was not configured. The thermostat measures no power; the power estimate is the owner's stated load times the room demand."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 15312
+size_bytes: 17864
 dkb_id: "wiser_heat"
-sha256: "a4001d43a2a3688c94e3cceed33a5537e3d74b1e79e70ddbc5f9309418b78dc0"
+sha256: "d6df3e516ce4c9a21ace475ddf6a6fbca874d27e3fe3461d6851d64828bd2c7b"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
