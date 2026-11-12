@@ -10,9 +10,12 @@ local function boot(ended)
     dofile(driver)
     driver_init({email="test@example.invalid",password="test",serial=serial})
 end
+local observation_sequence = 0
 local function poll(mode, session, energy, lifetime)
+    observation_sequence = observation_sequence + 1
+    local stamp = string.format("2026-01-01T08:00:00.%06dZ", observation_sequence)
     local obs = {
-        {id=109,value=mode}, {id=120,value=mode == 3 and 4.3 or 0},
+        {id=109,value=mode}, {id=120,value=mode == 3 and 4.3 or 0,timestamp=stamp},
         {id=121,value=energy or 9}, {id=124,value=lifetime or 1009},
     }
     if session ~= nil then table.insert(obs,{id=223,value=session}) end

@@ -29,7 +29,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.4.1",
+  version      = "1.4.2",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -311,34 +311,102 @@ for id in OBS_IDS:gmatch("%d+") do OBS_WANTED[tonumber(id)] = true end
 -- stays current until a newer one arrives.
 local latest, latest_at, latest_pushed = {}, {}, {}
 
--- source_time_key makes an RFC 3339 UTC time comparable as a string,
--- whatever its fractional precision: "…:05Z" and "…:05.120+00:00" become
--- "…:05.120000000" and "…:05.120000000". Other offsets give nil.
+-- Compare RFC3339 source instants independently of fractional precision and
+-- UTC offset. Wall-clock receipt time must not make an old packet current.
 local function source_time_key(stamp)
     if type(stamp) ~= "string" then return nil end
-    local base, frac, zone = stamp:match("^(%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d)(%.?%d*)(.*)$")
-    if not base or (zone ~= "Z" and zone ~= "+00:00") then return nil end
-    return base .. "." .. (frac:sub(2) .. "000000000"):sub(1, 9)
+    local year, month, day, hour, minute, second, suffix = stamp:match(
+        "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)(.*)$")
+    if not year then return nil end
+    year, month, day = tonumber(year), tonumber(month), tonumber(day)
+    hour, minute, second = tonumber(hour), tonumber(minute), tonumber(second)
+    if year < 1970 or month < 1 or month > 12 or hour > 23 or minute > 59 or second > 59 then return nil end
+    local leap = year % 4 == 0 and (year % 100 ~= 0 or year % 400 == 0)
+    local lengths = {31, leap and 29 or 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+    if day < 1 or day > lengths[month] then return nil end
+    local fraction = ""
+    if suffix:sub(1, 1) == "." then
+        local digits, zone = suffix:match("^%.(%d+)(.*)$")
+        if not digits then return nil end
+        fraction, suffix = digits:gsub("0+$", ""), zone
+    end
+    local offset = 0
+    if suffix ~= "Z" then
+        local sign, oh, om = suffix:match("^([+-])(%d%d):(%d%d)$")
+        if not sign then return nil end
+        oh, om = tonumber(oh), tonumber(om)
+        if oh > 23 or om > 59 then return nil end
+        offset = (oh * 60 + om) * 60 * (sign == "+" and 1 or -1)
+    end
+    local function leaps(y)
+        return math.floor(y / 4) - math.floor(y / 100) + math.floor(y / 400)
+    end
+    local days = 365 * (year - 1970) + leaps(year - 1) - leaps(1969) + day - 1
+    for m = 1, month - 1 do days = days + lengths[m] end
+    local seconds = hour * 3600 + minute * 60 + second - offset
+    days = days + math.floor(seconds / 86400)
+    if days < 0 then return nil end
+    return string.format("%07d%05d", days, seconds % 86400) .. "." .. fraction
+end
+local POWER_CLOCK_RECOVERY_MS = 30000
+local power_key, power_value, power_stamp
+local recovery_key, recovery_since
+local stream_power_problem
+local last_power_observed_at
+
+local function reset_power_order()
+    power_key, power_value, power_stamp = nil, nil, nil
+    recovery_key, recovery_since = nil, nil
+    stream_power_problem, last_power_observed_at = nil, nil
+    latest[OBS_TOTAL_POWER], latest_at[OBS_TOTAL_POWER], latest_pushed[OBS_TOTAL_POWER] = nil, nil, nil
 end
 
--- note_observation records a sample. SignalR delivers one connection's
--- messages in order, so a pushed sample always applies. A REST reply can be
--- older than what the stream pushed since, cached before the change; then it
--- does not apply. Otherwise REST applies as it always has, so one bad stamp
--- cannot hold a value. The same instant keeps its first spelling, so a
--- source time never looks new because the other source wrote it
--- differently. Returns true when REST brought a newer, different value.
-local function note_observation(id, value, at, pushed)
-    if not OBS_WANTED[id] then return false end
-    local new_key, old_key = source_time_key(at), source_time_key(latest_at[id])
-    local newer = false
-    if new_key and old_key then
-        if not pushed and latest_pushed[id] and new_key < old_key then return false end
-        if new_key == old_key then at = latest_at[id] end
-        newer = new_key > old_key
+-- A repeated cached reading cannot move the clock back. Require a
+-- strictly advancing source instant after 30 s on the lower timeline.
+local function power_problem(value, key, now)
+    if type(value) ~= "number" or not key then
+        return "missing or invalid power observation"
     end
-    local changed = value ~= latest[id]
+    if power_key and key < power_key then
+        if not recovery_key or key < recovery_key then
+            recovery_key, recovery_since = key, now
+        elseif key > recovery_key and now - recovery_since >= POWER_CLOCK_RECOVERY_MS then
+            return nil
+        else
+            recovery_key = key
+        end
+        return "out-of-order power observation"
+    end
+    if key == power_key and value ~= power_value then
+        return "conflicting power at one source timestamp"
+    end
+    return nil
+end
+
+-- Apply power ordering across both transports. REST fallback replaces the
+-- snapshot but keeps the ordering watermark until an explicit disconnect.
+local function note_observation(id, value, at, pushed, now)
+    local key, held = source_time_key(at), source_time_key(latest_at[id])
+    local newer, changed = false, value ~= latest[id]
+    if id == OBS_TOTAL_POWER then
+        if latest[OBS_OP_MODE] == 1 then return false end
+        local problem = power_problem(value, key, now)
+        if problem then return false, problem end
+        newer, changed = power_key ~= nil and key > power_key, value ~= power_value
+        if key == power_key then at = power_stamp end
+        if power_key and key < power_key then
+            host.log("info", "Easee: power source clock recovered")
+        end
+        power_key, power_value, power_stamp = key, value, at
+        recovery_key, recovery_since, stream_power_problem = nil, nil, nil
+        if not pushed and key == held and latest_pushed[id] then return false end
+    elseif key and held then
+        if not pushed and latest_pushed[id] and key < held then return false end
+        if key == held then at = latest_at[id] end
+        newer = key > held
+    end
     latest[id], latest_at[id], latest_pushed[id] = value, at, pushed
+    if id == OBS_OP_MODE and value == 1 then reset_power_order() end
     return not pushed and newer and changed
 end
 
@@ -353,7 +421,6 @@ local function observation_value(value)
     return tonumber(value) or value
 end
 
-local last_power_observed_at = nil
 local validated_session_id = nil
 local observed_session_id = nil
 local departed_session_id = nil
@@ -622,11 +689,24 @@ local function stream_update(id, value, at, now)
     local key = source_time_key(at)
     if not key or (owed_kind(id) and type(value) ~= "number") then
         if owed_kind(id) then owe(id, "", nil, now, "sent a reading it cannot use") end
+        if id == OBS_TOTAL_POWER and stream_state == "up" and latest[OBS_OP_MODE] ~= 1 then
+            stream_power_problem = "missing or invalid power observation"
+        end
         return
     end
     local held = source_time_key(latest_at[id])
     if stream_state ~= "up" and held and key < held then return end
-    note_observation(id, value, at, true)
+    if id == OBS_TOTAL_POWER and stream_owed and stream_owed.id == id and
+       power_key and key < power_key and value == stream_owed.value and value == power_value then
+        -- A coarser timestamp can settle the stream debt without replacing power.
+        stream_owed = nil
+        return
+    end
+    local _, problem = note_observation(id, value, at, true, now)
+    if problem then
+        stream_power_problem = problem
+        return
+    end
     if stream_owed and stream_owed.id == id and (key >= stream_owed.key or value == stream_owed.value) then
         stream_owed = nil
     end
@@ -964,24 +1044,40 @@ function driver_poll()
     local rest_read = false
     if rest_due then
         local problem = err or state_problem(values)
+        if not problem then
+            -- Apply mode first so a disconnect clears the previous session's power.
+            if not streaming then latest, latest_at, latest_pushed = {}, {}, {} end
+            local function apply(id)
+                local changed, rejected = note_observation(id, values[id], stamps[id], false, now)
+                if changed and streaming and owed_kind(id) then
+                    owe(id, source_time_key(stamps[id]), values[id], now, "missed a change REST saw")
+                end
+                return rejected
+            end
+            apply(OBS_OP_MODE)
+            if values[OBS_OP_MODE] ~= 1 then
+                problem = apply(OBS_TOTAL_POWER)
+                -- Older REST data can be normal while a newer stream is healthy.
+                if problem == "out-of-order power observation" and streaming and
+                   latest_pushed[OBS_TOTAL_POWER] and not stream_power_problem then
+                    problem = nil
+                end
+            end
+            if not problem then
+                for id in pairs(OBS_WANTED) do
+                    if id ~= OBS_OP_MODE and id ~= OBS_TOTAL_POWER and
+                       (values[id] ~= nil or stamps[id] ~= nil) then
+                        apply(id)
+                    end
+                end
+                if streaming and not stream_owed then stream_failures = 0 end
+                heard_ms, rest_read = now, true
+            end
+        end
         rest_next_ms = now + (problem and 10000 or REST_CONFIRM_MS)
         if problem then
             host.log("warn", "Easee: observations poll failed: " .. (err and redact_http_err(err) or problem))
-            -- The cloud answered that it does not hear the charger.
             if not err then heard_ms = nil end
-        else
-            -- Without the stream the reply is the whole state, as before.
-            if not streaming then latest, latest_at, latest_pushed = {}, {}, {} end
-            for id in pairs(OBS_WANTED) do
-                if values[id] ~= nil or stamps[id] ~= nil then
-                    if note_observation(id, values[id], stamps[id], false) and streaming and owed_kind(id) then
-                        owe(id, source_time_key(stamps[id]), values[id], now, "missed a change REST saw")
-                    end
-                end
-            end
-            -- A REST read that finds the stream complete resets its back-off.
-            if streaming and not stream_owed then stream_failures = 0 end
-            heard_ms, rest_read = now, true
         end
     end
 
@@ -990,7 +1086,7 @@ function driver_poll()
     -- nothing, as before, so stale values never look current.
     local vouched = rest_read or
         (stream_state == "up" and heard_ms ~= nil and now - heard_ms <= REST_FRESH_MS)
-    local blocked = vouched and state_problem(latest)
+    local blocked = vouched and (state_problem(latest) or stream_power_problem)
     if blocked and blocked ~= last_blocked then
         host.log("warn", "Easee: not reporting streamed state: " .. blocked)
     end
