@@ -2,47 +2,158 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.4.3
+
+Report the current Easee signals below FTW's order. Attribute the limit to
+load balancing when the circuit allocation supports it. Require a usable
+allocation on all three phases when the active phase of a one-phase car is
+unknown. Reject out-of-order REST power observations and keep the coarse
+session energy counter declaration.
+
 ### easee_cloud 1.4.1
 
-Report when Easee's own load balancing holds the car below FTW's order. A
-tester's trace (srcfl/ftw#1763, 23 October 2026) showed FTW ordering 15 A
-and the charger reading back 15 A, while Easee's circuit allocation
-(observations 70–72) and the current it signalled to the car (114) fell to
-12, 14 and 13 A. The car took 8.2–8.9 kW instead of 10.4 kW, and FTW said
-"Not following". The driver now reads 70–72 and 114 and emits
-`current_limit_a`, the signalled current, while the car charges, the
-charger reads back FTW's last order (48) and the signalled current is
-more than half an amp below it. A value counts only when it answers that
-order: Easee recorded it at or after the order, or the order has stood
-30 s. It emits `current_limited_by = "load_balancer"` only when the
-allocation is below the order too and no higher than the signalled
-current, and the charger's own static limit does not explain it. A
-three-phase charger uses the lowest allocation of the phases in use (a
-phase with none is not in use); a one-phase charger the highest. When
-Easee lets the car take the order again, the last limit stays for up to
-20 s while the car still draws below the order, since the cloud reports
-the car's new draw a few seconds later.
-ReasonForNoCurrent is not used as a cause: in that trace reason 77 was
-older than the cuts. Labels for reasons 6, 8–11, 25–30 and 77 now match
-Easee's published table (from srcfl/device-drivers#172).
+The driver says its session energy is coarse, with `session_wh_coarse`. Easee
+moves that figure in steps of about 1 kWh, and FTW's energy record rejected
+steps that landed moments after the last reading. On one home box that kept
+10 of 24.3 kWh. FTW now uses measured power for this charger's energy, which
+came within 0.1 % of Easee's own session total on three charges (6.6, 24.3 and
+31.7 kWh).
 
-A REST reply is no longer used when its power time goes back from the
-last reply used or gives another power value at the same instant, or,
-while a car is connected, when its power time is missing or unreadable. A
-late cached reply once turned a measured 10.242 kW into 0 W. Times
-compare as instants across UTC offsets and fractional precision. A
-disconnect starts the order again. Such replies one after another for
-30 s mean the time itself is wrong: an older time then starts the order
-again, and unreadable times are used as they come until a readable one
-arrives, so a stamp from the future or an odd format cannot keep the
-driver silent. A gap of more than 30 s between such replies, such as an
-outage, starts the count again, and a held-back reply does not use up one
-of the ten session checks an hour. The check and its tests
-come from Segran in srcfl/device-drivers#183. The stream's own order is
-unchanged.
+### saj-emanager 0.1.2
 
-Not yet seen against a load-balanced Easee with this code. Core reads the
-new fields from srcfl/ftw#1537.
+The NovaCore device-support registry accepts this driver.
+
+- `host.set_make` is the brand key `saj`. `SAJ` is not a key in `/brands`.
+  Same correction the SAJ H2 driver took in 1.0.2.
+- `host.emit_metric` is not a host function in that registry. Device count
+  and the phase-scale divisor are one log line each. Inverter, load,
+  generator, raw capacity, and the FeedIn/Sell counters are not published:
+  the first three have no stated sign, capacity is not a known Wh unit, and
+  FeedIn versus Sell is still an open direction question.
+
+### saj-emanager 0.1.1
+
+Emitted power uses the same signs as the other drivers. Generation is
+negative. Battery power is positive when charging and negative when
+discharging. Grid power is positive on import and negative on export.
+
+The H2 wire is discharge-positive on the battery, so `0x8491` is negated
+once at the boundary. The H2 grid word is already import-positive, so
+`0x8496` and the phase watts are not. Inverter, load and generator words
+have no stated sign and stay on `*_vendor` metrics, off the DER streams.
+Still unverified on an eManager.
+
+### saj-emanager 0.1.0
+
+Read-only telemetry for a SAJ eManager C1 Pro in front of one or more CHS2/CH2
+hybrids. Modbus TCP only, port 502. The register sheet marks RTU as not supported.
+
+- PV, grid and battery come from the aggregate block at `0x848A`. Battery
+  telemetry is emitted only when capacity, SoC or battery power says a pack
+  is there. A failed or short read is left out; it is not reported as 0 W.
+- Phase voltage and frequency are divided by `DeviceNum` only when the scaled
+  value cannot be one phase and the quotient can. The register sheet does not
+  say those registers are summed. Eniris does, and only for voltage and
+  frequency. Power is never divided.
+- Emitted signs match the rest of the catalog. Generation is negative.
+  Battery power is positive when charging and negative when discharging
+  (the H2 wire is discharge-positive, so `0x8491` is negated). Grid power is
+  positive on import and negative on export (the H2 wire already is, so
+  `0x8496` is not negated). Word order is high word first. The eManager
+  sheet states none of this. All three are unverified.
+- `0x8400`–`0x8405` are documented, including the ±11000 setpoint scaling and
+  the SEC-C map that reuses the same addresses, and are not written.
+- Not run on hardware. The first site to check is Castellum Örebro.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### zap 3.1.3
+
+`read_pv` and `read_battery` read again on Zap firmware 7.x. Data model v2 calls
+the PV DER `solar`, puts power and energy on one side (`_ac` or `_dc`), and moves
+the ratings to `/api/devices`, so 3.1.2 found no PV and no battery power there.
+
+- PV and battery read on both the 1.x and the v2 names. A value v2 sends as
+  `null` stays unknown.
+- An AC-side voltage or current is not reported as the battery's own.
+- The `inverter` DER is not counted as another resource, and `ev_charger_port`
+  counts as a charger.
+
+Checked through FTW's Lua host on firmware 7.0.3, against a real Zap-P1 with a
+simulated Solis. Not checked against a real inverter. Without `read_pv` and
+`read_battery` the driver still reads the meter and nothing else.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### zap 3.1.2
+
+The P1/HAN site meter reads again on Zap firmware serving the data model v2
+local API. That firmware renames every meter field with an `_ac` suffix and
+lowercases the `L1`/`L2`/`L3` phase prefix (`W` → `W_ac`, `L1_V` → `l1_V_ac`;
+`Hz` is unchanged). `emit_meter` read the v1 names unconditionally, so a Zap
+on v2 firmware gave FTW no meter reading at all — `driver_poll` logged
+`Zap: site-meter payload unavailable` every cycle and FTW lost its site
+meter, with no site meter data for the home's grid import/export.
+
+- `emit_meter` now tries the v1 field name first, then the `_ac` suffix,
+  then the lowercased-phase-prefix `_ac` variant, so it reads either
+  firmware generation without checking `version` explicitly.
+- Scoped to the meter DER only. `pv`/`battery` (`emit_pv`/`emit_battery`)
+  have the identical `.W`-style field assumption against v2 and are not
+  covered here — see #170 for that broader scope (`pv` → `solar` rename,
+  `_dc`/`_ac` split, `null`-vs-`0` handling).
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### tesla_wall_connector 0.1.2
+
+An idle Wall Connector no longer shows charge power. With no car on the
+cable and the contactor open, the unit reads 0 V on its output legs and
+about 0.5–1 A of sensor offset. The leg sum was 0, so the driver fell back to
+`grid_v × vehicle_current_a`: the voltage on the grid side of the open
+contactor times the offset. One field report showed 184 W, and 284 W in the
+flow diagram, with no car present. That fallback is the only path in 0.1.1
+that gives power with every leg at 0 V.
+
+- Charge power and `charging` now need a closed contactor. A reply without
+  `contactor_closed` falls back to `vehicle_connected` and then the EVSE
+  charging states.
+- The `grid_v` fallback now runs only when the reply has no leg voltage at
+  all. A leg that reads 0 V carries no power.
+- Split-phase installs and measured leg power through a closed contactor do
+  not change.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### sungrow 1.6.1
+
+An inverter that drops off the network no longer loses registers or its
+release. FTW's random site rig takes the inverter offline for 20 to 90 s.
+Every read and write then fails, and the driver counted those failures as the
+device refusing them.
+
+- Reads: 12999, 13000 and the PV registers were dropped for the session after
+  three failed polls. 13000 signs the battery, so FTW read a discharge as a
+  charge for the rest of the run. A failed read now counts only when the
+  device answers with a Modbus exception, or when another read in the same
+  poll returned data. The first poll that reads data after a poll that read
+  nothing starts every count over.
+- Writes: three failed writes marked the EMS block absent, so the watchdog's
+  release was reported as held without being written. The inverter kept its
+  last forced command for up to five minutes. Only a Modbus exception now
+  counts toward that, and a reconnect resets the count. Once this driver has
+  put the inverter in forced mode, the release is always written, and is never
+  reported as held, until the inverter takes it.
+
+Gateway exceptions 0x0A and 0x0B and the busy exception 0x06 do not count:
+they say the device could not answer, not that the register is missing.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
 
 ### easee_cloud 1.4.0
 

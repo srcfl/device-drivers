@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.6.0",
+  version      = "1.6.1",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -151,6 +151,37 @@ local function known_to_have_no_battery()
 end
 
 ----------------------------------------------------------------------------
+-- What a failure proves
+--
+-- A Modbus exception is the device itself saying no: it is up, and it does
+-- not take that register. Anything else -- a refused or reset connection, a
+-- timeout, FTW's reconnect backoff -- says only that the link is down, and
+-- proves nothing about the register.
+--
+-- FTW's random site rig showed what counting both costs (27 October 2026).
+-- An inverter offline for 20 to 90 s failed every read and every write. The
+-- driver counted those as refusals: it dropped 12999, 13000 and the PV
+-- registers for the rest of the session, so FTW read the battery with the
+-- wrong sign, and it stopped writing the EMS block, so the watchdog heard
+-- that the default held while the inverter kept its last forced discharge.
+--
+-- Codes 0x0A and 0x0B mean a gateway could not reach the device, and 0x06
+-- means it was busy. None of them says the register is absent.
+local LINK_EXCEPTION_CODES = { [0x06] = true, [0x0A] = true, [0x0B] = true }
+
+local function device_refused(why)
+    if type(why) ~= "string" then return false end
+    local text = why:lower()
+    if text:find("gateway", 1, true) or text:find("busy", 1, true) then
+        return false
+    end
+    local code = text:match("exception.-code=0x(%x+)")
+    if code then return not LINK_EXCEPTION_CODES[tonumber(code, 16)] end
+    return text:find("modbus exception", 1, true) ~= nil
+        or text:find("illegal", 1, true) ~= nil
+end
+
+----------------------------------------------------------------------------
 -- The EMS control block, 13049-13051
 --
 -- The write-side twin of the register probe below, and it needs the same
@@ -186,19 +217,26 @@ end
 local EMS_WRITE_ATTEMPTS = 3
 local ems_write_failures = 0
 
+-- Set once the device has taken forced mode from this driver, cleared once it
+-- has taken the release. While set, the device may be holding a forced state,
+-- so the release is always written and never reported as held unwritten.
+local forced_mode_written = false
+
 -- True while the EMS block is still worth writing unprompted.
 local function ems_block_worth_writing()
-    return ems_write_failures < EMS_WRITE_ATTEMPTS
+    return ems_write_failures < EMS_WRITE_ATTEMPTS or forced_mode_written
 end
 
 -- Record what the device did with one EMS operation. Counts the operation,
 -- not each of its three registers: the trio goes out together and fails
--- together, so one rejected trio is one piece of evidence.
+-- together, so one rejected trio is one piece of evidence. Only a refusal
+-- from the device counts; a write that never reached it proves nothing.
 local function note_ems_write(write_err)
     if write_err == nil then
         ems_write_failures = 0
         return
     end
+    if not device_refused(write_err) then return end
     ems_write_failures = ems_write_failures + 1
     if ems_write_failures == EMS_WRITE_ATTEMPTS then
         host.log("info", "Sungrow: the EMS control block rejected "
@@ -233,6 +271,44 @@ local function never_sent(ok, first, second)
     return type(why) == "string" and why:find("reconnect backoff", 1, true) ~= nil
 end
 
+-- A failure that is not a refusal counts only if another read in the same
+-- poll returned data: then the link was up and this register still did not
+-- answer. A poll that read nothing is an outage, and the first poll that reads
+-- again after one is a reconnect, which starts every count over.
+local poll_read_data = false
+local poll_unproved = {}
+local link_down = false
+
+local function count_miss(address)
+    local misses = (miss_counts[address] or 0) + 1
+    miss_counts[address] = misses
+    if misses >= MISSES_BEFORE_SKIP then
+        host.log("info", "Sungrow: register " .. address .. " failed "
+            .. misses .. " reads in a row; treating it as absent")
+    end
+end
+
+local function begin_poll()
+    poll_read_data = false
+    poll_unproved = {}
+end
+
+local function settle_poll()
+    if not poll_read_data then
+        link_down = true
+        return
+    end
+    if link_down then
+        link_down = false
+        miss_counts = {}
+        ems_write_failures = 0
+        host.log("info", "Sungrow: the device answers again; "
+            .. "every register and the EMS block start over")
+        return
+    end
+    for _, address in ipairs(poll_unproved) do count_miss(address) end
+end
+
 local function optional_read(address, count, kind)
     if (miss_counts[address] or 0) >= MISSES_BEFORE_SKIP then
         return nil
@@ -240,21 +316,24 @@ local function optional_read(address, count, kind)
     local ok, registers, err = pcall(host.modbus_read, address, count, kind)
     if never_sent(ok, registers, err) then return nil end
     -- Check every register asked for, not just the first. A short reply leaves
-    -- the rest nil, and arithmetic on nil ends the whole poll.
+    -- the rest nil, and arithmetic on nil ends the whole poll. The device did
+    -- reply, so a short reply counts like a refusal.
+    local short = false
     if ok and registers ~= nil then
         for i = 1, count do
-            if registers[i] == nil then ok = false break end
+            if registers[i] == nil then ok = false short = true break end
         end
     end
     if ok and registers ~= nil then
         miss_counts[address] = nil
+        poll_read_data = true
         return registers
     end
-    local misses = (miss_counts[address] or 0) + 1
-    miss_counts[address] = misses
-    if misses >= MISSES_BEFORE_SKIP then
-        host.log("info", "Sungrow: register " .. address .. " failed "
-            .. misses .. " reads in a row; treating it as absent")
+    local why = ok and err or registers
+    if short or device_refused(why) then
+        count_miss(address)
+    else
+        poll_unproved[#poll_unproved + 1] = address
     end
     return nil
 end
@@ -436,7 +515,7 @@ local function full_read_due(now_ms)
         or now_ms - last_full_read_ms >= FULL_READ_MS - POLL_MS / 2
 end
 
-function driver_poll()
+local function read_and_emit()
     local now_ms = host.millis()
     local full = full_read_due(now_ms)
     if full then last_full_read_ms = now_ms end
@@ -849,6 +928,13 @@ function driver_poll()
     return POLL_MS
 end
 
+function driver_poll()
+    begin_poll()
+    local interval = read_and_emit()
+    settle_poll()
+    return interval
+end
+
 ----------------------------------------------------------------------------
 -- Battery control
 ----------------------------------------------------------------------------
@@ -943,6 +1029,7 @@ function set_battery_power(power_w)
     local mode_err = host.modbus_write(13049, 2)         -- 1. forced mode
     local cmd_err = host.modbus_write(13050, want_cmd)   -- 2. charge/discharge cmd
     local power_err = host.modbus_write(13051, watts)    -- 3. power setpoint
+    if mode_err == nil then forced_mode_written = true end
     local write_err = first_write_error(mode_err, cmd_err, power_err)
     -- A command always attempts, however many times the block has refused
     -- before: only the unprompted paths give up. But the outcome still counts,
@@ -987,6 +1074,7 @@ function set_battery_idle()
     local mode_err = host.modbus_write(13049, 2)     -- forced mode
     local cmd_err = host.modbus_write(13050, 0xCC)   -- stop forced charge/discharge
     local power_err = host.modbus_write(13051, 0)    -- zero power setpoint
+    if mode_err == nil then forced_mode_written = true end
     local write_err = first_write_error(mode_err, cmd_err, power_err)
     -- Reached by a zero-watt command, which 1.5.4 accepts on every family.
     -- It still attempts; the count only decides the unprompted paths.
@@ -1020,10 +1108,11 @@ end
 -- write has to be let go of.
 function set_self_consumption()
     -- Nothing to hand back on a device that has refused this block three
-    -- times: a write it rejects cannot have latched a forced state. Report the
-    -- default as held rather than failed -- the watchdog reads a false as the
-    -- safe state being unreachable and escalates, which is the wrong answer
-    -- for an inverter that was never under control to begin with.
+    -- times and never took forced mode from this driver. Report the default
+    -- as held rather than failed -- the watchdog reads a false as the safe
+    -- state being unreachable and escalates, which is the wrong answer for an
+    -- inverter that was never under control to begin with. Once forced mode
+    -- has landed, ems_block_worth_writing stays true until the release lands.
     if not ems_block_worth_writing() then
         return true
     end
@@ -1043,13 +1132,13 @@ function set_self_consumption()
     host.log("debug", "Sungrow: self-consumption mode")
 
     local ok, ems = pcall(host.modbus_read, 13049, 3, "holding")
-    if not ok or not ems then return true end
-    if ems[1] ~= 0 or ems[2] ~= 0xCC or ems[3] ~= 0 then
+    if ok and ems and (ems[1] ~= 0 or ems[2] ~= 0xCC or ems[3] ~= 0) then
         host.log("warn", string.format(
             "Sungrow: self-consumption reset not latched (mode=%d cmd=0x%02x power=%dW)",
             ems[1] or -1, ems[2] or -1, ems[3] or -1))
         return false
     end
+    forced_mode_written = false
     return true
 end
 

@@ -125,6 +125,8 @@ expect(poll({pilot=8, alloc={12, 0, 0}}), 8, nil, "unused phases do not explain 
 boot({phases=1})
 order(15, "1p")
 expect(poll({pilot=12, alloc={12, 0, 0}}), 12, "load_balancer", "one phase")
+later(91000)
+expect(poll({pilot=12, alloc={10, false, false}}), 12, nil, "one phase, allocation missing on possible active phases")
 expect(poll({pilot=12, alloc={12, 16, 16}}), 12, nil, "one phase, the charger's phase unknown")
 expect(poll({pilot=12, alloc={0, 0, 0}}), 12, nil, "one phase, no allocation")
 
