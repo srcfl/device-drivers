@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### wiser_heat 0.1.0
+
+New read-only driver for the Schneider Electric / Drayton Wiser heating hub
+over its local HTTPS API. It reports each room's temperature, setpoint,
+demand and output state, each floor thermostat's floor sensor temperature
+and floor limits, each smoke alarm's temperature, and each heating channel's
+demand and relay state, from one GET of `/data/domain/` per minute. The hub's secret is a
+masked config value, and its self-signed certificate is pinned with
+`tls_pin_sha256`. A floor thermostat's floor temperature is kept while its floor limit
+holds the output off (`Output_Thermal_Limit`), and
+`heating_actuator_<id>_floor_limit_active` says so.
+
+A room with nothing assigned reports -32768 and a setpoint of -20.0 °C, and
+neither is emitted. A device the hub shows as offline has its temperature
+left out, since the hub would keep serving the last value.
+
+A floor thermostat in a floor-control preset makes the room's temperature the
+floor's, so `room_<id>_temp_is_floor` says whether a room temperature is floor
+or air. Checked on a Renova CFMT 16 A in presets P8 and P6. The hub reports
+the configured floor sensor type but cannot see the probe: a 15 kOhm probe
+set as 10 kOhm read about 9 °C low. The driver logs the type when it changes.
+
+A floor thermostat measures no power, so the owner can state its load per
+actuator, as `rated_w` or as `area_m2` times `w_per_m2` (default 110 W/m²).
+The driver then emits `heating_actuator_<id>_power_est_w`, the load times the
+room's demand: the average draw over the relay's cycle. It is a metric, not a
+power stream, so it never enters a measured site balance.
+
 ### easee_cloud 1.4.1
 
 The driver says its session energy is coarse, with `session_wh_coarse`. Easee
