@@ -193,15 +193,15 @@ drivers:
     size_bytes: 4054
     sha256: "4a2cd1efb4a5583468ce897ebd88a000e348917295c40210e86ecf834c0ba543"
   - name: "easee_cloud"
-    version: "1.4.0"
+    version: "1.4.1"
     tier: core
     protocol: http
     connectivity: cloud
     setup: [vendor_portal]
     ders: [ev]
     control: true
-    size_bytes: 64126
-    sha256: "94653989702cb805c56db296be0651886b4b685a0d407bd69089450b86571abe"
+    size_bytes: 64392
+    sha256: "de954b416dcab6d9d7af06075056dce30a1e9d8dbba80223d78a1cdb806101cd"
   - name: "esphome_dsmr"
     version: "1.0.7"
     tier: core

@@ -12,6 +12,15 @@
 - Prefer valid timestamps over missing or invalid ones. Equal or unavailable
   timestamps retain the existing dataset-order fallback.
 
+### easee_cloud 1.4.1
+
+The driver says its session energy is coarse, with `session_wh_coarse`. Easee
+moves that figure in steps of about 1 kWh, and FTW's energy record rejected
+steps that landed moments after the last reading. On one home box that kept
+10 of 24.3 kWh. FTW now uses measured power for this charger's energy, which
+came within 0.1 % of Easee's own session total on three charges (6.6, 24.3 and
+31.7 kWh).
+
 ### saj-emanager 0.1.2
 
 The NovaCore device-support registry accepts this driver.
