@@ -1,0 +1,35 @@
+name: "ctc_ecozenith"
+version: "0.1.0"
+tier: community
+author: "hannesb90 with the help of Claude Code"
+protocol: modbus
+connectivity: local
+setup: [device_screen]
+ders: [heatpump]
+control: false
+tested_devices:
+  - manufacturer: "CTC"
+    model_family: "EcoZenith i250/i255"
+    variants: [EcoZenith i255]
+    regions: [SE]
+    firmware_versions: "display 2024-07-19"
+    notes: "Read-only heat-pump telemetry over Modbus TCP (BMS), function code 3, register numbers as listed by CTC. The controller does not answer an address it lacks, so only documented i250 registers are read. Reports no compressor electrical power."
+    min_driver_version: "0.1.0"
+upstream_docs:
+  - url: "https://ctc.se/file-download/8d8da8b1da79dae7a2f41a08c712f910.pdf"
+    title: "CTC BMS via TCP/IP register list (Swedish)"
+    kind: register_map
+    url_stability: unknown
+  - url: "https://ch.ctc.se/file-download/e15973a925997a1608f4778459738cb3.pdf"
+    title: "CTC BMS via TCP/IP register list (English)"
+    kind: register_map
+    url_stability: unknown
+min_host_version: "2.0.0"
+size_bytes: 14304
+dkb_id: "ctc_ecozenith"
+sha256: "c4d7dd38005508a2698ec98a46df394dab507542511a48d1edcbc6094079f336"
+signature: ""
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "First version: read-only EcoZenith i250/i255 telemetry over Modbus TCP."

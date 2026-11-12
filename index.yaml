@@ -135,6 +135,16 @@ drivers:
     control: false
     size_bytes: 4749
     sha256: "7ebfe010a41f380885b59976d1a4a6d27db4abec08844cd3c553d4cf754e6aa3"
+  - name: "ctc_ecozenith"
+    version: "0.1.0"
+    tier: community
+    protocol: modbus
+    connectivity: local
+    setup: [device_screen]
+    ders: [heatpump]
+    control: false
+    size_bytes: 14304
+    sha256: "c4d7dd38005508a2698ec98a46df394dab507542511a48d1edcbc6094079f336"
   - name: "ctek"
     version: "0.3.3"
     tier: core
