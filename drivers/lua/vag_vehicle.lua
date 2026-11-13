@@ -991,14 +991,18 @@ local function index_points(data)
         ts = dp.timestampUtc or dp.TimestampUtc,
         seq = i,
       }
-      if soc_ids[rec.key] or soc_ids[rec.name] then
+      local is_soc = soc_ids[rec.key] or soc_ids[rec.name]
+      if is_soc then
         soc_candidates[#soc_candidates + 1] = rec
       end
-      if rec.key and rec.key ~= "" and point_is_newer(rec, points[rec.key]) then
-        points[rec.key] = rec
-      end
-      if rec.name and rec.name ~= "" and point_is_newer(rec, points[rec.name]) then
-        points[rec.name] = rec
+      local soc = is_soc and num(rec.value)
+      if not is_soc or (soc ~= nil and soc >= 0 and soc <= 100) then
+        if rec.key and rec.key ~= "" and point_is_newer(rec, points[rec.key]) then
+          points[rec.key] = rec
+        end
+        if rec.name and rec.name ~= "" and point_is_newer(rec, points[rec.name]) then
+          points[rec.name] = rec
+        end
       end
     end
   end

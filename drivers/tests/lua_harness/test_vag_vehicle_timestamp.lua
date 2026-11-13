@@ -29,6 +29,24 @@ for _, c in ipairs(cases) do
 end
 assert(select.lookup(nil, {"s"}) == nil)
 assert(select.lookup(select.index(nil), {"s"}) == nil)
+local soc_fields = {"state_of_charge", "hv_soc"}
+for _, invalid in ipairs({"N/A", "-1", "101"}) do
+    for _, field in ipairs(soc_fields) do
+        local indexed, observed = select.index({
+            row("state_of_charge", "73 %", old),
+            row(field, invalid, new),
+        })
+        local chosen = assert(select.lookup(indexed, soc_fields))
+        assert(chosen.value == "73 %" and chosen.ts == old)
+        assert(#observed == 2 and observed[2].value == invalid)
+    end
+    assert(select.lookup(select.index({row("state_of_charge", invalid, new)}), soc_fields) == nil)
+end
+local zero = select.lookup(select.index({
+    row("state_of_charge", 73, old),
+    row("hv_soc", 0, new),
+}), soc_fields)
+assert(zero and zero.value == "0" and zero.ts == new)
 print("vag_vehicle timestamps: ok")
 
 -- Diagnostics retain overwritten rows and explain the selection without raw data.
