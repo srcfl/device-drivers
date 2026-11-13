@@ -450,3 +450,14 @@ for power calculated from the inverter's own battery, PV or load readings.
 Use `power_origin="derived"` for such calculated meter values. Failed reads
 must set `control_power_available=false`; sensor identity alone cannot
 confirm a command.
+
+### Effective EV pilot evidence
+
+`pilot_a` is the current physically signalled to the vehicle, including zero;
+`dynamic_limit_a` is the separately read back dynamic setting. Keep `max_a`
+for older hosts. `pilot_observed_at` is the vendor RFC 3339 value-change time;
+`pilot_confirmed_at_ms` is the Unix-millisecond time a successful REST read or
+stream update confirmed that specific value (zero when unavailable). Do not
+refresh that confirmation merely because another observation or poll arrived.
+An unchanged old source value may still be confirmed by a new read. A missing,
+invalid, future-dated or unconfirmed pilot must not explain a control failure.

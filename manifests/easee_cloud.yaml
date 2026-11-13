@@ -1,5 +1,5 @@
 name: "easee_cloud"
-version: "1.4.3"
+version: "1.5.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Easee Home/Charge via Cloud REST API. No local protocol needed."
     min_driver_version: "1.0.1"
 min_host_version: "2.0.0"
-size_bytes: 72912
+size_bytes: 73951
 dkb_id: "easee_cloud"
-sha256: "ff920be2a7ce042f8708e9191511b4a757b5d702ef954b00fee4ee8aa21bab11"
+sha256: "f6b866d5bed006c403362a47dca8f44ef19f7390b4b810dfbe8af9bdf2ede021"
 signature: ""
 
 bytecode_sha256: ""
