@@ -1241,9 +1241,9 @@ function driver_poll()
             end
         end
         -- A three-phase car gets the lowest share of the phases it uses; a
-        -- phase with none is not one of them. A one-phase car uses one
-        -- phase, which the driver does not know, so the highest.
-        local allocated_a = (phases == 1) and high or (n == 3 and low or nil)
+        -- phase with none is not one of them. For a one-phase car the
+        -- active phase is unknown, so use the highest of all three.
+        local allocated_a = n == 3 and ((phases == 1) and high or low) or nil
         local own_limit = device_limit_a ~= nil and pilot_a >= device_limit_a - 0.5
         if allocated_a and allocated_a > 0 and allocated_a < dyn_current - 0.5 and allocated_a <= pilot_a + 0.5 and
            not own_limit then
@@ -1265,6 +1265,10 @@ function driver_poll()
         charging                = charging,
         request_active          = request_active,
         session_wh              = session_wh,
+        -- Easee moves session energy in steps of about 1 kWh, in its own
+        -- time. It is right for what a session delivered, and too coarse to
+        -- say when the energy flowed, so Core's energy record uses power.
+        session_wh_coarse       = true,
         power_observed_at       = power_observed_at,
         -- Control verification needs distinct source samples. A fresh cloud
         -- reply alone does not establish a new physical power measurement.
