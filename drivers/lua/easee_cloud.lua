@@ -29,7 +29,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.4.1",
+  version      = "1.4.2",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -65,6 +65,8 @@ local last_phase_change_ms = 0 -- monotonic ms of the last phase flip (hysteresi
 -- when an operator config field requests it (see driver_init below).
 local pending_amp_resend = false
 local pending_amp_resend_at_ms = 0
+local last_reassert_ms = -1e12  -- when a poll last re-sent the order as a command
+local REASSERT_MS = 10000
 local last_amps_set = nil
 
 -- paused_state tracks whether the LAST command we successfully sent was
@@ -801,6 +803,30 @@ local function write_setting(serial, body_table)
     return err
 end
 
+-- command_current sends the current limit as a charger command. The settings
+-- write reaches the charger only when the cloud's stored value changes ("Will
+-- only forward commands to device if new value != old value",
+-- developer.easee.com/reference/charger_setchargersetting). A resume or a
+-- phaseMode write puts the charger back at its maximum (32 A reported, #225)
+-- while the cloud still stores our order, so re-sending that order as a
+-- setting never reaches the charger. A command always does. minutes = 0
+-- holds the limit until the next one.
+local function command_current(serial, amps)
+    local _, err = host.http_post(
+        BASE_URL .. "/chargers/" .. serial .. "/commands/set_dynamic_charger_current",
+        host.json_encode({amps = amps, minutes = 0}), auth_headers())
+    return err
+end
+
+-- resend_after_resume schedules the order as a command once Easee has had
+-- time to apply the resume's reset.
+local function resend_after_resume()
+    if last_amps_set ~= nil then
+        pending_amp_resend = true
+        pending_amp_resend_at_ms = host.millis() + 3000
+    end
+end
+
 -- start_boost_fits: 7 A per phase fits when Core's cap for this charger
 -- (cap_amps_per_phase: its room below the fuse and the import limit, after
 -- other chargers' share), the order's max_amps_per_phase and the charger's
@@ -1146,15 +1172,30 @@ function driver_poll()
     -- controller's own 5 s tick is the safety floor; this just
     -- accelerates convergence in the common case.
     if pending_amp_resend and last_amps_set ~= nil and host.millis() >= pending_amp_resend_at_ms then
-        local werr = write_setting(charger_serial, {dynamicChargerCurrent = last_amps_set})
+        local werr = command_current(charger_serial, last_amps_set)
         if werr == nil then
             host.log("info", "Easee: re-asserted dynamicChargerCurrent=" .. tostring(last_amps_set) ..
-                " A after phaseMode reset")
+                " A as a command after a phaseMode write or resume")
             pending_amp_resend = false
         else
             host.log("warn", "Easee: dynamicChargerCurrent re-assert failed (will retry next poll): " ..
                 redact_http_err(werr))
         end
+    end
+
+    -- A charger that allows more than we ordered gets the order again as a
+    -- command, at most every REASSERT_MS: Easee resets its limit by itself
+    -- (see command_current). On a 16 A fuse a 7 A order drew 16 A for 10 s.
+    local current_a = obs[OBS_CURRENT]
+    if connected and last_amps_set ~= nil and now - last_reassert_ms >= REASSERT_MS and
+        ((dyn_current and dyn_current > last_amps_set + 0.5) or
+         (charging and current_a and current_a > last_amps_set + 2)) then
+        last_reassert_ms = now
+        local cerr = command_current(charger_serial, last_amps_set)
+        host.log("warn", string.format(
+            "Easee: charger allows %s A / draws %s A over our %s A order; re-sent it as a command%s",
+            tostring(dyn_current), tostring(current_a), tostring(last_amps_set),
+            cerr and (" (failed: " .. redact_http_err(cerr) .. ")") or ""))
     end
 
     -- 6 A start boost: step down to the ordered 6 A as soon as the charger
@@ -1207,7 +1248,7 @@ function driver_command(action, power_w, cmd)
 
     if action == "ev_start" then
         local ok = post_command("/commands/start_charging")
-        if ok then paused_state = false end
+        if ok then paused_state = false; resend_after_resume() end
         return ok
     elseif action == "ev_pause" then
         local ok = post_command("/commands/pause_charging")
@@ -1220,7 +1261,7 @@ function driver_command(action, power_w, cmd)
         return ok
     elseif action == "ev_resume" then
         local ok = post_command("/commands/resume_charging")
-        if ok then paused_state = false end
+        if ok then paused_state = false; resend_after_resume() end
         return ok
     elseif action == "ev_set_current" then
         -- Driver-level phase decision: read the operator's preferences
@@ -1342,6 +1383,7 @@ function driver_command(action, power_w, cmd)
             if amps > 0 and paused_state then
                 if post_command("/commands/resume_charging") then
                     paused_state = false
+                    resend_after_resume()
                     host.log("info", "Easee: auto-resumed after pause (offer=" ..
                         tostring(amps) .. " A)")
                 end

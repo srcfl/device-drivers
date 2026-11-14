@@ -22,6 +22,8 @@ local function amps_writes()
         if call.func == "http_post" and call.args[1]:find("/settings", 1, true) then
             local body = host.json_decode(call.args[2])
             if body.dynamicChargerCurrent ~= nil then table.insert(out, body.dynamicChargerCurrent) end
+        elseif call.func == "http_post" and call.args[1]:find("/commands/set_dynamic_charger_current", 1, true) then
+            table.insert(out, host.json_decode(call.args[2]).amps)
         end
     end
     return out
