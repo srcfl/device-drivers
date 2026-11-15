@@ -112,3 +112,21 @@ battery = poll(3)
 assert(battery.setpoint_w == nil, "failed read invented zero")
 assert(battery.control_power_w == nil and battery.control_power_available == false)
 ''')
+
+
+def test_pixii_reports_service_calibration_without_legacy_fault() -> None:
+    run_lua('''
+local calibrating
+host.set_calibrating = function(active) calibrating = active end
+host._modbus_registers.holding[40108] = 116
+poll(0xffff)
+assert(calibrating == true, "Pixii service 116 did not block dispatch")
+assert(not host._faulted, "calibration was also reported as a device fault")
+host._modbus_registers.holding[40108] = 0xffff
+poll(0xffff)
+assert(calibrating == true, "inconclusive reads cleared calibration")
+host._modbus_registers.holding[40108] = 119
+poll(0xffff)
+assert(calibrating == false, "normal Pixii service did not clear calibration")
+assert(#host._emitted.meter == 3, "calibration stopped meter telemetry")
+''')

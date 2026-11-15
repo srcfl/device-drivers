@@ -309,6 +309,8 @@ local last_charge_label = nil
 local function read_battery_status()
     local charge_status = read_status_u16(REG_BATTERY_CHARGE_STATUS)
     local running_service = read_status_u16(REG_PIXII_RUNNING_SERVICE)
+    -- StVnd service codes start at 101 (Pixii mapping, table 23).
+    local service_known = running_service ~= nil and running_service >= 101 and running_service <= 129
     local calibrating = charge_status == 7 or running_service == 116
     if running_service ~= nil then host.emit_metric("pixii_running_service_code", running_service) end
     local control_mode = read_status_u16(REG_BATTERY_CONTROL_MODE)
@@ -324,7 +326,7 @@ local function read_battery_status()
 
     local charge_label = label_for(charge_status_labels, charge_status)
     local charge_status_known = charge_status ~= nil and charge_status_labels[charge_status] ~= nil
-    if not charge_status_known and running_service == nil and charge_label ~= last_charge_label then
+    if not charge_status_known and not service_known and charge_label ~= last_charge_label then
         host.log("warn", "Pixii: charge status " .. charge_label
             .. "; calibration state is unknown; retaining any previous calibration state")
     end
@@ -346,12 +348,12 @@ local function read_battery_status()
 
     -- StVnd can report calibration when the SunSpec charge status is
     -- unsupported. Keep the last verdict if both reads are unknown.
-    if charge_status_known or running_service ~= nil then
+    if charge_status_known or service_known then
         if host.set_calibrating then
             host.set_calibrating(calibrating)
         else
             -- Older Core versions use the fault gate to suspend dispatch.
-            host.set_device_fault(calibrating, calibrating and "Pixii battery calibration is active" or "")
+            host.set_device_fault(calibrating, calibrating and "Pixii battery is calibrating" or "")
         end
     end
 

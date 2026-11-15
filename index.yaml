@@ -514,8 +514,8 @@ drivers:
     connectivity: local
     ders: [battery, meter]
     control: false
-    size_bytes: 32738
-    sha256: "5895d78bc2a0824f77daac980022d9847f42cb6b8d7e14f91d29fd699af1b292"
+    size_bytes: 32887
+    sha256: "368e69898b87265bad6127673a66c9a595b13428a976c2c078ace2cf5ea73c77"
   - name: "pixii_pv"
     version: "0.3.3"
     tier: core
