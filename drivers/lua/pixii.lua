@@ -29,7 +29,7 @@ DRIVER = {
   id           = "pixii",
   name         = "Pixii PowerShaper",
   manufacturer = "Pixii",
-  version      = "2.1.9",
+  version      = "2.1.10",
   protocols    = { "modbus" },
   capabilities = { "battery", "meter" },
   description  = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -61,6 +61,7 @@ local REG_SETPOINT_LO = 39906  -- int32 LSB
 -- SunSpec model 802 battery status points. Pixii's SoC is already read
 -- from this block at 40132, so these adjacent points are cheap diagnostics.
 local REG_BATTERY_SOC = 40132
+local REG_PIXII_RUNNING_SERVICE = 40108 -- StVnd: 116 is battery SoC calibration
 local REG_BATTERY_CHARGE_STATUS = 40137 -- ChaSt: OFF/EMPTY/DISCHARGING/...
 local REG_BATTERY_CONTROL_MODE = 40138 -- LocRemCtl: REMOTE/LOCAL
 local REG_BATTERY_STATE = 40143 -- State: CONNECTED/STANDBY/FAULT/...
@@ -307,6 +308,9 @@ local last_charge_label = nil
 
 local function read_battery_status()
     local charge_status = read_status_u16(REG_BATTERY_CHARGE_STATUS)
+    local running_service = read_status_u16(REG_PIXII_RUNNING_SERVICE)
+    local calibrating = charge_status == 7 or running_service == 116
+    if running_service ~= nil then host.emit_metric("pixii_running_service_code", running_service) end
     local control_mode = read_status_u16(REG_BATTERY_CONTROL_MODE)
     local battery_state = read_status_u16(REG_BATTERY_STATE)
     local vendor_state = read_status_u16(REG_BATTERY_STATE_VENDOR)
@@ -320,36 +324,35 @@ local function read_battery_status()
 
     local charge_label = label_for(charge_status_labels, charge_status)
     local charge_status_known = charge_status ~= nil and charge_status_labels[charge_status] ~= nil
-    if not charge_status_known and charge_label ~= last_charge_label then
+    if not charge_status_known and running_service == nil and charge_label ~= last_charge_label then
         host.log("warn", "Pixii: charge status " .. charge_label
-            .. "; calibration state is unknown; retaining any previous calibration fault")
+            .. "; calibration state is unknown; retaining any previous calibration state")
     end
     last_charge_label = charge_label
     local control_label = label_for(control_mode_labels, control_mode)
     local state_label = label_for(battery_state_labels, battery_state)
-    local key = charge_label .. "/" .. control_label .. "/" .. state_label .. "/" .. tostring(vendor_state) .. "/" .. tostring(event1)
+    local key = charge_label .. "/" .. control_label .. "/" .. state_label .. "/" .. tostring(vendor_state) .. "/" .. tostring(event1) .. "/" .. tostring(running_service)
     if key ~= last_status_key then
         host.log("info", "Pixii: status charge=" .. charge_label
             .. " control=" .. control_label
             .. " state=" .. state_label
             .. " vendor_state=" .. tostring(vendor_state)
             .. " event1=" .. tostring(event1))
-        if charge_status == 7 then
-            host.log("warn", "Pixii: charge status is TESTING; excluding from dispatch until calibration finishes")
+        if calibrating then
+            host.log("info", "Pixii: battery calibration detected; excluding from dispatch until calibration finishes")
         end
         last_status_key = key
     end
 
-    -- SunSpec 802 ChaSt=testing (7): Pixii is calibrating and ignores
-    -- external setpoints. Flag a device fault so dispatch + MPC exclude it
-    -- while keeping telemetry and site-meter data live. Only a recognized
-    -- status can clear it: absent, unsupported or unknown values do not
-    -- prove calibration has finished. Unknown status at startup is not
-    -- evidence of calibration either, so it does not invent a fault.
-    if charge_status_known then
-        local calibrating = charge_status == 7
-        host.set_device_fault(calibrating,
-            calibrating and "Pixii battery calibrating/testing (SunSpec ChaSt=testing)" or "")
+    -- StVnd can report calibration when the SunSpec charge status is
+    -- unsupported. Keep the last verdict if both reads are unknown.
+    if charge_status_known or running_service ~= nil then
+        if host.set_calibrating then
+            host.set_calibrating(calibrating)
+        else
+            -- Older Core versions use the fault gate to suspend dispatch.
+            host.set_device_fault(calibrating, calibrating and "Pixii battery calibration is active" or "")
+        end
     end
 
     return {

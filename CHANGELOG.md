@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### pixii 2.1.10
+
+Recognize battery calibration from Pixii's running-service register when
+the SunSpec charge status is unsupported. Keep measurements live and
+suspend FTW dispatch until calibration ends.
+
 ### easee_cloud 1.4.1
 
 The driver says its session energy is coarse, with `session_wh_coarse`. Easee
