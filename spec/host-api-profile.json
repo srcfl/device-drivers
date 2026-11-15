@@ -27,6 +27,7 @@
           "now_ms",
           "sleep",
           "set_device_fault",
+          "set_calibrating",
           "set_poll_interval",
           "millis",
           "set_watchdog_timeout_s",
