@@ -12,9 +12,14 @@ local writes
 
 local function fail(msg) error(msg, 2) end
 
+-- In the automatic modes a real unit reports its own load-following
+-- target in SetPoint_W and covers the house load (seen: 1255 W), so the
+-- fake does the same instead of reporting 0.
+local LOAD_W = 1255
+
 local function new_unit(mode)
     unit = { mode = mode, setpoint = 0, token = "token", rated = "9900",
-             refuse_put = nil, unauthorized = false }
+             refuse_put = nil, unauthorized = false, omit_mode = false }
     writes = {}
 end
 
@@ -24,14 +29,17 @@ local function install_fake_unit(with_put)
             return '{"error":"Unauthorized"}'
         end
         if url == BASE .. "/configurations" then
-            return '{"EM_OperatingMode":"' .. unit.mode .. '","IC_InverterMaxPower_w":"'
+            local m = '"EM_OperatingMode":"' .. unit.mode .. '",'
+            if unit.omit_mode then m = "" end
+            return '{' .. m .. '"IC_InverterMaxPower_w":"'
                 .. unit.rated .. '","DE_Software":"1.40.5"}'
         elseif url == BASE .. "/latestdata" then
-            -- In manual mode the battery follows the setpoint; sonnen sign.
-            local pac = 0
-            if unit.mode == "1" then pac = unit.setpoint end
+            -- Manual mode: the battery follows FTW's setpoint. Automatic
+            -- modes: it follows the house load. Sonnen sign.
+            local pac, sp = LOAD_W, LOAD_W
+            if unit.mode == "1" then pac, sp = unit.setpoint, unit.setpoint end
             return '{"FullChargeCapacity":18700,"Pac_total_W":' .. pac ..
-                ',"RSOC":45,"USOC":40,"SetPoint_W":' .. unit.setpoint ..
+                ',"RSOC":45,"USOC":40,"SetPoint_W":' .. sp ..
                 ',"Timestamp":"2026-11-13 20:03:26","UTC_Offset":1}'
         end
         return nil, "HTTP 404"
@@ -91,7 +99,10 @@ boot("2")
 if #writes ~= 0 then fail("init in self-consumption must not write") end
 if DRIVER.read_only then fail("control driver must not declare read_only") end
 local b = poll()
-if b.w ~= 0 or b.setpoint_w ~= 0 then fail("idle reading wrong") end
+if b.w ~= -LOAD_W then fail("self-consumption reading wrong: " .. tostring(b.w)) end
+if b.setpoint_w ~= nil then
+    fail("setpoint_w must be absent in mode 2, got " .. tostring(b.setpoint_w))
+end
 if b.control_power_observed_at ~= "2026-11-13T20:03:26+01:00" then
     fail("observed_at = " .. tostring(b.control_power_observed_at))
 end
@@ -259,7 +270,7 @@ if driver_default_mode() ~= true or #writes ~= 0 then
     fail("default mode without http_put must hold without writing")
 end
 b = poll()
-if b.w ~= 0 then fail("telemetry must still work without http_put") end
+if b.w ~= -LOAD_W then fail("telemetry must still work without http_put") end
 
 -- ---- Refused writes stop the unprompted path ------------------------------
 
@@ -293,5 +304,32 @@ if unit.mode ~= "2" or unit.setpoint ~= 0 then
     fail("after network loss the lease must hand the unit back, got mode "
         .. unit.mode .. " setpoint " .. unit.setpoint)
 end
+
+-- ---- setpoint_w follows a fresh mode read, not a cached one --------------
+-- FTW put the unit in manual mode; then the app sets self-consumption. The
+-- load-following SetPoint_W must not be reported as a setpoint.
+
+boot("2")
+driver_command("battery", 500, {})
+unit.mode = "2"
+b = poll()
+if b.setpoint_w ~= nil then
+    fail("setpoint_w reported after the unit left manual mode: " .. tostring(b.setpoint_w))
+end
+
+-- ---- A configurations reply without EM_OperatingMode is a failed read -----
+-- The driver last saw mode 2. Another controller now holds a manual setpoint
+-- and the reply omits the mode. Default mode must not claim the unit is in
+-- automatic mode, and must not write blind.
+
+boot("2")
+unit.mode = "1"
+unit.setpoint = -2500
+unit.omit_mode = true
+writes = {}
+if driver_default_mode() == true then
+    fail("default mode trusted a cached mode when the reply had none")
+end
+if #writes ~= 0 then fail("wrote without a confirmed mode: " .. table.concat(writes, " | ")) end
 
 print("OK")
