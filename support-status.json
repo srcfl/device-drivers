@@ -1619,7 +1619,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.0.4",
+      "catalog_version": "2.1.0",
       "driver_id": "sonnen",
       "targets": {
         "blixt-l1": {

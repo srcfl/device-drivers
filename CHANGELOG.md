@@ -13,6 +13,32 @@ driver no longer knows FTW wrote, so that offset stays; today only the
 operator's control on the heating card writes it. Not yet checked on
 hardware.
 
+### sonnen 2.1.0
+
+The driver can set sonnenBatterie charge and discharge power. It needs FTW's
+`host.http_put`: sonnen changes its operating mode only through
+`PUT /api/v2/configurations`, and answers PATCH and POST there with 404.
+Without that function, or without `capabilities.http.allow_write`, the
+driver refuses commands and keeps reporting telemetry.
+
+- A battery command puts the unit in manual mode (`EM_OperatingMode` 1) and
+  posts `/setpoint/charge/<W>` or `/discharge/<W>`, limited to the unit's
+  `IC_InverterMaxPower_w` and an optional `max_power_w` set by the owner. If the
+  unit has left manual mode, the driver enters it again once and retries.
+- A manual setpoint holds until it is replaced. Without a battery command for
+  60 s, the driver clears the setpoint and returns the unit to the automatic
+  mode it ran before. That mode is self-consumption (2) or time-of-use (10).
+  Default mode and `deinit` do the same and read the mode back. At start, the
+  driver clears a manual mode that a stopped FTW left behind. After three
+  failed handovers, the unprompted paths stop writing.
+- `{"error": ...}` replies, such as a wrong token's `Unauthorized`, are failed
+  reads, not `w = 0`.
+- Emits `setpoint_w`, `control_power_w` and `control_power_observed_at` from
+  `/latestdata` for control feedback.
+
+None of these safeguards runs when FTW itself is gone. The HIL gate for host
+loss while the unit holds a manual setpoint is still open.
+
 ### sonnen 2.0.4
 
 Battery power has the site sign. sonnen reports `Pac_total_W` positive while
