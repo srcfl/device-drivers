@@ -16,9 +16,9 @@ tested_devices:
     notes: "Battery sign and manual-mode setpoints measured on one unit (software 1.40.5). Control is not yet HIL-accepted."
     min_driver_version: "1.0.0"
 min_host_version: "2.1.0"
-size_bytes: 17131
+size_bytes: 17580
 dkb_id: ""
-sha256: "714014bb7ea7e026073dde96168f398397d00e59d4284cbe2b516607fe6acd96"
+sha256: "c2102a4fd3907db6d01c284a8bacaff267d36fd74326139ecd84df286e815aa7"
 signature: ""
 
 bytecode_sha256: ""
