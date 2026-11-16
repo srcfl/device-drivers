@@ -50,9 +50,4 @@ if not host._metrics.battery_pac_w or host._metrics.battery_pac_w.value ~= 1200 
     error("battery_pac_w must keep the vendor sign")
 end
 
--- Still read-only.
-if DRIVER.read_only ~= true or driver_command("battery", 1000, {}) ~= false then
-    error("sonnen must stay read-only")
-end
-
 print("OK")

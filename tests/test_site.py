@@ -254,10 +254,8 @@ def test_a_read_only_charger_says_why(catalog: dict) -> None:
 
 
 def test_a_reason_that_only_repeats_the_note_is_dropped(catalog: dict) -> None:
-    """sonnen's "Read-only." and zap's "never writes" add nothing to the note."""
+    """zap's "never writes" adds nothing to the note."""
     by_id = {d["id"]: d for d in catalog["drivers"]}
-    assert by_id["sonnen"]["control_state"] == "reads_only"
-    assert by_id["sonnen"]["control_reason"] == ""
     assert by_id["zap"]["control_reason"] == ""
     for driver in catalog["drivers"]:
         reason = driver["control_reason"]

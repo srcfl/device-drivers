@@ -47,6 +47,9 @@ host._http_responses = {}   -- { [full_url] = response_body_string }
 host._http_patches   = {}   -- ordered list of {url=..., body=..., headers=...}
 host._http_patch_responses = {}  -- { [url_or_substring] = response_body_string }
 host._http_patch_error = nil     -- set to an error string to fail PATCHes
+host._http_puts      = {}   -- ordered list of {url=..., body=..., headers=...}
+host._http_put_responses = {}    -- { [url_or_substring] = body or function(url, body) }
+host._http_put_error = nil       -- set to an error string to fail PUTs
 host._poll_interval_ms = nil     -- last value passed to set_poll_interval
 host._mqtt_buffer    = {}   -- list of {topic=..., payload=...}
 host._p1_data        = nil  -- P1 telegram table or nil
@@ -99,6 +102,9 @@ function host.reset()
     host._http_patches   = {}
     host._http_patch_responses = {}
     host._http_patch_error = nil
+    host._http_puts      = {}
+    host._http_put_responses = {}
+    host._http_put_error = nil
     host._poll_interval_ms = nil
     host._mqtt_buffer    = {}
     host._p1_data        = nil
@@ -487,6 +493,29 @@ function host.http_patch(url, body, headers)
         end
     end
     return '[{"status":"modified"}]'
+end
+
+-- FTW's host.http_put(url, body, headers) → (body, nil) or (nil, err), with
+-- the same recording and response rules as http_patch. Responses come from
+-- host._http_put_responses; a function value is called with (url, body).
+function host.http_put(url, body, headers)
+    record_call("http_put", url, body, headers)
+    table.insert(host._http_puts, {url = url, body = body, headers = headers})
+    if host._http_put_error then
+        return nil, host._http_put_error
+    end
+    local resp = host._http_put_responses[url]
+    if resp == nil then
+        for pattern_url, r in pairs(host._http_put_responses) do
+            if string.find(url, pattern_url, 1, true) then
+                resp = r
+                break
+            end
+        end
+    end
+    if type(resp) == "function" then return resp(url, body) end
+    if resp ~= nil then return resp end
+    return "{}"
 end
 
 ---------------------------------------------------------------------------
