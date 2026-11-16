@@ -190,6 +190,38 @@ if unit.mode ~= "2" or unit.setpoint ~= 0 then
     fail("orphan manual mode not cleared at init")
 end
 
+-- ---- An owner's manual idle (setpoint 0) is left alone --------------------
+
+host.reset()
+new_unit("1")
+install_fake_unit(true)
+dofile("drivers/lua/sonnen.lua")
+driver_init({ host = "192.0.2.10", port = 80, api_token = "token" })
+if #writes ~= 0 or unit.mode ~= "1" then fail("init changed an owner's manual idle") end
+if driver_default_mode() ~= true or #writes ~= 0 then
+    fail("default mode must leave an owner's manual idle untouched")
+end
+-- FTW then takes control; afterwards the unit goes back to self-consumption.
+driver_command("battery", 400, {})
+driver_default_mode()
+if unit.mode ~= "2" or unit.setpoint ~= 0 then fail("own session was not handed back") end
+
+-- ---- Without allow_write nothing is written, even from manual mode --------
+
+host.reset()
+new_unit("1")
+unit.setpoint = -1500  -- left by a stopped FTW
+unit.refuse_put = "http: write not granted (set capabilities.http.allow_write)"
+install_fake_unit(true)
+dofile("drivers/lua/sonnen.lua")
+driver_init({ host = "192.0.2.10", port = 80, api_token = "token" })
+driver_command("battery", 700, {})
+driver_default_mode()
+for _, w in ipairs(writes) do
+    if string.find(w, "^POST") then fail("posted without write access: " .. w) end
+end
+if unit.setpoint ~= -1500 or unit.mode ~= "1" then fail("unit changed without write access") end
+
 -- ---- A failed read emits nothing ------------------------------------------
 
 boot("2")

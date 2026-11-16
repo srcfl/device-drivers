@@ -40,7 +40,9 @@
 --       - a lease: without a fresh battery command for LEASE_MS, poll clears
 --         the setpoint and returns the unit to its automatic mode;
 --       - driver_default_mode does the same, and reads the mode back;
---       - init clears a manual mode left behind by a stopped FTW.
+--       - init clears a manual setpoint (not 0) left behind by a stopped
+--         FTW; a manual mode with setpoint 0 is left alone, since it may be
+--         the owner's idle and it moves no power.
 --     None of these run if FTW itself is gone. The HIL gate for that case
 --     (host loss with a held setpoint) is still open.
 
@@ -282,19 +284,45 @@ end
 -- when the unit is (or may be) in manual mode, and reads the result back.
 -- restore_auto_once returns ok, and whether a failure was the unit's
 -- refusal (it answered the read) rather than the unit being unreachable.
+--
+-- What it undoes depends on who set manual mode:
+--   * this driver's own session: clear the setpoint, then restore the
+--     automatic mode (the session proved write access with its PUT);
+--   * not this process, with a setpoint other than 0 (a stopped FTW left a
+--     charge or discharge running): restore the automatic mode with a PUT
+--     only, so a driver without write access posts nothing;
+--   * not this process, setpoint 0: an owner's manual idle, or an idle hold
+--     a stopped FTW left behind. Both are safe; it is left alone.
 local function restore_auto_once()
     local read_ok = read_configuration()
     if read_ok and mode ~= MODE_MANUAL then
         session = false
         return true, false
     end
-    if not read_ok and not session and mode ~= MODE_MANUAL then
-        -- Unreachable, and nothing says this driver ever took control:
-        -- there is nothing to undo, and no state to confirm.
-        return false, false
+    if not session then
+        if not read_ok then
+            return false, false
+        end
+        local data = get_json("/latestdata")
+        if not data then
+            return false, false
+        end
+        local set_w = clamp(data.SetPoint_W, 30000)
+        if set_w == 0 then
+            host.log("info", "sonnen: unit is in manual mode with setpoint 0, not set by this driver; leaving it")
+            return true, false
+        end
+        local restored, restore_err = put_mode(auto_mode)
+        if not restored then
+            host.log("warn", "sonnen: returning to automatic mode failed: " .. tostring(restore_err))
+            return false, true
+        end
+        host.log("info", "sonnen: cleared a manual setpoint of " .. tostring(set_w)
+            .. " W left by a previous controller; automatic mode " .. auto_mode)
+        return true, false
     end
-    -- Clear the setpoint first so a failed mode switch never leaves a
-    -- charge or discharge request standing.
+    -- Our own session. Clear the setpoint first so a failed mode switch
+    -- never leaves a charge or discharge request standing.
     local cleared, clear_err = post_setpoint(0)
     local restored, restore_err = put_mode(auto_mode)
     if not restored then
@@ -366,9 +394,10 @@ function driver_init(config)
     if not ok then
         host.log("warn", "sonnen: reading configurations failed: " .. tostring(err))
     elseif mode == MODE_MANUAL and host.http_put ~= nil then
-        -- Manual mode with nobody steering: a previous FTW stopped while it
-        -- held a setpoint. Hand the unit back before anything else.
-        host.log("warn", "sonnen: unit is in manual mode at start; restoring automatic mode " .. auto_mode)
+        -- Manual mode at start. A setpoint other than 0 means a previous FTW
+        -- stopped while it held one: hand the unit back. Setpoint 0 is left
+        -- alone (see restore_auto_once).
+        host.log("warn", "sonnen: unit is in manual mode at start")
         restore_auto()
     end
 
