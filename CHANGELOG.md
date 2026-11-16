@@ -18,8 +18,14 @@ driver refuses commands and keeps reporting telemetry.
   60 s, the driver clears the setpoint and returns the unit to the automatic
   mode it ran before. That mode is self-consumption (2) or time-of-use (10).
   Default mode and `deinit` do the same and read the mode back. At start, the
-  driver clears a manual mode that a stopped FTW left behind. After three
-  failed handovers, the unprompted paths stop writing.
+  driver clears a manual setpoint other than 0 that a stopped FTW left
+  behind. It leaves a manual mode with setpoint 0 alone, because that may be
+  the owner's idle and moves no power. After three handovers the unit
+  refuses, the unprompted paths stop writing; an unreachable unit does not
+  count toward the three.
+- Every control session starts with a confirmed `PUT`. `host.http_post` is
+  not gated by `allow_write`, so without write access the driver posts
+  nothing, even when the unit already reports manual mode.
 - `{"error": ...}` replies, such as a wrong token's `Unauthorized`, are failed
   reads, not `w = 0`.
 - Emits `setpoint_w`, `control_power_w` and `control_power_observed_at` from

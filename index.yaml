@@ -717,8 +717,8 @@ drivers:
     setup: [device_ui]
     ders: [battery, meter]
     control: true
-    size_bytes: 17580
-    sha256: "c2102a4fd3907db6d01c284a8bacaff267d36fd74326139ecd84df286e815aa7"
+    size_bytes: 18938
+    sha256: "fd4d1f8204ab4097a3e192551aef616cd249bc0aa18367196b460aad9914e8b0"
   - name: "sungrow"
     version: "1.7.0"
     tier: core
