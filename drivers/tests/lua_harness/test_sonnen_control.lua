@@ -197,6 +197,26 @@ unit.unauthorized = true
 local _, count = poll()
 if count ~= 0 then fail("an Unauthorized answer must not become a reading") end
 
+-- ---- No setpoint without a confirmed PUT ----------------------------------
+-- The unit already sits in manual mode (owner, app), and the host refuses
+-- the PUT (no allow_write). http_post is not gated by allow_write, so the
+-- driver itself must not post a setpoint.
+
+host.reset()
+new_unit("1")
+unit.refuse_put = "http: write not granted (set capabilities.http.allow_write)"
+install_fake_unit(true)
+dofile("drivers/lua/sonnen.lua")
+driver_init({ host = "192.0.2.10", port = 80, api_token = "token" })
+if unit.mode ~= "1" then fail("setup: unit should still be in manual mode") end
+writes = {}
+r = driver_command("battery", 900, {})
+if r == true then fail("command must fail when the PUT is refused") end
+for _, w in ipairs(writes) do
+    if string.find(w, "^POST") then fail("posted a setpoint without a confirmed PUT: " .. w) end
+end
+if unit.setpoint ~= 0 then fail("setpoint changed without a confirmed PUT") end
+
 -- ---- Without host.http_put the driver refuses control ---------------------
 
 boot("2", nil, false)
