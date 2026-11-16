@@ -28,8 +28,12 @@ driver refuses commands and keeps reporting telemetry.
   nothing, even when the unit already reports manual mode.
 - `{"error": ...}` replies, such as a wrong token's `Unauthorized`, are failed
   reads, not `w = 0`.
-- Emits `setpoint_w`, `control_power_w` and `control_power_observed_at` from
-  `/latestdata` for control feedback.
+- Emits `control_power_w` and `control_power_observed_at` from
+  `/latestdata` for control feedback, and `setpoint_w` only after a fresh read
+  confirms manual mode. In the automatic modes `SetPoint_W` is the unit's
+  own load-following target (1255 W was seen in self-consumption), not a
+  command. A `/configurations` reply without `EM_OperatingMode` is a failed
+  read, so no decision rests on a mode from an earlier read.
 
 None of these safeguards runs when FTW itself is gone. The HIL gate for host
 loss while the unit holds a manual setpoint is still open.

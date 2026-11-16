@@ -173,20 +173,23 @@ local function observed_at(data)
     return string.format("%sT%s%s%02d:00", d, t, sign, math.floor(math.abs(off)))
 end
 
+-- read_configuration fails unless the reply carries EM_OperatingMode, so a
+-- decision never rests on a mode cached from an earlier read.
 local function read_configuration()
     local cfg, err = get_json("/configurations")
     if not cfg then
         return false, err
+    end
+    if cfg.EM_OperatingMode == nil then
+        return false, "configurations reply has no EM_OperatingMode"
     end
     local rated = clamp(cfg.IC_InverterMaxPower_w, 100000)
     if rated and rated > 0 then
         if inverter_max_w ~= rated then host.set_rated_w(rated) end
         inverter_max_w = rated
     end
-    if cfg.EM_OperatingMode ~= nil then
-        mode = tostring(cfg.EM_OperatingMode)
-        if AUTO_MODES[mode] then auto_mode = mode end
-    end
+    mode = tostring(cfg.EM_OperatingMode)
+    if AUTO_MODES[mode] then auto_mode = mode end
     if cfg.DE_Software then
         host.set_model("sonnenBatterie " .. tostring(cfg.DE_Software))
     end
@@ -450,8 +453,14 @@ function driver_poll()
     if seen_at then
         battery.control_power_observed_at = seen_at
     end
-    if set_w then
-        battery.setpoint_w = -set_w + 0
+    -- SetPoint_W is a setpoint only in manual mode. In the automatic modes
+    -- the unit reports its own load-following target there (1255 W was
+    -- seen in self-consumption), which is no command FTW gave. Report it
+    -- only after a fresh read confirms manual mode; a failed read omits it.
+    if set_w and mode == MODE_MANUAL then
+        if read_configuration() and mode == MODE_MANUAL then
+            battery.setpoint_w = -set_w + 0
+        end
     end
     if cap_wh then
         battery.capacity_wh = cap_wh
