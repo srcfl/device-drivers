@@ -239,4 +239,27 @@ writes = {}
 for _ = 1, 5 do driver_default_mode() end
 if #writes ~= 0 then fail("default mode kept writing after refusals: " .. #writes) end
 
+-- ---- Network loss must not use up the hand-back attempts -----------------
+-- FTW's watchdog calls default mode while the unit is unreachable. Those
+-- failures are not refusals; once the network returns, the lease must still
+-- hand the unit back.
+
+boot("2")
+driver_command("battery", 600, {})
+local real_get, real_post, real_put = host.http_get, host.http_post, host.http_put
+host.http_get = function() return nil, "dial tcp 192.0.2.10:80: i/o timeout" end
+host.http_post = function() return nil, "dial tcp 192.0.2.10:80: i/o timeout" end
+host.http_put = function() return nil, "dial tcp 192.0.2.10:80: i/o timeout" end
+for _ = 1, 6 do
+    if driver_default_mode() == true then fail("default mode cannot succeed while unreachable") end
+end
+if unit.mode ~= "1" then fail("setup: unit should still hold manual mode") end
+host.http_get, host.http_post, host.http_put = real_get, real_post, real_put
+advance(61000)
+poll()
+if unit.mode ~= "2" or unit.setpoint ~= 0 then
+    fail("after network loss the lease must hand the unit back, got mode "
+        .. unit.mode .. " setpoint " .. unit.setpoint)
+end
+
 print("OK")

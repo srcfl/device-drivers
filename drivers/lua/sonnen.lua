@@ -77,7 +77,7 @@ local AUTO_MODES  = { ["2"] = true, ["10"] = true }
 -- dispatches every few seconds; a minute of silence means nobody is steering.
 local LEASE_MS = 60000
 
--- Three failed hand-backs prove the unit will not take them (token without
+-- Three refused hand-backs prove the unit will not take them (token without
 -- write access, firmware change). The unprompted paths then stop writing;
 -- an explicit command still tries, and one success re-arms them.
 local DEFAULT_ATTEMPTS = 3
@@ -280,16 +280,18 @@ end
 
 -- restore_auto hands the unit back to its automatic mode. It writes only
 -- when the unit is (or may be) in manual mode, and reads the result back.
+-- restore_auto_once returns ok, and whether a failure was the unit's
+-- refusal (it answered the read) rather than the unit being unreachable.
 local function restore_auto_once()
     local read_ok = read_configuration()
     if read_ok and mode ~= MODE_MANUAL then
         session = false
-        return true
+        return true, false
     end
     if not read_ok and not session and mode ~= MODE_MANUAL then
         -- Unreachable, and nothing says this driver ever took control:
         -- there is nothing to undo, and no state to confirm.
-        return false
+        return false, false
     end
     -- Clear the setpoint first so a failed mode switch never leaves a
     -- charge or discharge request standing.
@@ -297,7 +299,7 @@ local function restore_auto_once()
     local restored, restore_err = put_mode(auto_mode)
     if not restored then
         host.log("warn", "sonnen: returning to automatic mode failed: " .. tostring(restore_err))
-        return false
+        return false, read_ok
     end
     if not cleared then
         host.log("warn", "sonnen: clearing the setpoint failed: " .. tostring(clear_err))
@@ -305,19 +307,25 @@ local function restore_auto_once()
     if read_configuration() and mode ~= auto_mode then
         host.log("warn", "sonnen: unit reports mode " .. tostring(mode)
             .. " after restoring " .. auto_mode)
-        return false
+        return false, true
     end
     session = false
     host.log("info", "sonnen: returned to automatic mode " .. auto_mode)
-    return true
+    return true, false
 end
 
+-- Only refusals count toward DEFAULT_ATTEMPTS. An unreachable unit (network
+-- loss, watchdog standdown) must not use up the attempts, or the lease would
+-- never hand the unit back once the network returns.
 local function restore_auto()
-    if restore_auto_once() then
+    local ok, refused = restore_auto_once()
+    if ok then
         default_failures = 0
         return true
     end
-    default_failures = default_failures + 1
+    if refused then
+        default_failures = default_failures + 1
+    end
     return false
 end
 
