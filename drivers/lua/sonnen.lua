@@ -257,7 +257,11 @@ local function set_battery_power(power_w)
     if w > limit then w = limit end
     if w < -limit then w = -limit end
 
-    if mode ~= MODE_MANUAL then
+    -- Every session starts with a confirmed PUT, even when the unit already
+    -- reports manual mode. host.http_post is not gated by allow_write, so
+    -- this PUT is what keeps a driver without write permission from ever
+    -- posting a setpoint.
+    if not session or mode ~= MODE_MANUAL then
         local ok, err = put_mode(MODE_MANUAL)
         if not ok then return err end
     end
@@ -398,17 +402,19 @@ function driver_poll()
     local seen_at = observed_at(data)
 
     local soc_pct = usoc or rsoc or 0
+    -- sonnen: + = discharge; site: + = charge. Adding 0 turns -0 into 0.
+    local site_w = -pac_w + 0
     local battery = {
-        w   = -pac_w,  -- sonnen: + = discharge; site: + = charge
+        w   = site_w,
         soc = soc_pct / 100.0,
-        control_power_w = -pac_w,
+        control_power_w = site_w,
         control_power_available = seen_at ~= nil,
     }
     if seen_at then
         battery.control_power_observed_at = seen_at
     end
     if set_w then
-        battery.setpoint_w = -set_w
+        battery.setpoint_w = -set_w + 0
     end
     if cap_wh then
         battery.capacity_wh = cap_wh
