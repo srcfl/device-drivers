@@ -810,7 +810,11 @@ end
 -- phaseMode write puts the charger back at its maximum (32 A reported, #225)
 -- while the cloud still stores our order, so re-sending that order as a
 -- setting never reaches the charger. A command always does. minutes = 0
--- holds the limit until the next one.
+-- "results in a limit being applied until another one is set"
+-- (developer.easee.com/reference/charger_set_dynamic_charger_current).
+-- amps = 0 sets the limit a pause sets ("Limits dynamic charger current to
+-- 0", charger_pausesession); Easee accepted every 0 A command on a real
+-- charger.
 local function command_current(serial, amps)
     local _, err = host.http_post(
         BASE_URL .. "/chargers/" .. serial .. "/commands/set_dynamic_charger_current",
@@ -1167,8 +1171,9 @@ function driver_poll()
     -- as the controller would issue on its next 5 s tick, just earlier.
     --
     -- Only clear the flag on success. A transient network failure or
-    -- 5xx leaves it pending so the NEXT poll retries instead of
-    -- silently leaving the charger pinned at maxChargerCurrent. The
+    -- 5xx leaves it pending, retried every REASSERT_MS instead of on
+    -- every poll, so the charger is not left pinned at
+    -- maxChargerCurrent and the cloud is not hammered. The
     -- controller's own 5 s tick is the safety floor; this just
     -- accelerates convergence in the common case.
     if pending_amp_resend and last_amps_set ~= nil and host.millis() >= pending_amp_resend_at_ms then
@@ -1178,7 +1183,8 @@ function driver_poll()
                 " A as a command after a phaseMode write or resume")
             pending_amp_resend = false
         else
-            host.log("warn", "Easee: dynamicChargerCurrent re-assert failed (will retry next poll): " ..
+            pending_amp_resend_at_ms = host.millis() + REASSERT_MS
+            host.log("warn", "Easee: dynamicChargerCurrent re-assert failed (will retry in 10 s): " ..
                 redact_http_err(werr))
         end
     end
@@ -1388,6 +1394,10 @@ function driver_command(action, power_w, cmd)
                         tostring(amps) .. " A)")
                 end
             end
+        elseif last_amps_set ~= nil and write_a < last_amps_set then
+            -- A failed cut is still the order: re-sending the earlier,
+            -- higher one would undo it.
+            last_amps_set = write_a
         end
         return err == nil
     end
