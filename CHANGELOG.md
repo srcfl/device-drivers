@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### heishamon 0.8.1
+
+Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only
+after FTW wrote an offset. Core runs default mode at every start and on
+watchdog trips, so an offset the owner set from Home Assistant was put back
+to 0 each time, even on a site where FTW never commanded the pump (#233).
+A failed reset keeps trying on the next default mode. After a Core crash the
+driver no longer knows FTW wrote, so that offset stays; today only the
+operator's control on the heating card writes it. Not yet checked on
+hardware.
+
 ### easee_cloud 1.4.1
 
 The driver says its session energy is coarse, with `session_wh_coarse`. Easee
