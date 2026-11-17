@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### vag_vehicle 0.3.1
+
+- Choose the newest measured telemetry point by timestamp, both when indexing
+  duplicate keys/names and when selecting between candidate fields. An older
+  row later in a portal dataset no longer hides a newer SoC reading.
+- Log a VIN-masked dataset summary and bounded SoC candidate details, including
+  discarded rows, selected row, fetch time and selection reason.
+- Prefer valid timestamps over missing or invalid ones. Equal or unavailable
+  timestamps retain the existing dataset-order fallback.
+
 ### heishamon 0.8.1
 
 Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only
