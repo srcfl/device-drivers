@@ -35,9 +35,12 @@ local function count_cmd(path)
     return n
 end
 
+local observation_sequence = 0
 local function poll(mode, kw)
+    observation_sequence = observation_sequence + 1
+    local stamp = string.format("2026-01-01T08:00:00.%06dZ", observation_sequence)
     host._http_responses["/observations?ids="] = host.json_encode({
-        {id=109,value=mode}, {id=120,value=kw or 0}, {id=121,value=1}, {id=124,value=100},
+        {id=109,value=mode}, {id=120,value=kw or 0,timestamp=stamp}, {id=121,value=1}, {id=124,value=100},
     })
     driver_poll()
 end

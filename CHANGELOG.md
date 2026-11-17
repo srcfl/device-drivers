@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.4.2
+
+REST and SignalR compare TotalPower source times on the same UTC timeline.
+Older readings and conflicting values at one instant cannot replace newer
+power. A disconnect clears the power watermark. If the source clock moves
+back, advancing readings on the lower timeline can restore telemetry after
+30 seconds.
+
 ### heishamon 0.8.1
 
 Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only

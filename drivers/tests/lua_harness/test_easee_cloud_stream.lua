@@ -275,8 +275,8 @@ assert(rest_reads() == reads + 1, "REST stopped after a refused subscription")
 assert(not host._ws_is_open, "a refused stream stayed open")
 
 -- 10. Without the stream a REST reply is the whole state, as in 1.3.8: an
--- id it leaves out does not keep an earlier reply's value, and a stamp from
--- the future does not hold a value.
+-- id it leaves out does not keep an earlier reply's value. A future stamp
+-- can be superseded once the lower timeline advances.
 setup(false)
 poll()
 host._http_responses["/observations?ids="] = host.json_encode({
@@ -291,7 +291,13 @@ rest(3, 7.2, "2026-10-24T13:00:00Z")
 poll(5000)
 rest(3, 0, "2026-10-24T10:05:00Z")
 poll(5000)
-assert(samples().w == 0, "a REST stamp from the future held its value")
+local _, held_count = samples()
+poll(30000)
+assert(select(2, samples()) == held_count, "a repeated cached sample reset the clock")
+rest(3, 0, "2026-10-24T10:05:01Z")
+poll(5000)
+assert(samples().w == 0 and select(2, samples()) == held_count + 1,
+    "a REST stamp from the future held its value")
 
 -- 11. A change REST sees first is owed by the stream. A push still on its
 -- way keeps the stream up; one that never comes stops it after 10 s.
@@ -316,10 +322,11 @@ assert(logged("missed a change REST saw"), "the missed change was not logged")
 -- op_mode 0 stops reports and says why.
 setup(true)
 connect()
+local _, before_invalid = samples()
 push(update(120, "", "2026-10-24T10:00:50Z"), update(121, "13.0", "2026-10-24 10:00:50"))
 tick()
 ev = samples()
-assert(ev.w == 7200 and ev.session_wh == 12500, "an unreadable push changed the sample")
+assert(select(2, samples()) == before_invalid, "an unreadable push emitted a sample")
 waited = 0
 while tick() == 2000 do
     waited = waited + 1
@@ -345,6 +352,7 @@ table.insert(host._ws_inbox, whole:sub(1, 20))
 table.insert(host._ws_inbox, whole:sub(21) .. host.json_encode({type=3, invocationId=sent(2).invocationId}) .. RS)
 assert(poll(5000) == 2000, "the stream did not come up")
 assert(samples().w == 4400, "a message split across frames was lost")
+rest(3, 4.4, "2026-10-24T10:00:02Z")
 push({type=7, error="Server is shutting down", allowReconnect=true})
 assert(poll(2000) == 5000, "a close message did not stop the stream")
 assert(logged("server closed: Server is shutting down"), "the close was not logged")
@@ -364,6 +372,7 @@ assert(not host._ws_is_open, "a stream that never subscribed stayed open")
 
 setup(true)
 connect()
+rest(3, 7.2, "2026-10-24T10:00:01Z")
 host._ws_is_open = false
 assert(tick() == 5000, "a connection the host reports closed stayed up")
 
@@ -410,11 +419,41 @@ until_rest()
 push(update(120, "5.5", "2026-10-24T10:01:40Z"))
 for _ = 1, 8 do assert(tick() == 2000, "a push of the owed value with a coarser time stopped the stream") end
 
--- Once up, the stream's order wins: a pushed sample applies even when its
--- time is older than the one before it.
+-- Live pushes obey source ordering too. A newer measured zero still applies.
+local _, before_replay = samples()
 push(update(120, "4.0", "2026-10-24T10:01:30Z"))
 tick()
-assert(samples().w == 4000, "a pushed sample did not apply")
+assert(select(2, samples()) == before_replay, "an older push emitted power")
+push(update(120, "4.0", "2026-10-24T11:01:40.5+01:00"))
+tick()
+assert(select(2, samples()) == before_replay, "an equal-instant conflict emitted power")
+push(update(120, "0", "2026-10-24T10:01:41Z"))
+tick()
+assert(samples().w == 0 and select(2, samples()) == before_replay + 1, "new measured zero was lost")
+
+-- A mode-1 push clears the watermark and any cached power, even when the
+-- charger disconnects and reconnects between polls.
+push(update(109, "1", "2026-10-24T10:01:42Z"),
+    update(109, "3", "2026-10-24T10:01:43Z"),
+    update(120, "4.0", "2026-10-24T10:01:30Z"))
+tick()
+assert(samples().w == 4000, "mode 1 did not reset stream power ordering")
+
+-- A live stream with a lower clock recovers once its source time advances.
+setup(true)
+connect()
+push(update(120, "1.0", "2040-10-24T10:00:00Z"))
+tick()
+local _, before_jump = samples()
+push(update(120, "2.0", "2026-10-24T10:01:01Z"))
+tick()
+assert(select(2, samples()) == before_jump, "a backwards clock jump was accepted immediately")
+for _ = 1, 15 do tick() end
+assert(select(2, samples()) == before_jump, "rejected stream power was re-emitted")
+push(update(120, "2.5", "2026-10-24T10:01:33Z"))
+tick()
+assert(samples().w == 2500 and select(2, samples()) == before_jump + 1,
+    "advancing stream power did not recover after a clock jump")
 
 -- The replayed current state does not undo a newer REST read.
 setup(true)
