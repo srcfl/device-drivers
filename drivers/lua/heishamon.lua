@@ -8,6 +8,8 @@
 --
 -- This driver controls Zone 1 heat curve offset (Z1_Heat_Request_Temp)
 -- in the range -3..+3 °C relative to the configured heat curve.
+-- Default mode and cleanup reset the offset to safe_offset only after FTW
+-- wrote one; an offset set elsewhere (Home Assistant, the pump) is left alone.
 --
 -- Config example (config.yaml):
 --   drivers:
@@ -39,7 +41,7 @@ DRIVER = {
   id           = "heishamon",
   name         = "Panasonic Aquarea (Heishamon)",
   manufacturer = "Panasonic",
-  version      = "0.8.0",
+  version      = "0.8.1",
   protocols    = { "mqtt" },
   capabilities = { "heatpump" },
   description  = "Panasonic Aquarea H/J/K/L/M-series heat pump via Heishamon MQTT bridge. Controls Zone 1 heat curve offset (Z1_Heat_Request_Temp) in range -3..+3 °C.",
@@ -49,7 +51,7 @@ DRIVER = {
   verification_status = "experimental",
   verified_by = { "Rolf (Runneval)" },
   verified_at = "2026-06-21",
-  verification_notes = "Existing metrics and offset control tested on WH-SXC09H3E8 (H-series) with Heishamon Large v4.1.6 on ESP32 on 2026-06-21. The new hp_power_w reading is not hardware-verified; its default topic reports heat-mode input, not total input in cooling or DHW mode.",
+  verification_notes = "Existing metrics and offset control tested on WH-SXC09H3E8 (H-series) with Heishamon Large v4.1.6 on ESP32 on 2026-06-21. The new hp_power_w reading is not hardware-verified; its default topic reports heat-mode input, not total input in cooling or DHW mode. 0.8.1 resets the offset only after FTW wrote one; that change is not yet checked on hardware.",
   -- What an operator may command, in terms a host UI can render without
   -- knowing this driver. The bounds are the defaults below; min_offset and
   -- max_offset can narrow them in config, and driver_command clamps to
@@ -83,6 +85,10 @@ local power_w        = nil
 local last_msg_ts    = 0
 local last_power_ts  = 0
 local STALE_AFTER_MS = 60000
+-- True once FTW has sent an offset since this driver started. Default mode
+-- and cleanup reset only what FTW wrote, so an offset the owner sets from
+-- Home Assistant or the pump survives restarts and watchdog trips.
+local ftw_wrote_offset = false
 
 -- Config (overridable via config.yaml)
 local base_topic   = "panasonic_heat_pump"
@@ -217,6 +223,9 @@ function driver_command(action, _power_w, cmd)
             host.log("warn", "Heishamon: set_heat_curve_offset missing value in cmd")
             return false
         end
+        -- Mark before publishing: a failed publish may still have reached
+        -- the broker, and a needless reset is the old, safe behaviour.
+        ftw_wrote_offset = true
         return apply_offset(offset)
     end
 
@@ -224,16 +233,28 @@ function driver_command(action, _power_w, cmd)
     return false
 end
 
--- Called by FTW watchdog when control is released or EMS stops.
--- Return to safe/neutral offset so the pump runs on its own heat curve.
+-- Return the offset FTW wrote to safe_offset, so the pump runs on its own
+-- heat curve. If FTW wrote nothing since start, leave the pump alone: the
+-- offset belongs to whoever set it. A failed reset keeps the mark so the
+-- next default mode tries again.
+local function release_offset(reason)
+    if not ftw_wrote_offset then
+        host.log("info", "Heishamon: " .. reason .. " — FTW wrote no offset, leaving it as is")
+        return
+    end
+    host.log("info", "Heishamon: " .. reason .. " — resetting offset to " .. tostring(safe_offset))
+    if apply_offset(safe_offset) then
+        ftw_wrote_offset = false
+    end
+end
+
+-- Called by Core at startup, on watchdog trips and when control is released.
 function driver_default_mode()
-    host.log("info", "Heishamon: default_mode — resetting offset to " .. tostring(safe_offset))
-    apply_offset(safe_offset)
+    release_offset("default_mode")
 end
 
 function driver_cleanup()
-    host.log("info", "Heishamon: cleanup — resetting offset to " .. tostring(safe_offset))
-    apply_offset(safe_offset)
+    release_offset("cleanup")
     outside_temp = nil
     outlet_temp  = nil
     inlet_temp   = nil
