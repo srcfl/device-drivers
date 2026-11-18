@@ -130,13 +130,14 @@ expect(poll({pilot=12, alloc={10, false, false}}), 12, nil, "one phase, allocati
 expect(poll({pilot=12, alloc={12, 16, 16}}), 12, nil, "one phase, the charger's phase unknown")
 expect(poll({pilot=12, alloc={0, 0, 0}}), 12, nil, "one phase, no allocation")
 
--- 4. At or near the order, not charging, or no positive pilot: no limit.
+-- 4. At or near the order, or the car finished: no limit. A car that draws
+-- nothing under an allocation too small to start on is held (section 8).
 boot()
 order(15)
 expect(poll({pilot=15, alloc={15, 15, 15}}), nil, nil, "at the order")
 expect(poll({pilot=14.6, alloc={14, 14, 14}, order=15}), nil, nil, "within half an amp")
-expect(poll({mode=2, kw=0, pilot=0, alloc={0, 0, 0}, power_at="23:55:00"}), nil, nil, "waiting to start")
-expect(poll({mode=3, kw=0, pilot=0, alloc={0, 0, 0}, power_at="23:55:00"}), nil, nil, "zero pilot")
+expect(poll({mode=2, kw=0, pilot=0, alloc={0, 0, 0}, power_at="23:55:00"}), 0, "load_balancer", "waiting to start")
+expect(poll({mode=3, kw=0, pilot=0, alloc={0, 0, 0}, power_at="23:55:00"}), 0, "load_balancer", "zero pilot")
 expect(poll({mode=4, kw=0, pilot=12, alloc={12, 12, 12}, power_at="23:55:00"}), nil, nil, "car finished")
 expect(poll({order=false, power_at="23:55:00", kw=0}), nil, nil, "no readback of the order")
 
@@ -195,5 +196,64 @@ push(update(70, "12", "00:00:21"), update(71, "12", "00:00:21"), update(72, "12"
 later(2000); driver_poll()
 local rows = host._emitted.ev
 expect(rows[#rows], 12, "load_balancer", "pushed allocation and pilot")
+
+-- 8. Easee's load balancing holds the start. Field trace (srcfl/ftw#1948,
+-- 12 Nov 2026): FTW ordered 12 A, the charger read back 12 A, the pilot was
+-- 0 A, the allocation 0 A on all three phases, the reason 78 (FTW's own
+-- setting), and the car drew nothing for minutes.
+local function idle(o)
+    o.mode, o.kw, o.pilot, o.power_at = o.mode or 6, 0, o.pilot or 0, "23:55:00"
+    o.order = o.order or 12
+    return poll(o)
+end
+boot()
+order(12)
+expect(idle({alloc={0, 0, 0}, reason=78, reason_at="23:54:22"}), 0, "load_balancer", "no allocation, reason 78")
+expect(idle({alloc={4, 4, 4}}), 4, "load_balancer", "4 A on each phase")
+expect(idle({alloc={12, 4, 12}}), 4, "load_balancer", "one phase short of 6 A")
+expect(idle({alloc={12, 12, 12}}), nil, nil, "allocation back; the car has not started yet")
+expect(idle({alloc={12, 0, 0}}), nil, nil, "one-phase wiring with 12 A")
+expect(idle({alloc={0, 0, 0}, mode=2}), 0, "load_balancer", "awaiting start")
+-- Without an allocation, only a reason that names the Equalizer, recorded
+-- in the charger's current state, is evidence.
+expect(idle({alloc=false}), nil, nil, "no allocation, no reason")
+expect(idle({alloc=false, reason=78, reason_at="23:54:22"}), nil, nil, "FTW's own setting")
+expect(idle({alloc=false, reason=27, reason_at="23:54:22"}), nil, nil, "dynamic circuit current")
+expect(idle({alloc=false, reason=10, reason_at="23:54:22"}), 0, "load_balancer", "Equalizer current too low")
+expect(idle({alloc=false, reason=28, reason_at="23:54:22"}), 0, "load_balancer", "limited by Equalizer")
+expect(idle({alloc=false, reason=10, reason_at="23:40:00"}), nil, nil, "Equalizer reason older than the state")
+expect(idle({alloc={0, 0, false}, reason=10, reason_at="23:54:22"}), 0, "load_balancer", "two phases and the reason")
+expect(idle({alloc={12, 12, 12}, reason=10, reason_at="23:54:22"}), nil, nil, "the allocation outweighs the reason")
+-- Not a hold: FTW's own low order or pause, a charger holding another
+-- order, a car that stopped asking, a finished or faulted charger, or a car
+-- that draws.
+expect(idle({alloc={0, 0, 0}, mode=4}), nil, nil, "car finished")
+expect(idle({alloc={0, 0, 0}, mode=5}), nil, nil, "charger fault")
+expect(idle({alloc={0, 0, 0}, mode=6, reason=50, reason_at="23:54:22"}), nil, nil, "car not asking")
+expect(poll({mode=3, kw=0.2, pilot=0, alloc={0, 0, 0}, order=12, power_at="23:55:00"}), nil, nil, "the car draws")
+expect(idle({alloc={0, 0, 0}, order=32}), nil, nil, "charger holds another order")
+order(5)
+expect(idle({alloc={0, 0, 0}, order=5}), nil, nil, "FTW's own order below 6 A")
+order(0)
+expect(idle({alloc={0, 0, 0}, order=0}), nil, nil, "FTW's pause")
+-- An allocation older than a new order answers it only once the order
+-- has stood 30 s.
+boot()
+order(12)
+expect(idle({alloc={0, 0, 0}, order_at="23:56:00", alloc_at="23:54:22"}), nil, nil, "allocation older than the order")
+later(30000)
+expect(idle({alloc={0, 0, 0}, order_at="23:56:00", alloc_at="23:54:22"}), 0, "load_balancer", "order stood 30 s")
+-- A one-phase car takes the highest phase's share.
+boot({phases=1})
+order(12, "1p")
+expect(idle({alloc={0, 0, 0}}), 0, "load_balancer", "one phase, no allocation")
+expect(idle({alloc={4, 0, 0}}), 4, "load_balancer", "one phase, 4 A")
+expect(idle({alloc={8, 0, 0}}), nil, nil, "one phase, 8 A")
+-- The hold does not linger as a charging limit once the car draws.
+boot()
+order(12)
+expect(idle({alloc={0, 0, 0}}), 0, "load_balancer", "held")
+expect(poll({mode=3, kw=8.28, pilot=12, alloc={12, 12, 12}, order=12, power_at="23:56:00", pilot_at="23:55:50"}),
+    nil, nil, "started at the order")
 
 print("easee_cloud allocated limit: ok")

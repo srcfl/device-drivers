@@ -436,6 +436,12 @@ all modes. They never grant control or replace a safety limit:
   the order and explains the limit. Leave it nil when the cause is not
   shown. An older vendor reason code is not proof of a cause. Core says
   the car is limited only when its measured power also falls short.
+- A start held by load balancing: while the car draws nothing and the
+  charger reads back an order of at least 6 A, set `current_limit_a` to the
+  current the load balancing allows and `current_limited_by` to
+  `"load_balancer"` when that current is below 6 A, the least a car charges
+  on. Use the same evidence rule. Core then shows a wait of up to 15 minutes
+  instead of a failed start, and reports a start still missing after that.
 
 A device reading makes a response measured, nothing more. Core calls it
 confirmed only when an identified, separate site meter shows a matching
