@@ -144,6 +144,28 @@ boot("2")
 driver_command("battery", 20000, {})
 if unit.setpoint ~= -9900 then fail("charge not clamped to inverter rating: " .. unit.setpoint) end
 
+-- ---- Discharge within the rating and with no owner cap is posted as is -----
+
+boot("2")
+if unit.rated ~= "9900" then fail("setup: rating must be 9900, got " .. unit.rated) end
+r = driver_command("battery", -1500, {})
+if r ~= true then fail("discharge command failed: " .. tostring(r)) end
+if #writes ~= 2 or
+   writes[1] ~= "PUT " .. BASE .. "/configurations EM_OperatingMode=1" or
+   writes[2] ~= "POST " .. BASE .. "/setpoint/discharge/1500" then
+    fail("discharge writes: " .. table.concat(writes, " | "))
+end
+-- The fake stores the vendor sign: discharge is positive.
+if unit.mode ~= "1" or unit.setpoint ~= 1500 then
+    fail("unit did not take a 1500 W discharge: mode=" .. unit.mode
+        .. " setpoint=" .. tostring(unit.setpoint))
+end
+b = poll()
+if b.w ~= -1500 or b.setpoint_w ~= -1500 then
+    fail("discharging must read -1500 in site signs, got w=" .. tostring(b.w)
+        .. " setpoint_w=" .. tostring(b.setpoint_w))
+end
+
 -- ---- The unit leaves manual mode behind FTW's back -------------------------
 
 boot("2")
