@@ -710,15 +710,15 @@ drivers:
     size_bytes: 5807
     sha256: "5669996a562d10fc94ed89748664542ce14e5d965ff0df85d1e7610ff4dda568"
   - name: "sonnen"
-    version: "2.0.3"
+    version: "2.0.4"
     tier: community
     protocol: http
     connectivity: local
     setup: [device_ui]
     ders: [battery, meter]
     control: false
-    size_bytes: 6631
-    sha256: "94ae5e0065f5793051acb89b7ef04a679b2898908dfac6f4ffd6e8deb77fa2c0"
+    size_bytes: 6734
+    sha256: "aee7b5ecf3b7666561084d434664f2df1019425f085ce36c4c4488baebfd1f76"
   - name: "sungrow"
     version: "1.7.0"
     tier: core

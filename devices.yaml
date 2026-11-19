@@ -2164,7 +2164,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "sonnen"
-            version: "2.0.3"
+            version: "2.0.4"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
