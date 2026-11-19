@@ -13,6 +13,17 @@ driver no longer knows FTW wrote, so that offset stays; today only the
 operator's control on the heating card writes it. Not yet checked on
 hardware.
 
+### sonnen 2.0.4
+
+Battery power has the site sign. sonnen reports `Pac_total_W` positive while
+discharging and negative while charging; the driver passed it through, so
+FTW showed every charge as a discharge and the reverse. It now negates the
+value: charging is positive. On a sonnenBatterie with software 1.40.5 on
+2026-11-13, in manual mode, a 500 W charge setpoint read back over six reads
+as `Pac_total_W` -495 to -504 W, `SetPoint_W` -500 and `BatteryCharging`
+true. `battery_pac_w` keeps the vendor's own sign. The driver stays
+read-only.
+
 ### easee_cloud 1.4.1
 
 The driver says its session energy is coarse, with `session_wh_coarse`. Easee
