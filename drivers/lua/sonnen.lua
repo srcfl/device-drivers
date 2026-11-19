@@ -18,7 +18,7 @@
 --         host: "192.168.x.y"
 --         port: 80
 --         api_token: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
---         # max_power_w: 4000          # optional owner cap for setpoints
+--         # max_power_w: 5000          # optional owner cap for setpoints
 --         # default_operating_mode: "2" # "2" self-consumption (default) or "10" time-of-use
 --
 -- Sign convention (site: positive W flows INTO the site):
@@ -93,6 +93,10 @@ local inverter_max_w = nil  -- IC_InverterMaxPower_w, the unit's own rating
 local mode           = nil  -- EM_OperatingMode as last read or written
 local auto_mode      = "2"  -- automatic mode to return to; never "1"
 local session        = false -- true while this driver holds manual mode
+-- true once this session's own setpoint POST was answered "true"; until
+-- then SetPoint_W is whatever the unit held before (another controller, a
+-- stopped FTW, an owner's idle) and is not reported as FTW's setpoint.
+local setpoint_confirmed = false
 local last_command_ms = 0
 local default_failures = 0
 
@@ -272,14 +276,23 @@ local function set_battery_power(power_w)
     end
     session = true
     last_command_ms = host.millis()
+    -- Until this POST is confirmed the unit's setpoint is not known to be
+    -- this one, so setpoint_w stays absent.
+    setpoint_confirmed = false
     local ok, err = post_setpoint(w)
-    if ok then return true end
+    if ok then
+        setpoint_confirmed = true
+        return true
+    end
     -- The unit may have left manual mode on its own (app, portal, restart).
     -- Re-enter it once and retry before reporting the failure.
     local mode_ok, mode_err = put_mode(MODE_MANUAL)
     if not mode_ok then return mode_err end
     ok, err = post_setpoint(w)
-    if ok then return true end
+    if ok then
+        setpoint_confirmed = true
+        return true
+    end
     return err
 end
 
@@ -300,6 +313,7 @@ local function restore_auto_once()
     local read_ok = read_configuration()
     if read_ok and mode ~= MODE_MANUAL then
         session = false
+        setpoint_confirmed = false
         return true, false
     end
     if not session then
@@ -325,7 +339,9 @@ local function restore_auto_once()
         return true, false
     end
     -- Our own session. Clear the setpoint first so a failed mode switch
-    -- never leaves a charge or discharge request standing.
+    -- never leaves a charge or discharge request standing. The commanded
+    -- setpoint is being withdrawn, so it is no longer reported.
+    setpoint_confirmed = false
     local cleared, clear_err = post_setpoint(0)
     local restored, restore_err = put_mode(auto_mode)
     if not restored then
@@ -453,13 +469,21 @@ function driver_poll()
     if seen_at then
         battery.control_power_observed_at = seen_at
     end
-    -- SetPoint_W is a setpoint only in manual mode. In the automatic modes
-    -- the unit reports its own load-following target there (1255 W was
-    -- seen in self-consumption), which is no command FTW gave. Report it
-    -- only after a fresh read confirms manual mode; a failed read omits it.
-    if set_w and mode == MODE_MANUAL then
-        if read_configuration() and mode == MODE_MANUAL then
+    -- SetPoint_W is FTW's setpoint only when FTW set it. In the automatic
+    -- modes the unit reports its own load-following target there (1255 W
+    -- was seen in self-consumption). In a manual mode this session has not
+    -- yet written, it is what the unit held before (-1622 and -942 were seen
+    -- on the first poll after start). Report it only after this session's
+    -- own POST was confirmed and a fresh read confirms manual mode; a failed
+    -- read omits it.
+    if set_w and session and setpoint_confirmed then
+        local read_ok = read_configuration()
+        if read_ok and mode == MODE_MANUAL then
             battery.setpoint_w = -set_w + 0
+        elseif read_ok then
+            -- The unit left manual mode (app, portal, restart): the setpoint
+            -- this session posted is gone.
+            setpoint_confirmed = false
         end
     end
     if cap_wh then

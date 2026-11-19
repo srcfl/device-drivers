@@ -19,7 +19,8 @@ local LOAD_W = 1255
 
 local function new_unit(mode)
     unit = { mode = mode, setpoint = 0, token = "token", rated = "9900",
-             refuse_put = nil, unauthorized = false, omit_mode = false }
+             refuse_put = nil, refuse_post = nil, unauthorized = false,
+             omit_mode = false }
     writes = {}
 end
 
@@ -49,6 +50,7 @@ local function install_fake_unit(with_put)
         local dir, n = string.match(url, "/setpoint/(%a+)/(%d+)$")
         if not dir then return nil, "HTTP 404" end
         if unit.mode ~= "1" then return nil, "HTTP 403" end
+        if unit.refuse_post then return unit.refuse_post end
         n = tonumber(n)
         if dir == "charge" then unit.setpoint = -n else unit.setpoint = n end
         return "true"
@@ -331,5 +333,65 @@ if driver_default_mode() == true then
     fail("default mode trusted a cached mode when the reply had none")
 end
 if #writes ~= 0 then fail("wrote without a confirmed mode: " .. table.concat(writes, " | ")) end
+
+-- ---- No setpoint_w before this session's own POST is confirmed ----------
+-- The unit is in manual mode at start with a setpoint this driver did not
+-- write. The first poll must not carry it as FTW's setpoint, whether init
+-- could not hand the unit back or left an owner's idle alone.
+
+host.reset()
+new_unit("1")
+unit.setpoint = 1622  -- left by a stopped FTW; the hand-back is refused
+unit.refuse_put = "http: write not granted (set capabilities.http.allow_write)"
+install_fake_unit(true)
+dofile("drivers/lua/sonnen.lua")
+driver_init({ host = "192.0.2.10", port = 80, api_token = "token" })
+b = poll()
+if b == nil then fail("first poll after start emitted no battery reading") end
+if b.setpoint_w ~= nil then
+    fail("first poll after start reported a setpoint FTW never posted: "
+        .. tostring(b.setpoint_w))
+end
+
+host.reset()
+new_unit("1")  -- owner's manual idle, setpoint 0, left alone by init
+install_fake_unit(true)
+dofile("drivers/lua/sonnen.lua")
+driver_init({ host = "192.0.2.10", port = 80, api_token = "token" })
+b = poll()
+if b.setpoint_w ~= nil then
+    fail("first poll reported the owner's idle as a setpoint: " .. tostring(b.setpoint_w))
+end
+
+-- The mode switch is confirmed but the unit refuses the setpoint: still none.
+unit.refuse_post = "false"
+r = driver_command("battery", 900, {})
+if r == true then fail("a refused setpoint POST must fail the command") end
+if unit.mode ~= "1" then fail("setup: the PUT to manual mode should have succeeded") end
+b = poll()
+if b.setpoint_w ~= nil then
+    fail("setpoint_w reported after the POST was refused: " .. tostring(b.setpoint_w))
+end
+
+-- Once the POST is confirmed, the read-back setpoint is reported.
+unit.refuse_post = nil
+r = driver_command("battery", 900, {})
+if r ~= true then fail("charge command failed: " .. tostring(r)) end
+b = poll()
+if b.setpoint_w ~= 900 then
+    fail("setpoint_w after a confirmed POST = " .. tostring(b.setpoint_w))
+end
+
+-- The app moves the unit to self-consumption and back to manual with its
+-- own setpoint: the driver's confirmed setpoint is gone.
+unit.mode = "2"
+poll()
+unit.mode = "1"
+unit.setpoint = 942
+b = poll()
+if b.setpoint_w ~= nil then
+    fail("setpoint_w reported after the unit left manual mode and returned: "
+        .. tostring(b.setpoint_w))
+end
 
 print("OK")
