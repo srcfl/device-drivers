@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### heishamon 0.8.2
+
+Add an optional `control: false` to the driver config. The driver then stays
+read-only: the metrics still arrive, `DRIVER.controls` is empty, and
+`driver_command` never publishes `Z1_Heat_Request_Temp`, so Home Assistant or
+the pump's own controller keeps the heat curve offset. Without the option
+nothing changes. `control` also accepts `0`, `"false"`, `"no"` and `"off"` for
+configs that arrive as strings. Registers and fields are unchanged. Covered by
+a harness test only; not yet checked on hardware.
+
 ### heishamon 0.8.1
 
 Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only

@@ -27,6 +27,11 @@
 --         max_offset: 3
 --         safe_offset: 0
 --         power_topic: Heat_Power_Consumption
+--         control: true
+--
+-- control: false keeps the driver read-only. The metrics come in, DRIVER.controls is empty
+-- and driver_command never writes Z1_Heat_Request_Temp, so Home Assistant or the pump's own
+-- controller keeps the offset.
 --
 -- power_topic names a main/ topic carrying electrical power in W.
 -- The default is Heat_Power_Consumption (TOP16), the heat-mode input.
@@ -41,7 +46,7 @@ DRIVER = {
   id           = "heishamon",
   name         = "Panasonic Aquarea (Heishamon)",
   manufacturer = "Panasonic",
-  version      = "0.8.1",
+  version      = "0.8.2",
   protocols    = { "mqtt" },
   capabilities = { "heatpump" },
   description  = "Panasonic Aquarea H/J/K/L/M-series heat pump via Heishamon MQTT bridge. Controls Zone 1 heat curve offset (Z1_Heat_Request_Temp) in range -3..+3 °C.",
@@ -51,7 +56,7 @@ DRIVER = {
   verification_status = "experimental",
   verified_by = { "Rolf (Runneval)" },
   verified_at = "2026-06-21",
-  verification_notes = "Existing metrics and offset control tested on WH-SXC09H3E8 (H-series) with Heishamon Large v4.1.6 on ESP32 on 2026-06-21. The new hp_power_w reading is not hardware-verified; its default topic reports heat-mode input, not total input in cooling or DHW mode. 0.8.1 resets the offset only after FTW wrote one; that change is not yet checked on hardware.",
+  verification_notes = "Existing metrics and offset control tested on WH-SXC09H3E8 (H-series) with Heishamon Large v4.1.6 on ESP32 on 2026-06-21. The new hp_power_w reading is not hardware-verified; its default topic reports heat-mode input, not total input in cooling or DHW mode. 0.8.1 resets the offset only after FTW wrote one; that change is not yet checked on hardware. 0.8.2 adds the optional control: false read-only mode; it is covered by a harness test only and not yet checked on hardware.",
   -- What an operator may command, in terms a host UI can render without
   -- knowing this driver. The bounds are the defaults below; min_offset and
   -- max_offset can narrow them in config, and driver_command clamps to
@@ -96,6 +101,17 @@ local min_offset   = -3
 local max_offset   = 3
 local safe_offset  = 0
 local power_topic  = "Heat_Power_Consumption"
+local control      = true
+
+local function control_enabled(v)
+    if v == nil then return true end
+    if v == false or v == 0 then return false end
+    if type(v) == "string" then
+        local x = string.lower(v)
+        if x == "false" or x == "no" or x == "off" or x == "0" then return false end
+    end
+    return true
+end
 
 ----------------------------------------------------------------------------
 -- Lifecycle
@@ -110,6 +126,10 @@ function driver_init(config)
         if config.max_offset  then max_offset  = tonumber(config.max_offset)  or  3   end
         if config.safe_offset then safe_offset = tonumber(config.safe_offset) or  0   end
         if config.power_topic then power_topic = config.power_topic                   end
+        if config.control ~= nil then control = control_enabled(config.control)       end
+    end
+    if not control then
+        DRIVER.controls = {}     -- the host offers no offset command when the installation only wants the metrics
     end
 
     -- Subscribe broadly to all Heishamon topics
@@ -123,7 +143,8 @@ function driver_init(config)
     host.log("info", "Heishamon: initialized, base_topic=" .. base_topic
         .. " offset_range=[" .. min_offset .. ".." .. max_offset .. "]"
         .. " safe_offset=" .. safe_offset
-        .. " power_topic=" .. power_topic)
+        .. " power_topic=" .. power_topic
+        .. " control=" .. tostring(control))
 end
 
 function driver_poll()
@@ -217,6 +238,10 @@ local function apply_offset(offset)
 end
 
 function driver_command(action, _power_w, cmd)
+    if not control then
+        host.log("debug", "Heishamon: control is off, not writing the offset")
+        return false
+    end
     if action == "set_heat_curve_offset" then
         local offset = tonumber(cmd and (cmd.offset or cmd.value))
         if offset == nil then
