@@ -758,7 +758,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.8.1",
+      "catalog_version": "0.8.2",
       "driver_id": "heishamon",
       "targets": {
         "blixt-l1": {

@@ -1,5 +1,5 @@
 name: "heishamon"
-version: "0.8.1"
+version: "0.8.2"
 tier: core
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Panasonic Aquarea H/J/K/L/M-series heat pump via Heishamon MQTT bridge. Controls Zone 1 heat curve offset (Z1_Heat_Request_Temp) in range -3..+3 °C."
     min_driver_version: "0.4.0"
 min_host_version: "2.0.0"
-size_bytes: 10923
+size_bytes: 12033
 dkb_id: "heishamon"
-sha256: "1bae5c3d4caa0adc8b42cb5d470b7faff66b1e1c3b456182cdd66728a48b9800"
+sha256: "0e9dd2a1458953f5ac700daf59ec62bad6274620abef460a28eca42a03e20f98"
 signature: ""
 
 bytecode_sha256: ""
