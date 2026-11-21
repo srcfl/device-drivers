@@ -333,6 +333,111 @@ back. Tesla's Fleet API accepts a command only when it is signed with a key
 paired to the car, and a Lua driver cannot sign. To start a Tesla's charge,
 add `tesla_vehicle` (BLE proxy). No behaviour changes.
 
+### etrel 1.1.0
+
+The driver now controls the charger, so FTW can use it as a loadpoint. It
+emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
+
+- Registers come from Etrel's INCH SmartHome Modbus TCP register list. The old
+  map (holding 300-312) was in no Etrel document and is gone. Readings are
+  Float32 input registers 0-31; identity is 990-1019.
+- An order becomes a current per phase: power over voltage and phases. It is
+  one phase only when config says `phases: 1` and the car has not drawn on
+  more than one phase since it was plugged in, or when Core orders `1p` and
+  the car draws on exactly one. Otherwise, idle or just started too, it is
+  three, so a three-phase car never gets a one-phase sum on each phase. The
+  current never exceeds Core's `max_amps_per_phase` or `cap_amps_per_phase`,
+  the installer's custom max current or 32 A. It rounds down to 0.1 A, and
+  below 6 A it writes 0 A.
+- Pause writes a 0 A setpoint. Core sends resume and start without a budget,
+  so resume writes an order back only when it is under 30 s old. Otherwise it
+  writes 6 A, and only when the limit named with the last positive order
+  allows 6 A (a 0 W order carries no cap, so it does not replace that limit).
+  With a limit below 6 A it writes nothing and returns false. With no limit
+  known, after a reload for example, it writes nothing, accepts the resume and
+  logs once that the charger waits for Core's next order. The pause and stop
+  registers are one-way triggers with no documented undo, so they are never
+  written.
+- Default mode acts only after a command wrote in this run. Core runs it at
+  every start, so a charger FTW never steered keeps its own setpoint and a
+  charge already running goes on, as in heishamon 0.8.1. After that it writes
+  0 A once, and returns true only when that lands. A refused stand-down
+  returns false and is tried again at most once a minute.
+- A charger that holds the charge paused against an order for 30 s reports
+  `command_stalled`, and the next order writes the setpoint again, at most
+  every 30 s.
+- A failed read is left out, not reported as 0. Session energy of 0 is left
+  out, since some firmware never moves it (evcc-io/evcc#5346).
+- The second connector of an INCH Duo is not covered.
+
+Not yet confirmed on hardware.
+
+### keba 1.1.0
+
+The driver now controls a KeContact P30, so FTW can use it as a loadpoint. It
+emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
+
+- Registers follow KEBA's P30 Modbus TCP Programmers Guide V1.07. The old map
+  read the error code as L1 current, lifetime energy as session energy, and
+  voltages from the current, serial and product registers. Each value is now
+  read on its own, as the guide requires. The unit ID default is 255.
+- An order writes 5004 (mA) and then enables with 5014. Phases, caps,
+  rounding, resume and the default-mode rule work as in etrel 1.1.0, with the
+  hardware limit from 1110. A resume of an old order writes 5004 = 6000 mA
+  before the enable. Below 6 A, pause and default mode disable with
+  5014 = 0, since 5004 takes nothing under 6000 mA.
+- Phases count as measured only when all three phase currents answered in
+  that poll; otherwise orders use three. A phase current that stops answering
+  is tried again once a minute.
+- A charger that offers more than the order, or charges while disabled, gets
+  the order again after 30 s. One that stays suspended against an enable for
+  30 s gets the enable again, at most every 30 s.
+- A configured failsafe timeout is refreshed at half its length while FTW
+  steers, paused or not, and while FTW holds the charger disabled after a
+  stand-down, so the failsafe current cannot start a charge FTW stopped.
+  After three refused refreshes it is tried once a minute. Whether the
+  failsafe current overrides a disable once FTW stops is not verified.
+- A charger whose product code is not a P30 is not controlled.
+- The UDP interface is not used: FTW's driver host has no UDP, and KEBA
+  forbids using both. A c-series below firmware 3.10.16 needs an update.
+
+Not yet confirmed on hardware.
+
+### schrack_ev 1.1.0
+
+The driver now controls a CION Home or Semipublic, so FTW can use it as a
+loadpoint. It emits `ev` instead of `v2x_charger` and declares
+`capabilities = { "ev" }`.
+
+- Registers follow Schrack's CION Home and Semipublic Modbus table. The old map
+  read the charging authorisation as a state and power from registers Schrack
+  does not list. These chargers speak Modbus RTU, so FTW needs a Modbus TCP to
+  RTU gateway.
+- An order writes the current to 101 (whole A) and then authorises with
+  100 = 1. A void authorisation is cleared with 100 = 0 first, as the table
+  says, at most every 30 s while the charger calls it void. With no car
+  plugged in only the current is set.
+  Below 6 A, pause and default mode write 100 = 0. Resume and default mode
+  work as in etrel 1.1.0; a resume of an old order writes 101 = 6 first.
+- The charger reports no power and no phase currents, so `w` stays empty and
+  orders are split over the phases in config only (`phases`, default 3).
+- The CION Pro is not covered: it speaks OCPP, which FTW handles itself.
+
+Not yet confirmed on hardware.
+
+### wallbox 1.1.0
+
+The driver says it cannot control the charger: `read_only = true`, with the
+reason in its description. We found no documented local Modbus interface for
+the Pulsar Plus, Pulsar Max, Commander 2 or Copper SB, and the registers this
+driver reads come from no Wallbox document, so its power and energy are
+unverified. Wallbox documents OCPP 1.6J, and FTW's built-in OCPP central
+system reads and controls these chargers without a driver.
+
+The driver emits `ev` instead of `v2x_charger`, and only fields whose register
+answered. It no longer reports 0 W, 0 Wh or 0 A for registers that did not
+answer.
+
 ### heishamon 0.8.1
 
 Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only

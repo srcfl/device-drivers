@@ -48,8 +48,8 @@ Catalog source is not proof that a target can install or run a driver.
 | easee_cloud | 1.4.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | esphome_dsmr | 1.0.7 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | esphome_dsmr | 1.0.7 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| etrel | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| etrel | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| etrel | 1.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| etrel | 1.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ferroamp | 2.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | ferroamp | 2.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ferroamp_dc2_v2x | 2.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
@@ -84,8 +84,8 @@ Catalog source is not proof that a target can install or run a driver.
 | huawei | 2.1.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | janitza | 1.0.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | janitza | 1.0.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| keba | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| keba | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| keba | 1.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| keba | 1.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | konja-261-svk | 0.3.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | konja-261-svk | 0.3.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | kostal | 2.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
@@ -124,8 +124,8 @@ Catalog source is not proof that a target can install or run a driver.
 | saj | 1.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | schneider_meter | 1.0.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | schneider_meter | 1.0.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| schrack_ev | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| schrack_ev | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| schrack_ev | 1.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| schrack_ev | 1.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | sdm630 | 2.0.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | sdm630 | 2.0.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | shelly | 1.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
@@ -178,8 +178,8 @@ Catalog source is not proof that a target can install or run a driver.
 | victron | 2.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | victron_mqtt | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | victron_mqtt | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| wallbox | 1.0.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| wallbox | 1.0.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| wallbox | 1.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| wallbox | 1.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | zap | 3.1.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | zap | 3.1.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | zaptec_cloud | 0.2.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
