@@ -51,9 +51,10 @@ For an issue, include the device model, protocol source and any observations
 you can safely share. Implementation PRs use the template and include
 sign checks and test evidence without credentials or private site data.
 
-New drivers start with telemetry only. Control support needs a later,
-separate review with a safe default mode, a bounded command lease, structured
-results and supervised hardware-in-the-loop evidence.
+A driver that can command its device ships with control on, marked
+experimental until an owner reports it working on real hardware. Control needs
+a safe default mode, bounded writes and structured results. A driver that
+cannot command its device says so, and why, in its description.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
