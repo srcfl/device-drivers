@@ -348,8 +348,8 @@ drivers:
     setup: [bridge]
     ders: [vehicle]
     control: false
-    size_bytes: 13529
-    sha256: "50601d39f39dd33d3ad9d65f83505c0a398acf95e1f59a336e8e660399b104a9"
+    size_bytes: 13488
+    sha256: "5916c510d6d646a34516d7a887dab4518ba7587be160e16c788a6081e0334eab"
   - name: "huawei"
     version: "2.1.3"
     tier: core
@@ -726,8 +726,8 @@ drivers:
     setup: [vendor_portal]
     ders: [vehicle]
     control: false
-    size_bytes: 23176
-    sha256: "4e008418fba2e7ca58e32057724072b9180aeb6ba1e75e43e48eacc576f33d0a"
+    size_bytes: 23174
+    sha256: "37864e9194a05607ca193c2f50202e3da801a446ff93597fc92a1a1260132449"
   - name: "tesla_vehicle"
     version: "0.2.6"
     tier: core

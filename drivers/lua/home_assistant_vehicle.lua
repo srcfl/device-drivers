@@ -108,8 +108,8 @@
 -- through the car integration's own entities (Tesla Fleet has a Charge
 -- switch and Charge current and Charge limit numbers), and the FTW host
 -- could reach them: host.http_post to Home Assistant's REST API
--- (POST /api/services/<domain>/<service>, which answers 500 when the action
--- fails) or host.mqtt_publish to a topic an automation acts on. This driver
+-- (POST /api/services/<domain>/<service>) or host.mqtt_publish to a topic
+-- an automation acts on. This driver
 -- does neither. Each needs a Home Assistant token or a second automation the
 -- owner writes, entity names differ by integration, and over MQTT the driver
 -- would never learn whether the car took the command. FTW Core sends a car

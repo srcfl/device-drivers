@@ -33,8 +33,8 @@
 -- Why there is no control. Fleet API has charge_start, charge_stop,
 -- set_charging_amps and set_charge_limit, but a current car rejects any
 -- command not signed with a virtual key paired to that car, and does
--- nothing. Tesla's Vehicle Command Proxy or SDK does the signing; only most
--- business cars and pre-2021 Model S and X skip it. Signing needs a key
+-- nothing. Tesla's Vehicle Command Proxy or SDK does the signing; only
+-- pre-2021 Model S and X still take unsigned commands. Signing needs a key
 -- exchange and authenticated encryption that a sandboxed Lua driver cannot
 -- do. Commands are also billed. tesla_vehicle already sends charge_start,
 -- signed, through a local BLE proxy.
