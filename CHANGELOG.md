@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### pixii 2.1.10
+
+Recognize battery calibration from Pixii's running-service register when
+the SunSpec charge status is unsupported. Keep measurements live and
+suspend FTW dispatch until calibration ends.
+
 ### heishamon 0.8.1
 
 Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only
