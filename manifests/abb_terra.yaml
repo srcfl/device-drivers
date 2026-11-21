@@ -1,26 +1,33 @@
 name: "abb_terra"
-version: "1.0.3"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
-ders: [v2x_charger]
-control: false
+setup: [vendor_app]
+ders: [ev]
+control: true
 tested_devices:
   - manufacturer: "ABB"
     model_family: "Terra AC"
     variants: [Terra AC 7.4kW, Terra AC 11kW, Terra AC 22kW]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
-    min_driver_version: "1.0.0"
+    notes: "Control written from ABB's TAC Modbus Communication v1.7 (July 2022); not yet confirmed on hardware. Modbus TCP is enabled in the Terra Config app."
+    min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
-size_bytes: 3779
+size_bytes: 14720
 dkb_id: ""
-sha256: "95098bbe0efed794b06d56b1d73e4d18d5582777f0eadd766a534ac66ff9dc56"
+sha256: "705f6555f5c091f16a331672b4d411852d0168d37eca24efa42d3282f8269bf3"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
 changelog: ""
+
+upstream_docs:
+  - url: "https://library.e.abb.com/public/4124e0d39f614ba7b0a7a6f7a2ce1f99/ABB_Terra_AC_Charger_ModbusCommunication_v1.7.pdf"
+    title: "ABB Terra AC wallbox, TAC Modbus Communication v1.7"
+    kind: register_map
+    url_stability: stable

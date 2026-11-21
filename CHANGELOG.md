@@ -2,6 +2,77 @@
 
 ## [Unreleased]
 
+### alfen 1.1.0
+
+The driver can now steer the charger. It emits `ev` with `DRIVER.capabilities
+= { "ev" }`, so FTW can use it as a loadpoint, and it writes the socket's
+Modbus server max current (1210) from Alfen's Modbus for ACE configuration
+guide. Not yet confirmed on hardware; `verification_status` is experimental.
+
+- Watts become amps per phase, rounded down to 0.1 A. Phases is the larger of
+  Core's phase mode and the phases seen carrying current. The fuse,
+  `cap_amps_per_phase`, 32 A and an optional `max_a` cap the result. Below
+  6 A the driver writes 0 A.
+- The charger drops a setpoint when its validity time (60 s by default) runs
+  out. While Core sends orders the driver rewrites the setpoint every 15 s,
+  sooner when register 1208 shows less than 20 s left, and again when a
+  reboot lost it.
+- Pause writes 0 A and holds it for 10 s, through Core's contactor cycle.
+  Resume restores Core's last order.
+- Default mode writes 0 A once, and only after FTW wrote a setpoint in this
+  process. The charger then returns to its installer's safe current when the
+  validity time runs out. It stops after three refused writes.
+- A refused write returns false.
+
+Readings are fixed. Earlier versions read 326 as voltage (it is current sum),
+346 as session energy (apparent power L1) and 1201 as a number (a 5-register
+Mode 3 string), and reported NaN as 0. Voltages now come from 306, lifetime
+energy from 374 as `total_charge_wh`, and the state from the Mode 3 string.
+A NaN stays nil. The driver also learns the 32-bit word order from the L1
+voltage, since the 2025 guide says low word first and field integrations use
+high word first.
+
+### abb_terra 1.1.0
+
+The driver can now steer the charger. It emits `ev` with `DRIVER.capabilities
+= { "ev" }` and writes the charging current limit (0x4100, mA) from ABB's TAC
+Modbus Communication v1.7. Not yet confirmed on hardware.
+
+- Earlier versions read registers 1000-1037, which are not in ABB's map. All
+  readings now come from 0x4000-0x401F: state, the limit the charger chose
+  (0x400E, emitted as `max_a` and `current_limit_a`), phase currents and
+  voltages, power and session energy. The serial number is reported.
+- Watts become amps per phase as in alfen 1.1.0, also capped at the
+  charger's own ceiling (0x4006). Below 6 A the driver writes 0 A, which ABB
+  documents as a pause.
+- The charger counts reads as contact, so no refresh write is needed. A limit
+  the charger lost is written again.
+- Default mode writes 0 A once, and only after FTW wrote a limit. It stops
+  after three refused writes. A refused write returns false.
+
+### mennekes 1.1.0
+
+The driver can now steer the charger, on both of Mennekes' Modbus maps. It
+emits `ev` with `DRIVER.capabilities = { "ev" }`. Not yet confirmed on
+hardware.
+
+- ECU (AMTRON Professional, AMTRON Charge Control, AMEDIO Professional),
+  from the ECU Modbus TCP Server Specification rev 1.07: writes
+  HEMS_CURRENT_LIMIT (1000). The charger falls back to its SAFE_CURRENT when
+  the master goes quiet, so the driver rewrites the limit every 15 s, or a
+  third of COMM_TIMEOUT, while Core sends orders.
+- HCC3 (AMTRON Xtra, AMTRON Premium), from the AMTRON Modbus description
+  v1.031: writes the customer current limitation (0x0400). This charger keeps
+  the last value with no timeout.
+- The driver tells the two apart on the first polls, or takes `family:
+  ecu|hcc3` from config. The default unit id is 255: the ECU answers any
+  id, and 255 is the one HCC3 integrations use.
+- Whole amps per phase, rounded down, with the same caps, pause, resume and
+  default-mode rules as alfen 1.1.0.
+- Earlier versions read registers 100-300, which are in neither map. All
+  readings now come from the vendor maps, and the ECU's 0xFFFFFFFF "no meter"
+  value stays nil.
+
 ### zaptec_cloud 0.2.1
 
 The stand-down now acts only after FTW has written a current in this run.
