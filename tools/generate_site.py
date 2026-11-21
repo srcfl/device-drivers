@@ -131,6 +131,12 @@ READ_ONLY_WORDS = re.compile(
 # A header line that starts a new "Key: value" fact, such as "Protocol: ...".
 HEADER_FIELD = re.compile(r"^[A-Z][A-Za-z /()-]{0,30}:\s")
 MAX_REASON_CHARS = 420
+# The page already says "FTW reads this device but cannot control it", so a
+# reason that opens by saying the same loses that opening. What is left has
+# to say more than "the driver never writes" to count as a reason.
+REASON_LEAD_IN = re.compile(
+    r"^(ftw can read it but not control it|read-only)\s*[:.]\s*", re.IGNORECASE)
+MIN_REASON_WORDS = 5
 
 
 def git_output(*args: str) -> str:
@@ -282,18 +288,34 @@ def clip(text: str) -> str:
     return cut.rsplit(" ", 1)[0] + "…"
 
 
+def plain_reason(text: str) -> str:
+    """The reason without a lead-in that repeats the page, or "" if none is left.
+
+    "FTW can read it but not control it: Tesla offers no way ..." becomes
+    "Tesla offers no way ...". sonnen's "Read-only." and zap's "The driver
+    never writes." say nothing the page has not, so they give no reason.
+    """
+    text = REASON_LEAD_IN.sub("", text.strip(), count=1)
+    text = text[:1].upper() + text[1:]
+    return text if len(text.split()) >= MIN_REASON_WORDS else ""
+
+
 def read_only_reason(description: str, notes: list[str], header: list[str]) -> str:
     """Why a driver does not control, in its own words, or "" if it never says.
 
     The DRIVER description comes first, then the manifest notes, then the
-    header comment. Each counts only when it talks about reading or control:
+    header comment. The first that talks about reading or control decides:
     "Zaptec Go via Zaptec Cloud" is what the driver is, not why it reads only.
+
+    FTW Core shows the same reason on the box from the description alone:
+    readOnlyReason in go/internal/drivers/catalog.go in srcfl/ftw. Change the
+    two together.
     """
     for text in [description, *notes]:
         if text and READ_ONLY_WORDS.search(text):
-            return clip(text)
+            return plain_reason(clip(text))
     passage = header_passage(header)
-    return clip(passage) if passage else ""
+    return plain_reason(clip(passage)) if passage else ""
 
 
 def control_summary(source: dict, ders: list[str], notes: list[str],

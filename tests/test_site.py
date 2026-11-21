@@ -248,8 +248,26 @@ def test_a_read_only_charger_says_why(catalog: dict) -> None:
     wall = by_id["tesla_wall_connector"]
     assert wall["control_state"] == "reads_only"
     assert "turns its control off" in wall["control_note"]
-    assert "Tesla offers no way" in wall["control_reason"]
+    assert wall["control_reason"].startswith("Tesla offers no way"), (
+        "the reason must not repeat the note it follows")
     assert len(wall["control_reason"]) <= generate_site.MAX_REASON_CHARS + 1
+
+
+def test_a_reason_that_only_repeats_the_note_is_dropped(catalog: dict) -> None:
+    """sonnen's "Read-only." and zap's "never writes" add nothing to the note."""
+    by_id = {d["id"]: d for d in catalog["drivers"]}
+    assert by_id["sonnen"]["control_state"] == "reads_only"
+    assert by_id["sonnen"]["control_reason"] == ""
+    assert by_id["zap"]["control_reason"] == ""
+    for driver in catalog["drivers"]:
+        reason = driver["control_reason"]
+        assert not generate_site.REASON_LEAD_IN.match(reason), driver["id"]
+        assert not reason or reason[0].isupper() or not reason[0].isalpha(), driver["id"]
+    # The four stub drivers now say why in their own description.
+    for driver_id in ("alphaess", "kstar", "solax", "varta"):
+        assert by_id[driver_id]["control_state"] == "reads_only", driver_id
+        assert by_id[driver_id]["control_reason"].startswith(
+            "No control code has been written"), driver_id
 
 
 def test_a_product_description_is_not_a_reason() -> None:

@@ -1,11 +1,11 @@
 name: "varta"
-version: "1.1.1"
+version: "1.1.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
 ders: [battery, meter]
-control: true
+control: false
 tested_devices:
   - manufacturer: "VARTA"
     model_family: "pulse neo"
@@ -29,9 +29,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2794
+size_bytes: 3453
 dkb_id: ""
-sha256: "68eb714ff41551437e50ac0a1e9bca4e4d70eca8a43006c7481cfc8761fdf60d"
+sha256: "198a19deb76ee9ebc3b693922240ceafe61f32b7ce467bbc142a0b0f7b7f9e77"
 signature: ""
 
 bytecode_sha256: ""

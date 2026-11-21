@@ -1,11 +1,11 @@
 name: "solax"
-version: "1.1.1"
+version: "1.1.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
 ders: [pv, battery, meter]
-control: true
+control: false
 tested_devices:
   - manufacturer: "SolaX"
     model_family: "X1 Hybrid G4"
@@ -36,9 +36,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 5110
+size_bytes: 5785
 dkb_id: ""
-sha256: "b5f07776c959d4891a0487c23a3bc7e29b8c9c063eaaef754b98f0572cc547b2"
+sha256: "f52388cbe300dc8af699baac59ce52ffe1c489b4303409926d4d694ee82198af"
 signature: ""
 
 bytecode_sha256: ""

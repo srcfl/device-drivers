@@ -135,9 +135,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
       - name: "Smile Series"
@@ -146,9 +146,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
   - name: "Ambibox"
@@ -761,9 +761,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kstar"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
       - name: "KSE (Hybrid)"
@@ -772,9 +772,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kstar"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
   - name: "Kaifa"
@@ -1511,9 +1511,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
       - name: "X3 Hybrid G4"
@@ -1522,9 +1522,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
       - name: "X3 Hybrid G4 PRO"
@@ -1533,9 +1533,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
       - name: "X3 MIC/PRO G2 (String)"
@@ -1544,9 +1544,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
   - name: "SolarEdge"
@@ -1889,9 +1889,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
       - name: "link"
@@ -1900,9 +1900,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
       - name: "pulse neo"
@@ -1911,9 +1911,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [battery, meter]
-            control: true
+            control: false
         firmware_versions: ""
         notes: "Community driver, untested"
   - name: "Various (Austrian)"

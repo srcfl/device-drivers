@@ -1,11 +1,11 @@
 name: "kstar"
-version: "1.1.1"
+version: "1.1.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
 ders: [pv, battery, meter]
-control: true
+control: false
 tested_devices:
   - manufacturer: "KSTAR"
     model_family: "KSE (Hybrid)"
@@ -22,9 +22,9 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3615
+size_bytes: 4278
 dkb_id: ""
-sha256: "c6e41381f5a59f197b8e9899a770c32acd1e49c4c70a9faa3fec6b43f291d862"
+sha256: "77442a239ebdc41832c86cc39f5186cd5f74d782a7c9c455743a2c7f6c0f59f1"
 signature: ""
 
 bytecode_sha256: ""
