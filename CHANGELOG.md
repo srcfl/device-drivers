@@ -259,6 +259,16 @@ hardware.
   readings now come from the vendor maps, and the ECU's 0xFFFFFFFF "no meter"
   value stays nil.
 
+### alphaess 1.1.2, kstar 1.1.2, solax 1.1.2, varta 1.1.2
+
+These four declare `read_only = true` and say why in their new `DRIVER`
+table: no control code has been written for them. Their `driver_command`
+only logs and refuses, yet the signed channel shipped them as controlling,
+because it counts any `driver_command` as control. FTW then offered control
+that could not work. Reading is unchanged. Their channel artifacts change:
+the generated header now marks them read-only and drops their write
+permissions.
+
 ### zaptec_cloud 0.2.1
 
 The stand-down now acts only after FTW has written a current in this run.

@@ -622,6 +622,37 @@ def _ftw_artifact(
     return prefix + raw.rstrip(b"\n") + b"\n" + suffix.encode("utf-8")
 
 
+def declares_read_only(body: str | None) -> bool:
+    """Whether a DRIVER table body says `read_only = true`."""
+    return bool(body) and re.search(
+        r"^\s*read_only\s*=\s*true", body, re.MULTILINE
+    ) is not None
+
+
+def has_command_entrypoint(source: str) -> bool:
+    """Whether the Lua source defines driver_command."""
+    return "driver_command" in set(ENTRYPOINT_RE.findall(source))
+
+
+def driver_controls(source: str) -> bool:
+    """Whether the signed channel publishes this driver with control.
+
+    The code decides, not the manifest. Sixteen battery drivers carried a
+    working driver_command while their manifests still said control: false,
+    so trusting the manifest published them unable to do the one thing they
+    were ported for.
+
+    A driver that declares read_only in its own DRIVER table overrides this:
+    a meter saying what it is outranks an entrypoint it may only have
+    inherited from a shared source.
+
+    The catalog page and the manifest check read control through this
+    function too, so the three cannot disagree.
+    """
+    body = _lua_named_table_body(source, "DRIVER")
+    return has_command_entrypoint(source) and not declares_read_only(body)
+
+
 def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
     config = _read_json(config_path)
     if config.get("schema_version") != SCHEMA_VERSION:
@@ -670,9 +701,7 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
         # A meter or telemetry gateway saying what it is. That statement wins
         # over the catalog, so a stray control: true cannot hand a P1 reader a
         # write path it has no code for.
-        declares_read_only = bool(body) and re.search(
-            r"^\s*read_only\s*=\s*true", body, re.MULTILINE
-        ) is not None
+        read_only_declared = declares_read_only(body)
         declares_controls = body is not None and _lua_has_top_level_field(
             body, "controls"
         )
@@ -687,11 +716,9 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             if not path.startswith("/"):
                 raise RepositoryError(
                     f"{driver_id}: auth_post_path must be a path beginning with '/'")
-        if auth_post_paths and not declares_read_only:
+        if auth_post_paths and not read_only_declared:
             raise RepositoryError(
                 f"{driver_id}: auth_post_path only means anything with read_only")
-
-        has_driver_command = "driver_command" in set(ENTRYPOINT_RE.findall(source))
 
         required_entrypoints = {"driver_init", "driver_poll"}
         missing = sorted(required_entrypoints - set(ENTRYPOINT_RE.findall(source)))
@@ -747,15 +774,7 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             model = device.get("model_family") or device.get("model")
             if isinstance(model, str) and model and model not in tested_models:
                 tested_models.append(model)
-        # The code decides, not the manifest. Sixteen battery drivers carried a
-        # working driver_command while their manifests still said control:
-        # false, so trusting the manifest published them unable to do the one
-        # thing they were ported for.
-        #
-        # A driver that declares read_only in its own DRIVER table overrides
-        # this: a meter saying what it is outranks an entrypoint it may only
-        # have inherited from a shared source.
-        controls = has_driver_command and not declares_read_only
+        controls = driver_controls(source)
         # The DRIVER block's verification claim reaches the artifact only
         # when it is one the review actually gated: a driver declaring
         # production or beta made a checkable statement that a reviewer

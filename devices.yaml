@@ -135,7 +135,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -146,7 +146,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -259,7 +259,7 @@ manufacturers:
             driver: "deye"
             version: "2.1.1"
             ders: [battery, meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Single-phase hybrid with LV battery"
       - name: "SUN String (Grid-Tie)"
@@ -270,7 +270,7 @@ manufacturers:
             driver: "deye"
             version: "2.1.1"
             ders: [battery, meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Three-phase grid-tie string inverter (PV + meter only)"
       - name: "SUN Three-Phase HV Hybrid"
@@ -281,7 +281,7 @@ manufacturers:
             driver: "deye"
             version: "2.1.1"
             ders: [battery, meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Three-phase hybrid with HV battery"
       - name: "SUN Three-Phase Hybrid"
@@ -292,7 +292,7 @@ manufacturers:
             driver: "deye"
             version: "2.1.1"
             ders: [battery, meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Three-phase hybrid, supports LV and HV variants with runtime detection"
       - name: "SUN-xK-SG0xLP3 / HP3 hybrid"
@@ -761,7 +761,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kstar"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -772,7 +772,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kstar"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1047,7 +1047,7 @@ manufacturers:
             driver: "pixii"
             version: "2.1.9"
             ders: [battery, meter]
-            control: false
+            control: true
         firmware_versions: ""
         notes: ""
   - name: "Remne Technologies"
@@ -1511,7 +1511,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1522,7 +1522,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1533,7 +1533,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1544,7 +1544,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1559,7 +1559,7 @@ manufacturers:
             driver: "solaredge"
             version: "2.1.1"
             ders: [meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Single-phase string inverters, port 1502"
       - name: "SE Series (Three-Phase)"
@@ -1570,7 +1570,7 @@ manufacturers:
             driver: "solaredge"
             version: "2.1.1"
             ders: [meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Three-phase string inverters, port 1502"
       - name: "SolarEdge Home"
@@ -1581,7 +1581,7 @@ manufacturers:
             driver: "solaredge"
             version: "2.1.1"
             ders: [meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Residential single-phase series"
       - name: "SolarEdge inverter (PV only)"
@@ -1614,7 +1614,7 @@ manufacturers:
             driver: "solaredge"
             version: "2.1.1"
             ders: [meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Hybrid inverters with battery support"
   - name: "Solinteg"
@@ -1889,7 +1889,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
@@ -1900,7 +1900,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
@@ -1911,7 +1911,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
