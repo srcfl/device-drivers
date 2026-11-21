@@ -359,16 +359,16 @@ manufacturers:
   - name: "Etrel"
     model_families:
       - name: "INCH"
-        variants: [INCH DUO, INCH HOME, INCH PRO]
+        variants: [INCH Duo, INCH Home, INCH Pro]
         regions: []
         protocols:
           - protocol: modbus
             driver: "etrel"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from Etrel's INCH SmartHome Modbus TCP register list; not yet confirmed on hardware. Duo: connector 1 only."
   - name: "Ferroamp"
     model_families:
       - name: "DC2 V2X"
@@ -849,11 +849,11 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "keba"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from KEBA's P30 Modbus TCP Programmers Guide V1.07; not yet confirmed on hardware. Needs c-series firmware 3.10.16 or x-series 1.11, DIP switch DSW1.3 ON and Modbus unit ID 255."
   - name: "Konja Power"
     model_families:
       - name: "MG series"
@@ -1251,17 +1251,17 @@ manufacturers:
         notes: "Community driver, untested"
   - name: "Schrack"
     model_families:
-      - name: "i-CHARGE"
-        variants: [i-CHARGE CION, i-CHARGE CION PRO]
+      - name: "i-CHARGE CION"
+        variants: [i-CHARGE CION Home, i-CHARGE CION Semipublic]
         regions: []
         protocols:
           - protocol: modbus
             driver: "schrack_ev"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from Schrack's CION Home and Semipublic Modbus register table; not yet confirmed on hardware. Modbus RTU through a Modbus TCP gateway. No power reading. CION Pro not covered: use OCPP."
   - name: "Shelly"
     model_families:
       - name: "1PM Gen3"
@@ -2101,11 +2101,11 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "wallbox"
-            version: "1.0.3"
-            ders: [v2x_charger]
+            version: "1.1.0"
+            ders: [ev]
             control: false
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Cannot control: Wallbox publishes no local Modbus interface for these chargers, and this driver reads an unverified register map. Use FTW's built-in OCPP central system (Wallbox supports OCPP 1.6J) to read and control them."
   - name: "Zaptec"
     model_families:
       - name: "Zaptec"

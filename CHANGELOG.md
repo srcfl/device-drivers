@@ -31,6 +31,85 @@ steered it, and an owner whose fuse was overloaded had no way to see why.
 
 Written from Zaptec's API documentation. Not yet confirmed on hardware.
 
+### etrel 1.1.0
+
+The driver now controls the charger, so FTW can use it as a loadpoint. It
+emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
+
+- Registers come from Etrel's INCH SmartHome Modbus TCP register list. The old
+  map (holding 300-312) was in no Etrel document and is gone. Readings are
+  Float32 input registers 0-31; identity is 990-1019.
+- An order becomes a current per phase: power over voltage and phases, where
+  phases is the larger of the order's `phase_mode` and the phases the charger
+  measures current on. It never exceeds Core's `max_amps_per_phase` or
+  `cap_amps_per_phase`, the installer's custom max current or 32 A. It rounds
+  down to 0.1 A, and below 6 A it writes 0 A.
+- Pause writes a 0 A setpoint and resume writes the order back. The pause and
+  stop registers are one-way triggers with no documented undo, so they are
+  never written.
+- Default mode writes 0 A once. A charger that refuses it three times and
+  never took an order is left alone.
+- A failed read is left out, not reported as 0. Session energy of 0 is left
+  out, since some firmware never moves it (evcc-io/evcc#5346).
+- The second connector of an INCH Duo is not covered.
+
+Not yet confirmed on hardware.
+
+### keba 1.1.0
+
+The driver now controls a KeContact P30, so FTW can use it as a loadpoint. It
+emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
+
+- Registers follow KEBA's P30 Modbus TCP Programmers Guide V1.07. The old map
+  read the error code as L1 current, lifetime energy as session energy, and
+  voltages from the current, serial and product registers. Each value is now
+  read on its own, as the guide requires. The unit ID default is 255.
+- An order writes 5004 (mA) and then enables with 5014. Phases, caps and
+  rounding work as in etrel 1.1.0, with the hardware limit from 1110. Below
+  6 A, pause and default mode disable with 5014 = 0, since 5004 takes nothing
+  under 6000 mA.
+- A charger that offers more than the order, or charges while disabled, gets
+  the order again after 30 s. A configured failsafe timeout is refreshed at
+  half its length while an order stands.
+- A charger whose product code is not a P30 is not controlled.
+- The UDP interface is not used: FTW's driver host has no UDP, and KEBA
+  forbids using both. A c-series below firmware 3.10.16 needs an update.
+
+Not yet confirmed on hardware.
+
+### schrack_ev 1.1.0
+
+The driver now controls a CION Home or Semipublic, so FTW can use it as a
+loadpoint. It emits `ev` instead of `v2x_charger` and declares
+`capabilities = { "ev" }`.
+
+- Registers follow Schrack's CION Home and Semipublic Modbus table. The old map
+  read the charging authorisation as a state and power from registers Schrack
+  does not list. These chargers speak Modbus RTU, so FTW needs a Modbus TCP to
+  RTU gateway.
+- An order writes the current to 101 (whole A) and then authorises with
+  100 = 1. A void authorisation is cleared with 100 = 0 first, as the table
+  says. With no car plugged in only the current is set. Below 6 A, pause and
+  default mode write 100 = 0.
+- The charger reports no power and no phase currents, so `w` stays empty and a
+  one-phase order is split over three phases unless config says `phases: 1`.
+- The CION Pro is not covered: it speaks OCPP, which FTW handles itself.
+
+Not yet confirmed on hardware.
+
+### wallbox 1.1.0
+
+The driver says it cannot control the charger: `read_only = true`, with the
+reason in its description. Wallbox publishes no local Modbus interface for the
+Pulsar Plus, Pulsar Max, Commander 2 or Copper SB, and the registers this
+driver reads come from no Wallbox document. Wallbox documents OCPP 1.6J, and
+FTW's built-in OCPP central system reads and controls these chargers without a
+driver.
+
+The driver emits `ev` instead of `v2x_charger`, and only fields whose register
+answered. It no longer reports 0 W, 0 Wh or 0 A for registers that did not
+answer.
+
 ### heishamon 0.8.1
 
 Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only

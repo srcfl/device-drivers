@@ -1,26 +1,37 @@
 name: "etrel"
-version: "1.0.3"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
-ders: [v2x_charger]
-control: false
+setup: [device_ui]
+ders: [ev]
+control: true
 tested_devices:
   - manufacturer: "Etrel"
     model_family: "INCH"
-    variants: [INCH HOME, INCH DUO, INCH PRO]
+    variants: [INCH Home, INCH Pro, INCH Duo]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
+    notes: "Control written from Etrel's INCH SmartHome Modbus TCP register list; not yet confirmed on hardware. Duo: connector 1 only."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3545
+size_bytes: 17725
 dkb_id: ""
-sha256: "fdf3c3cae6ca45f9b546a97cf16a34b047172293711db2dfa759286f065d77c8"
+sha256: "a23d092ebf24247f3379fae3cee4c2307457256372b965b580a2aa67fb5df6aa"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
 changelog: ""
+
+upstream_docs:
+  - url: "https://etrel.atlassian.net/wiki/spaces/EKC/pages/3485665834"
+    title: "Etrel Knowledge Centre: Modbus communication with INCH products"
+    kind: other
+    url_stability: unknown
+  - url: "https://raw.githubusercontent.com/RustyDust/sonnen-charger/main/Etrel%20INCH%20SmartHome%20Modbus%20TCPRegisters.xlsx"
+    title: "Etrel INCH SmartHome Modbus TCP registers (2023 copy)"
+    kind: register_map
+    url_stability: stable

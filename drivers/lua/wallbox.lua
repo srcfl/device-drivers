@@ -1,24 +1,53 @@
--- Wallbox Commander 2 EV Charger Driver (community, untested)
--- Emits: V2X Charger
--- Register type: HOLDING (FC 0x03)
--- Note: Limited register set -- no per-phase voltage/current available
+-- Wallbox Pulsar Plus, Pulsar Max, Commander 2 and Copper SB
+-- Emits: ev
+-- Reads only. This driver cannot control the charger.
+--
+-- Why it cannot: Wallbox publishes no local Modbus TCP register map for these
+-- chargers. Their Modbus is for Wallbox's own load management (a Power Boost
+-- meter, power sharing between chargers), not a server an energy manager can
+-- command. The control route Wallbox documents is OCPP 1.6J ("OCPP activation
+-- and setup guide", support.wallbox.com), and evcc controls these models over
+-- OCPP only. The Wallbox cloud API is not published either.
+--
+-- Use FTW's built-in OCPP central system instead. It reads and controls these
+-- chargers without any driver: set FTW's OCPP address in the myWallbox app
+-- under Settings, External management, OCPP. See FTW's docs/ocpp.md.
+--
+-- What this driver reads: holding registers 0, 4-5, 7-8 and 9 on unit 1. They
+-- come from an early community sketch, not from any Wallbox document, and are
+-- unverified. On most units they do not answer. A value is reported only when
+-- its register answered, and nothing is reported as 0 W that was not read.
+
+DRIVER = {
+  host_api_min = 1,
+  host_api_max = 1,
+  id           = "wallbox",
+  name         = "Wallbox (Modbus, reads only)",
+  manufacturer = "Wallbox",
+  version      = "1.1.0",
+  protocols    = { "modbus" },
+  capabilities = { "ev" },
+  read_only    = true,
+  description  = "Cannot control: Wallbox publishes no local Modbus interface for the Pulsar Plus, Pulsar Max, Commander 2 or Copper SB, and the registers this driver reads come from no Wallbox document. Connect the charger to FTW's built-in OCPP central system instead; Wallbox supports OCPP 1.6J, and FTW reads and controls it that way without a driver.",
+  homepage     = "https://support.wallbox.com/en/knowledge-base/ocpp-activation-and-setup-guide/",
+  authors      = { "FTW contributors" },
+  tested_models = { "Commander 2", "Pulsar Plus" },
+  verification_status = "experimental",
+}
 
 PROTOCOL = "modbus"
 
--- Bounded register probe.
--- The host counts every failed host.modbus_read against the poll, even one
--- pcall caught here. A driver that keeps emitting while a register keeps
--- failing is marked offline by the stale-telemetry watchdog, and the site
--- then reports nothing at all. So: three tries, then leave the register
--- alone. Three rather than one because a single failure is not proof the
--- register is missing -- the link may just have been slow.
+-- Bounded register probe. The host counts every failed host.modbus_read
+-- against the poll, even one pcall caught here. A driver that keeps reading a
+-- register that never answers is marked offline by the stale-telemetry
+-- watchdog. So: three tries, then leave the register alone.
 local GIVE_UP_AFTER = 3
 local read_failures = {}
 
 local function probe_read(addr, count, kind)
     if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
     local ok, regs = pcall(host.modbus_read, addr, count, kind)
-    if ok and regs and regs[1] ~= nil then
+    if ok and type(regs) == "table" and regs[count] ~= nil then
         read_failures[addr] = nil
         return regs
     end
@@ -34,52 +63,25 @@ end
 
 function driver_init(config)
     host.set_make("Wallbox")
+    host.log("info", "Wallbox: reads only, from an unverified register map. " ..
+        "Use FTW's OCPP central system to read and control this charger.")
 end
 
 function driver_poll()
-    -- Charger state: 0 (U16: 0=ready, 1=charging, 2=waiting, 3=disconnected)
-    local st_regs = probe_read(0, 1, "holding")
-    local raw_state = 0
-    local state = 0
-    if st_regs then
-        raw_state = st_regs[1]
-        -- Map Wallbox states to standard: 0=idle, 1=connected, 2=charging, 3=error
-        if raw_state == 0 then
-            state = 1      -- ready -> connected
-        elseif raw_state == 1 then
-            state = 2      -- charging -> charging
-        elseif raw_state == 2 then
-            state = 1      -- waiting -> connected
-        elseif raw_state == 3 then
-            state = 0      -- disconnected -> idle
-        end
-    end
-
-    -- Active power: 4-5 (U32, W)
+    -- Unverified: power in W at 4-5 (U32), session energy in Wh at 7-8 (U32),
+    -- maximum current in A at 9, state at 0.
     local w_regs = probe_read(4, 2, "holding")
-    local power_w = 0
-    if w_regs then
-        power_w = host.decode_u32_be(w_regs[1], w_regs[2])
+    if not w_regs then
+        -- Power is this stream's defining reading. Without it, say nothing.
+        return 5000
     end
-
-    -- Session energy: 7 (U32, Wh)
     local se_regs = probe_read(7, 2, "holding")
-    local session_wh = 0
-    if se_regs then
-        session_wh = host.decode_u32_be(se_regs[1], se_regs[2])
-    end
-
-    -- Max current: 9 (U16, A) -- writable
     local mc_regs = probe_read(9, 1, "holding")
-    local max_a = 0
-    if mc_regs then
-        max_a = mc_regs[1]
-    end
 
-    -- Emit V2X charger telemetry
-    host.emit("v2x_charger", {
-        w                = power_w,
-        session_charge_wh = session_wh,
+    host.emit("ev", {
+        w          = host.decode_u32_be(w_regs[1], w_regs[2]),
+        session_wh = se_regs and host.decode_u32_be(se_regs[1], se_regs[2]) or nil,
+        max_a      = mc_regs and mc_regs[1] or nil,
     })
 
     return 5000

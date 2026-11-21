@@ -1,26 +1,37 @@
 name: "keba"
-version: "1.0.3"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
-ders: [v2x_charger]
-control: false
+setup: [installer]
+ders: [ev]
+control: true
 tested_devices:
   - manufacturer: "Keba"
     model_family: "KeContact P30"
     variants: [P30 c-series, P30 x-series]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
+    notes: "Control written from KEBA's P30 Modbus TCP Programmers Guide V1.07; not yet confirmed on hardware. Needs c-series firmware 3.10.16 or x-series 1.11, DIP switch DSW1.3 ON and Modbus unit ID 255."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 4620
+size_bytes: 17614
 dkb_id: ""
-sha256: "8c8f2685dbd9a67b422c134c9d1afc53d073233f0b2c10cca75c8b30fefaad91"
+sha256: "cf03006c880643b02b2ff5566735f2c2583c8fdea2ed763b80efb115342cbe8e"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
 changelog: ""
+
+upstream_docs:
+  - url: "https://www.keba.com/download/x/44932c2bc8/kecontactp30modbustcp_pgen.pdf"
+    title: "KeContact P30 Modbus TCP Programmers Guide"
+    kind: register_map
+    url_stability: stable
+  - url: "https://www.keba.com/download/x/4aab015706/kecontactp30udp_pgen.pdf"
+    title: "KeContact P30 UDP Programmers Guide"
+    kind: api_docs
+    url_stability: stable

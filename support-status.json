@@ -485,7 +485,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.0",
       "driver_id": "etrel",
       "targets": {
         "blixt-l1": {
@@ -863,7 +863,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.0",
       "driver_id": "keba",
       "targets": {
         "blixt-l1": {
@@ -1283,7 +1283,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.0",
       "driver_id": "schrack_ev",
       "targets": {
         "blixt-l1": {
@@ -1850,7 +1850,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.0",
       "driver_id": "wallbox",
       "targets": {
         "blixt-l1": {
