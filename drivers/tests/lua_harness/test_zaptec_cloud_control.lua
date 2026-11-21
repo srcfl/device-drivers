@@ -119,6 +119,12 @@ poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 
 assert(driver_command("ev_resume", 0, nil))
 assert(last_current() == 16, "resume must offer the last asked current")
 assert(count("/sendCommand/507") == 1, "resume must send 507")
+-- A resume right after a pause, before any new poll, still sends 507.
+boot()
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 16, [508] = 16, [509] = 16, [510] = 16})
+assert(order(11040, THREE)); assert(driver_command("ev_pause", 0, nil))
+assert(driver_command("ev_resume", 0, nil))
+assert(count("/sendCommand/507") == 1, "a resume on a stale 'charging' poll skipped 507")
 -- Resume with no earlier order offers the minimum.
 boot()
 poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})

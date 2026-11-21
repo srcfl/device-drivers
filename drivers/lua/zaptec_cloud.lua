@@ -73,7 +73,6 @@ local OBS_CHARGE_POWER   = 513
 local OBS_SESSION_ENERGY = 553
 local OBS_OP_MODE        = 710
 local OBS_STAND_ALONE    = 712
-local OBS_FINAL_STOP     = 718
 
 -- Operating modes (observation 710).
 local OP_DISCONNECTED = 1
@@ -112,7 +111,6 @@ local token_expiry  = 0
 
 -- What the last poll saw. nil means not known.
 local stand_alone    = false
-local final_stop     = nil
 local op_mode        = nil
 local phase_currents = { nil, nil, nil }
 local variant_logged = false
@@ -415,7 +413,8 @@ local function resume()
   if last_written_a == nil or last_written_a < MIN_A then
     if not write_current(resume_a or MIN_A) then return false end
   end
-  if final_stop == false and op_mode == OP_CHARGING then return true end
+  -- Always send the command: the last poll may predate a pause. A charger
+  -- that has nothing to resume answers 520 or 528, which counts as done.
   return send_command(CMD_RESUME)
 end
 
@@ -485,7 +484,6 @@ function driver_poll()
 
   log_variant(obs[OBS_CAPABILITIES])
   op_mode = as_number(obs[OBS_OP_MODE])
-  final_stop = as_flag(obs[OBS_FINAL_STOP])
   local was_stand_alone = stand_alone
   stand_alone = as_flag(obs[OBS_STAND_ALONE]) == true
   if was_stand_alone and not stand_alone then warned_stand_alone = false end
