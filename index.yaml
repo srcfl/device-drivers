@@ -166,14 +166,14 @@ drivers:
     size_bytes: 12060
     sha256: "71674f2f9eae0d74fcc6f1d804a22b5044b45fbba33165374f51d48548efae30"
   - name: "deye-svk"
-    version: "0.2.2"
+    version: "0.2.3"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery]
     control: true
-    size_bytes: 21949
-    sha256: "ce957acebd6b98060e2736148af5fe53784109b243678e9d216becaa6e116088"
+    size_bytes: 22116
+    sha256: "0a4ed8afa69223c7b751bafaae4e02876e836d2db7c4ad7a112b0b3a71a8eeb1"
   - name: "deye"
     version: "2.1.1"
     tier: core

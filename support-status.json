@@ -380,7 +380,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.2",
+      "catalog_version": "0.2.3",
       "driver_id": "deye-svk",
       "targets": {
         "blixt-l1": {

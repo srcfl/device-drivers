@@ -13,6 +13,14 @@ driver no longer knows FTW wrote, so that offset stays; today only the
 operator's control on the heating card writes it. Not yet checked on
 hardware.
 
+### deye-svk 0.2.3
+
+A poll where the SoC read fails left `bat_soc` nil, and the energy headroom
+calculation then raised a Lua error when a battery capacity was set. The
+headroom is now skipped for that poll, with the same guard the 50-125k-svk
+drivers already use. Seen in the field in EnergyWizard, which runs this driver
+(murre87/energywizard#215); not reproduced on hardware here.
+
 ### easee_cloud 1.4.1
 
 The driver says its session energy is coarse, with `session_wh_coarse`. Easee
