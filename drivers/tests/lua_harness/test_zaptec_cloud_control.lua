@@ -6,6 +6,7 @@ local driver = "drivers/lua/zaptec_cloud.lua"
 
 local real_post = host.http_post
 local post_fail = {}   -- url substring -> error string to return
+local post_reply = {}  -- url substring -> 2xx body to return
 
 local function install_post()
     host.http_post = function(url, body, headers)
@@ -13,6 +14,12 @@ local function install_post()
             if string.find(url, pattern, 1, true) then
                 table.insert(host._calls, {func = "http_post", args = {url, body, headers}})
                 return nil, err
+            end
+        end
+        for pattern, reply in pairs(post_reply) do
+            if string.find(url, pattern, 1, true) then
+                table.insert(host._calls, {func = "http_post", args = {url, body, headers}})
+                return reply
             end
         end
         return real_post(url, body, headers)
@@ -33,6 +40,7 @@ local CONNECTED = {[710] = 2, [718] = 0, [712] = 0, [507] = 0, [508] = 0, [509] 
 local function boot(cfg)
     host.reset()
     post_fail = {}
+    post_reply = {["/update"] = "", ["/sendCommand/"] = ""}
     install_post()
     host._http_responses["/oauth/token"] = '{"access_token":"tok","refresh_token":"ref","expires_in":3600}'
     host._http_responses["https://api.zaptec.com/api/chargers"] = '{"Data":[{"Id":"c-1","SerialNo":"ZAP1","InstallationId":"i-1"}]}'
@@ -81,6 +89,7 @@ assert(order(11040, {phase_mode = "3p", voltage = 230, max_amps_per_phase = 10})
 assert(last_current() == 10, "Core's per-phase cap was exceeded")
 assert(order(4500, THREE)); assert(last_current() == 6.5, "6.52 A must round down to 6.5 A")
 assert(order(3000, THREE)); assert(last_current() == 0, "4.3 A is below the 6 A minimum, so 0 A")
+boot(); poll(CONNECTED)
 assert(order(90000, {phase_mode = "3p", voltage = 230})); assert(last_current() == 32, "never above 32 A")
 
 -- 2. One phase only when Core and the charger both say one.
@@ -91,6 +100,36 @@ assert(last_current() == 10.6, "a 1p order on a charger drawing 3 phases must us
 poll({[710] = 3, [718] = 0, [712] = 0, [507] = 16, [508] = 0, [509] = 0, [510] = 16})
 assert(order(3680, {phase_mode = "1p", voltage = 230, max_amps_per_phase = 32}))
 assert(last_current() == 16, "a 1p order on a 1-phase car is 16 A")
+-- An idle charger proves nothing: a 1p order on a 3-phase installation uses 3.
+boot()
+poll(CONNECTED)
+assert(order(7360, {phase_mode = "1p", voltage = 230, max_amps_per_phase = 32}))
+assert(last_current() == 10.6, "a 1p order on an idle charger must assume 3 phases")
+-- A failed poll forgets the phase currents.
+boot()
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 16, [508] = 0, [509] = 0, [510] = 16})
+host._http_responses[STATE_URL] = "not json"
+driver_poll()
+assert(order(3680, {phase_mode = "1p", voltage = 230, max_amps_per_phase = 32}))
+assert(last_current() == 0, "stale phase currents after a failed poll")
+-- So does a poll whose request fails.
+boot()
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 16, [508] = 0, [509] = 0, [510] = 16})
+local real_get = host.http_get
+host.http_get = function(url, headers)
+    if url == STATE_URL then return nil, "HTTP 503: down" end
+    return real_get(url, headers)
+end
+driver_poll()
+host.http_get = real_get
+assert(order(3680, {phase_mode = "1p", voltage = 230, max_amps_per_phase = 32}))
+assert(last_current() == 0, "stale phase currents after a failed request")
+-- A missing cap falls back to Core's last one.
+boot()
+poll(CONNECTED)
+assert(order(11040, {phase_mode = "3p", voltage = 230, max_amps_per_phase = 10}))
+assert(order(11040, {phase_mode = "3p", voltage = 230})); assert(last_current() == 10, "missing cap ignored Core's last")
+assert(order(11040, nil)); assert(last_current() == 10)
 -- An installation set to one phase in config counts when Core gives no mode.
 boot({phases = 1})
 poll(CONNECTED)
@@ -117,7 +156,7 @@ assert(last_current() == 0, "pause must set 0 A")
 assert(count("/sendCommand/506") == 1, "pause must send 506")
 poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})
 assert(driver_command("ev_resume", 0, nil))
-assert(last_current() == 16, "resume must offer the last asked current")
+assert(last_current() == 6, "resume offers the minimum; Core's next order sets the level")
 assert(count("/sendCommand/507") == 1, "resume must send 507")
 -- A resume right after a pause, before any new poll, still sends 507.
 boot()
@@ -125,6 +164,37 @@ poll({[710] = 3, [718] = 0, [712] = 0, [507] = 16, [508] = 16, [509] = 16, [510]
 assert(order(11040, THREE)); assert(driver_command("ev_pause", 0, nil))
 assert(driver_command("ev_resume", 0, nil))
 assert(count("/sendCommand/507") == 1, "a resume on a stale 'charging' poll skipped 507")
+-- A positive order on a paused charger resumes it, with no ev_resume.
+boot()
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 16, [508] = 16, [509] = 16, [510] = 16})
+assert(order(11040, THREE)); driver_default_mode()
+poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})
+assert(order(11040, THREE))
+assert(last_current() == 16 and count("/sendCommand/507") == 1, "a positive order left the charger paused")
+assert(order(11040, THREE)); assert(count("/sendCommand/507") == 1, "resume resent while not paused")
+-- The same after the driver's own pause, before any poll.
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE)); assert(driver_command("ev_pause", 0, nil))
+assert(order(11040, THREE)); assert(count("/sendCommand/507") == 1)
+-- A failing resume is retried no faster than every 30 s.
+boot()
+poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})
+post_fail["/sendCommand/507"] = 'HTTP 500: {"Code":520}'
+assert(order(11040, THREE) == false, "a resume that never reached the charger must fail")
+assert(order(11040, THREE)); assert(count("/sendCommand/507") == 1, "resume retried at once")
+later(31000)
+assert(order(11040, THREE) == false); assert(count("/sendCommand/507") == 2)
+post_fail = {}
+-- Resume never offers more than Core's last cap, and nothing below 6 A.
+boot()
+poll(CONNECTED)
+assert(order(17250, {phase_mode = "3p", voltage = 230, max_amps_per_phase = 25}))
+assert(order(0, {phase_mode = "3p", voltage = 230, max_amps_per_phase = 4}))
+assert(driver_command("ev_pause", 0, nil))
+local before = #current_writes()
+assert(driver_command("ev_resume", 0, nil))
+assert(#current_writes() == before, "resume offered current above Core's last cap")
 -- Resume with no earlier order offers the minimum.
 boot()
 poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})
@@ -145,6 +215,44 @@ post_fail["/update"] = "HTTP 500: oops"
 assert(order(11040, THREE) == false, "a failed current write must return false")
 post_fail = {}
 assert(order(11040, THREE)); assert(last_current() == 16)
+-- 520 means the command never reached the charger.
+boot()
+poll(CONNECTED)
+post_fail["/update"] = "HTTP 500: down"
+post_fail["/sendCommand/506"] = 'HTTP 500: {"Code":520}'
+assert(driver_command("ev_pause", 0, nil) == false, "a pause that reached nothing must fail")
+post_fail = {}
+-- 528 on resume holds only when the driver did not pause the charger itself.
+boot()
+poll(CONNECTED)
+assert(driver_command("ev_pause", 0, nil))
+post_fail["/sendCommand/507"] = 'HTTP 400: {"Code":528}'
+assert(driver_command("ev_resume", 0, nil) == false, "a refused resume after our own pause must fail")
+post_fail = {}
+-- A 200 that carries an error Code is an error.
+boot()
+poll(CONNECTED)
+post_reply["/update"] = '{"Code":520,"Details":"no contact"}'
+assert(order(11040, THREE) == false, "a 200 with an error Code must fail")
+post_reply["/update"] = '{"Code":0}'
+assert(order(11040, THREE), "Code 0 is success")
+-- A 401 signs in again once and retries.
+boot()
+poll(CONNECTED)
+local logins = count("/oauth/token")
+local fail_once = true
+local inner = host.http_post
+host.http_post = function(url, body, headers)
+    if fail_once and string.find(url, "/update", 1, true) then
+        fail_once = false
+        table.insert(host._calls, {func = "http_post", args = {url, body, headers}})
+        return nil, "HTTP 401: expired"
+    end
+    return inner(url, body, headers)
+end
+assert(order(11040, THREE), "a 401 must sign in again and retry")
+assert(count("/oauth/token") > logins, "no new sign-in after 401")
+assert(last_current() == 16)
 
 -- 6. Stand-alone mode: current orders and resumes are refused and the reason shows.
 boot()

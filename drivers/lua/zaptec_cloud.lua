@@ -18,8 +18,9 @@
 --
 -- The driver does not switch phases. A Go uses the phases its installation
 -- gives it. When it computes amps from watts it assumes three phases unless
--- Core asked for one phase and the charger measures at most one, so a
--- single-phase car can only ever draw less than Core budgeted, never more.
+-- the installation has one, or Core asks for one and the charger is drawing
+-- on exactly one. A single-phase car can then only draw less than Core
+-- budgeted, never more. With no cap in an order it keeps Core's last one.
 --
 -- Stand-alone mode (observation 712) makes the charger ignore current set
 -- through the API. The driver then refuses current orders and says why.
@@ -83,9 +84,11 @@ local OP_FINISHED     = 5
 -- Commands (POST .../sendCommand/{id}).
 local CMD_PAUSE  = 506
 local CMD_RESUME = 507
--- Command results that mean "already in that state": 520 on a Pro, 528 on a
--- Go 2 ("Charging is not Paused nor Scheduled; Resume command cannot be sent").
-local NO_CHANGE_CODES = { [520] = true, [528] = true }
+-- Zaptec's ErrorCode 528 (DeviceCommandRejected) is what a charger answers
+-- when the command would not change its state, for example a resume on a
+-- charger that is not paused. 520 (ErrorCommunicatingWithDevice) means the
+-- command never reached the charger, so it is a failure.
+local CODE_REJECTED = 528
 
 -- Charger limits. Below MIN_A a charger allocates no current, so the driver
 -- writes 0 rather than rounding a small order up.
@@ -99,6 +102,8 @@ local SMALL_RISE_A = 0.5
 local SMALL_RISE_HOLD_MS = 60000
 -- After a failed stand-down, try again no sooner than this.
 local STAND_DOWN_RETRY_MS = 300000
+-- A positive order on a paused charger resends resume no more often than this.
+local RESUME_RETRY_MS = 30000
 
 local email         = nil
 local password      = nil
@@ -112,13 +117,17 @@ local token_expiry  = 0
 -- What the last poll saw. nil means not known.
 local stand_alone    = false
 local op_mode        = nil
+local OBS_FINAL_STOP = 718
 local phase_currents = { nil, nil, nil }
 local variant_logged = false
 
 -- What the driver last wrote.
 local last_written_a  = nil   -- nil until the first write this run
 local last_write_ms   = 0
-local resume_a        = nil   -- last current a positive order asked for
+local last_cap_a      = nil   -- Core's last max_amps_per_phase
+local paused          = false -- the charger is paused (506 or the poll says so)
+local want_paused     = false -- Core paused or stood down and has not asked to charge since
+local resume_try_ms   = nil
 local stood_down      = false
 local stand_down_try_ms = nil
 local warned_stand_alone = false
@@ -305,12 +314,33 @@ local function error_code(err)
   return as_number(pick(data, "Code", "code"))
 end
 
-local function post_json(path, tbl)
-  local body = host.json_encode(tbl)
-  local headers = auth_headers()
-  headers["Content-Type"] = "application/json"
-  local _, err = safe_http_post(BASE_URL .. path, body, headers)
+-- post sends one request and returns an error string or nil. A 401 signs in
+-- again once. A 2xx whose body carries a non-zero Code counts as an error,
+-- in the same "HTTP <status>: <body>" shape the host uses for a 4xx.
+local function post(path, body, content_type)
+  local function once()
+    local headers = auth_headers()
+    if content_type then headers["Content-Type"] = content_type end
+    local resp, err = safe_http_post(BASE_URL .. path, body, headers)
+    if err then return err end
+    if resp and resp ~= "" then
+      local data = decode_json(resp)
+      local code = type(data) == "table" and as_number(pick(data, "Code", "code"))
+      if code and code ~= 0 then return "HTTP 200: " .. resp end
+    end
+    return nil
+  end
+  local err = once()
+  if err and tostring(err):match("^HTTP 401") then
+    access_token = nil
+    token_expiry = 0
+    if ensure_auth() then err = once() end
+  end
   return err
+end
+
+local function post_json(path, tbl)
+  return post(path, host.json_encode(tbl), "application/json")
 end
 
 -- write_current sets maxChargeCurrent. Returns true when Zaptec accepted it.
@@ -326,19 +356,19 @@ local function write_current(amps)
   return true
 end
 
--- send_command posts a charger command. A result that means "already in
--- that state" counts as done.
+-- send_command posts a charger command and says whether it holds.
 local function send_command(cmd_id)
-  local headers = auth_headers()
-  local _, err = safe_http_post(
-    BASE_URL .. "/api/chargers/" .. charger_id .. "/sendCommand/" .. cmd_id,
-    "", headers)
+  local err = post("/api/chargers/" .. charger_id .. "/sendCommand/" .. cmd_id, "")
   if err == nil then return true end
-  local code = error_code(err)
-  if code and NO_CHANGE_CODES[code] then return true end
-  -- Zaptec rejects a pause on a charger with no car plugged in. Nothing
-  -- can flow then, so the pause holds.
-  if cmd_id == CMD_PAUSE and op_mode == OP_DISCONNECTED then return true end
+  local rejected = error_code(err) == CODE_REJECTED
+  if cmd_id == CMD_PAUSE then
+    -- Rejected means already paused, or no car to pause. Nothing flows.
+    if rejected or op_mode == OP_DISCONNECTED then return true end
+  elseif cmd_id == CMD_RESUME then
+    -- Rejected means nothing to resume, which holds unless the driver
+    -- itself paused the charger and has not seen it charge since.
+    if rejected and not paused then return true end
+  end
   host.log("warn", "Zaptec: command " .. cmd_id .. " failed: " .. redact_http_err(err))
   return false
 end
@@ -352,20 +382,18 @@ local function live_phase_count()
   return n
 end
 
--- amps_for turns Core's watts into amps per phase. It uses three phases
--- unless both Core and the charger say one, so the amps never exceed what
--- Core budgeted per phase.
-local function amps_for(power_w, cmd)
-  cmd = cmd or {}
+-- amps_for turns Core's watts into amps per phase, never above Core's cap.
+-- It divides by three phases unless the installation has one phase, or Core
+-- asks for one and the charger is drawing on exactly one. An idle charger
+-- proves nothing, so a three-phase car can never get a one-phase sum.
+local function amps_for(power_w, cmd, cap)
   local voltage = as_number(cmd.voltage)
   if not voltage or voltage <= 0 then voltage = 230 end
   local mode = type(cmd.phase_mode) == "string" and cmd.phase_mode or ""
-  local one_phase = (mode == "1p") or (mode ~= "3p" and phases_cfg == 1)
   local phases = 3
-  if one_phase and live_phase_count() <= 1 then phases = 1 end
+  if phases_cfg == 1 or (mode == "1p" and live_phase_count() == 1) then phases = 1 end
   local amps = (as_number(power_w) or 0) / (voltage * phases)
-  local cap = as_number(cmd.max_amps_per_phase)
-  if cap and cap > 0 and amps > cap then amps = cap end
+  if cap and amps > cap then amps = cap end
   if amps > MAX_A then amps = MAX_A end
   if amps < MIN_A then return 0 end
   return math.floor(amps * 10 + 1e-9) / 10
@@ -382,40 +410,65 @@ local function refuse_stand_alone()
   return false
 end
 
+local function send_resume()
+  resume_try_ms = host.millis()
+  local ok = send_command(CMD_RESUME)
+  if ok then paused = false end
+  return ok
+end
+
+-- set_current writes Core's order. A positive order also resumes a charger
+-- that is paused, as easee_cloud does, so a stand-down never strands it.
+-- Even a zero order is refused in stand-alone mode: the charger ignores the
+-- current there, and saying otherwise would hide that FTW cannot steer it.
 local function set_current(power_w, cmd)
   if stand_alone then return refuse_stand_alone() end
-  local amps = amps_for(power_w, cmd)
-  if amps > 0 then resume_a = amps end
+  cmd = cmd or {}
+  local cap = as_number(cmd.max_amps_per_phase)
+  if cap and cap > 0 then last_cap_a = cap else cap = last_cap_a end
+  local amps = amps_for(power_w, cmd, cap)
   local now = host.millis()
+  local wrote = true
+  local write = true
   if last_written_a ~= nil then
     local diff = amps - last_written_a
     local age = now - last_write_ms
-    if math.abs(diff) < 0.1 and age < REFRESH_MS then return true end
+    if math.abs(diff) < 0.1 and age < REFRESH_MS then write = false end
     -- A small rise waits; a fall always goes out at once.
     if diff > 0 and diff < SMALL_RISE_A and last_written_a > 0
         and age < SMALL_RISE_HOLD_MS then
-      return true
+      write = false
     end
   end
-  return write_current(amps)
+  if write then wrote = write_current(amps) end
+  if amps < MIN_A or not wrote then return wrote end
+  want_paused = false
+  if paused and (resume_try_ms == nil or now - resume_try_ms >= RESUME_RETRY_MS) then
+    return send_resume()
+  end
+  return true
 end
 
 local function pause()
+  want_paused = true
   local wrote = write_current(0)
   local sent = send_command(CMD_PAUSE)
+  if sent then paused = true end
+  -- 0 A alone is enough: below 6 A the charger allocates nothing.
   return wrote or sent
 end
 
+-- resume starts a paused charger. It offers the minimum current, never more
+-- than Core's last cap, and Core's next order sets the level.
 local function resume()
   if stand_alone then return refuse_stand_alone() end
-  -- Coming back from 0 A, offer the last asked current, or the minimum.
-  -- Core sends its own order right after.
-  if last_written_a == nil or last_written_a < MIN_A then
-    if not write_current(resume_a or MIN_A) then return false end
+  want_paused = false
+  if (last_written_a == nil or last_written_a < MIN_A)
+      and (last_cap_a == nil or last_cap_a >= MIN_A) then
+    if not write_current(MIN_A) then return false end
   end
-  -- Always send the command: the last poll may predate a pause. A charger
-  -- that has nothing to resume answers 520 or 528, which counts as done.
-  return send_command(CMD_RESUME)
+  -- Always send the command: the last poll may predate a pause.
+  return send_resume()
 end
 
 function driver_init(config)
@@ -473,17 +526,24 @@ function driver_poll()
     BASE_URL .. "/api/chargers/" .. charger_id .. "/state",
     auth_headers())
   if err then
+    phase_currents = { nil, nil, nil }
     host.log("warn", "Zaptec: state poll failed: " .. redact_http_err(err))
     return 10000
   end
   local obs, oerr = observation_map(resp)
   if oerr or not obs then
+    phase_currents = { nil, nil, nil }
     host.log("warn", "Zaptec: state decode failed")
     return 10000
   end
 
   log_variant(obs[OBS_CAPABILITIES])
   op_mode = as_number(obs[OBS_OP_MODE])
+  if op_mode == OP_CHARGING then
+    paused = false
+  elseif op_mode == OP_FINISHED and as_flag(obs[OBS_FINAL_STOP]) == true then
+    paused = true
+  end
   local was_stand_alone = stand_alone
   stand_alone = as_flag(obs[OBS_STAND_ALONE]) == true
   if was_stand_alone and not stand_alone then warned_stand_alone = false end
@@ -563,8 +623,9 @@ function driver_default_mode()
   if stand_down_try_ms and now - stand_down_try_ms < STAND_DOWN_RETRY_MS then return end
   stand_down_try_ms = now
   if not ensure_auth() then return end
+  want_paused = true
   local wrote = write_current(0)
-  send_command(CMD_PAUSE)
+  if send_command(CMD_PAUSE) then paused = true end
   if wrote then
     stood_down = true
     stand_down_try_ms = nil
