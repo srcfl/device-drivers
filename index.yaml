@@ -206,14 +206,15 @@ drivers:
     size_bytes: 17074
     sha256: "4fabecf0f5f2f276e7393d104330314d3453f19ad2905a51d1ffa306372a71ad"
   - name: "etrel"
-    version: "1.0.3"
+    version: "1.1.0"
     tier: community
     protocol: modbus
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 3545
-    sha256: "fdf3c3cae6ca45f9b546a97cf16a34b047172293711db2dfa759286f065d77c8"
+    setup: [device_ui]
+    ders: [ev]
+    control: true
+    size_bytes: 21562
+    sha256: "7ab3c7f28f3df5d75c491d589a751183dc5c2deac0f6b96212f79c39be668d9c"
   - name: "ferroamp"
     version: "2.1.2"
     tier: core
@@ -371,14 +372,15 @@ drivers:
     size_bytes: 4524
     sha256: "e3594504efd1315d86ced6480b8f526cfd0f940e992a5743858af8f772199eae"
   - name: "keba"
-    version: "1.0.3"
+    version: "1.1.0"
     tier: community
     protocol: modbus
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 4620
-    sha256: "8c8f2685dbd9a67b422c134c9d1afc53d073233f0b2c10cca75c8b30fefaad91"
+    setup: [installer]
+    ders: [ev]
+    control: true
+    size_bytes: 23439
+    sha256: "1cb5b73fe49525d1d2500eca0d3d18b340e83fc7a0943fb63c3c568113069f49"
   - name: "konja-261-svk"
     version: "0.3.2"
     tier: community
@@ -558,14 +560,15 @@ drivers:
     size_bytes: 4615
     sha256: "cfe95da259940699c7403e349c6402e10aad9dd358dc864f14d102326a1a39e7"
   - name: "schrack_ev"
-    version: "1.0.3"
+    version: "1.1.0"
     tier: community
     protocol: modbus
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 3554
-    sha256: "652db1569e74d8a451ddfcefb4f55d897e144b9a955608d20b4278ed6b9a2fdd"
+    setup: [bridge, installer]
+    ders: [ev]
+    control: true
+    size_bytes: 19195
+    sha256: "2efa740660f9205aa2d85a210c9bfc98e6bcb00b4fa75f67df7d4f230b8d1f90"
   - name: "sdm630"
     version: "2.0.2"
     tier: core
@@ -808,14 +811,14 @@ drivers:
     size_bytes: 5779
     sha256: "deb4dba9ef525a59c023939d95686f4b533ee5a9d39a34598e499323afb6535f"
   - name: "wallbox"
-    version: "1.0.3"
+    version: "1.1.0"
     tier: community
     protocol: modbus
     connectivity: local
-    ders: [v2x_charger]
+    ders: [ev]
     control: false
-    size_bytes: 2842
-    sha256: "1c0362e0a25f1fe297de838a85089eb7676b25e78a7d6d1d03ccea1258b94403"
+    size_bytes: 4047
+    sha256: "239ac3e22c0b0ed528fe813a10aee58dacf192d350e1ee5b942f53896fd6727f"
   - name: "zap"
     version: "3.1.3"
     tier: core
