@@ -183,15 +183,6 @@ drivers:
     control: false
     size_bytes: 23467
     sha256: "5fdc1acd72f881ff02696e765df0528a68f300fa9ca557a4fba068874f0129df"
-  - name: "easee"
-    version: "1.0.4"
-    tier: community
-    protocol: modbus
-    connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 4054
-    sha256: "4a2cd1efb4a5583468ce897ebd88a000e348917295c40210e86ecf834c0ba543"
   - name: "easee_cloud"
     version: "1.4.1"
     tier: core
@@ -351,15 +342,15 @@ drivers:
     size_bytes: 1362
     sha256: "4f273fa6aaff3bb462c3ac141f1773a2b6985421633d002578ce647726aa0ba9"
   - name: "home_assistant_vehicle"
-    version: "0.1.0"
+    version: "0.1.1"
     tier: community
     protocol: mqtt
     connectivity: local
     setup: [bridge]
     ders: [vehicle]
     control: false
-    size_bytes: 12635
-    sha256: "a61c473a0f984f0cc8229e15472222e1c135b39c38ab2d2630b173afa8b7ca25"
+    size_bytes: 13488
+    sha256: "5916c510d6d646a34516d7a887dab4518ba7587be160e16c788a6081e0334eab"
   - name: "huawei"
     version: "2.1.3"
     tier: core
@@ -731,15 +722,15 @@ drivers:
     size_bytes: 56325
     sha256: "b89fd9cd70ea67be3c7f0089a3c6d5552d8bbc994e39b8720dbd8d4d9892261b"
   - name: "tesla_cloud"
-    version: "0.2.0"
+    version: "0.2.1"
     tier: community
     protocol: http
     connectivity: cloud
     setup: [vendor_portal]
     ders: [vehicle]
     control: false
-    size_bytes: 22431
-    sha256: "deab2cc377cdae9bbc32a14e686b05830b1e094154a090a401d60f666646653e"
+    size_bytes: 23174
+    sha256: "37864e9194a05607ca193c2f50202e3da801a446ff93597fc92a1a1260132449"
   - name: "tesla_vehicle"
     version: "0.2.6"
     tier: core
@@ -751,24 +742,24 @@ drivers:
     size_bytes: 10096
     sha256: "d1b8a2cbea20630dcab3cb306df0f6924b0f9ad7f31bcf367fb1d41ca7833350"
   - name: "tesla_wall_connector"
-    version: "0.1.2"
+    version: "0.2.0"
     tier: community
     protocol: http
     connectivity: local
     ders: [ev]
     control: false
-    size_bytes: 8786
-    sha256: "c365aad2a1216fad870b7dadb32e87feed75627714eeb8160f22cec4db651a80"
+    size_bytes: 9242
+    sha256: "eccb983120f597a8256b5dacdd20ca456f3152dba571f45c2bff942cfc052d02"
   - name: "teslamate_vehicle"
-    version: "0.2.0"
+    version: "0.2.1"
     tier: community
     protocol: mqtt
     connectivity: local
     setup: [bridge]
     ders: [vehicle]
     control: false
-    size_bytes: 18280
-    sha256: "b9f50760f46ab5e5f41f7a552136a77b44ba0d5fa3a85a2d6976f60a9d1e3679"
+    size_bytes: 18520
+    sha256: "28ad494dbebea9a02e11bc5d2c028cbfeb4b81e7cc13c8777c1b57baf8f0359e"
   - name: "tibber"
     version: "1.1.2"
     tier: core
@@ -834,25 +825,16 @@ drivers:
     control: false
     size_bytes: 30379
     sha256: "b11198e45d761599939b8201c0969514bbbbc6c2571dcf56d12959cf9ade2b5d"
-  - name: "zaptec"
-    version: "1.0.1"
-    tier: community
-    protocol: http
-    connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 2281
-    sha256: "78d66d1af8f8169a7fa3adaa914f27475907930dc733ea58757d7b394e5a9802"
   - name: "zaptec_cloud"
-    version: "0.2.0"
+    version: "0.2.1"
     tier: community
     protocol: http
     connectivity: cloud
     setup: [vendor_portal]
     ders: [ev]
     control: true
-    size_bytes: 22186
-    sha256: "0d002cfa6b162a540f34b54030e0e2ef84194654504a25b4d6e6bbc2ee4fb0fc"
+    size_bytes: 22491
+    sha256: "ea8157aaef601ad0d00ccdbc917eac4cc77de84e97729cc670ab2ac352d01a7c"
   - name: "zuidwijk_p1"
     version: "1.1.2"
     tier: core
