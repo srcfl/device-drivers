@@ -6,6 +6,22 @@
 -- Register map from AlphaESS Modbus protocol v1.30
 -- Hex addresses converted to decimal
 
+-- No control code has been written for this inverter yet: driver_command
+-- only refuses. It says read_only so FTW and the catalog tell the owner
+-- plainly, instead of offering control that cannot work.
+DRIVER = {
+  host_api_min = 1,
+  host_api_max = 1,
+  id           = "alphaess",
+  name         = "AlphaESS inverter",
+  manufacturer = "AlphaESS",
+  version      = "1.1.2",
+  protocols    = { "modbus" },
+  capabilities = { "pv", "battery", "meter" },
+  read_only    = true,
+  description  = "AlphaESS Smile and G2 series inverters via Modbus TCP. Read-only: no control code has been written for it yet, so FTW reads it but cannot charge or discharge the battery.",
+}
+
 PROTOCOL = "modbus"
 
 -- A register the inverter never answers costs a failed read on every poll for

@@ -1,24 +1,30 @@
 name: "zaptec_cloud"
-version: "0.1.1"
+version: "0.2.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
 connectivity: cloud
 setup: [vendor_portal]
 ders: [ev]
-control: false
+control: true
 tested_devices:
   - manufacturer: "Zaptec"
     model_family: "Zaptec Cloud"
     variants: [Go, Go 2, Pro]
     regions: []
     firmware_versions: ""
-    notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial."
+    notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial. Control written from Zaptec's API docs; not yet confirmed on hardware."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 11275
+size_bytes: 23059
 dkb_id: "zaptec_cloud"
-sha256: "5ef87b886b0cfd9952e00f357e81b9cd9196f041ad7b17f321f7219e3f292998"
+sha256: "a438e7b2c28c17be1d0eca6511e2e67157dbc1510966ef95ceebe872e24aff58"
 signature: ""
 
 bytecode_sha256: ""
+
+upstream_docs:
+  - url: "https://api.zaptec.com/swagger/v1/swagger.json"
+    title: "Zaptec API v1 (OpenAPI)"
+    kind: api_docs
+    url_stability: stable

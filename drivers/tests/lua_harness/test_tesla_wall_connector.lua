@@ -127,4 +127,32 @@ r = poll([[{"vehicle_connected":true,"evse_state":11,"grid_v":230,"vehicle_curre
 near(r.w, 3680, 0.01, "no contactor field, charging state")
 assert(r.charging == true)
 
+-- Read-only: Tesla offers no way for another system to set this charger's
+-- current. Every control action is refused, and nothing is written.
+assert(DRIVER.read_only == true, "the wall connector must stay read_only")
+local desc = DRIVER.description
+assert(desc:find("not control it", 1, true), "description must say FTW cannot control it")
+assert(desc:find("tesla_vehicle", 1, true) and desc:find("OCPP", 1, true),
+  "description must say where control goes instead")
+
+poll(idle)
+host._calls = {}
+for _, action in ipairs({ "ev_set_current", "ev_pause", "ev_resume", "ev_start", "curtail" }) do
+  local ok = driver_command(action, 3680, { action = action, power_w = 3680, max_amps_per_phase = 16 })
+  assert(ok == false, action .. " must be refused, got " .. tostring(ok))
+end
+assert(driver_command("init") == true and driver_command("deinit") == true,
+  "host lifecycle steps write nothing and succeed")
+driver_default_mode()
+for _, call in ipairs(host._calls) do
+  assert(call.func ~= "http_post" and call.func ~= "http_patch"
+      and call.func ~= "http_request",
+    "a read-only driver wrote: " .. call.func)
+end
+local warnings = 0
+for _, line in ipairs(host._logs) do
+  if line:find("read-only, refused", 1, true) then warnings = warnings + 1 end
+end
+assert(warnings == 1, "one refusal warning per run, got " .. warnings)
+
 print("tesla_wall_connector: all cases pass")

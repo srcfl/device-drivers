@@ -176,10 +176,12 @@ def test_publication_contains_the_full_read_only_catalog(
     # driver_command, and publishing them unable to use it was the whole
     # problem: the same file could drive a battery bundled and not downloaded.
     controlling = {d["id"] for d in manifest["drivers"] if d["control_enabled"]}
-    assert {"sungrow", "pixii", "alphaess", "ferroamp"} <= controlling
+    assert {"sungrow", "pixii", "deye", "ferroamp"} <= controlling
     # And a driver that declares read_only in its own DRIVER table stays a
-    # meter, whatever anything else says.
-    assert not ({"sdm630", "zap", "esphome_dsmr", "myuplink"} & controlling)
+    # meter, whatever anything else says. alphaess, kstar, solax and varta
+    # declare it because their driver_command only refuses.
+    assert not ({"sdm630", "zap", "esphome_dsmr", "myuplink",
+                 "alphaess", "kstar", "solax", "varta"} & controlling)
     # nibe_local dropped read_only for its opt-in Solar PV surplus feed and
     # declares write_capabilities, so the channel must publish it as control.
     assert "nibe_local" in controlling

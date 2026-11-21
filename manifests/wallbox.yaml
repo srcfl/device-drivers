@@ -1,10 +1,10 @@
 name: "wallbox"
-version: "1.0.3"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
-ders: [v2x_charger]
+ders: [ev]
 control: false
 tested_devices:
   - manufacturer: "Wallbox"
@@ -12,15 +12,21 @@ tested_devices:
     variants: [Commander 2, Pulsar Plus]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
+    notes: "Cannot control: we found no documented local Modbus interface for these chargers. The power and energy this driver reports come from an unverified register map. Use FTW's built-in OCPP central system (Wallbox supports OCPP 1.6J) to read and control them."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 2842
+size_bytes: 4047
 dkb_id: ""
-sha256: "1c0362e0a25f1fe297de838a85089eb7676b25e78a7d6d1d03ccea1258b94403"
+sha256: "239ac3e22c0b0ed528fe813a10aee58dacf192d350e1ee5b942f53896fd6727f"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
 changelog: ""
+
+upstream_docs:
+  - url: "https://support.wallbox.com/en/knowledge-base/ocpp-activation-and-setup-guide/"
+    title: "Wallbox OCPP activation and setup guide"
+    kind: manual
+    url_stability: stable
