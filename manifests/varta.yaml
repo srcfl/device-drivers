@@ -5,7 +5,7 @@ author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
 ders: [battery, meter]
-control: false
+control: true
 tested_devices:
   - manufacturer: "VARTA"
     model_family: "pulse neo"

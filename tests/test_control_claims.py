@@ -18,9 +18,13 @@ cannot call anything cannot actuate anything, whatever the manifest says.
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+
+from ftw_repository import driver_controls  # noqa: E402
 
 # Keywords that open a Lua block, for balancing against `end`.
 OPENERS = re.compile(r"\b(function|if|for|while|do)\b")
@@ -121,3 +125,21 @@ def test_a_refusal_stub_is_recognised_as_inert() -> None:
         "function driver_command(action, value)\n"
         "    return host.modbus_write(40001, value)\n"
         "end")
+
+
+def test_the_manifest_control_flag_matches_the_code() -> None:
+    """`control:` in a manifest says what the signed channel ships.
+
+    The channel decides control from the code (`driver_controls`), and
+    index.yaml and devices.yaml copy the manifest's flag. Seven manifests said
+    control: false for drivers the channel shipped with control, so those two
+    files told a reader less than FTW would do. A driver that gains or loses
+    its control path changes this flag in the same pull request.
+    """
+    wrong = []
+    for manifest in sorted((ROOT / "manifests").glob("*.yaml")):
+        source = ROOT / "drivers" / "lua" / f"{manifest.stem}.lua"
+        code = driver_controls(source.read_text(encoding="utf-8"))
+        if (control_flag(manifest) == "true") is not code:
+            wrong.append(f"{manifest.stem} (manifest {control_flag(manifest)}, code {str(code).lower()})")
+    assert not wrong, "control: disagrees with the driver code: " + ", ".join(wrong)

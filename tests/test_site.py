@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import generate_site  # noqa: E402
+from ftw_repository import _load_channel  # noqa: E402
 from manifest_parser import parse_upstream_docs, parse_yaml_simple  # noqa: E402
 
 
@@ -58,7 +59,6 @@ def test_versions_match_the_manifests(catalog: dict) -> None:
             (ROOT / "manifests" / f"{driver['id']}.yaml").read_text(encoding="utf-8"))
         assert driver["version"] == manifest.get("version"), driver["id"]
         assert driver["tier"] == manifest.get("tier", "community"), driver["id"]
-        assert driver["control"] == bool(manifest.get("control", False)), driver["id"]
 
 
 def test_hardware_claims_come_only_from_the_driver_source(catalog: dict) -> None:
@@ -196,3 +196,88 @@ def test_page_lists_every_driver_without_javascript(rendered: Path) -> None:
     noscript = html[html.index("<noscript>"):html.index("</noscript>")]
     for driver_id in sorted(manifest_ids()):
         assert driver_id in noscript, f"{driver_id} is missing from the noscript list"
+
+
+def test_control_is_what_the_signed_channel_publishes(catalog: dict) -> None:
+    """The page says a driver controls only when the channel ships it so.
+
+    A Zaptec Go owner read nothing that said FTW would only watch the charger.
+    The manifest's control field had drifted from the code before, so the page
+    takes the answer from the same rule the channel build uses.
+    """
+    published = {
+        entry["id"]: entry["controls"]
+        for entry in _load_channel(ROOT / "ftw-channel.json", ROOT)
+    }
+    for driver in catalog["drivers"]:
+        assert driver["control"] is published[driver["id"]], driver["id"]
+        assert (driver["control_state"] == "controls") is driver["control"], driver["id"]
+
+
+def test_every_driver_says_what_ftw_can_do(catalog: dict) -> None:
+    """One of three answers, each in words, for every driver."""
+    for driver in catalog["drivers"]:
+        state = driver["control_state"]
+        assert state in generate_site.CONTROL_STATES, driver["id"]
+        assert driver["control_label"] == generate_site.CONTROL_STATES[state]
+        assert driver["control_note"].strip(), driver["id"]
+        if state == "telemetry":
+            # Only a meter or PV driver may be quietly read-only.
+            assert driver["ders"], driver["id"]
+            assert set(driver["ders"]) <= generate_site.TELEMETRY_DERS, driver["id"]
+        if state == "reads_only":
+            assert "cannot control" in driver["control_note"], driver["id"]
+        if state == "controls" and not driver["hardware_verified"]:
+            assert "Experimental" in driver["control_note"], driver["id"]
+        if state != "reads_only":
+            assert not driver["control_reason"], driver["id"]
+
+
+def test_a_read_only_charger_says_why(catalog: dict) -> None:
+    """A charger FTW cannot steer says so, with the driver's own reason.
+
+    zaptec_cloud started this: it read the charger and never said why it did
+    not control. It controls now, as an experiment until a field report, and
+    tesla_wall_connector is the charger that cannot, because Tesla offers no
+    way to set its current.
+    """
+    by_id = {d["id"]: d for d in catalog["drivers"]}
+    zaptec = by_id["zaptec_cloud"]
+    assert zaptec["control_state"] == "controls"
+    assert "Experimental" in zaptec["control_note"]
+    wall = by_id["tesla_wall_connector"]
+    assert wall["control_state"] == "reads_only"
+    assert "turns its control off" in wall["control_note"]
+    assert "Tesla offers no way" in wall["control_reason"]
+    assert len(wall["control_reason"]) <= generate_site.MAX_REASON_CHARS + 1
+
+
+def test_a_product_description_is_not_a_reason() -> None:
+    """Text that never mentions reading or control is left out."""
+    assert generate_site.read_only_reason(
+        "Zaptec Go / Go 2 / Pro via Zaptec Cloud.", ["Community driver, untested"],
+        ["Wallbox Commander 2 EV Charger Driver", "Emits: V2X Charger (READ-ONLY)"]) == ""
+    assert generate_site.read_only_reason(
+        "Huawei SUN2000 via Modbus TCP. Read-only until a held-zero command is verified.",
+        [], []) == "Read-only until a held-zero command is verified."
+
+
+def test_the_card_and_device_view_render_the_control_state() -> None:
+    """Guard the rendering, as for the documents."""
+    script = generate_site.SCRIPT
+    card = script[script.index("function driverCard"):
+                  script.index("function manufacturerView")]
+    assert "d.control_label" in card and "d.control_note" in card
+    assert "d.control_reason" in card and "controlNote +" in card
+    devices = script[script.index("function manufacturerView"):
+                     script.index("function render()")]
+    assert "row.driver.control_label" in devices
+
+
+def test_page_says_what_ftw_can_do_without_javascript(rendered: Path, catalog: dict) -> None:
+    html = (rendered / "index.html").read_text(encoding="utf-8")
+    noscript = html[html.index("<noscript>"):html.index("</noscript>")]
+    for driver in catalog["drivers"]:
+        row = re.search(rf"<li><b>{re.escape(driver['id'])}</b>[^<]*</li>", noscript)
+        assert row, driver["id"]
+        assert driver["control_label"].lower() in row.group(0), driver["id"]

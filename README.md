@@ -121,9 +121,12 @@ channel=stable`; it accepts only the exact commit `drivers-beta` carries, and
 serves installs that read the stable channel.
 
 The channel contains every catalog driver as its own signed Lua asset. A driver
-the catalog marks `control: true` keeps its control path; every other one is
-read-only. Refreshing the signed catalog never installs or activates code.
-FTW keeps its own safety, activation, rollback and bundled copies.
+keeps its control path when its code has `driver_command` and its `DRIVER`
+table does not say `read_only = true`; every other one is read-only. The
+manifest's `control:` field must say the same, and `make check` fails when it
+does not. The catalog page reads it the same way. Refreshing the signed
+catalog never installs or activates code. FTW keeps its own safety,
+activation, rollback and bundled copies.
 
 Each asset name contains the driver ID, semantic version and source hash. FTW
 downloads only the selected driver. The release workflow never replaces a

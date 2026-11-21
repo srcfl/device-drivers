@@ -14,7 +14,7 @@ Each driver has a YAML manifest in `manifests/` that describes its metadata, cap
 | `connectivity` | string | Yes | `local` or `cloud` — where the driver talks while running |
 | `setup` | list | No | What a human must obtain before it connects (see below) |
 | `ders` | list | Yes | DER types the driver covers (see below) |
-| `control` | bool | Yes | Whether the driver supports EMS control commands |
+| `control` | bool | Yes | Whether the driver controls: `true` exactly when its code has `driver_command` and does not declare `read_only = true` |
 | `tested_devices` | list | No | Devices tested against (see below) |
 | `upstream_docs` | list | No | Vendor reference documents to watch for register/protocol changes (see below) |
 | `min_host_version` | string | No | Minimum gateway firmware version required |

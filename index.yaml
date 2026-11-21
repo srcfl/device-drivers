@@ -80,7 +80,7 @@ drivers:
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
-    control: false
+    control: true
     size_bytes: 4031
     sha256: "eb76e0ff3be764a001b110a82a58f75ad967d4610d866eeb37e99802624fc07d"
   - name: "ambibox"
@@ -182,7 +182,7 @@ drivers:
     protocol: modbus
     connectivity: local
     ders: [battery, meter, pv]
-    control: false
+    control: true
     size_bytes: 23467
     sha256: "5fdc1acd72f881ff02696e765df0528a68f300fa9ca557a4fba068874f0129df"
   - name: "easee_cloud"
@@ -408,7 +408,7 @@ drivers:
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
-    control: false
+    control: true
     size_bytes: 3615
     sha256: "c6e41381f5a59f197b8e9899a770c32acd1e49c4c70a9faa3fec6b43f291d862"
   - name: "mennekes"
@@ -513,7 +513,7 @@ drivers:
     protocol: modbus
     connectivity: local
     ders: [battery, meter]
-    control: false
+    control: true
     size_bytes: 32519
     sha256: "77e233e2d24e970ebff8eaacd67967f57b651677d25ce7b57a1f97c3eaeb71fe"
   - name: "pixii_pv"
@@ -652,7 +652,7 @@ drivers:
     protocol: modbus
     connectivity: local
     ders: [meter, pv]
-    control: false
+    control: true
     size_bytes: 21555
     sha256: "94b5f18fb42c1413540d7321bca47ed755c8a0a9b069f8d51dbac4384910c496"
   - name: "solaredge_legacy"
@@ -679,7 +679,7 @@ drivers:
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
-    control: false
+    control: true
     size_bytes: 5110
     sha256: "b5f07776c959d4891a0487c23a3bc7e29b8c9c063eaaef754b98f0572cc547b2"
   - name: "solinteg"
@@ -793,7 +793,7 @@ drivers:
     protocol: modbus
     connectivity: local
     ders: [battery, meter]
-    control: false
+    control: true
     size_bytes: 2794
     sha256: "68eb714ff41551437e50ac0a1e9bca4e4d70eca8a43006c7481cfc8761fdf60d"
   - name: "victron"
