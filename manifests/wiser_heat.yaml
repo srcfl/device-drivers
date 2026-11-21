@@ -1,0 +1,33 @@
+name: "wiser_heat"
+version: "0.1.0"
+tier: community
+author: "hannesb90 with the help of Claude Code"
+protocol: http
+connectivity: local
+setup: [device_ui]
+ders: [heatpump]
+control: false
+tested_devices:
+  - manufacturer: "Schneider Electric"
+    model_family: "Wiser Hub R gen 2"
+    variants: [WT704R1B30S4]
+    regions: [SE]
+    firmware_versions: "4.50.4"
+    notes: "Read-only over the hub's local HTTPS API (SECRET header, self-signed certificate pinned via tls_pin_sha256). Tested with smoke alarms and three Renova CFMT 16 A floor thermostats; radiator valves (iTRV) and room stats are not seen on hardware."
+    min_driver_version: "0.1.0"
+  - manufacturer: "Schneider Electric"
+    model_family: "Renova Connected Thermostat 16 A"
+    variants: [WDE011680]
+    regions: [SE]
+    firmware_versions: "1.0.59"
+    notes: "Read through the Wiser hub, on electric floor heating under tiles, in presets P8 (floor control) and P6 (room control with floor limit), on three thermostats with 10, 12 and 15 kOhm floor sensors. Room air temperature matched the thermostat display, and each floor sensor, set to its own type, read within 0.7 °C of an IR reading of the floor surface; one was seen held off by its floor limit (Output_Thermal_Limit) while its probe still read; room demand and output state followed the relay through a heat and cool-down cycle. The floor lower limit is decoded but was not configured. The thermostat measures no power; the power estimate is the owner's stated load times the room demand."
+    min_driver_version: "0.1.0"
+min_host_version: "2.0.0"
+size_bytes: 17864
+dkb_id: "wiser_heat"
+sha256: "d6df3e516ce4c9a21ace475ddf6a6fbca874d27e3fe3461d6851d64828bd2c7b"
+signature: ""
+bytecode_sha256: ""
+bytecode_signature: ""
+bytecode_size: 0
+changelog: "First version: read-only Wiser hub rooms, floor thermostats, smoke alarm temperatures and heating channel demand."

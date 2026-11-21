@@ -822,6 +822,16 @@ drivers:
     control: false
     size_bytes: 2842
     sha256: "1c0362e0a25f1fe297de838a85089eb7676b25e78a7d6d1d03ccea1258b94403"
+  - name: "wiser_heat"
+    version: "0.1.0"
+    tier: community
+    protocol: http
+    connectivity: local
+    setup: [device_ui]
+    ders: [heatpump]
+    control: false
+    size_bytes: 17864
+    sha256: "d6df3e516ce4c9a21ace475ddf6a6fbca874d27e3fe3461d6851d64828bd2c7b"
   - name: "zap"
     version: "3.1.3"
     tier: core
