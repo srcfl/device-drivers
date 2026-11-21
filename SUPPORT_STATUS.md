@@ -34,6 +34,8 @@ Catalog source is not proof that a target can install or run a driver.
 | chint | 1.0.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | circutor | 1.0.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | circutor | 1.0.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| ctc_ecozenith | 0.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| ctc_ecozenith | 0.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ctek | 0.3.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | ctek | 0.3.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ctek_hybrid | 0.3.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |

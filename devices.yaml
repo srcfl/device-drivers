@@ -175,6 +175,19 @@ manufacturers:
             control: true
         firmware_versions: ""
         notes: ""
+  - name: "CTC"
+    model_families:
+      - name: "EcoZenith i250/i255"
+        variants: [EcoZenith i255]
+        regions: [SE]
+        protocols:
+          - protocol: modbus
+            driver: "ctc_ecozenith"
+            version: "0.1.0"
+            ders: [heatpump]
+            control: false
+        firmware_versions: "display 2024-07-19"
+        notes: "Read-only heat-pump telemetry over Modbus TCP (BMS), function code 3, register numbers as listed by CTC. The controller does not answer an address it lacks, so only documented i250 registers are read. Reports no compressor electrical power."
   - name: "CTEK"
     model_families:
       - name: "CTEK Chargestorm (API v1)"
