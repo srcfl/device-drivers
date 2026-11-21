@@ -163,8 +163,9 @@ command in this run, such as a charger it set to 16 A. Core reads `true` (or
 nothing) from `driver_default_mode` as "stood down": it unblocks control and
 stops retrying. So once the driver has written, a stand-down the device
 refuses returns `false`, and the driver tries the write again no more than
-once a minute, returning `false` in between. That still settles, and Core
-keeps the device marked as out of its hands until the write holds.
+once a minute, returning `false` in between. The write rate stays bounded,
+the first write that holds returns `true`, and until then Core keeps the
+device marked as out of its hands.
 `zaptec_cloud` is the worked example.
 
 ```bash

@@ -10,6 +10,8 @@ charging after a failed 0 A write and a failed pause looked held, and Core
 unblocked control and stopped retrying. The driver now returns `true` only
 when the 0 A write or the pause held, or when FTW wrote nothing in this run,
 and it retries a refused stand-down once a minute instead of every five.
+When the pause held but the 0 A write did not, a later resume offers 6 A
+instead of the current the charger had before.
 
 `docs/WRITING-A-DRIVER.md` now says that "report held after giving up" is for
 a device FTW never steered, not for a charger it commanded.

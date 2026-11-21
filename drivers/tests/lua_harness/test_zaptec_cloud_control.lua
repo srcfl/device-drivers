@@ -317,6 +317,10 @@ assert(order(11040, THREE))
 post_fail["/update"] = "HTTP 503: down"
 assert(driver_default_mode() == true, "a held pause is a stand-down")
 post_fail = {}
+-- ...and a resume after it offers the minimum, not the old 16 A.
+local n_before = #current_writes()
+assert(driver_command("ev_resume", 0, nil))
+assert(#current_writes() == n_before + 1 and last_current() == 6, "resume after a held pause offered a stale current")
 
 -- Core runs the stand-down at every start: a charger FTW never steered in
 -- this run keeps the owner's setting.

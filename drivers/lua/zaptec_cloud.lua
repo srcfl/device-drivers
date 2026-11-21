@@ -637,6 +637,9 @@ function driver_default_mode()
   -- Either holds the car: below 6 A Zaptec allocates nothing, and a paused
   -- charger draws nothing.
   if wrote or applied then
+    -- A pause that held over a refused 0 A write leaves the charger's
+    -- current unknown, so a later resume offers the minimum, not the old one.
+    if not wrote then last_written_a = nil end
     stood_down = true
     stand_down_try_ms = nil
     return true

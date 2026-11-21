@@ -833,8 +833,8 @@ drivers:
     setup: [vendor_portal]
     ders: [ev]
     control: true
-    size_bytes: 22862
-    sha256: "c4a6bce3f3f68fa5058c5f02072f974c5ee30b12af8de06265407ee35b2605a0"
+    size_bytes: 23059
+    sha256: "a438e7b2c28c17be1d0eca6511e2e67157dbc1510966ef95ceebe872e24aff58"
   - name: "zuidwijk_p1"
     version: "1.1.2"
     tier: core
