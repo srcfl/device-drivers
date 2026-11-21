@@ -19,7 +19,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "abb_terra"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -122,7 +122,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alfen"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -945,7 +945,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "mennekes"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [ev]
             control: true
         firmware_versions: ">= 5.12"
@@ -956,7 +956,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "mennekes"
-            version: "1.1.0"
+            version: "1.1.1"
             ders: [ev]
             control: true
         firmware_versions: ""

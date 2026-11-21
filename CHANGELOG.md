@@ -15,6 +15,21 @@ instead of the current the charger had before.
 
 `docs/WRITING-A-DRIVER.md` now says that "report held after giving up" is for
 a device FTW never steered, not for a charger it commanded.
+### alfen 1.1.1, abb_terra 1.1.1, mennekes 1.1.1
+
+Default mode no longer reports a refused stand-down as done. Core reads
+`true` as "the charger is stood down": it unblocks control and stops
+recovery. After three refused writes these drivers said `true`, so Core could
+believe a car had stopped while it was still charging at FTW's last current.
+
+- `true` now means FTW wrote nothing in this process, or the charger took
+  0 A.
+- Once FTW has written, a refused or failed stand-down returns `false`. The
+  write is tried again at most once a minute, and calls in between return
+  `false` without writing, so the watchdog does not repeat it on every tick.
+- The "report held after three refusals" rule is for registers a device
+  does not have, where it was never under control. It does not fit a
+  charger FTW has steered.
 
 ### alfen 1.1.0
 

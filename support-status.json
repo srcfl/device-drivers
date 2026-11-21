@@ -86,7 +86,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "abb_terra",
       "targets": {
         "blixt-l1": {
@@ -149,7 +149,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "alfen",
       "targets": {
         "blixt-l1": {
@@ -926,7 +926,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "mennekes",
       "targets": {
         "blixt-l1": {
