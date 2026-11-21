@@ -1,23 +1,37 @@
 name: "hardybarth"
-version: "1.0.1"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
 connectivity: local
-ders: [v2x_charger]
-control: false
+setup: [device_ui]
+ders: [ev]
+control: true
 tested_devices:
   - manufacturer: "HardyBarth"
-    model_family: "cPH / Salia"
-    variants: [cPH1, Salia]
+    model_family: "eCB1 and Salia controllers"
+    variants: [cPH1, cPH2, cPu2]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
-    min_driver_version: "1.0.0"
+    notes: "Control written from the eCB1 REST API 1.3 (apidoc.ecb1.de) and the eCharge Salia REST API (docs.echarge.de); not yet confirmed on hardware. eCB1: sets manual mode, manualmodeamp, start and stop. Salia: sets grid_current_limit; firmware 2.3.81 and later needs api_key from the web UI, and power needs the station's meter. Earlier releases read /api/status, which neither controller documents."
+    min_driver_version: "1.1.0"
+upstream_docs:
+  - url: "http://apidoc.ecb1.de/doc/api/v1/swagger.json"
+    title: "eCB1 REST API 1.3"
+    kind: api_docs
+    url_stability: unknown
+  - url: "https://docs.echarge.de/api/salia"
+    title: "eCharge Salia REST API"
+    kind: api_docs
+    url_stability: stable
+  - url: "https://docs.echarge.de/api/salia/charging-control"
+    title: "eCharge Salia REST API: charging control"
+    kind: api_docs
+    url_stability: stable
 min_host_version: "2.1.0"
-size_bytes: 2193
+size_bytes: 20770
 dkb_id: ""
-sha256: "517e086af899dc511c86b00460cd8ce052a8d4973edee8b018e5824d4b550d6e"
+sha256: "d73b191c6cc47905c8f23664225e3b1bf1c3949df743f7085be3c595f2165fe4"
 signature: ""
 
 bytecode_sha256: ""

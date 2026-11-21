@@ -278,23 +278,25 @@ drivers:
     size_bytes: 8075
     sha256: "65ec75d903be602bb705b1d750f628d3e448ac0a99ddb61e5a5268f01997d072"
   - name: "goe"
-    version: "1.0.3"
+    version: "1.1.0"
     tier: community
     protocol: modbus
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 3700
-    sha256: "5af1dcd4bfabf96ef16707a42c4f4b52aec36d1a6da27268ffd7a509db35f47d"
+    setup: [vendor_app]
+    ders: [ev]
+    control: true
+    size_bytes: 14479
+    sha256: "0a4c21c31c394f6434fed9fb281db6746d8fdb5f68b1628e8e40d99eea017743"
   - name: "goe_http"
-    version: "1.0.1"
+    version: "1.1.0"
     tier: community
     protocol: http
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 3340
-    sha256: "48b6d9ded6043e9b42a09bf03bd8edbab6363b18781e2279e957eee237556d25"
+    setup: [vendor_app]
+    ders: [ev]
+    control: true
+    size_bytes: 14473
+    sha256: "b3573ef5e632791f60687240e1e2449753c5256c7287fe95de5df9797f612e41"
   - name: "goodwe"
     version: "2.1.2"
     tier: community
@@ -315,14 +317,15 @@ drivers:
     size_bytes: 9923
     sha256: "684c788e989c6f90b7a64fd79521f913104486f2c939bf13d4aaa2fbfddd9dad"
   - name: "hardybarth"
-    version: "1.0.1"
+    version: "1.1.0"
     tier: community
     protocol: http
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 2193
-    sha256: "517e086af899dc511c86b00460cd8ce052a8d4973edee8b018e5824d4b550d6e"
+    setup: [device_ui]
+    ders: [ev]
+    control: true
+    size_bytes: 20770
+    sha256: "d73b191c6cc47905c8f23664225e3b1bf1c3949df743f7085be3c595f2165fe4"
   - name: "heishamon"
     version: "0.8.1"
     tier: core
@@ -457,14 +460,15 @@ drivers:
     size_bytes: 4009
     sha256: "a5f0416653e14676f27bddc989cee1d89e948c1e6e61cfe9ee8d5e10cef222be"
   - name: "openevse"
-    version: "1.0.1"
+    version: "1.1.0"
     tier: community
     protocol: http
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 2446
-    sha256: "1ca0bd1577f5dedd93ea6b613ad85193ba9a3e43b917f56c7f639f355b95f095"
+    setup: [none]
+    ders: [ev]
+    control: true
+    size_bytes: 15812
+    sha256: "1d543bf0d1440786cb7cf9b8087199e59513d5dca371ff481647cee5fe0de7da"
   - name: "p1_dsmr"
     version: "2.0.2"
     tier: core

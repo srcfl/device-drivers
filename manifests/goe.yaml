@@ -1,23 +1,33 @@
 name: "goe"
-version: "1.0.3"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
-ders: [v2x_charger]
-control: false
+setup: [vendor_app]
+ders: [ev]
+control: true
 tested_devices:
   - manufacturer: "go-e"
-    model_family: "Gemini"
+    model_family: "go-e Charger (Modbus TCP)"
     variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
     regions: []
-    firmware_versions: ""
-    notes: "Community driver, untested"
-    min_driver_version: "1.0.0"
+    firmware_versions: "55.6 and later"
+    notes: "Control written from go-e's Modbus documentation for API v2 firmware (modbus-en.md); not yet confirmed on hardware. Turn on Modbus in the go-e app. Writes AMPERE_VOLATILE (299) and FORCE_STATE (337, firmware 55.6 and later) with function 16. Earlier releases read registers go-e does not document."
+    min_driver_version: "1.1.0"
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/goecharger/go-eCharger-API-v2/main/modbus-en.md"
+    title: "go-e Charger Modbus TCP (API v2 firmware)"
+    kind: register_map
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/goecharger/go-eCharger-API-v1/master/go-eCharger%20Modbus%20TCP%20API%20v1%20EN.md"
+    title: "go-e Charger Modbus TCP API v1 (word order)"
+    kind: register_map
+    url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 3700
+size_bytes: 14479
 dkb_id: ""
-sha256: "5af1dcd4bfabf96ef16707a42c4f4b52aec36d1a6da27268ffd7a509db35f47d"
+sha256: "0a4c21c31c394f6434fed9fb281db6746d8fdb5f68b1628e8e40d99eea017743"
 signature: ""
 
 bytecode_sha256: ""

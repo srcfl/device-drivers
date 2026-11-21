@@ -2,6 +2,105 @@
 
 ## [Unreleased]
 
+### goe 1.1.0
+
+The driver controls the charger and reads the registers go-e documents. It
+reports as a charger (`ev`), so FTW can use it as a loadpoint.
+
+- Earlier releases read holding registers 0 to 15. go-e's Modbus map for API
+  v2 firmware has nothing there. The driver now reads the car state (input
+  100), voltage, current and power (input 107 to 121), energy (input 128 and
+  132) and the owner's maximum current (holding 211).
+- An order becomes whole amps per phase, rounded down, and goes to
+  AMPERE_VOLATILE (299) with function 16. go-e does not save that register to
+  EEPROM. Start and stop go to FORCE_STATE (337), which needs firmware 55.6 or
+  later.
+- The current never exceeds Core's `max_amps_per_phase` or
+  `cap_amps_per_phase`, the owner's maximum or 32 A. Below 6 A the driver
+  stops the charger and never rounds up.
+- The driver writes only registers that differ from the charger's last report.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- Default mode stops the charger once, and only after FTW has written to it
+  in this run, since Core runs it at every start. It stops trying after
+  three refusals.
+
+Written from go-e's documentation. Not yet checked on hardware.
+
+### goe_http 1.1.0
+
+The driver controls the charger through go-e's HTTP API v2 and reports as a
+charger (`ev`).
+
+- An order becomes whole amps per phase, rounded down. One `/api/set` request
+  writes `amp` and `frc=2` to charge, or `frc=1` to stop. A key the charger
+  does not confirm with `true` fails the command.
+- The current never exceeds Core's caps, the owner's `ama` or the unit's
+  rating (`var`). Below `mca` (at least 6 A) the driver stops the charger.
+- The driver reports `acu` as `current_limit_a`, `ama` as `device_limit_a` and
+  the reason from `modelStatus` when a car waits.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- Default mode stops the charger once, and only after FTW has written to it
+  in this run.
+- `frc` is a setting. If FTW stops, the charger stays off until FTW starts it
+  or the owner sets it to neutral in the go-e app.
+
+Written from go-e's documentation. Not yet checked on hardware.
+
+### openevse 1.1.0
+
+The driver controls the charger through the WiFi firmware's claims and
+reports as a charger (`ev`).
+
+- Earlier releases read `amp` as amps. The firmware sends milliamps, so
+  power read a thousand times too high. They also read `watt_seconds`, which
+  the firmware does not send. Power now comes from `power` and session energy
+  from `session_energy`.
+- An order becomes whole amps per phase, rounded down, and goes out as a claim
+  at the API priority: `POST /claims/1179910145`. Below the charger's minimum
+  the claim is `disabled`, because the firmware would raise a smaller current
+  to the minimum.
+- The driver reads its claim back on every poll and claims again after a
+  reboot drops it. Default mode claims `disabled` once, and only after FTW
+  has written a claim in this run.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the charger is not set up as three-phase. OpenEVSE
+  reports one current, so Core's `1p` alone does not divide by one.
+- An optional `username` and `password` cover chargers with an admin password.
+
+Written from OpenEVSE's API description. Not yet checked on hardware.
+
+### hardybarth 1.1.0
+
+Earlier releases read `/api/status`, which neither Hardy Barth controller
+documents. The driver now finds the eCB1 controller (cPH1) or the Salia
+controller (cPH2, cPu2) and uses each one's own API. It reports as a charger
+(`ev`).
+
+- eCB1: the first order that needs current sets the mode to manual, which
+  stays. The driver then writes `manualmodeamp` and sends start and stop,
+  form-encoded.
+- Salia: the driver writes `grid_current_limit` with `POST /api/`; 0 stops
+  charging. Firmware 2.3.81 and later needs `api_key`. The limit is a ceiling:
+  eco mode or the web slider can hold the car lower, and the driver says so.
+  Power needs the station's meter.
+- An order becomes whole amps per phase, rounded down, within Core's caps and
+  the station's own limits.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- Default mode stops the station once, and only after FTW has written to it
+  in this run.
+
+Written from the eCB1 REST API 1.3 and the eCharge Salia REST API. Not yet
+checked on hardware.
+
 ### zaptec_cloud 0.2.2
 
 A refused stand-down now returns `false`. Before, `driver_default_mode`
@@ -589,7 +688,6 @@ Show only a VIN's last four characters in log lines (`****1234`). Logs get paste
 ## myuplink 1.2.3
 
 Record NIBE F750 as hardware-tested with the existing read-only MyUplink Cloud REST API v2 driver. OAuth connection and live telemetry were verified on an F750 in FTW; observed points included BT1 average outdoor temperature, BT12 condenser temperature and more than 100 additional heat-pump telemetry points. No control or write path is added.
-
 
 ## vag_vehicle 0.2.0
 

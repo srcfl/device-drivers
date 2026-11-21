@@ -1,23 +1,33 @@
 name: "goe_http"
-version: "1.0.1"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
 connectivity: local
-ders: [v2x_charger]
-control: false
+setup: [vendor_app]
+ders: [ev]
+control: true
 tested_devices:
   - manufacturer: "go-e"
-    model_family: "Gemini HTTP"
+    model_family: "go-e Charger (HTTP API v2)"
     variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
     regions: []
-    firmware_versions: ""
-    notes: "HTTP alternative to Modbus driver"
-    min_driver_version: "1.0.0"
+    firmware_versions: "051.4 and later"
+    notes: "Control written from go-e's HTTP API v2 documentation (http-en.md, apikeys-en.md); not yet confirmed on hardware. Turn on HTTP API v2 in the go-e app. Sets amp and frc; frc=1 stops the charger and stays until FTW or the owner changes it."
+    min_driver_version: "1.1.0"
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/goecharger/go-eCharger-API-v2/main/http-en.md"
+    title: "go-e Charger HTTP API v2"
+    kind: api_docs
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/goecharger/go-eCharger-API-v2/main/API_KEYS_FIRMWARE/apikeys-en.md"
+    title: "go-e Charger API v2 keys"
+    kind: api_docs
+    url_stability: stable
 min_host_version: "2.1.0"
-size_bytes: 3340
+size_bytes: 14473
 dkb_id: ""
-sha256: "48b6d9ded6043e9b42a09bf03bd8edbab6363b18781e2279e957eee237556d25"
+sha256: "b3573ef5e632791f60687240e1e2449753c5256c7287fe95de5df9797f612e41"
 signature: ""
 
 bytecode_sha256: ""
