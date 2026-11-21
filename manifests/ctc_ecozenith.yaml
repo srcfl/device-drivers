@@ -25,9 +25,9 @@ upstream_docs:
     kind: register_map
     url_stability: unknown
 min_host_version: "2.0.0"
-size_bytes: 14304
+size_bytes: 14658
 dkb_id: "ctc_ecozenith"
-sha256: "c4d7dd38005508a2698ec98a46df394dab507542511a48d1edcbc6094079f336"
+sha256: "e9c34135965360bb672f691be7536f46df55a983de362e1bd1c99e612f71c813"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""

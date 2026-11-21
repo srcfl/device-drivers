@@ -160,7 +160,17 @@ local function probe_read(addr, count)
     local failures = (read_failures[addr] or 0) + 1
     read_failures[addr] = failures
     if failures >= BACK_OFF_AFTER then
-        local wait = math.min(1 << (failures - BACK_OFF_AFTER), MAX_SKIP_POLLS)
+        -- Doubled by hand: FTW runs Lua 5.1 (gopher-lua), which has no
+        -- `<<`, and with 32-bit integers 1 << 32 is 0, which would put a
+        -- register that stays silent back on every poll.
+        local wait = 1
+        for _ = 1, failures - BACK_OFF_AFTER do
+            wait = wait * 2
+            if wait >= MAX_SKIP_POLLS then
+                wait = MAX_SKIP_POLLS
+                break
+            end
+        end
         skip_until[addr] = poll_no + 1 + wait
         if failures == BACK_OFF_AFTER then
             host.log("info", string.format(

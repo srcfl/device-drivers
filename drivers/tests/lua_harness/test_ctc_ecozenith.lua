@@ -161,6 +161,28 @@ end
 expect("hp_outdoor_temp_c", 4.0, "°C")
 expect("hp_poll_ok", 1)
 
+-- A register that stays silent for hours is still read only about once
+-- every MAX_SKIP_POLLS polls. A shift-based doubling wraps to 0 once the
+-- failure count passes the integer width and reads it on every poll again.
+host.reset()
+h = host._modbus_registers.holding
+h[62276] = 570
+host._modbus_read_fail_addresses[62000] = "timeout"
+dofile(ROOT .. "drivers/lua/ctc_ecozenith.lua")
+driver_init({})
+for _ = 1, 1500 do driver_poll() end
+host._calls = {}
+for _ = 1, 60 do driver_poll() end
+local block_reads = 0
+for _, c in ipairs(host._calls) do
+    if c.func == "modbus_read" and c.args[1] == 62000 then
+        block_reads = block_reads + 1
+    end
+end
+if block_reads < 2 or block_reads > 4 then
+    fail("silent main block read " .. block_reads .. " times in 60 polls, want 2-4")
+end
+
 if failed > 0 then
     print("FAILED " .. failed)
     os.exit(1)

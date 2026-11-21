@@ -143,8 +143,8 @@ drivers:
     setup: [device_screen]
     ders: [heatpump]
     control: false
-    size_bytes: 14304
-    sha256: "c4d7dd38005508a2698ec98a46df394dab507542511a48d1edcbc6094079f336"
+    size_bytes: 14658
+    sha256: "e9c34135965360bb672f691be7536f46df55a983de362e1bd1c99e612f71c813"
   - name: "ctek"
     version: "0.3.3"
     tier: core
