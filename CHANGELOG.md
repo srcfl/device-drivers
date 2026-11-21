@@ -197,10 +197,13 @@ emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
   below 6 A it writes 0 A.
 - Pause writes a 0 A setpoint. Core sends resume and start without a budget,
   so resume writes an order back only when it is under 30 s old. Otherwise it
-  writes 6 A, and only when the last limit Core named allows 6 A; with no such
-  limit it writes nothing, returns false and waits for the next order. The
-  pause and stop registers are one-way triggers with no documented undo, so
-  they are never written.
+  writes 6 A, and only when the limit named with the last positive order
+  allows 6 A (a 0 W order carries no cap, so it does not replace that limit).
+  With a limit below 6 A it writes nothing and returns false. With no limit
+  known, after a reload for example, it writes nothing, accepts the resume and
+  logs once that the charger waits for Core's next order. The pause and stop
+  registers are one-way triggers with no documented undo, so they are never
+  written.
 - Default mode acts only after a command wrote in this run. Core runs it at
   every start, so a charger FTW never steered keeps its own setpoint and a
   charge already running goes on, as in heishamon 0.8.1. After that it writes
@@ -236,8 +239,10 @@ emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
   the order again after 30 s. One that stays suspended against an enable for
   30 s gets the enable again, at most every 30 s.
 - A configured failsafe timeout is refreshed at half its length while FTW
-  steers, paused or not, so the failsafe current cannot start a charge FTW
-  paused. After three refused refreshes it is tried once a minute.
+  steers, paused or not, and while FTW holds the charger disabled after a
+  stand-down, so the failsafe current cannot start a charge FTW stopped.
+  After three refused refreshes it is tried once a minute. Whether the
+  failsafe current overrides a disable once FTW stops is not verified.
 - A charger whose product code is not a P30 is not controlled.
 - The UDP interface is not used: FTW's driver host has no UDP, and KEBA
   forbids using both. A c-series below firmware 3.10.16 needs an update.
@@ -256,7 +261,8 @@ loadpoint. It emits `ev` instead of `v2x_charger` and declares
   RTU gateway.
 - An order writes the current to 101 (whole A) and then authorises with
   100 = 1. A void authorisation is cleared with 100 = 0 first, as the table
-  says, once per void episode. With no car plugged in only the current is set.
+  says, at most every 30 s while the charger calls it void. With no car
+  plugged in only the current is set.
   Below 6 A, pause and default mode write 100 = 0. Resume and default mode
   work as in etrel 1.1.0; a resume of an old order writes 101 = 6 first.
 - The charger reports no power and no phase currents, so `w` stays empty and

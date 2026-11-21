@@ -186,6 +186,7 @@ local written_ms = nil
 -- no budget, so a resume trusts only a fresh order and that limit.
 local order_a, order_ms = nil, nil
 local last_cap_a = nil
+local resume_wait_logged = false
 -- True from a successful command write until the stand-down lands. While it
 -- is true the poll checks that the charger still follows the order.
 local steering = false
@@ -454,9 +455,19 @@ local function resume()
         amps = MIN_A
         written_a = nil
     end
+    if not amps and last_cap_a == nil then
+        -- No limit known, after a reload for example. Nothing was refused and
+        -- nothing written; Core's next order sets the level.
+        if not resume_wait_logged then
+            resume_wait_logged = true
+            host.log("info", "Etrel: no fresh order and no known limit; " ..
+                "the charger waits for Core's next order")
+        end
+        return true
+    end
     if not amps then
-        host.log("info", "Etrel: no fresh order and no known room for " .. MIN_A ..
-            " A; resume waits for the next order")
+        host.log("info", "Etrel: the last limit Core named leaves no room for 6 A; " ..
+            "resume waits for the next order")
         return false
     end
     local ok = write_current(amps)
@@ -472,7 +483,10 @@ function driver_command(action, power_w, cmd)
         local amps, phases = amps_for(power_w, cmd)
         host.log("debug", string.format("Etrel: %s W on %d phase(s) -> %.1f A",
             tostring(power_w), phases, amps))
-        last_cap_a = cap_of(cmd)
+        -- Core names cap_amps_per_phase only with a positive order, so a 0 W
+        -- order must not replace the cap with the site maximum.
+        if type(power_w) == "number" and power_w > 0 then last_cap_a = cap_of(cmd) end
+        resume_wait_logged = false
         order_a, order_ms = (amps > 0) and amps or nil, host.millis()
         local ok = write_current(amps)
         if ok then steering = true end

@@ -35,6 +35,13 @@
 -- The guide names no way to set 5004 below 6000, so pause and every order
 -- below 6 A disable the charger with 5014 instead.
 --
+-- Failsafe: when Modbus commands stop for the failsafe timeout, the charger
+-- takes its failsafe current (5016). The guide does not say whether that
+-- current overrides a disable (5014 = 0), and it is not verified here. So
+-- while FTW steers, and while it holds the charger disabled after a
+-- stand-down, the driver keeps refreshing the timer (5018). Once FTW stops,
+-- the charger follows its own failsafe settings.
+--
 -- The UDP interface (port 7090: `currtime`, `ena`, `report 2/3`) reaches the
 -- same charger, but FTW's driver host has no UDP. KEBA forbids using both
 -- interfaces together, so this driver uses Modbus TCP only. A c-series still
@@ -168,6 +175,7 @@ local enabled_ms = nil
 -- no budget, so a resume trusts only a fresh order and that limit.
 local order_a, order_ms = nil, nil
 local last_cap_a = nil
+local resume_wait_logged = false
 local steering = false       -- a command landed and no stand-down since
 local order_landed = false   -- an enable of ours may still stand
 -- True once a command has tried to write in this run. Core runs default mode
@@ -429,11 +437,12 @@ function driver_poll()
     end
 
     -- The failsafe sets its own current (5016) when Modbus commands stop for
-    -- its timeout. While FTW steers, paused or not, refresh it at half the
-    -- timeout, never faster than KEBA's 5 s between writes; otherwise a
-    -- failsafe current could start a charge FTW paused. After three refusals
-    -- try once a minute, and start over after a success.
-    if steering and failsafe_timeout_s and failsafe_timeout_s >= 5 and
+    -- its timeout. While FTW steers, paused or not, and while it holds the
+    -- charger disabled after a stand-down, refresh it at half the timeout,
+    -- never faster than KEBA's 5 s between writes; otherwise a failsafe
+    -- current could start a charge FTW stopped. After three refusals try once
+    -- a minute, and start over after a success.
+    if (steering or (ftw_wrote and enabled == false)) and failsafe_timeout_s and failsafe_timeout_s >= 5 and
        failsafe_timeout_s <= 600 then
         local every_ms = math.max(5, failsafe_timeout_s / 2) * 1000
         if failsafe_refusals >= FAILSAFE_ATTEMPTS then
@@ -503,7 +512,10 @@ function driver_command(action, power_w, cmd)
         local amps, phases = amps_for(power_w, cmd)
         host.log("debug", string.format("KEBA: %s W on %d phase(s) -> %.1f A",
             tostring(power_w), phases, amps))
-        last_cap_a = cap_of(cmd)
+        -- Core names cap_amps_per_phase only with a positive order, so a 0 W
+        -- order must not replace the cap with the site maximum.
+        if type(power_w) == "number" and power_w > 0 then last_cap_a = cap_of(cmd) end
+        resume_wait_logged = false
         order_a, order_ms = (amps > 0) and amps or nil, host.millis()
         local ok
         if amps <= 0 then
@@ -524,7 +536,8 @@ function driver_command(action, power_w, cmd)
     if action == "ev_resume" or action == "ev_start" then
         -- No budget comes with these. A fresh order is written again.
         -- Otherwise 5004 = 6000 mA first, and only when the last limit Core
-        -- named allows 6 A; with no such limit nothing is written.
+        -- named allows 6 A. With no limit known nothing is written and
+        -- Core's next order sets the level.
         local now = host.millis()
         local amps = nil
         if order_a and order_ms and now - order_ms <= ORDER_FRESH_MS then
@@ -533,8 +546,18 @@ function driver_command(action, power_w, cmd)
             amps = MIN_A
             written_ma = nil
         end
+        if not amps and last_cap_a == nil then
+            -- No limit known, after a reload for example. Nothing was refused and
+            -- nothing written; Core's next order sets the level.
+            if not resume_wait_logged then
+                resume_wait_logged = true
+                host.log("info", "KEBA: no fresh order and no known limit; " ..
+                    "the charger waits for Core's next order")
+            end
+            return true
+        end
         if not amps then
-            host.log("info", "KEBA: no fresh order and no known room for 6 A; " ..
+            host.log("info", "KEBA: the last limit Core named leaves no room for 6 A; " ..
                 "resume waits for the next order")
             return false
         end

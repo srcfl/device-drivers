@@ -112,18 +112,35 @@ charger({ cp = CP_B, void = 1 })
 driver_poll()
 assert(order(11040))
 assert(table.concat(writes(), ",") == "101=16,100=0,100=1", "void not cleared: " .. table.concat(writes(), ","))
--- Once per void episode: a car that stays unready is not cycled on every order.
+-- A fault keeps the reset void. The reset is repeated at most every 30 s, so
+-- a car that stays unready is not cycled on every order...
+charger({ cp = CP_B, void = 1, auth = 1, current = 16, error = 1 })
+driver_poll()
+assert(order(11040))
+assert(table.concat(writes(), ",") == "101=16,100=0,100=1", "void reset repeated within 30 s: " .. table.concat(writes(), ","))
+-- ...and once the fault clears while void still reads 1, a later order resets
+-- it again and charging resumes.
+charger({ cp = CP_B, void = 1, auth = 1, current = 16 })
+later(31000)
+driver_poll()
+assert(order(11040))
+assert(table.concat(writes(), ",") == "101=16,100=0,100=1,100=0,100=1", "no reset after the fault cleared: " .. table.concat(writes(), ","))
+charger({ cp = CP_C, void = 0, auth = 1, current = 16, bits = 3, offered = 16 })
+driver_poll()
+assert(host._emitted.ev[#host._emitted.ev].charging == true, "charging did not resume")
+-- A new void episode gets its own reset at once.
 charger({ cp = CP_B, void = 1, auth = 1, current = 16 })
 driver_poll()
 assert(order(11040))
-assert(table.concat(writes(), ",") == "101=16,100=0,100=1", "void reset repeated: " .. table.concat(writes(), ","))
--- A new episode gets its own reset.
-charger({ cp = CP_B, void = 0, auth = 1, current = 16 })
+assert(table.concat(writes(), ",") == "101=16,100=0,100=1,100=0,100=1,100=0,100=1", "a new void episode was not reset")
+-- A refused reset does not count: the next order tries it again at once.
+boot()
+charger({ cp = CP_B, void = 1 })
 driver_poll()
-charger({ cp = CP_B, void = 1, auth = 1, current = 16 })
-driver_poll()
+host._modbus_write_fail_at = 2
+assert(order(11040) == false, "a refused reset returned true")
 assert(order(11040))
-assert(table.concat(writes(), ",") == "101=16,100=0,100=1,100=0,100=1", "a new void episode was not reset")
+assert(table.concat(writes(), ",") == "101=16,100=0,100=0,100=1", "a refused reset was not retried: " .. table.concat(writes(), ","))
 
 -- 9. Pause withdraws the authorisation, resume gives it back.
 boot()
@@ -132,10 +149,18 @@ assert(driver_command("ev_pause", 0, {})); assert(last(100) == 0, "pause did not
 assert(driver_command("ev_resume", 0, {})); assert(last(100) == 1, "resume did not authorise")
 assert(#writes(101) == 1, "resume rewrote an unchanged current")
 
--- 9b. Resume carries no budget. With no order on record nothing is written.
+-- 9b. Resume carries no budget. With no order and no limit on record, after
+-- a reload for example, nothing is written and the start is accepted: Core's
+-- next order sets the level. The wait is logged once.
 boot()
-assert(driver_command("ev_start", 0, {}) == false)
+assert(driver_command("ev_start", 0, {}) == true, "a start with no known limit was refused")
+assert(driver_command("ev_resume", 0, {}) == true)
 assert(#writes() == 0, "start without an order wrote")
+local waits = 0
+for _, line in ipairs(host._logs) do
+    if line:find("waits for Core's next order", 1, true) then waits = waits + 1 end
+end
+assert(waits == 1, "the wait was logged " .. waits .. " times")
 -- An order an hour old is not trusted: 101 = 6 A first, then authorise.
 boot()
 assert(order(11040))
@@ -146,9 +171,11 @@ assert(driver_command("ev_resume", 0, {}))
 local resumed = {}
 for i = resumed_before + 1, #writes() do resumed[#resumed + 1] = writes()[i] end
 assert(table.concat(resumed, ",") == "101=6,100=1", "an old order resumed as " .. table.concat(resumed, ","))
--- ...and nothing when the last limit Core named leaves no room for 6 A.
+-- ...and nothing when the last positive order left no room for 6 A. A later
+-- 0 W order names only the site maximum and must not replace that cap.
 boot()
-assert(order(0, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 4 }))
+assert(order(11040, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 4 }))
+assert(order(0, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25 }))
 later(3600000)
 resumed_before = #writes()
 assert(driver_command("ev_resume", 0, {}) == false)

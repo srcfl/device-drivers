@@ -16,9 +16,9 @@ tested_devices:
     notes: "Control written from KEBA's P30 Modbus TCP Programmers Guide V1.07; not yet confirmed on hardware. Needs c-series firmware 3.10.16 or x-series 1.11, DIP switch DSW1.3 ON and Modbus unit ID 255."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 22110
+size_bytes: 23439
 dkb_id: ""
-sha256: "a3b4454a2adc65e9f93403f7f2a02e2123643a9414dd72b2881cac0b415978f4"
+sha256: "1cb5b73fe49525d1d2500eca0d3d18b340e83fc7a0943fb63c3c568113069f49"
 signature: ""
 
 bytecode_sha256: ""

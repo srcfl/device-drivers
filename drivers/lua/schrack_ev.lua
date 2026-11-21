@@ -128,6 +128,7 @@ local written_auth, written_auth_ms = nil, nil
 -- no budget, so a resume trusts only a fresh order and that limit.
 local order_a, order_ms = nil, nil
 local last_cap_a = nil
+local resume_wait_logged = false
 local steering = false
 -- True once a command has tried to write in this run. Core runs default mode
 -- at every start, so until then the stand-down leaves the charger alone: a
@@ -145,9 +146,12 @@ local standdown_tried_ms = nil
 -- Fresh readings from the latest poll, for the command path.
 local last_connected = nil
 local last_void = nil
--- True once this void episode has had its reset. Cleared when the charger
--- stops calling the authorisation void.
-local void_reset_done = false
+-- When a void authorisation was last reset. A fault that is still there
+-- makes the reset void again at once, and void then stays set after the
+-- fault clears, so the reset is repeated at most every VOID_RESET_EVERY_MS
+-- while void lasts. Cleared when the charger stops calling it void.
+local void_reset_ms = nil
+local VOID_RESET_EVERY_MS = 30000
 local device_limit_a, device_limit_ms = nil, nil
 local stalled_since_ms = nil
 
@@ -249,15 +253,16 @@ end
 local function charge_at(amps)
     if not write_current(amps) then return false end
     if last_connected == false then return true end
-    if last_void == 1 and not void_reset_done then
-        -- Schrack: a void authorisation is cleared by writing 0 first. Once
-        -- per void episode, so a car that stays unready is not cycled on
-        -- every order.
-        void_reset_done = true
+    local now = host.millis()
+    if last_void == 1 and (not void_reset_ms or now - void_reset_ms >= VOID_RESET_EVERY_MS) then
+        -- Schrack: a void authorisation is cleared by writing 0 first. At
+        -- most every 30 s, so a car that stays unready is not cycled on every
+        -- order.
         if not write(REG_AUTH, 0, "authorisation reset") then
             written_auth = nil
             return false
         end
+        void_reset_ms = now
         written_auth = 0
     end
     return write_auth(1)
@@ -321,7 +326,7 @@ function driver_poll()
         if charging and bits and math.floor(bits / 2) % 2 == 0 then charging = false end
     end
     last_connected, last_void = connected, void
-    if void == 0 then void_reset_done = false end
+    if void == 0 then void_reset_ms = nil end
 
     -- The charger's own ceiling: its configured maximum and the cable.
     local limit = nil
@@ -390,7 +395,10 @@ function driver_command(action, power_w, cmd)
         local amps, phases = amps_for(power_w, cmd)
         host.log("debug", string.format("Schrack: %s W on %d phase(s) -> %d A",
             tostring(power_w), phases, amps))
-        last_cap_a = cap_of(cmd)
+        -- Core names cap_amps_per_phase only with a positive order, so a 0 W
+        -- order must not replace the cap with the site maximum.
+        if type(power_w) == "number" and power_w > 0 then last_cap_a = cap_of(cmd) end
+        resume_wait_logged = false
         order_a, order_ms = (amps > 0) and amps or nil, host.millis()
         local ok
         if amps <= 0 then
@@ -411,7 +419,8 @@ function driver_command(action, power_w, cmd)
     if action == "ev_resume" or action == "ev_start" then
         -- No budget comes with these. A fresh order is written again.
         -- Otherwise 101 = 6 A first, and only when the last limit Core named
-        -- allows 6 A; with no such limit nothing is written.
+        -- allows 6 A. With no limit known nothing is written and Core's next
+        -- order sets the level.
         local now = host.millis()
         local amps = nil
         if order_a and order_ms and now - order_ms <= ORDER_FRESH_MS then
@@ -420,8 +429,18 @@ function driver_command(action, power_w, cmd)
             amps = MIN_A
             written_a = nil
         end
+        if not amps and last_cap_a == nil then
+            -- No limit known, after a reload for example. Nothing was refused and
+            -- nothing written; Core's next order sets the level.
+            if not resume_wait_logged then
+                resume_wait_logged = true
+                host.log("info", "Schrack: no fresh order and no known limit; " ..
+                    "the charger waits for Core's next order")
+            end
+            return true
+        end
         if not amps then
-            host.log("info", "Schrack: no fresh order and no known room for 6 A; " ..
+            host.log("info", "Schrack: the last limit Core named leaves no room for 6 A; " ..
                 "resume waits for the next order")
             return false
         end

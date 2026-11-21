@@ -137,18 +137,29 @@ boot()
 assert(order(11040))
 assert(driver_command("ev_pause", 0, {})); assert(near(last_setpoint(), 0), "pause did not write 0 A")
 assert(driver_command("ev_resume", 0, {})); assert(near(last_setpoint(), 16), "resume lost the order")
--- Resume carries no budget. With no order on record nothing is written.
+-- Resume carries no budget. With no order and no limit on record, after a
+-- reload for example, nothing is written and the start is accepted: Core's
+-- next order sets the level. The wait is logged once.
 boot()
-assert(driver_command("ev_start", 0, {}) == false); assert(#setpoint_writes() == 0, "start without an order wrote")
+assert(driver_command("ev_start", 0, {}) == true, "a start with no known limit was refused")
+assert(driver_command("ev_resume", 0, {}) == true)
+assert(#setpoint_writes() == 0, "start without an order wrote")
+local waits = 0
+for _, line in ipairs(host._logs) do
+    if line:find("waits for Core's next order", 1, true) then waits = waits + 1 end
+end
+assert(waits == 1, "the wait was logged " .. waits .. " times")
 -- An order an hour old is not trusted: resume offers only 6 A...
 boot()
 assert(order(11040))
 assert(driver_command("ev_pause", 0, {}))
 later(3600000)
 assert(driver_command("ev_resume", 0, {})); assert(near(last_setpoint(), 6), "resume wrote an hour-old order")
--- ...and nothing when the last limit Core named leaves no room for 6 A.
+-- ...and nothing when the last positive order left no room for 6 A. A later
+-- 0 W order names only the site maximum and must not replace that cap.
 boot()
-assert(order(0, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 4 }))
+assert(order(11040, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 4 }))
+assert(order(0, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25 }))
 later(3600000)
 local resumed_before = #setpoint_writes()
 assert(driver_command("ev_resume", 0, {}) == false)

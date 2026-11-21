@@ -16,9 +16,9 @@ tested_devices:
     notes: "Control written from Schrack's CION Home and Semipublic Modbus register table; not yet confirmed on hardware. Modbus RTU through a Modbus TCP gateway. No power reading. CION Pro not covered: use OCPP."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 18123
+size_bytes: 19195
 dkb_id: ""
-sha256: "f8f66e6a9365d6cc0d171a18db2e7740381abedd44dcefa70b19a14b9f7218a9"
+sha256: "2efa740660f9205aa2d85a210c9bfc98e6bcb00b4fa75f67df7d4f230b8d1f90"
 signature: ""
 
 bytecode_sha256: ""

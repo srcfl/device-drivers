@@ -128,10 +128,18 @@ assert(order(11040))
 assert(driver_command("ev_pause", 0, {})); assert(last(5014) == 0, "pause did not disable")
 assert(driver_command("ev_resume", 0, {})); assert(last(5014) == 1, "resume did not enable")
 assert(#writes(5004) == 1, "resume rewrote an unchanged current")
--- Resume carries no budget. With no order on record nothing is written.
+-- Resume carries no budget. With no order and no limit on record, after a
+-- reload for example, nothing is written and the start is accepted: Core's
+-- next order sets the level. The wait is logged once.
 boot()
-assert(driver_command("ev_start", 0, {}) == false)
+assert(driver_command("ev_start", 0, {}) == true, "a start with no known limit was refused")
+assert(driver_command("ev_resume", 0, {}) == true)
 assert(#writes() == 0, "start without an order wrote")
+local waits = 0
+for _, line in ipairs(host._logs) do
+    if line:find("waits for Core's next order", 1, true) then waits = waits + 1 end
+end
+assert(waits == 1, "the wait was logged " .. waits .. " times")
 -- An order an hour old is not trusted: 5004 = 6000 mA first, then enable.
 boot()
 assert(order(11040))
@@ -142,9 +150,11 @@ assert(driver_command("ev_resume", 0, {}))
 local resumed = {}
 for i = resumed_before + 1, #writes() do resumed[#resumed + 1] = writes()[i] end
 assert(table.concat(resumed, ",") == "5004=6000,5014=1", "an old order resumed as " .. table.concat(resumed, ","))
--- ...and nothing when the last limit Core named leaves no room for 6 A.
+-- ...and nothing when the last positive order left no room for 6 A. A later
+-- 0 W order names only the site maximum and must not replace that cap.
 boot()
-assert(order(0, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 4 }))
+assert(order(11040, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 4 }))
+assert(order(0, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25 }))
 later(3600000)
 resumed_before = #writes()
 assert(driver_command("ev_resume", 0, {}) == false)
@@ -242,8 +252,9 @@ driver_poll()
 assert(order(4000)); assert(#writes(5014) == 2, "charging while disabled was not disabled again")
 
 -- 13. The failsafe timer is refreshed at half its timeout while FTW steers,
--- paused or not. After three refusals it is tried once a minute, and the
--- count starts over after a success. It stops after the stand-down.
+-- paused or not, and while FTW holds the charger disabled. After three
+-- refusals it is tried once a minute, and the count starts over after a
+-- success.
 boot()
 charger(2, 7, {}, 32000, { failsafe = 20 })
 assert(order(11040))
@@ -261,8 +272,10 @@ later(50000); driver_poll(); assert(#writes(5018) == 7, "the refresh did not ret
 host._modbus_write_error = nil
 later(61000); driver_poll(); assert(#writes(5018) == 8, "the refresh did not retry after a minute")
 later(11000); driver_poll(); assert(#writes(5018) == 9, "a success did not reset the back-off")
+-- While FTW holds the charger disabled after a stand-down, the refresh goes
+-- on, so a failsafe current cannot start a charge FTW stopped.
 assert(driver_default_mode() == true)
-later(11000); driver_poll(); assert(#writes(5018) == 9, "failsafe refreshed after the stand-down")
+later(11000); driver_poll(); assert(#writes(5018) == 10, "failsafe refresh stopped while FTW holds the charger disabled")
 
 -- 13b. With L2 or L3 unreadable the phase count is unknown: a 1p order is
 -- divided by three. The lost registers are tried again once a minute.
