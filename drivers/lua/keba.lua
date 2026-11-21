@@ -109,22 +109,35 @@ local STATE = {
 -- Lua caught it. A register the charger does not answer costs a failed read
 -- on every poll and takes the site offline. Three tries, then leave it alone.
 -- Core reloads the driver once nothing is left to read.
+--
+-- The phase currents are the exception. Every P30 has all three, and while
+-- one is missing the driver must divide by three phases, so a lost phase
+-- current is tried once a minute instead of never again.
 local GIVE_UP_AFTER = 3
+local RETRY_AFTER_MS = 60000
+local RETRIED = { [1008] = true, [1010] = true, [1012] = true }
 local read_failures = {}
+local retry_at = {}
 
 local function probe_read(addr, count, kind)
-    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then
+        if not RETRIED[addr] then return nil end
+        local now = host.millis()
+        if now < (retry_at[addr] or 0) then return nil end
+        retry_at[addr] = now + RETRY_AFTER_MS
+    end
     local ok, regs = pcall(host.modbus_read, addr, count, kind)
     if ok and type(regs) == "table" and regs[count] ~= nil then
-        read_failures[addr] = nil
+        read_failures[addr], retry_at[addr] = nil, nil
         return regs
     end
     local failures = (read_failures[addr] or 0) + 1
     read_failures[addr] = failures
     if failures == GIVE_UP_AFTER then
+        retry_at[addr] = host.millis() + RETRY_AFTER_MS
         host.log("info", string.format(
-            "KEBA: register %d did not answer %d times; leaving it alone " ..
-            "until restart", addr, GIVE_UP_AFTER))
+            "KEBA: register %d did not answer %d times; %s", addr, GIVE_UP_AFTER,
+            RETRIED[addr] and "trying it once a minute" or "leaving it alone until restart"))
     end
     return nil
 end
@@ -150,7 +163,11 @@ local written_ma = nil
 local written_ms = nil
 local enabled = nil          -- 5014 is write-only, so this is ours to track
 local enabled_ms = nil
-local order_a = nil          -- the last current above zero an order asked for
+-- The last order: its current (nil for 0 A), when it came, and the lowest
+-- per-phase limit Core named with it. Core sends ev_resume and ev_start with
+-- no budget, so a resume trusts only a fresh order and that limit.
+local order_a, order_ms = nil, nil
+local last_cap_a = nil
 local steering = false       -- a command landed and no stand-down since
 local order_landed = false   -- an enable of ours may still stand
 -- True once a command has tried to write in this run. Core runs default mode
@@ -159,12 +176,17 @@ local order_landed = false   -- an enable of ours may still stand
 -- goes on. The same rule as heishamon 0.8.1.
 local ftw_wrote = false
 
-local STANDDOWN_ATTEMPTS = 3
-local standdown_refusals = 0
+-- Core treats a default mode that returns true as a charger stood down, so
+-- true means confirmed (or nothing of FTW's to take back). A refused
+-- stand-down returns false and is tried again at most once a minute, without
+-- writing in between.
+local STANDDOWN_RETRY_MS = 60000
+local standdown_tried_ms = nil
 
 local failsafe_timeout_s = nil
 local failsafe_refreshed_ms = nil
 local FAILSAFE_ATTEMPTS = 3
+local FAILSAFE_BACKOFF_MS = 60000
 local failsafe_refusals = 0
 
 -- Config `phases`: 1 for a one-phase installation, otherwise three.
@@ -175,8 +197,10 @@ local drawing_phases = 0
 local seen_phases = 0
 local device_limit_a, device_limit_ms = nil, nil
 local stalled_since_ms = nil
+local stall_rewrite_ms = nil
 
 local ORDER_SETTLE_MS = 30000
+local ORDER_FRESH_MS = 30000
 
 ----------------------------------------------------------------------------
 -- Writes
@@ -237,6 +261,18 @@ local function phases_for(cmd)
         return 1
     end
     return 3
+end
+
+-- The lowest per-phase limit an order names, or nil when it names none.
+local function cap_of(cmd)
+    local cap = nil
+    if type(cmd) == "table" then
+        for _, key in ipairs({ "max_amps_per_phase", "cap_amps_per_phase" }) do
+            local v = cmd[key]
+            if finite_positive(v) and (cap == nil or v < cap) then cap = v end
+        end
+    end
+    return cap
 end
 
 -- Core orders total power. The charger takes a current per phase.
@@ -359,15 +395,20 @@ function driver_poll()
     local charging = nil
     if state ~= nil and state ~= 0 then charging = state == 3 end
 
-    local measured = 0
-    for i = 1, 3 do
-        if amps[i] and amps[i] >= 1 then measured = measured + 1 end
+    -- Phases count as measured only when all three currents answered this
+    -- poll. Otherwise the count is unknown and orders use three phases.
+    local measured = nil
+    if amps[1] and amps[2] and amps[3] then
+        measured = 0
+        for i = 1, 3 do
+            if amps[i] >= 1 then measured = measured + 1 end
+        end
     end
     -- A new car starts unseen: a one-phase car after a three-phase one may
     -- use one phase again.
     if connected == false then seen_phases = 0 end
     drawing_phases = measured
-    if measured > seen_phases then seen_phases = measured end
+    if measured and measured > seen_phases then seen_phases = measured end
 
     -- A charger that offers more than this driver ordered, or charges while
     -- this driver disabled it, has lost the order: a reboot clears 5004.
@@ -387,12 +428,17 @@ function driver_poll()
         end
     end
 
-    -- The failsafe stops or limits charging when Modbus commands stop for its
-    -- timeout. While this driver holds an order, refresh it at half the
-    -- timeout, never faster than KEBA's 5 s between writes.
-    if steering and enabled and failsafe_timeout_s and failsafe_timeout_s >= 5 and
-       failsafe_timeout_s <= 600 and failsafe_refusals < FAILSAFE_ATTEMPTS then
+    -- The failsafe sets its own current (5016) when Modbus commands stop for
+    -- its timeout. While FTW steers, paused or not, refresh it at half the
+    -- timeout, never faster than KEBA's 5 s between writes; otherwise a
+    -- failsafe current could start a charge FTW paused. After three refusals
+    -- try once a minute, and start over after a success.
+    if steering and failsafe_timeout_s and failsafe_timeout_s >= 5 and
+       failsafe_timeout_s <= 600 then
         local every_ms = math.max(5, failsafe_timeout_s / 2) * 1000
+        if failsafe_refusals >= FAILSAFE_ATTEMPTS then
+            every_ms = math.max(every_ms, FAILSAFE_BACKOFF_MS)
+        end
         if not failsafe_refreshed_ms or now - failsafe_refreshed_ms >= every_ms then
             failsafe_refreshed_ms = now
             if write(REG_SET_FS_TMO, failsafe_timeout_s, "failsafe refresh") then
@@ -409,14 +455,19 @@ function driver_poll()
         current_limit_a = offered_a
     end
 
-    -- Stalled: an enable of ours has stood, a car is plugged in, and the
-    -- charger stays suspended.
+    -- Stalled: an enable of ours stands, a car is plugged in, and the charger
+    -- stays suspended. Once that has lasted 30 s, forget the enable so the
+    -- next order writes it again, at most every 30 s.
     local command_stalled = false
-    if steering and enabled and connected and state == 5 then
+    if steering and order_landed and connected and state == 5 then
         stalled_since_ms = stalled_since_ms or now
         command_stalled = now - stalled_since_ms >= ORDER_SETTLE_MS
+        if command_stalled and (not stall_rewrite_ms or now - stall_rewrite_ms >= ORDER_SETTLE_MS) then
+            stall_rewrite_ms = now
+            enabled = nil
+        end
     else
-        stalled_since_ms = nil
+        stalled_since_ms, stall_rewrite_ms = nil, nil
     end
 
     local reason = nil
@@ -430,7 +481,7 @@ function driver_poll()
         lifetime_wh             = lifetime_wh,
         l1_v = volts[1], l2_v = volts[2], l3_v = volts[3],
         l1_a = amps[1], l2_a = amps[2], l3_a = amps[3],
-        phases                  = measured > 0 and measured or nil,
+        phases                  = (measured and measured > 0) and measured or nil,
         max_a                   = offered_a,
         current_limit_a         = current_limit_a,
         device_limit_a          = device_limit_a,
@@ -452,12 +503,13 @@ function driver_command(action, power_w, cmd)
         local amps, phases = amps_for(power_w, cmd)
         host.log("debug", string.format("KEBA: %s W on %d phase(s) -> %.1f A",
             tostring(power_w), phases, amps))
+        last_cap_a = cap_of(cmd)
+        order_a, order_ms = (amps > 0) and amps or nil, host.millis()
         local ok
         if amps <= 0 then
             ok = set_enabled(false)
         else
             ok = charge_at(amps)
-            if ok then order_a = amps end
         end
         if ok then steering = true end
         return ok
@@ -470,7 +522,23 @@ function driver_command(action, power_w, cmd)
     end
 
     if action == "ev_resume" or action == "ev_start" then
-        local ok = charge_at(order_a or MIN_A)
+        -- No budget comes with these. A fresh order is written again.
+        -- Otherwise 5004 = 6000 mA first, and only when the last limit Core
+        -- named allows 6 A; with no such limit nothing is written.
+        local now = host.millis()
+        local amps = nil
+        if order_a and order_ms and now - order_ms <= ORDER_FRESH_MS then
+            amps = order_a
+        elseif last_cap_a and last_cap_a >= MIN_A then
+            amps = MIN_A
+            written_ma = nil
+        end
+        if not amps then
+            host.log("info", "KEBA: no fresh order and no known room for 6 A; " ..
+                "resume waits for the next order")
+            return false
+        end
+        local ok = charge_at(amps)
         if ok then steering = true end
         return ok
     end
@@ -480,28 +548,25 @@ function driver_command(action, power_w, cmd)
 end
 
 -- Stand the charger down: disable it, once a command wrote in this run.
--- Repeated calls write nothing once that has landed. A charger that refuses
--- three times, and never took an enable from this driver, is left alone.
+-- Repeated calls write nothing once that has landed. A refused stand-down
+-- returns false and is tried again at most once a minute.
 function driver_default_mode()
     if not ftw_wrote then return true end
     if enabled == false then
         steering = false
         return true
     end
-    if is_p30 == false then return true end
-    if standdown_refusals >= STANDDOWN_ATTEMPTS and not order_landed then
-        return true
+    local now = host.millis()
+    if standdown_tried_ms and now - standdown_tried_ms < STANDDOWN_RETRY_MS then
+        return false
     end
+    standdown_tried_ms = now
     if set_enabled(false) then
-        standdown_refusals = 0
+        standdown_tried_ms = nil
         steering = false
         return true
     end
-    standdown_refusals = standdown_refusals + 1
-    if standdown_refusals == STANDDOWN_ATTEMPTS and not order_landed then
-        host.log("info", "KEBA: the charger refused the stand-down " ..
-            STANDDOWN_ATTEMPTS .. " times; no longer writing it unprompted")
-    end
+    host.log("warn", "KEBA: stand-down refused; trying again in a minute")
     return false
 end
 

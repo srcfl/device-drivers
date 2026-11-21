@@ -181,14 +181,20 @@ emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
   current never exceeds Core's `max_amps_per_phase` or `cap_amps_per_phase`,
   the installer's custom max current or 32 A. It rounds down to 0.1 A, and
   below 6 A it writes 0 A.
-- Pause writes a 0 A setpoint and resume writes the order back. The pause and
-  stop registers are one-way triggers with no documented undo, so they are
-  never written.
+- Pause writes a 0 A setpoint. Core sends resume and start without a budget,
+  so resume writes an order back only when it is under 30 s old. Otherwise it
+  writes 6 A, and only when the last limit Core named allows 6 A; with no such
+  limit it writes nothing, returns false and waits for the next order. The
+  pause and stop registers are one-way triggers with no documented undo, so
+  they are never written.
 - Default mode acts only after a command wrote in this run. Core runs it at
   every start, so a charger FTW never steered keeps its own setpoint and a
   charge already running goes on, as in heishamon 0.8.1. After that it writes
-  0 A once. A charger that refuses it three times and never took an order is
-  left alone.
+  0 A once, and returns true only when that lands. A refused stand-down
+  returns false and is tried again at most once a minute.
+- A charger that holds the charge paused against an order for 30 s reports
+  `command_stalled`, and the next order writes the setpoint again, at most
+  every 30 s.
 - A failed read is left out, not reported as 0. Session energy of 0 is left
   out, since some firmware never moves it (evcc-io/evcc#5346).
 - The second connector of an INCH Duo is not covered.
@@ -205,12 +211,19 @@ emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
   voltages from the current, serial and product registers. Each value is now
   read on its own, as the guide requires. The unit ID default is 255.
 - An order writes 5004 (mA) and then enables with 5014. Phases, caps,
-  rounding and the default-mode rule work as in etrel 1.1.0, with the
-  hardware limit from 1110. Below 6 A, pause and default mode disable with
+  rounding, resume and the default-mode rule work as in etrel 1.1.0, with the
+  hardware limit from 1110. A resume of an old order writes 5004 = 6000 mA
+  before the enable. Below 6 A, pause and default mode disable with
   5014 = 0, since 5004 takes nothing under 6000 mA.
+- Phases count as measured only when all three phase currents answered in
+  that poll; otherwise orders use three. A phase current that stops answering
+  is tried again once a minute.
 - A charger that offers more than the order, or charges while disabled, gets
-  the order again after 30 s. A configured failsafe timeout is refreshed at
-  half its length while an order stands.
+  the order again after 30 s. One that stays suspended against an enable for
+  30 s gets the enable again, at most every 30 s.
+- A configured failsafe timeout is refreshed at half its length while FTW
+  steers, paused or not, so the failsafe current cannot start a charge FTW
+  paused. After three refused refreshes it is tried once a minute.
 - A charger whose product code is not a P30 is not controlled.
 - The UDP interface is not used: FTW's driver host has no UDP, and KEBA
   forbids using both. A c-series below firmware 3.10.16 needs an update.
@@ -229,9 +242,9 @@ loadpoint. It emits `ev` instead of `v2x_charger` and declares
   RTU gateway.
 - An order writes the current to 101 (whole A) and then authorises with
   100 = 1. A void authorisation is cleared with 100 = 0 first, as the table
-  says. With no car plugged in only the current is set. Below 6 A, pause and
-  default mode write 100 = 0. Default mode acts only after a command wrote in
-  this run, as in etrel 1.1.0.
+  says, once per void episode. With no car plugged in only the current is set.
+  Below 6 A, pause and default mode write 100 = 0. Resume and default mode
+  work as in etrel 1.1.0; a resume of an old order writes 101 = 6 first.
 - The charger reports no power and no phase currents, so `w` stays empty and
   orders are split over the phases in config only (`phases`, default 3).
 - The CION Pro is not covered: it speaks OCPP, which FTW handles itself.
@@ -241,11 +254,11 @@ Not yet confirmed on hardware.
 ### wallbox 1.1.0
 
 The driver says it cannot control the charger: `read_only = true`, with the
-reason in its description. Wallbox publishes no local Modbus interface for the
-Pulsar Plus, Pulsar Max, Commander 2 or Copper SB, and the registers this
-driver reads come from no Wallbox document. Wallbox documents OCPP 1.6J, and
-FTW's built-in OCPP central system reads and controls these chargers without a
-driver.
+reason in its description. We found no documented local Modbus interface for
+the Pulsar Plus, Pulsar Max, Commander 2 or Copper SB, and the registers this
+driver reads come from no Wallbox document, so its power and energy are
+unverified. Wallbox documents OCPP 1.6J, and FTW's built-in OCPP central
+system reads and controls these chargers without a driver.
 
 The driver emits `ev` instead of `v2x_charger`, and only fields whose register
 answered. It no longer reports 0 W, 0 Wh or 0 A for registers that did not

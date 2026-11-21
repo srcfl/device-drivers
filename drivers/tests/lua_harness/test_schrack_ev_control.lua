@@ -1,7 +1,10 @@
 -- Schrack i-CHARGE CION: an order becomes 101 (whole A) then 100 = 1, per
 -- phase, rounded down, within every cap. Below 6 A and pause write 100 = 0.
--- A void authorisation is cleared with 0 before 1. Default mode withdraws the
--- authorisation once and settles. A refused write returns false.
+-- A void authorisation is cleared with 0 before 1, once per void episode.
+-- Resume writes a fresh order back, or only 6 A when the order is old.
+-- Default mode acts only after FTW wrote, returns true only once the
+-- stand-down lands, and retries a refused one at most once a minute. A
+-- refused write returns false.
 dofile("drivers/tests/lua_harness/host_mock.lua")
 local DRIVER_PATH = "drivers/lua/schrack_ev.lua"
 
@@ -109,6 +112,18 @@ charger({ cp = CP_B, void = 1 })
 driver_poll()
 assert(order(11040))
 assert(table.concat(writes(), ",") == "101=16,100=0,100=1", "void not cleared: " .. table.concat(writes(), ","))
+-- Once per void episode: a car that stays unready is not cycled on every order.
+charger({ cp = CP_B, void = 1, auth = 1, current = 16 })
+driver_poll()
+assert(order(11040))
+assert(table.concat(writes(), ",") == "101=16,100=0,100=1", "void reset repeated: " .. table.concat(writes(), ","))
+-- A new episode gets its own reset.
+charger({ cp = CP_B, void = 0, auth = 1, current = 16 })
+driver_poll()
+charger({ cp = CP_B, void = 1, auth = 1, current = 16 })
+driver_poll()
+assert(order(11040))
+assert(table.concat(writes(), ",") == "101=16,100=0,100=1,100=0,100=1", "a new void episode was not reset")
 
 -- 9. Pause withdraws the authorisation, resume gives it back.
 boot()
@@ -116,6 +131,28 @@ assert(order(11040))
 assert(driver_command("ev_pause", 0, {})); assert(last(100) == 0, "pause did not withdraw")
 assert(driver_command("ev_resume", 0, {})); assert(last(100) == 1, "resume did not authorise")
 assert(#writes(101) == 1, "resume rewrote an unchanged current")
+
+-- 9b. Resume carries no budget. With no order on record nothing is written.
+boot()
+assert(driver_command("ev_start", 0, {}) == false)
+assert(#writes() == 0, "start without an order wrote")
+-- An order an hour old is not trusted: 101 = 6 A first, then authorise.
+boot()
+assert(order(11040))
+assert(driver_command("ev_pause", 0, {}))
+later(3600000)
+local resumed_before = #writes()
+assert(driver_command("ev_resume", 0, {}))
+local resumed = {}
+for i = resumed_before + 1, #writes() do resumed[#resumed + 1] = writes()[i] end
+assert(table.concat(resumed, ",") == "101=6,100=1", "an old order resumed as " .. table.concat(resumed, ","))
+-- ...and nothing when the last limit Core named leaves no room for 6 A.
+boot()
+assert(order(0, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 4 }))
+later(3600000)
+resumed_before = #writes()
+assert(driver_command("ev_resume", 0, {}) == false)
+assert(#writes() == resumed_before, "resumed without room for 6 A")
 
 -- 10. Core runs default mode at every start: a charger FTW never wrote to in
 -- this run is left alone, and a charge already running goes on.
@@ -139,24 +176,33 @@ assert(order(11040) == false, "a refused write returned true")
 host._modbus_write_error = nil
 assert(order(11040)); assert(last(101) == 16 and last(100) == 1, "the order was not retried")
 
--- 12. A charger that refuses the stand-down and never took an authorisation
--- is left alone after three tries. One that took one keeps being asked.
-boot()
-host._modbus_write_error = "modbus exception function=0x06 code=0x02"
-assert(order(4000) == false)
-local counts = {}
-for i = 1, 6 do
-    local n = #writes()
-    local result = driver_default_mode()
-    counts[i] = #writes() - n
-    assert(result == (i > 3), "default mode result " .. tostring(result) .. " on call " .. i)
-end
-assert(table.concat(counts, ",") == "1,1,1,0,0,0", "default mode did not settle: " .. table.concat(counts, ","))
+-- 12. Once FTW wrote, a refused stand-down returns false. It is tried again
+-- at most once a minute, with no write in between, and true only once it
+-- lands.
 boot()
 assert(order(11040))
 host._modbus_write_error = "modbus exception function=0x06 code=0x02"
-for _ = 1, 5 do assert(driver_default_mode() == false) end
-assert(#writes(100) == 6, "gave up withdrawing an authorisation this driver gave")
+local function default_writes()
+    local n = #writes()
+    local result = driver_default_mode()
+    return #writes() - n, result
+end
+local counts = {}
+for i = 1, 4 do
+    local count, result = default_writes()
+    counts[i] = count
+    assert(result == false, "a refused stand-down returned " .. tostring(result))
+end
+assert(table.concat(counts, ",") == "1,0,0,0", "stand-down retried too often: " .. table.concat(counts, ","))
+later(61000)
+local count, result = default_writes()
+assert(count == 1 and result == false, "the stand-down was not retried after a minute")
+host._modbus_write_error = nil
+later(61000)
+count, result = default_writes()
+assert(count == 1 and result == true and last(100) == 0, "a landed stand-down was not confirmed")
+count, result = default_writes()
+assert(count == 0 and result == true, "a confirmed stand-down was written again")
 
 -- 13. A charger that no longer holds the order is written again once the
 -- order could land.

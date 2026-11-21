@@ -2,21 +2,24 @@
 -- Emits: ev
 -- Reads only. This driver cannot control the charger.
 --
--- Why it cannot: Wallbox publishes no local Modbus TCP register map for these
--- chargers. Their Modbus is for Wallbox's own load management (a Power Boost
--- meter, power sharing between chargers), not a server an energy manager can
--- command. The control route Wallbox documents is OCPP 1.6J ("OCPP activation
--- and setup guide", support.wallbox.com), and evcc controls these models over
--- OCPP only. The Wallbox cloud API is not published either.
+-- Why it cannot: we found no documented local Modbus TCP register map for
+-- these chargers. The Modbus that Wallbox's installation guides describe is
+-- for its own load management (a Power Boost meter, power sharing between
+-- chargers), not a server an energy manager can command. The control route
+-- Wallbox documents is OCPP 1.6J ("OCPP activation and setup guide",
+-- support.wallbox.com), and evcc controls these models over OCPP only. We
+-- found no published Wallbox cloud API either.
 --
 -- Use FTW's built-in OCPP central system instead. It reads and controls these
 -- chargers without any driver: set FTW's OCPP address in the myWallbox app
 -- under Settings, External management, OCPP. See FTW's docs/ocpp.md.
 --
--- What this driver reads: holding registers 0, 4-5, 7-8 and 9 on unit 1. They
--- come from an early community sketch, not from any Wallbox document, and are
--- unverified. On most units they do not answer. A value is reported only when
--- its register answered, and nothing is reported as 0 W that was not read.
+-- What this driver reads: holding registers 4-5 (power), 7-8 (session
+-- energy) and 9 (maximum current) on unit 1. They come from an early
+-- community sketch, not from any Wallbox document, and are unverified: the
+-- power and energy it reports may be wrong or absent. A value is reported only
+-- when its register answered, and nothing is reported as 0 W that was not
+-- read.
 
 DRIVER = {
   host_api_min = 1,
@@ -28,7 +31,7 @@ DRIVER = {
   protocols    = { "modbus" },
   capabilities = { "ev" },
   read_only    = true,
-  description  = "Cannot control: Wallbox publishes no local Modbus interface for the Pulsar Plus, Pulsar Max, Commander 2 or Copper SB, and the registers this driver reads come from no Wallbox document. Connect the charger to FTW's built-in OCPP central system instead; Wallbox supports OCPP 1.6J, and FTW reads and controls it that way without a driver.",
+  description  = "Cannot control: we found no documented local Modbus interface for the Pulsar Plus, Pulsar Max, Commander 2 or Copper SB. The power and energy this driver reports come from registers no Wallbox document lists, and are unverified. Connect the charger to FTW's built-in OCPP central system instead; Wallbox supports OCPP 1.6J, and FTW reads and controls it that way without a driver.",
   homepage     = "https://support.wallbox.com/en/knowledge-base/ocpp-activation-and-setup-guide/",
   authors      = { "FTW contributors" },
   tested_models = { "Commander 2", "Pulsar Plus" },

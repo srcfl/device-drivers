@@ -181,9 +181,11 @@ local device_limit_due_ms = nil
 -- order writes whatever it is.
 local written_a = nil
 local written_ms = nil
--- The last current above zero that an order asked for, so a resume after a
--- pause brings it back.
-local order_a = nil
+-- The last order: its current (nil for 0 A), when it came, and the lowest
+-- per-phase limit Core named with it. Core sends ev_resume and ev_start with
+-- no budget, so a resume trusts only a fresh order and that limit.
+local order_a, order_ms = nil, nil
+local last_cap_a = nil
 -- True from a successful command write until the stand-down lands. While it
 -- is true the poll checks that the charger still follows the order.
 local steering = false
@@ -195,11 +197,12 @@ local order_landed = false
 -- running goes on. The same rule as heishamon 0.8.1.
 local ftw_wrote = false
 
--- Default mode is reached on a timer. A charger that refuses the stand-down
--- three times running, and never took an order from this driver, is left
--- alone: there is nothing of ours to take back.
-local STANDDOWN_ATTEMPTS = 3
-local standdown_refusals = 0
+-- Core treats a default mode that returns true as a charger stood down, so
+-- true means confirmed (or nothing of FTW's to take back). A refused
+-- stand-down returns false and is tried again at most once a minute, without
+-- writing in between.
+local STANDDOWN_RETRY_MS = 60000
+local standdown_tried_ms = nil
 
 -- Config `phases`: 1 for a one-phase installation, otherwise three.
 local installed_phases = 3
@@ -212,8 +215,10 @@ local seen_phases = 0
 local last_status = nil
 local last_connected = nil
 local stalled_since_ms = nil
+local stall_rewrite_ms = nil
 
 local ORDER_SETTLE_MS = 30000
+local ORDER_FRESH_MS = 30000
 local DEVICE_LIMIT_EVERY_MS = 60000
 
 ----------------------------------------------------------------------------
@@ -237,6 +242,18 @@ local function phases_for(cmd)
         return 1
     end
     return 3
+end
+
+-- The lowest per-phase limit an order names, or nil when it names none.
+local function cap_of(cmd)
+    local cap = nil
+    if type(cmd) == "table" then
+        for _, key in ipairs({ "max_amps_per_phase", "cap_amps_per_phase" }) do
+            local v = cmd[key]
+            if finite_positive(v) and (cap == nil or v < cap) then cap = v end
+        end
+    end
+    return cap
 end
 
 -- Core orders total power. The charger takes a current per phase.
@@ -383,14 +400,19 @@ function driver_poll()
         current_limit_a = target_a
     end
 
-    -- Stalled: an order of at least MIN_A has stood, a car is plugged in, and
-    -- the charger itself holds the charge paused.
+    -- Stalled: a current of ours stands, a car is plugged in, and the charger
+    -- itself holds the charge paused. Once that has lasted 30 s, forget the
+    -- setpoint so the next order writes it again, at most every 30 s.
     local command_stalled = false
-    if steering and written_a and written_a >= MIN_A and connected and status == 6 then
+    if steering and order_landed and connected and status == 6 then
         stalled_since_ms = stalled_since_ms or now
         command_stalled = now - stalled_since_ms >= ORDER_SETTLE_MS
+        if command_stalled and (not stall_rewrite_ms or now - stall_rewrite_ms >= ORDER_SETTLE_MS) then
+            stall_rewrite_ms = now
+            written_a = nil
+        end
     else
-        stalled_since_ms = nil
+        stalled_since_ms, stall_rewrite_ms = nil, nil
     end
 
     local reason = nil
@@ -420,8 +442,23 @@ function driver_poll()
     return 5000
 end
 
+-- Core sends ev_resume and ev_start with no budget. A fresh order is written
+-- again. Otherwise only MIN_A, and only when the last limit Core named allows
+-- it; with no such limit nothing is written and the next order sets the level.
 local function resume()
-    local amps = order_a or MIN_A
+    local now = host.millis()
+    local amps = nil
+    if order_a and order_ms and now - order_ms <= ORDER_FRESH_MS then
+        amps = order_a
+    elseif last_cap_a and last_cap_a >= MIN_A then
+        amps = MIN_A
+        written_a = nil
+    end
+    if not amps then
+        host.log("info", "Etrel: no fresh order and no known room for " .. MIN_A ..
+            " A; resume waits for the next order")
+        return false
+    end
     local ok = write_current(amps)
     if ok then steering = true end
     return ok
@@ -435,11 +472,10 @@ function driver_command(action, power_w, cmd)
         local amps, phases = amps_for(power_w, cmd)
         host.log("debug", string.format("Etrel: %s W on %d phase(s) -> %.1f A",
             tostring(power_w), phases, amps))
+        last_cap_a = cap_of(cmd)
+        order_a, order_ms = (amps > 0) and amps or nil, host.millis()
         local ok = write_current(amps)
-        if ok then
-            steering = true
-            if amps > 0 then order_a = amps end
-        end
+        if ok then steering = true end
         return ok
     end
 
@@ -458,26 +494,25 @@ function driver_command(action, power_w, cmd)
 end
 
 -- Stand the charger down: a 0 A setpoint, once a command wrote in this run.
--- Repeated calls write nothing once it has landed.
+-- Repeated calls write nothing once that has landed. A refused stand-down
+-- returns false and is tried again at most once a minute.
 function driver_default_mode()
     if not ftw_wrote then return true end
     if written_a == 0 then
         steering = false
         return true
     end
-    if standdown_refusals >= STANDDOWN_ATTEMPTS and not order_landed then
-        return true
+    local now = host.millis()
+    if standdown_tried_ms and now - standdown_tried_ms < STANDDOWN_RETRY_MS then
+        return false
     end
+    standdown_tried_ms = now
     if write_current(0) then
-        standdown_refusals = 0
+        standdown_tried_ms = nil
         steering = false
         return true
     end
-    standdown_refusals = standdown_refusals + 1
-    if standdown_refusals == STANDDOWN_ATTEMPTS and not order_landed then
-        host.log("info", "Etrel: the charger refused the 0 A stand-down " ..
-            STANDDOWN_ATTEMPTS .. " times; no longer writing it unprompted")
-    end
+    host.log("warn", "Etrel: stand-down refused; trying again in a minute")
     return false
 end
 

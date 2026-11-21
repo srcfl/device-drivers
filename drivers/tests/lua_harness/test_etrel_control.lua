@@ -1,7 +1,8 @@
 -- Etrel INCH: an order becomes a Float32 current setpoint at holding 8, per
--- phase, rounded down, within every cap. Pause writes 0 A and resume brings the
--- order back. Default mode stands down once and settles. A refused write
--- returns false.
+-- phase, rounded down, within every cap. Pause writes 0 A; resume writes a
+-- fresh order back, or only 6 A when the order is old. Default mode acts only
+-- after FTW wrote, returns true only once the stand-down lands, and retries a
+-- refused one at most once a minute. A refused write returns false.
 dofile("drivers/tests/lua_harness/host_mock.lua")
 local DRIVER_PATH = "drivers/lua/etrel.lua"
 
@@ -136,9 +137,22 @@ boot()
 assert(order(11040))
 assert(driver_command("ev_pause", 0, {})); assert(near(last_setpoint(), 0), "pause did not write 0 A")
 assert(driver_command("ev_resume", 0, {})); assert(near(last_setpoint(), 16), "resume lost the order")
--- Resume with no order on record starts at the minimum.
+-- Resume carries no budget. With no order on record nothing is written.
 boot()
-assert(driver_command("ev_start", 0, {})); assert(near(last_setpoint(), 6), "start without an order is not 6 A")
+assert(driver_command("ev_start", 0, {}) == false); assert(#setpoint_writes() == 0, "start without an order wrote")
+-- An order an hour old is not trusted: resume offers only 6 A...
+boot()
+assert(order(11040))
+assert(driver_command("ev_pause", 0, {}))
+later(3600000)
+assert(driver_command("ev_resume", 0, {})); assert(near(last_setpoint(), 6), "resume wrote an hour-old order")
+-- ...and nothing when the last limit Core named leaves no room for 6 A.
+boot()
+assert(order(0, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 4 }))
+later(3600000)
+local resumed_before = #setpoint_writes()
+assert(driver_command("ev_resume", 0, {}) == false)
+assert(#setpoint_writes() == resumed_before, "resumed without room for 6 A")
 
 -- 8. Core runs default mode at every start: a charger FTW never wrote to in
 -- this run is left alone.
@@ -162,32 +176,48 @@ assert(order(11040) == false, "a refused write returned true")
 host._modbus_write_error = nil
 assert(order(11040)); assert(near(last_setpoint(), 16), "the order was not retried")
 
--- 10. A charger that refuses the stand-down and never took an order is left
--- alone after three tries. One that took an order keeps being asked.
-boot()
-host._modbus_write_error = "modbus exception function=0x10 code=0x02"
-assert(order(11040) == false)
-local writes = {}
-for i = 1, 6 do
-    local n = #host._calls
-    local result = driver_default_mode()
-    local count = 0
-    for j = n + 1, #host._calls do
-        if host._calls[j].func == "modbus_write_multiple" then count = count + 1 end
-    end
-    writes[i] = count
-    assert(result == (i > 3), "default mode result " .. tostring(result) .. " on call " .. i)
-end
-assert(table.concat(writes, ",") == "1,1,1,0,0,0", "default mode did not settle: " .. table.concat(writes, ","))
+-- 10. Once FTW wrote, a refused stand-down returns false. It is tried again
+-- at most once a minute, with no write in between, and true only once it
+-- lands.
 boot()
 assert(order(11040))
 host._modbus_write_error = "modbus exception function=0x10 code=0x02"
-for _ = 1, 5 do assert(driver_default_mode() == false) end
-local tries = 0
-for _, call in ipairs(host._calls) do
-    if call.func == "modbus_write_multiple" then tries = tries + 1 end
+local function default_writes()
+    local n = #setpoint_writes()
+    local result = driver_default_mode()
+    return #setpoint_writes() - n, result
 end
-assert(tries == 6, "gave up standing down a charger that holds 16 A")
+local counts = {}
+for i = 1, 4 do
+    local count, result = default_writes()
+    counts[i] = count
+    assert(result == false, "a refused stand-down returned " .. tostring(result))
+end
+assert(table.concat(counts, ",") == "1,0,0,0", "stand-down retried too often: " .. table.concat(counts, ","))
+later(61000)
+local count, result = default_writes()
+assert(count == 1 and result == false, "the stand-down was not retried after a minute")
+host._modbus_write_error = nil
+later(61000)
+count, result = default_writes()
+assert(count == 1 and result == true, "a landed stand-down was not confirmed")
+count, result = default_writes()
+assert(count == 0 and result == true, "a confirmed stand-down was written again")
+
+-- 10b. A charger that keeps the charge paused against the order for 30 s gets
+-- the setpoint again on the next order, at most every 30 s.
+boot()
+assert(order(11040))
+charger(6, {}, 0, 16)
+driver_poll()
+later(31000)
+driver_poll()
+assert(host._emitted.ev[#host._emitted.ev].command_stalled == true, "a stalled order was not reported")
+local stalled_before = #setpoint_writes()
+assert(order(11040)); assert(#setpoint_writes() == stalled_before + 1, "a stalled order was not written again")
+later(5000)
+driver_poll()
+assert(order(11040)); assert(#setpoint_writes() == stalled_before + 1, "a stalled order was written again too soon")
 
 -- 11. A charger that allows more than the order has lost it: the next order
 -- writes it again, once the order has had time to land.

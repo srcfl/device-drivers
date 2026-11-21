@@ -123,26 +123,37 @@ local identity_read = false
 -- What the charger last took from this driver. nil means unknown.
 local written_a, written_a_ms = nil, nil
 local written_auth, written_auth_ms = nil, nil
-local order_a = nil
+-- The last order: its current (nil for 0 A), when it came, and the lowest
+-- per-phase limit Core named with it. Core sends ev_resume and ev_start with
+-- no budget, so a resume trusts only a fresh order and that limit.
+local order_a, order_ms = nil, nil
+local last_cap_a = nil
 local steering = false
-local order_landed = false
 -- True once a command has tried to write in this run. Core runs default mode
 -- at every start, so until then the stand-down leaves the charger alone: a
 -- charger FTW never steered keeps its own state, and a charge already running
 -- goes on. The same rule as heishamon 0.8.1.
 local ftw_wrote = false
 
-local STANDDOWN_ATTEMPTS = 3
-local standdown_refusals = 0
+-- Core treats a default mode that returns true as a charger stood down, so
+-- true means confirmed (or nothing of FTW's to take back). A refused
+-- stand-down returns false and is tried again at most once a minute, without
+-- writing in between.
+local STANDDOWN_RETRY_MS = 60000
+local standdown_tried_ms = nil
 
 -- Fresh readings from the latest poll, for the command path.
 local last_connected = nil
 local last_void = nil
+-- True once this void episode has had its reset. Cleared when the charger
+-- stops calling the authorisation void.
+local void_reset_done = false
 local device_limit_a, device_limit_ms = nil, nil
 local stalled_since_ms = nil
 
 local ORDER_SETTLE_MS = 10000
 local STALL_MS = 30000
+local ORDER_FRESH_MS = 30000
 
 ----------------------------------------------------------------------------
 -- Writes
@@ -177,7 +188,6 @@ local function write_auth(value)
         return false
     end
     written_auth, written_auth_ms = value, host.millis()
-    order_landed = value == 1
     return true
 end
 
@@ -187,6 +197,18 @@ end
 
 local function finite_positive(v)
     return type(v) == "number" and v == v and v > 0 and v < math.huge
+end
+
+-- The lowest per-phase limit an order names, or nil when it names none.
+local function cap_of(cmd)
+    local cap = nil
+    if type(cmd) == "table" then
+        for _, key in ipairs({ "max_amps_per_phase", "cap_amps_per_phase" }) do
+            local v = cmd[key]
+            if finite_positive(v) and (cap == nil or v < cap) then cap = v end
+        end
+    end
+    return cap
 end
 
 -- Core orders total power. The charger takes whole amperes per phase.
@@ -227,14 +249,16 @@ end
 local function charge_at(amps)
     if not write_current(amps) then return false end
     if last_connected == false then return true end
-    if last_void == 1 and written_auth ~= 0 then
-        -- Schrack: a void authorisation is cleared by writing 0 first.
+    if last_void == 1 and not void_reset_done then
+        -- Schrack: a void authorisation is cleared by writing 0 first. Once
+        -- per void episode, so a car that stays unready is not cycled on
+        -- every order.
+        void_reset_done = true
         if not write(REG_AUTH, 0, "authorisation reset") then
             written_auth = nil
             return false
         end
         written_auth = 0
-        last_void = nil
     end
     return write_auth(1)
 end
@@ -297,6 +321,7 @@ function driver_poll()
         if charging and bits and math.floor(bits / 2) % 2 == 0 then charging = false end
     end
     last_connected, last_void = connected, void
+    if void == 0 then void_reset_done = false end
 
     -- The charger's own ceiling: its configured maximum and the cable.
     local limit = nil
@@ -365,12 +390,13 @@ function driver_command(action, power_w, cmd)
         local amps, phases = amps_for(power_w, cmd)
         host.log("debug", string.format("Schrack: %s W on %d phase(s) -> %d A",
             tostring(power_w), phases, amps))
+        last_cap_a = cap_of(cmd)
+        order_a, order_ms = (amps > 0) and amps or nil, host.millis()
         local ok
         if amps <= 0 then
             ok = write_auth(0)
         else
             ok = charge_at(amps)
-            if ok then order_a = amps end
         end
         if ok then steering = true end
         return ok
@@ -383,7 +409,23 @@ function driver_command(action, power_w, cmd)
     end
 
     if action == "ev_resume" or action == "ev_start" then
-        local ok = charge_at(order_a or MIN_A)
+        -- No budget comes with these. A fresh order is written again.
+        -- Otherwise 101 = 6 A first, and only when the last limit Core named
+        -- allows 6 A; with no such limit nothing is written.
+        local now = host.millis()
+        local amps = nil
+        if order_a and order_ms and now - order_ms <= ORDER_FRESH_MS then
+            amps = order_a
+        elseif last_cap_a and last_cap_a >= MIN_A then
+            amps = MIN_A
+            written_a = nil
+        end
+        if not amps then
+            host.log("info", "Schrack: no fresh order and no known room for 6 A; " ..
+                "resume waits for the next order")
+            return false
+        end
+        local ok = charge_at(amps)
         if ok then steering = true end
         return ok
     end
@@ -392,29 +434,26 @@ function driver_command(action, power_w, cmd)
     return false
 end
 
--- Stand the charger down: withdraw the charging authorisation, once a command
--- wrote in this run. Repeated calls write nothing once that has landed. A
--- charger that refuses three times, and never took an authorisation from
--- this driver, is left alone.
+-- Stand the charger down: withdraw the charging authorisation, once a command wrote in this run.
+-- Repeated calls write nothing once that has landed. A refused stand-down
+-- returns false and is tried again at most once a minute.
 function driver_default_mode()
     if not ftw_wrote then return true end
     if written_auth == 0 then
         steering = false
         return true
     end
-    if standdown_refusals >= STANDDOWN_ATTEMPTS and not order_landed then
-        return true
+    local now = host.millis()
+    if standdown_tried_ms and now - standdown_tried_ms < STANDDOWN_RETRY_MS then
+        return false
     end
+    standdown_tried_ms = now
     if write_auth(0) then
-        standdown_refusals = 0
+        standdown_tried_ms = nil
         steering = false
         return true
     end
-    standdown_refusals = standdown_refusals + 1
-    if standdown_refusals == STANDDOWN_ATTEMPTS and not order_landed then
-        host.log("info", "Schrack: the charger refused the stand-down " ..
-            STANDDOWN_ATTEMPTS .. " times; no longer writing it unprompted")
-    end
+    host.log("warn", "Schrack: stand-down refused; trying again in a minute")
     return false
 end
 

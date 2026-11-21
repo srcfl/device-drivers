@@ -2105,7 +2105,7 @@ manufacturers:
             ders: [ev]
             control: false
         firmware_versions: ""
-        notes: "Cannot control: Wallbox publishes no local Modbus interface for these chargers, and this driver reads an unverified register map. Use FTW's built-in OCPP central system (Wallbox supports OCPP 1.6J) to read and control them."
+        notes: "Cannot control: we found no documented local Modbus interface for these chargers. The power and energy this driver reports come from an unverified register map. Use FTW's built-in OCPP central system (Wallbox supports OCPP 1.6J) to read and control them."
   - name: "Zaptec"
     model_families:
       - name: "Zaptec Cloud"

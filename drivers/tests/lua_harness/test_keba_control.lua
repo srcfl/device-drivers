@@ -1,7 +1,10 @@
 -- KEBA P30: an order becomes 5004 (mA, function code 6) then 5014 = 1, per
 -- phase, rounded down to 0.1 A, within every cap. Below 6 A and pause write
--- 5014 = 0. Default mode disables once and settles. A refused write returns
--- false. The failsafe timer is refreshed only while an order stands.
+-- 5014 = 0; resume writes a fresh order back, or only 6 A when the order is
+-- old. Default mode acts only after FTW wrote, returns true only once the
+-- stand-down lands, and retries a refused one at most once a minute. A
+-- refused write returns false. The failsafe timer is refreshed while FTW
+-- steers.
 dofile("drivers/tests/lua_harness/host_mock.lua")
 local DRIVER_PATH = "drivers/lua/keba.lua"
 
@@ -125,9 +128,27 @@ assert(order(11040))
 assert(driver_command("ev_pause", 0, {})); assert(last(5014) == 0, "pause did not disable")
 assert(driver_command("ev_resume", 0, {})); assert(last(5014) == 1, "resume did not enable")
 assert(#writes(5004) == 1, "resume rewrote an unchanged current")
+-- Resume carries no budget. With no order on record nothing is written.
 boot()
-assert(driver_command("ev_start", 0, {}))
-assert(table.concat(writes(), ",") == "5004=6000,5014=1", "start without an order is not 6 A")
+assert(driver_command("ev_start", 0, {}) == false)
+assert(#writes() == 0, "start without an order wrote")
+-- An order an hour old is not trusted: 5004 = 6000 mA first, then enable.
+boot()
+assert(order(11040))
+assert(driver_command("ev_pause", 0, {}))
+later(3600000)
+local resumed_before = #writes()
+assert(driver_command("ev_resume", 0, {}))
+local resumed = {}
+for i = resumed_before + 1, #writes() do resumed[#resumed + 1] = writes()[i] end
+assert(table.concat(resumed, ",") == "5004=6000,5014=1", "an old order resumed as " .. table.concat(resumed, ","))
+-- ...and nothing when the last limit Core named leaves no room for 6 A.
+boot()
+assert(order(0, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 4 }))
+later(3600000)
+resumed_before = #writes()
+assert(driver_command("ev_resume", 0, {}) == false)
+assert(#writes() == resumed_before, "resumed without room for 6 A")
 
 -- 8. Core runs default mode at every start: a charger FTW never wrote to in
 -- this run is left alone, and a charge already running goes on.
@@ -155,24 +176,47 @@ boot()
 host._modbus_write_fail_at = 2
 assert(order(11040) == false, "a refused enable returned true")
 
--- 10. A charger that refuses the stand-down and never took an enable is left
--- alone after three tries. One that took an enable keeps being asked.
-boot()
-host._modbus_write_error = "modbus exception function=0x06 code=0x02"
-assert(order(4000) == false)
-local counts = {}
-for i = 1, 6 do
-    local n = #writes()
-    local result = driver_default_mode()
-    counts[i] = #writes() - n
-    assert(result == (i > 3), "default mode result " .. tostring(result) .. " on call " .. i)
-end
-assert(table.concat(counts, ",") == "1,1,1,0,0,0", "default mode did not settle: " .. table.concat(counts, ","))
+-- 10. Once FTW wrote, a refused stand-down returns false. It is tried again
+-- at most once a minute, with no write in between, and true only once it
+-- lands.
 boot()
 assert(order(11040))
 host._modbus_write_error = "modbus exception function=0x06 code=0x02"
-for _ = 1, 5 do assert(driver_default_mode() == false) end
-assert(#writes(5014) == 6, "gave up disabling a charger this driver enabled")
+local function default_writes()
+    local n = #writes()
+    local result = driver_default_mode()
+    return #writes() - n, result
+end
+local counts = {}
+for i = 1, 4 do
+    local count, result = default_writes()
+    counts[i] = count
+    assert(result == false, "a refused stand-down returned " .. tostring(result))
+end
+assert(table.concat(counts, ",") == "1,0,0,0", "stand-down retried too often: " .. table.concat(counts, ","))
+later(61000)
+local count, result = default_writes()
+assert(count == 1 and result == false, "the stand-down was not retried after a minute")
+host._modbus_write_error = nil
+later(61000)
+count, result = default_writes()
+assert(count == 1 and result == true and last(5014) == 0, "a landed stand-down was not confirmed")
+count, result = default_writes()
+assert(count == 0 and result == true, "a confirmed stand-down was written again")
+
+-- 10b. A charger that stays suspended against an enable for 30 s gets the
+-- enable again on the next order, at most every 30 s.
+boot()
+assert(order(11040))
+charger(5, 7, {}, 16000)
+driver_poll()
+later(31000)
+driver_poll()
+assert(host._emitted.ev[#host._emitted.ev].command_stalled == true, "a stalled enable was not reported")
+assert(order(11040)); assert(#writes(5014) == 2, "a stalled enable was not written again")
+later(5000)
+driver_poll()
+assert(order(11040)); assert(#writes(5014) == 2, "a stalled enable was written again too soon")
 
 -- 11. Not a P30: no control, no writes.
 boot(4000110)
@@ -197,16 +241,51 @@ later(31000)
 driver_poll()
 assert(order(4000)); assert(#writes(5014) == 2, "charging while disabled was not disabled again")
 
--- 13. The failsafe timer is refreshed at half its timeout while an order
--- stands, and not after the stand-down.
+-- 13. The failsafe timer is refreshed at half its timeout while FTW steers,
+-- paused or not. After three refusals it is tried once a minute, and the
+-- count starts over after a success. It stops after the stand-down.
 boot()
 charger(2, 7, {}, 32000, { failsafe = 20 })
 assert(order(11040))
 driver_poll(); assert(#writes(5018) == 1 and last(5018) == 20, "failsafe was not refreshed")
 later(4000); driver_poll(); assert(#writes(5018) == 1, "failsafe refreshed too often")
 later(7000); driver_poll(); assert(#writes(5018) == 2, "failsafe refresh stopped")
-assert(driver_default_mode())
-later(11000); driver_poll(); assert(#writes(5018) == 2, "failsafe refreshed after the stand-down")
+assert(driver_command("ev_pause", 0, {}))
+later(11000); driver_poll(); assert(#writes(5018) == 3, "failsafe refresh stopped during a pause")
+host._modbus_write_error = "modbus exception function=0x06 code=0x02"
+for n = 4, 6 do
+    later(11000); driver_poll(); assert(#writes(5018) == n, "a refused refresh was not retried")
+end
+later(11000); driver_poll(); assert(#writes(5018) == 6, "no back-off after three refusals")
+later(50000); driver_poll(); assert(#writes(5018) == 7, "the refresh did not retry after a minute")
+host._modbus_write_error = nil
+later(61000); driver_poll(); assert(#writes(5018) == 8, "the refresh did not retry after a minute")
+later(11000); driver_poll(); assert(#writes(5018) == 9, "a success did not reset the back-off")
+assert(driver_default_mode() == true)
+later(11000); driver_poll(); assert(#writes(5018) == 9, "failsafe refreshed after the stand-down")
+
+-- 13b. With L2 or L3 unreadable the phase count is unknown: a 1p order is
+-- divided by three. The lost registers are tried again once a minute.
+boot()
+charger(3, 7, { 10000, 0, 0 }, 10000)
+host._modbus_read_fail_addresses[1010] = "timeout"
+host._modbus_read_fail_addresses[1012] = "timeout"
+for _ = 1, 4 do driver_poll() end
+assert(order(7000, ONE)); assert(last(5004) == 10100, "an unknown phase count was not treated as three")
+local function reads(addr)
+    local n = 0
+    for _, call in ipairs(host._calls) do
+        if call.func == "modbus_read" and call.args[1] == addr then n = n + 1 end
+    end
+    return n
+end
+local tries = reads(1010)
+driver_poll(); assert(reads(1010) == tries, "a lost phase current was read on every poll")
+host._modbus_read_fail_addresses[1010] = nil
+host._modbus_read_fail_addresses[1012] = nil
+later(61000)
+driver_poll(); assert(reads(1010) == tries + 1, "a lost phase current was not tried again")
+assert(order(3680, ONE)); assert(last(5004) == 16000, "a one-phase car did not get P/V once all three answered")
 
 -- 14. Telemetry: power in W, session energy, state, the charger's offer.
 boot()
