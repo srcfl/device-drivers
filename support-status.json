@@ -86,7 +86,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.1",
       "driver_id": "abb_terra",
       "targets": {
         "blixt-l1": {
@@ -149,7 +149,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.4",
+      "catalog_version": "1.1.1",
       "driver_id": "alfen",
       "targets": {
         "blixt-l1": {
@@ -170,7 +170,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "alphaess",
       "targets": {
         "blixt-l1": {
@@ -422,27 +422,6 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.4",
-      "driver_id": "easee",
-      "targets": {
-        "blixt-l1": {
-          "hil": "not_recorded",
-          "historical_signed_beta_version": null,
-          "legacy_parity": "not_assessed",
-          "note": "",
-          "target_conformance": "not_assessed"
-        },
-        "ftw-core": {
-          "hil": "not_recorded",
-          "historical_signed_beta_version": null,
-          "legacy_parity": "not_assessed",
-          "note": "",
-          "target_conformance": "not_assessed"
-        }
-      }
-    },
-    {
-      "catalog_source": true,
       "catalog_version": "1.4.1",
       "driver_id": "easee_cloud",
       "targets": {
@@ -485,7 +464,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.0",
       "driver_id": "etrel",
       "targets": {
         "blixt-l1": {
@@ -653,7 +632,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.0",
       "driver_id": "goe",
       "targets": {
         "blixt-l1": {
@@ -674,7 +653,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.1.0",
       "driver_id": "goe_http",
       "targets": {
         "blixt-l1": {
@@ -737,7 +716,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.1.1",
       "driver_id": "hardybarth",
       "targets": {
         "blixt-l1": {
@@ -800,7 +779,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.1.0",
+      "catalog_version": "0.1.1",
       "driver_id": "home_assistant_vehicle",
       "targets": {
         "blixt-l1": {
@@ -863,7 +842,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.0",
       "driver_id": "keba",
       "targets": {
         "blixt-l1": {
@@ -926,7 +905,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "kstar",
       "targets": {
         "blixt-l1": {
@@ -947,7 +926,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.1",
       "driver_id": "mennekes",
       "targets": {
         "blixt-l1": {
@@ -1052,7 +1031,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
+      "catalog_version": "1.1.0",
       "driver_id": "openevse",
       "targets": {
         "blixt-l1": {
@@ -1283,7 +1262,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.0",
       "driver_id": "schrack_ev",
       "targets": {
         "blixt-l1": {
@@ -1535,7 +1514,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "solax",
       "targets": {
         "blixt-l1": {
@@ -1661,7 +1640,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.0",
+      "catalog_version": "0.2.1",
       "driver_id": "tesla_cloud",
       "targets": {
         "blixt-l1": {
@@ -1703,7 +1682,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.1.2",
+      "catalog_version": "0.2.0",
       "driver_id": "tesla_wall_connector",
       "targets": {
         "blixt-l1": {
@@ -1724,7 +1703,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.0",
+      "catalog_version": "0.2.1",
       "driver_id": "teslamate_vehicle",
       "targets": {
         "blixt-l1": {
@@ -1787,7 +1766,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "varta",
       "targets": {
         "blixt-l1": {
@@ -1850,7 +1829,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.1.0",
       "driver_id": "wallbox",
       "targets": {
         "blixt-l1": {
@@ -1892,28 +1871,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.1",
-      "driver_id": "zaptec",
-      "targets": {
-        "blixt-l1": {
-          "hil": "not_recorded",
-          "historical_signed_beta_version": null,
-          "legacy_parity": "not_assessed",
-          "note": "",
-          "target_conformance": "not_assessed"
-        },
-        "ftw-core": {
-          "hil": "not_recorded",
-          "historical_signed_beta_version": null,
-          "legacy_parity": "not_assessed",
-          "note": "",
-          "target_conformance": "not_assessed"
-        }
-      }
-    },
-    {
-      "catalog_source": true,
-      "catalog_version": "0.1.1",
+      "catalog_version": "0.2.2",
       "driver_id": "zaptec_cloud",
       "targets": {
         "blixt-l1": {

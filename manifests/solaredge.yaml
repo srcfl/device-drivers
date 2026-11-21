@@ -5,7 +5,7 @@ author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
 ders: [meter, pv]
-control: false
+control: true
 tested_devices:
   - manufacturer: "SolarEdge"
     model_family: "SE Series (Single-Phase)"
