@@ -309,7 +309,8 @@ local last_charge_label = nil
 local function read_battery_status()
     local charge_status = read_status_u16(REG_BATTERY_CHARGE_STATUS)
     local running_service = read_status_u16(REG_PIXII_RUNNING_SERVICE)
-    -- StVnd service codes start at 101 (Pixii mapping, table 23).
+    -- Pixii PowerShaper Modbus Mapping, Table 23 (StVnd service types).
+    -- https://www.pixii.com/wp-content/uploads/2026/06/U8022_06ENG_2v20_Configuration_Guide_Pixii_Powershaper_Modbus_Mapping.pdf#page=41
     local service_known = running_service ~= nil and running_service >= 101 and running_service <= 129
     local calibrating = charge_status == 7 or running_service == 116
     if running_service ~= nil then host.emit_metric("pixii_running_service_code", running_service) end

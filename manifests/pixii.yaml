@@ -16,6 +16,10 @@ tested_devices:
     min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
 upstream_docs:
+  - url: "https://www.pixii.com/wp-content/uploads/2026/06/U8022_06ENG_2v20_Configuration_Guide_Pixii_Powershaper_Modbus_Mapping.pdf"
+    title: "Pixii PowerShaper Modbus Mapping, Table 23: StVnd service types"
+    kind: register_map
+    url_stability: stable
   - url: "https://sunspec.org/wp-content/uploads/2025/01/SunSpec-Device-Information-Model-Specificiation-V1-1-final-1.pdf"
     title: "SunSpec Device Information Model 1.1: unsupported enum16 and uint16 values"
     kind: manual
@@ -24,9 +28,9 @@ upstream_docs:
     title: "SunSpec model 802: battery charge and control states"
     kind: register_map
     url_stability: stable
-size_bytes: 32887
+size_bytes: 33031
 dkb_id: "pixii"
-sha256: "368e69898b87265bad6127673a66c9a595b13428a976c2c078ace2cf5ea73c77"
+sha256: "30cbb86aa19b8f9176e02cf5a751e11b73135ac78a7b7432b7bc587cc94f8e0d"
 signature: ""
 
 bytecode_sha256: ""
