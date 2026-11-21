@@ -321,17 +321,6 @@ manufacturers:
         notes: "Name-derived phase object_ids live-validated on SlimmeLezer+; explicit Sourceful aliases retained."
   - name: "Easee"
     model_families:
-      - name: "Easee"
-        variants: [Easee Charge, Easee Home]
-        regions: []
-        protocols:
-          - protocol: modbus
-            driver: "easee"
-            version: "1.0.4"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, may require specific firmware for Modbus TCP"
       - name: "Easee Cloud"
         variants: [Charge, Home]
         regions: []
@@ -614,11 +603,11 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "home_assistant_vehicle"
-            version: "0.1.0"
+            version: "0.1.1"
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only vehicle level, charge limit, charging state, charge cable and place from a JSON message a Home Assistant automation publishes. Tested with recorded messages from a Model Y on the Tesla Custom Integration; the cable and place fields have not run on a car. Does not wake or command the car."
+        notes: "Read-only. FTW reads the car's charge level, charge limit, charging state, charge cable and place from a message a Home Assistant automation publishes over MQTT. FTW cannot control the car through it: the driver only listens and sends nothing back to Home Assistant. Control the charge with a charger FTW can control. Tested with recorded messages from a Model Y on the Tesla Custom Integration; the cable and place fields have not run on a car. Does not wake the car."
   - name: "Hoymiles"
     model_families:
       - name: "HM Series"
@@ -1841,33 +1830,33 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "tesla_cloud"
-            version: "0.2.0"
+            version: "0.2.1"
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only vehicle SoC, charge limit, charging state and charge cable via the official Tesla Fleet API. Grant the optional vehicle_location scope to report the car's distance from the site; the coordinates stay in the driver. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+        notes: "Read-only. FTW reads the car's charge level, charge limit, charging state and charge cable from the official Tesla Fleet API. FTW cannot control the car through it: Tesla accepts a command only when it is signed with a key paired to the car, and this driver cannot sign. Use tesla_vehicle (BLE proxy) to start the car's charge, or a charger FTW can control. Grant the optional vehicle_location scope to report the car's distance from the site; the coordinates stay in the driver. Does not wake the car. Not yet run against a car."
       - name: "Tesla Vehicle (TeslaMate)"
         variants: [Model 3, Model Y]
         regions: []
         protocols:
           - protocol: mqtt
             driver: "teslamate_vehicle"
-            version: "0.2.0"
+            version: "0.2.1"
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only vehicle SoC, charge limit, charging state, charge cable and place via TeslaMate MQTT. Set geofence to this site's TeslaMate geofence for the place. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+        notes: "Read-only. FTW reads the car's charge level, charge limit, charging state, charge cable and place from TeslaMate over MQTT. FTW cannot control the car through it: TeslaMate only logs data and takes no commands. Use tesla_vehicle (BLE proxy) to start the car's charge, or a charger FTW can control. Set geofence to this site's TeslaMate geofence for the place. Does not wake the car. Not yet run against a car."
       - name: "Tesla Wall Connector"
         variants: [Wall Connector Gen 3]
         regions: []
         protocols:
           - protocol: http
             driver: "tesla_wall_connector"
-            version: "0.1.2"
+            version: "0.2.0"
             ders: [ev]
             control: false
         firmware_versions: ""
-        notes: "Tesla Wall Connector Gen 3 on the LAN. Observation only; no local current setpoint."
+        notes: "Read-only. FTW reads power, current and session energy from the charger on your network, with no cloud account. FTW cannot control it: Tesla offers no way for another system to set its current or start and stop it. Its own current control is an installer setting fed by a Tesla energy meter. Control goes through the car (tesla_vehicle) or a charger FTW can control, such as one on OCPP."
   - name: "Tibber"
     model_families:
       - name: "Tibber Pulse"
@@ -2108,17 +2097,6 @@ manufacturers:
         notes: "Community driver, untested"
   - name: "Zaptec"
     model_families:
-      - name: "Zaptec"
-        variants: [Zaptec GO, Zaptec PRO]
-        regions: []
-        protocols:
-          - protocol: http
-            driver: "zaptec"
-            version: "1.0.1"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
       - name: "Zaptec Cloud"
         variants: [Go, Go 2, Pro]
         regions: []

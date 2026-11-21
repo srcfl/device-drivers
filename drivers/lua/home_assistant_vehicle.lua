@@ -103,6 +103,18 @@
 --
 -- Publish non-retained: a retained message would replay an old reading at
 -- every reconnect.
+--
+-- Why there is no control. Home Assistant can start and stop a car's charge
+-- through the car integration's own entities (Tesla Fleet has a Charge
+-- switch and Charge current and Charge limit numbers), and the FTW host
+-- could reach them: host.http_post to Home Assistant's REST API
+-- (POST /api/services/<domain>/<service>, which answers 500 when the action
+-- fails) or host.mqtt_publish to a topic an automation acts on. This driver
+-- does neither. Each needs a Home Assistant token or a second automation the
+-- owner writes, entity names differ by integration, and over MQTT the driver
+-- would never learn whether the car took the command. FTW Core sends a car
+-- only charge_start and a telemetry wake_up today. Until that work is done,
+-- it listens and nothing more.
 
 DRIVER = {
   host_api_min = 1,
@@ -110,11 +122,11 @@ DRIVER = {
   id           = "home_assistant_vehicle",
   name         = "Vehicle (Home Assistant MQTT)",
   manufacturer = "Home Assistant",
-  version      = "0.1.0",
+  version      = "0.1.1",
   protocols    = { "mqtt" },
   capabilities = { "vehicle" },
   read_only    = true,
-  description  = "Read-only vehicle level, charge limit, charging state, charge cable and place from a JSON message a Home Assistant automation publishes over MQTT. Does not wake or command the car.",
+  description  = "Reads a car's charge level, limit, charging state, cable and place from a message a Home Assistant automation publishes over MQTT. Read-only: the driver only listens and sends nothing back, so FTW cannot start or stop charging through it. Control the charge with a charger FTW can control.",
   homepage     = "https://www.home-assistant.io/integrations/mqtt/",
   authors      = { "FTW contributors" },
   tested_models = { "Model Y" },
