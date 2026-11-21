@@ -23,7 +23,7 @@ host.http_get = function(url)
     if set_mode == "down" then return nil, "connection refused" end
     local reply = {}
     for key, value in query:gmatch("(%w+)=([^&]+)") do
-      if set_mode == "refuse" then
+      if set_mode == "refuse" or (set_mode == "refuse_amp" and key == "amp") then
         reply[key] = "value not allowed"
       else
         dev[key] = tonumber(value)
@@ -58,7 +58,8 @@ local function check(cond, msg) if not cond then error(msg, 2) end end
 -- 1. Power to amps: rounded down, never up; phases and caps respected.
 boot()
 check(order(4140), "6 A order failed")
-check(last_set() == "amp=6&frc=2", "4140 W 3p should write amp=6 and frc=2, got " .. tostring(last_set()))
+check(#sets == 2 and sets[1] == "amp=6" and sets[2] == "frc=2",
+  "4140 W 3p should write amp=6, then frc=2, got " .. table.concat(sets, ", "))
 check(dev.amp == 6 and dev.frc == 2, "charger did not take the order")
 
 boot()
@@ -143,7 +144,8 @@ status_fail = true
 driver_poll()
 status_fail = false
 check(order(4140), "order after a failed poll failed")
-check(#sets == n + 2, "after a failed poll the order must be written again")
+check(#sets == n + 3 and sets[#sets - 1] == "amp=6" and sets[#sets] == "frc=2",
+  "after a failed poll the order must be written again, amp then frc")
 
 -- 3. Pause and resume.
 boot()
@@ -157,6 +159,27 @@ check(last_set() == "frc=2", "resume should write only frc, got " .. tostring(la
 boot()
 check(driver_command("ev_start", 0, {}), "start failed")
 check(dev.amp == 6 and dev.frc == 2, "start without an order should offer 6 A")
+-- A resume after a zero order starts at the minimum, not the older order.
+boot()
+check(order(6900), "10 A order failed")
+check(order(0), "zero order failed")
+check(dev.frc == 1, "a zero order stops")
+check(driver_command("ev_resume", 0, {}), "resume after a zero order failed")
+check(dev.amp == 6 and dev.frc == 2, "resume after a zero order should offer 6 A, got " .. tostring(dev.amp))
+-- An order older than 30 s is stale: resume at the minimum.
+boot()
+check(order(6900), "10 A order failed")
+check(driver_command("ev_pause", 0, {}), "pause failed")
+host._millis_counter = host._millis_counter + 31000
+check(driver_command("ev_resume", 0, {}), "late resume failed")
+check(dev.amp == 6, "a resume 31 s after the order should offer 6 A, got " .. tostring(dev.amp))
+-- Never above Core's last cap; no start when the cap is below the minimum.
+boot()
+check(order(22000, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 5 }), "capped order failed")
+check(dev.frc == 1, "a 5 A cap stops the charger")
+local before = #sets
+check(driver_command("ev_resume", 0, {}) == false, "a resume with a cap below 6 A must return false")
+check(#sets == before and dev.frc == 1, "a resume with no room must not write")
 
 -- 4. Default mode does nothing until FTW wrote, then stops once and settles.
 boot()
@@ -187,16 +210,40 @@ boot()
 set_mode = "refuse"
 check(order(6900) == false, "a refused write must return false")
 check(dev.amp == 16, "a refused write must not change the charger")
--- Default mode tries three times against a refusal, then holds.
+-- A refused stand-down returns false, and is tried again at most once a minute.
 boot()
 check(order(6900), "order before refusal failed")
 sets = {}
 set_mode = "refuse"
-local results = {}
-for i = 1, 6 do results[i] = driver_default_mode() end
-check(#sets == 3, "default mode should stop after three refusals, wrote " .. #sets)
-check(results[1] == false and results[3] == false and results[4] == true,
-  "default mode should report false while trying and true once it holds")
+for i = 1, 6 do check(driver_default_mode() == false, "a refused stand-down must return false (call " .. i .. ")") end
+check(#sets == 1, "default mode should write once inside a minute, wrote " .. #sets)
+host._millis_counter = host._millis_counter + 61000
+check(driver_default_mode() == false and #sets == 2, "default mode should try again after a minute")
+set_mode = "ok"
+check(driver_default_mode() == false and #sets == 2, "the next try waits another minute")
+host._millis_counter = host._millis_counter + 61000
+check(driver_default_mode() == true and dev.frc == 1, "a stop the charger takes returns true")
+check(driver_default_mode() == true and #sets == 3, "once stood down, default mode settles")
+-- amp refused, frc accepted: frc=2 must not go out after a refused amp.
+boot()
+set_mode = "refuse_amp"
+check(order(6900) == false, "a refused amp must fail the order")
+check(#sets == 1 and sets[1] == "amp=10", "only amp may be written, got " .. table.concat(sets, ", "))
+check(dev.frc == 0, "the charger must not be switched on after a refused amp")
+-- A car leaves while FTW has the charger on: stop it once.
+boot()
+check(order(6900), "order before unplug failed")
+check(dev.frc == 2, "charger on")
+dev.car = 1
+local n0 = #sets
+driver_poll()
+check(#sets == n0 + 1 and dev.frc == 1, "no car after FTW's order should stop the charger once")
+driver_poll(); driver_poll()
+check(#sets == n0 + 1, "the unplug stop must not repeat")
+-- A charger the owner turned on, with no FTW order, is left alone.
+boot({ car = 1, frc = 2 })
+driver_poll()
+check(#sets == 0, "an unplugged charger FTW never turned on must not be written")
 
 -- 6. Readings.
 boot({ car = 2, amp = 10, frc = 2, acu = 8, nrg = nrg(230, { 8, 8, 8 }) })

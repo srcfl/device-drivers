@@ -113,13 +113,29 @@ local function lane() return snap.secc.port0.ci.evse.basic.grid_current_limit.ac
 -- eCB1
 ---------------------------------------------------------------------------
 
--- 1. Power to amps. The first order sets manual mode, the current, and start.
-boot_ecb1()
+-- 1. Power to amps. The first order sets manual mode and the current, and
+-- starts a socket that reports itself stopped (stateid 17).
+boot_ecb1({ stateid = 17 })
 check(#host._emitted.ev == 1, "eCB1 was not detected and read")
 check(order(4140), "6 A order failed")
 check(paths() == "/mode mode=manual, /mode/manual/ampere manualmodeamp=6, /start",
   "first order should set manual, 6 A and start, got " .. paths())
 check(posts[1].headers["Content-Type"] == "application/x-www-form-urlencoded", "eCB1 writes are form-encoded")
+-- A socket that reports itself running is not started again.
+boot_ecb1()
+check(order(4140), "6 A order on a running socket failed")
+check(paths() == "/mode mode=manual, /mode/manual/ampere manualmodeamp=6",
+  "a running socket needs no start, got " .. paths())
+-- The socket stops itself after FTW's start: the next order starts it again.
+boot_ecb1({ stateid = 17 })
+check(order(6900), "order before self-stop failed")
+driver_poll()
+cc.stateid = 17
+driver_poll()
+local before17 = #posts
+check(order(6900), "order after self-stop failed")
+check(#posts == before17 + 1 and posts[#posts].path:find("/start", 1, true),
+  "a socket seen stopped after a start must be started again, got " .. paths())
 
 boot_ecb1()
 check(order(4139), "4139 W order failed")
@@ -167,10 +183,10 @@ boot_ecb1({ connected = false, stateid = 1 })
 check(order(6900), "order without a car failed")
 check(paths() == "/mode mode=manual, /mode/manual/ampere manualmodeamp=10",
   "no start without a car, got " .. paths())
-cc.connected, cc.stateid = true, 2
+cc.connected, cc.stateid = true, 17
 driver_poll()
 check(order(6900), "order after plug-in failed")
-check(posts[#posts].path:find("/start", 1, true), "the order after plug-in should start")
+check(posts[#posts].path:find("/start", 1, true), "the order after plug-in should start a stopped socket")
 -- Repeated 0 W orders send one stop.
 boot_ecb1()
 check(order(0) and order(0) and order(0), "0 W orders failed")
@@ -185,6 +201,20 @@ check(driver_command("ev_pause", 0, {}), "pause failed")
 check(posts[#posts].path:find("/stop", 1, true), "pause stops")
 check(driver_command("ev_resume", 0, {}), "resume failed")
 check(posts[#posts].path:find("/start", 1, true) and cc.manualmodeamp == 10, "resume starts at the last order")
+-- A resume after a zero order starts at the minimum.
+boot_ecb1()
+check(order(6900) and order(0), "order and zero order failed")
+check(driver_command("ev_resume", 0, {}), "resume after a zero order failed")
+check(cc.manualmodeamp == 6 and posts[#posts].path:find("/start", 1, true), "resume after a zero order offers 6 A")
+-- A car leaves while FTW has the socket started: stop it once.
+boot_ecb1({ stateid = 17 })
+check(order(6900), "order before unplug failed")
+cc.connected, cc.stateid = false, 1
+local before_unplug = #posts
+driver_poll()
+check(#posts == before_unplug + 1 and posts[#posts].path:find("/stop", 1, true), "no car should stop the socket")
+driver_poll(); driver_poll()
+check(#posts == before_unplug + 1, "the unplug stop must not repeat")
 
 -- 4. Default mode does nothing until FTW wrote, then settles.
 boot_ecb1()
@@ -207,9 +237,12 @@ boot_ecb1()
 check(order(6900), "order before refusal failed")
 posts = {}
 post_mode = "refuse"
-local results = {}
-for i = 1, 6 do results[i] = driver_default_mode() end
-check(#posts == 3 and results[1] == false and results[4] == true, "default mode gives up after three refusals")
+for i = 1, 6 do check(driver_default_mode() == false, "a refused stand-down must return false") end
+check(#posts == 1, "default mode should stop once inside a minute, wrote " .. #posts)
+host._millis_counter = host._millis_counter + 61000
+post_mode = "ok"
+check(driver_default_mode() == true and #posts == 2, "an accepted stop returns true")
+check(driver_default_mode() == true and #posts == 2, "then it settles")
 
 -- 6. Readings.
 boot_ecb1({ stateid = 5, mode = "manual", manualmodeamp = 10, currentpwmamp = 10 })
@@ -289,9 +322,8 @@ check(order(6900) == false, "a refused limit must return false")
 boot_salia()
 post_mode = "down"
 check(order(6900) == false, "a limit that never arrived must return false")
-results = {}
-for i = 1, 6 do results[i] = driver_default_mode() end
-check(#posts == 4 and results[1] == false and results[4] == true, "default mode gives up after three failures")
+for i = 1, 6 do check(driver_default_mode() == false, "a failed stand-down must return false") end
+check(#posts == 2, "default mode should try once inside a minute, posts " .. #posts)
 
 -- 6. Readings.
 boot_salia({ cp = "C", ma = "10000", power_dw = "69000", lane = "10", offered = "10.0" })

@@ -285,8 +285,8 @@ drivers:
     setup: [vendor_app]
     ders: [ev]
     control: true
-    size_bytes: 14479
-    sha256: "0a4c21c31c394f6434fed9fb281db6746d8fdb5f68b1628e8e40d99eea017743"
+    size_bytes: 17765
+    sha256: "fedbe0e1724b062928bccb26f80bef973fd9a9df318eb592ff51696e037fc08a"
   - name: "goe_http"
     version: "1.1.0"
     tier: community
@@ -295,8 +295,8 @@ drivers:
     setup: [vendor_app]
     ders: [ev]
     control: true
-    size_bytes: 14473
-    sha256: "b3573ef5e632791f60687240e1e2449753c5256c7287fe95de5df9797f612e41"
+    size_bytes: 17091
+    sha256: "f289d0ba9fbb7a20e48ba26d0c93c44af541cb4cc3fb62576a6a4e1fb21fe002"
   - name: "goodwe"
     version: "2.1.2"
     tier: community
@@ -324,8 +324,8 @@ drivers:
     setup: [device_ui]
     ders: [ev]
     control: true
-    size_bytes: 20770
-    sha256: "d73b191c6cc47905c8f23664225e3b1bf1c3949df743f7085be3c595f2165fe4"
+    size_bytes: 24020
+    sha256: "a10d1cff71133a06efe90f3921b8b8a54a62d38156557a21ff830e859a21562c"
   - name: "heishamon"
     version: "0.8.1"
     tier: core
@@ -467,8 +467,8 @@ drivers:
     setup: [none]
     ders: [ev]
     control: true
-    size_bytes: 15812
-    sha256: "1d543bf0d1440786cb7cf9b8087199e59513d5dca371ff481647cee5fe0de7da"
+    size_bytes: 18625
+    sha256: "5b16e08734910604df4ee3b8a1907b1e213aa23a7bbbe4191f3355765f690300"
   - name: "p1_dsmr"
     version: "2.0.2"
     tier: core

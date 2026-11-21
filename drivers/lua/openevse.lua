@@ -36,18 +36,26 @@
 --   An order of power_w becomes whole amps per phase, rounded down:
 --     amps = floor(power_w / (voltage * phases))
 --   phases is 3 unless the installation is one-phase (config.phases = 1) and
---   the charger is not set up as three-phase (is_threephase). OpenEVSE
+--   the charger reports it is not three-phase (is_threephase false). OpenEVSE
 --   reports one current, not one per phase, so it cannot show a car on one
 --   phase, and Core's "1p" alone does not divide by one. The result never
 --   exceeds Core's max_amps_per_phase or cap_amps_per_phase or the charger's
 --   own maximum. Below its minimum (at least 6 A) the claim is "disabled"; an
 --   order is never rounded up. A claim is written only when it differs from
 --   the one the charger reports.
---   driver_default_mode sets the claim to "disabled", once, and only after
---   FTW has written to the charger in this run. Core runs it at every start.
+--   A resume (Core sends no order with it) uses the last order if it is at
+--   most 30 s old, else the minimum, and never more than Core's last cap.
+--   When a poll shows no car and FTW's claim left the charger on, the driver
+--   claims "disabled", so the next car does not start without FTW. The claim
+--   keeps auto_release off.
+--   driver_default_mode claims "disabled", but only after FTW has written to
+--   the charger in this run; Core runs it at every start. It returns true
+--   only when the charger accepted the claim, and tries again at most once a
+--   minute.
 --
--- If FTW stops, the "disabled" claim stays until FTW claims again, the owner
--- uses the manual override, or the charger reboots.
+-- A stand-down stays on the charger, as with Zaptec and Easee: the
+-- "disabled" claim holds until FTW claims again, the owner uses the manual
+-- override, or the charger reboots.
 --
 -- Sign convention: w is positive while the car charges.
 --
@@ -98,7 +106,10 @@ local CLAIM_CLIENT = "1179910145"
 local MIN_A = 6
 local MAX_A = 32
 local STALL_MS = 30000
-local DEFAULT_ATTEMPTS = 3
+-- A resume reuses an order at most this old; older, it starts at the minimum.
+local ORDER_FRESH_MS = 30000
+-- A stop the device refused is tried again after this long.
+local RETRY_STOP_MS = 60000
 
 local STATE_LABELS = {
   [4]   = "ventilation required",
@@ -132,9 +143,12 @@ local phases_cfg = 3           -- config.phases: the installation's phase count
 -- wrote to the charger in this run, or found it already holding FTW's order,
 -- so a charger FTW never steered keeps the owner's own setting.
 local ftw_wrote = false
-local last_order_a = nil
-local stood_down = false
-local default_failures = 0
+local order_a, order_ms = nil, nil  -- the last order (0 included) and when
+local cap_a = nil                   -- Core's last per-phase cap, A
+local left_on = false               -- FTW's last write left the charger on
+local stood_down = false            -- default mode has stopped the charger
+local stand_down_try_ms = nil       -- when a refused stand-down was tried
+local unplug_try_ms = nil           -- when a refused unplug stop was tried
 local stalled_since = nil
 
 ----------------------------------------------------------------------------
@@ -195,10 +209,10 @@ local function amps_for(power_w, cmd)
   if not voltage or voltage < 100 then voltage = measured_v or 230 end
   -- OpenEVSE reports one current, not one per phase, so it cannot show a car
   -- on exactly one phase. Divide by one only when the owner set phases: 1
-  -- and the charger is not set up as three-phase. An idle charger proves
-  -- nothing, so a three-phase car never gets a one-phase sum.
+  -- and the charger's /config says it is not three-phase. Unknown counts as
+  -- three-phase, so a three-phase car never gets a one-phase sum.
   local phases = 3
-  if phases_cfg == 1 and limits.threephase ~= true then phases = 1 end
+  if phases_cfg == 1 and limits.threephase == false then phases = 1 end
   -- 0.001 A of slack so float rounding cannot turn 6.0 into 5.
   local amps = math.floor(power_w / (voltage * phases) + 0.001)
   local limit = device_max_a()
@@ -216,6 +230,7 @@ end
 local function apply(amps)
   local want = amps > 0 and "active" or "disabled"
   if claim and claim.state == want and (want == "disabled" or claim.charge_current == amps) then
+    left_on = want == "active"
     return true
   end
   local body = { state = want, auto_release = false }
@@ -233,7 +248,50 @@ local function apply(amps)
     return false
   end
   claim = { state = want, charge_current = want == "active" and amps or nil }
+  left_on = want == "active"
   return true
+end
+
+-- Core's per-phase cap in an order, in whole amps, or nil when it sent none.
+local function order_cap(cmd)
+  if type(cmd) ~= "table" then return nil end
+  local cap = nil
+  local m = num(cmd.max_amps_per_phase)
+  if m and m > 0 then cap = m end
+  local c = num(cmd.cap_amps_per_phase)
+  if c and c >= 0 and (not cap or c < cap) then cap = c end
+  if not cap then return nil end
+  return math.floor(cap + 0.001)
+end
+
+-- The current for a resume: the last order while it is fresh, else the
+-- minimum, never above Core's last cap. nil when even the minimum is too much.
+local function resume_amps(now)
+  local amps = device_min_a()
+  if order_a and order_a > 0 and order_ms and now - order_ms <= ORDER_FRESH_MS then
+    amps = order_a
+  end
+  if amps > device_max_a() then amps = device_max_a() end
+  if cap_a and amps > cap_a then amps = cap_a end
+  amps = math.floor(amps)
+  if amps < device_min_a() then return nil end
+  return amps
+end
+
+-- A car left; if FTW left the charger on, stop it so the next car waits for
+-- FTW. A refused stop is tried again after RETRY_STOP_MS.
+local function stop_if_unplugged(connected, now)
+  if connected ~= false or not left_on then
+    unplug_try_ms = nil
+    return
+  end
+  if unplug_try_ms and now - unplug_try_ms < RETRY_STOP_MS then return end
+  if apply(0) then
+    unplug_try_ms = nil
+    host.log("info", "OpenEVSE: no car; stopped the charger FTW had left on")
+  else
+    unplug_try_ms = now
+  end
 end
 
 local function read_config(now)
@@ -374,24 +432,29 @@ function driver_poll()
     l1_v                    = voltage,
   })
 
+  stop_if_unplugged(connected, now)
   return POLL_MS
 end
 
 function driver_command(action, power_w, cmd)
   if action == "init" or action == "deinit" then return true end
   if not base_url then return false end
-
+  local now = host.millis()
   local ok
   if action == "ev_set_current" then
+    local cap = order_cap(cmd)
+    if cap then cap_a = cap end
     local amps = amps_for(power_w, cmd)
     ok = apply(amps)
-    if ok and amps > 0 then last_order_a = amps end
+    if ok then order_a, order_ms = amps, now end
   elseif action == "ev_pause" then
     ok = apply(0)
   elseif action == "ev_resume" or action == "ev_start" then
-    local amps = last_order_a or device_min_a()
-    if amps > device_max_a() then amps = device_max_a() end
-    amps = math.floor(amps)
+    local amps = resume_amps(now)
+    if not amps then
+      host.log("warn", "OpenEVSE: Core's last cap leaves no room for the minimum current; not starting")
+      return false
+    end
     ok = apply(amps)
   else
     host.log("warn", "OpenEVSE: unknown action " .. tostring(action))
@@ -399,24 +462,24 @@ function driver_command(action, power_w, cmd)
   end
   if ok then
     ftw_wrote = true
-    stood_down = false
-    default_failures = 0
+    stood_down, stand_down_try_ms = false, nil
   end
   return ok
 end
 
--- Stand down when FTW can no longer steer: claim "disabled" once. After
--- DEFAULT_ATTEMPTS refusals in a row it stops trying and reports the default
--- as held, so a charger that will not take the write is not written every tick.
+-- Stand down when FTW can no longer steer: stop the charger. True only when
+-- the charger confirmed the stop, or FTW never wrote to it in this run. A
+-- refused stop returns false and is tried again at most once a minute, so a
+-- charger that will not take the write is not written every tick.
 function driver_default_mode()
   if not base_url or not ftw_wrote or stood_down then return true end
-  if default_failures >= DEFAULT_ATTEMPTS then return true end
+  local now = host.millis()
+  if stand_down_try_ms and now - stand_down_try_ms < RETRY_STOP_MS then return false end
   if apply(0) then
-    stood_down = true
-    default_failures = 0
+    stood_down, stand_down_try_ms = true, nil
     return true
   end
-  default_failures = default_failures + 1
+  stand_down_try_ms = now
   return false
 end
 

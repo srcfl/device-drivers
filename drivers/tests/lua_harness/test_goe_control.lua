@@ -126,6 +126,21 @@ check(reg(337) == 1, "pause should write FORCE_STATE=1")
 n = #writes()
 check(driver_command("ev_resume", 0, {}), "resume failed")
 check(reg(337) == 2 and reg(299) == 10 and #writes() == n + 1, "resume writes FORCE_STATE=2 at the last order")
+-- A resume after a zero order starts at 6 A.
+boot()
+check(order(6900), "order before zero failed")
+check(order(0) and reg(337) == 1, "a zero order stops")
+check(driver_command("ev_resume", 0, {}), "resume after a zero order failed")
+check(reg(299) == 6 and reg(337) == 2, "resume after a zero order should offer 6 A, got " .. tostring(reg(299)))
+-- A stale order (over 30 s) resumes at 6 A; a cap below 6 A refuses.
+boot()
+check(order(6900) and driver_command("ev_pause", 0, {}), "order and pause failed")
+host._millis_counter = host._millis_counter + 31000
+check(driver_command("ev_resume", 0, {}) and reg(299) == 6, "a late resume should offer 6 A")
+boot()
+check(order(22000, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 4 }), "4 A cap order failed")
+n = #writes()
+check(driver_command("ev_start", 0, {}) == false and #writes() == n, "a 4 A cap leaves no room to start")
 
 -- 4. Default mode does nothing until FTW wrote, then settles.
 boot()
@@ -149,10 +164,30 @@ boot()
 check(order(6900), "order before refusal failed")
 local base = #writes()
 host._modbus_write_error = "modbus exception function=0x10 code=0x02"
-local results = {}
-for i = 1, 6 do results[i] = driver_default_mode() end
-check(#writes() - base == 3, "default mode should stop after three refusals, wrote " .. (#writes() - base))
-check(results[1] == false and results[4] == true, "false while trying, true once it holds")
+for i = 1, 6 do check(driver_default_mode() == false, "a refused stand-down must return false") end
+check(#writes() - base == 1, "default mode should write once inside a minute, wrote " .. (#writes() - base))
+host._millis_counter = host._millis_counter + 61000
+host._modbus_write_error = nil
+check(driver_default_mode() == true and reg(337) == 1, "a stop the charger takes returns true")
+check(#writes() - base == 2 and driver_default_mode() == true and #writes() - base == 2, "then it settles")
+-- A car leaves while FTW has the charger on: stop it once.
+boot()
+check(order(6900) and reg(337) == 2, "order before unplug failed")
+host._modbus_registers.input[100] = 1
+n = #writes()
+driver_poll()
+check(#writes() == n + 1 and reg(337) == 1, "no car after FTW's order should stop the charger")
+driver_poll(); driver_poll()
+check(#writes() == n + 1, "the unplug stop must not repeat")
+boot({ car = 1, frc = 2 })
+driver_poll()
+check(#writes() == 0, "a charger FTW never turned on must not be written")
+-- A setpoint read that fails is unknown, so the next order writes it.
+boot({ amp = 10, frc = 2 })
+host._modbus_read_fail_addresses[299] = "timeout"
+driver_poll()
+n = #writes()
+check(order(6900) and #writes() == n + 1, "an unread AMPERE_VOLATILE must be written again")
 
 -- 6. Readings.
 boot({ car = 2, amps = { 8, 8, 8 }, amp = 10, frc = 2 })

@@ -8,8 +8,9 @@
 --   API_KEYS_FIRMWARE/apikeys-en.md what each key means
 --
 -- Read:  GET /api/status?filter=<keys>   (comma list since firmware 051.4)
--- Write: GET /api/set?<key>=<json>&...   go-e writes with GET. The reply has
---        one entry per key: true on success, or an error string.
+-- Write: GET /api/set?<key>=<json>        go-e takes writes as GET requests,
+--        so this GET changes the charger. The reply has one entry per key:
+--        true on success, or an error string.
 --
 -- Keys this driver uses:
 --   car   1 idle (no car), 2 charging, 3 waiting for the car, 4 complete,
@@ -35,14 +36,23 @@
 --   never exceeds Core's max_amps_per_phase or cap_amps_per_phase, the
 --   owner's ama or the unit's rating. Below the minimum (mca, at least 6 A)
 --   the charger is stopped with frc=1; an order is never rounded up. A
---   non-zero order writes amp and frc=2 in one request, and only the keys
---   that differ from what the charger last reported.
---   driver_default_mode stops the charger (frc=1), once, and only after
---   FTW has written to it in this run. Core runs it at every start.
+--   non-zero order writes amp, and frc=2 only once the charger confirmed
+--   amp. Only keys that differ from what the charger last reported are
+--   written.
+--   frc=2 forces charging past the charger's own RFID check, scheduler and
+--   price logic, so FTW alone decides while it steers.
+--   A resume (Core sends no order with it) uses the last order if it is at
+--   most 30 s old, else the minimum, and never more than Core's last cap.
+--   When a poll shows no car and FTW left the charger on, the driver stops
+--   it (frc=1), so the next car does not start without FTW.
+--   driver_default_mode stops the charger (frc=1), but only after FTW has
+--   written to it in this run; Core runs it at every start. It returns true
+--   only when the charger confirmed the stop, and tries again at most once
+--   a minute.
 --
--- frc is a setting, so it stays where FTW left it. If FTW stops, the charger
--- stays off until FTW starts it again or the owner sets it to neutral in the
--- go-e app.
+-- frc is a setting, so a stop stays on the charger, as with Zaptec and
+-- Easee. If FTW stops, the charger stays off until FTW starts it again or
+-- the owner sets it to neutral in the go-e app.
 --
 -- Sign convention: w is positive while the car charges. go-e cannot
 -- discharge a car.
@@ -94,8 +104,10 @@ local FRC_OFF, FRC_ON = 1, 2
 local PHASE_ACTIVE_A = 1.0
 -- An order the charger blocks for this long is reported as stalled.
 local STALL_MS = 30000
--- Default mode gives up after this many refused writes in a row.
-local DEFAULT_ATTEMPTS = 3
+-- A resume reuses an order at most this old; older, it starts at the minimum.
+local ORDER_FRESH_MS = 30000
+-- A stop the charger refused is tried again after this long.
+local RETRY_STOP_MS = 60000
 
 local MODEL_STATUS_LABELS = {
   [1]  = "overtemperature",
@@ -140,9 +152,12 @@ local phases_cfg = 3           -- config.phases: the installation's phase count
 -- wrote to the charger in this run, or found it already holding FTW's order,
 -- so a charger FTW never steered keeps the owner's own setting.
 local ftw_wrote = false
-local last_order_a = nil      -- last non-zero amps FTW ordered
-local stood_down = false      -- default mode has stopped the charger
-local default_failures = 0
+local order_a, order_ms = nil, nil  -- the last order (0 included) and when
+local cap_a = nil                   -- Core's last per-phase cap, A
+local left_on = false               -- FTW's last write left the charger on
+local stood_down = false            -- default mode has stopped the charger
+local stand_down_try_ms = nil       -- when a refused stand-down was tried
+local unplug_try_ms = nil           -- when a refused unplug stop was tried
 local stalled_since = nil
 
 ----------------------------------------------------------------------------
@@ -208,41 +223,77 @@ local function amps_for(power_w, cmd)
   return amps
 end
 
--- One /api/set request. True only when the reply confirms every key.
-local function set_keys(keys)
-  local parts = {}
-  for _, kv in ipairs(keys) do
-    parts[#parts + 1] = kv[1] .. "=" .. string.format("%d", kv[2])
-  end
-  local query = table.concat(parts, "&")
+-- One key in one /api/set request. True only when the reply confirms it.
+local function set_key(key, value)
+  local query = key .. "=" .. string.format("%d", value)
   ftw_wrote = true
   local reply, err = http_get_json(base_url .. "/api/set?" .. query)
   if not reply then
     host.log("warn", "go-e: write " .. query .. " failed: " .. tostring(err))
     return false
   end
-  for _, kv in ipairs(keys) do
-    if reply[kv[1]] ~= true then
-      host.log("warn", string.format("go-e: charger refused %s=%d: %s",
-        kv[1], kv[2], tostring(reply[kv[1]])))
-      return false
-    end
+  if reply[key] ~= true then
+    host.log("warn", string.format("go-e: charger refused %s: %s", query, tostring(reply[key])))
+    return false
   end
-  for _, kv in ipairs(keys) do dev[kv[1]] = kv[2] end
+  dev[key] = value
   return true
 end
 
--- Bring the charger to amps (0 stops it). Writes only what differs.
+-- Bring the charger to amps (0 stops it). Writes only what differs, and
+-- turns the charger on only after it confirmed the current.
 local function apply(amps)
-  local keys = {}
   if amps <= 0 then
-    if dev.frc ~= FRC_OFF then keys[#keys + 1] = { "frc", FRC_OFF } end
-  else
-    if dev.amp ~= amps then keys[#keys + 1] = { "amp", amps } end
-    if dev.frc ~= FRC_ON then keys[#keys + 1] = { "frc", FRC_ON } end
+    if dev.frc ~= FRC_OFF and not set_key("frc", FRC_OFF) then return false end
+    left_on = false
+    return true
   end
-  if #keys == 0 then return true end
-  return set_keys(keys)
+  if dev.amp ~= amps and not set_key("amp", amps) then return false end
+  if dev.frc ~= FRC_ON and not set_key("frc", FRC_ON) then return false end
+  left_on = true
+  return true
+end
+
+-- Core's per-phase cap in an order, in whole amps, or nil when it sent none.
+local function order_cap(cmd)
+  if type(cmd) ~= "table" then return nil end
+  local cap = nil
+  local m = num(cmd.max_amps_per_phase)
+  if m and m > 0 then cap = m end
+  local c = num(cmd.cap_amps_per_phase)
+  if c and c >= 0 and (not cap or c < cap) then cap = c end
+  if not cap then return nil end
+  return math.floor(cap + 0.001)
+end
+
+-- The current for a resume: the last order while it is fresh, else the
+-- minimum, never above Core's last cap. nil when even the minimum is too much.
+local function resume_amps(now)
+  local amps = device_min_a()
+  if order_a and order_a > 0 and order_ms and now - order_ms <= ORDER_FRESH_MS then
+    amps = order_a
+  end
+  if amps > device_max_a() then amps = device_max_a() end
+  if cap_a and amps > cap_a then amps = cap_a end
+  amps = math.floor(amps)
+  if amps < device_min_a() then return nil end
+  return amps
+end
+
+-- A car left; if FTW left the charger on, stop it so the next car waits for
+-- FTW. A refused stop is tried again after RETRY_STOP_MS.
+local function stop_if_unplugged(connected, now)
+  if connected ~= false or not left_on then
+    unplug_try_ms = nil
+    return
+  end
+  if unplug_try_ms and now - unplug_try_ms < RETRY_STOP_MS then return end
+  if apply(0) then
+    unplug_try_ms = nil
+    host.log("info", "go-e: no car; stopped the charger FTW had left on")
+  else
+    unplug_try_ms = now
+  end
 end
 
 ----------------------------------------------------------------------------
@@ -351,6 +402,7 @@ function driver_poll()
     l1_w = w[1], l2_w = w[2], l3_w = w[3],
   })
 
+  stop_if_unplugged(connected, host.millis())
   return POLL_MS
 end
 
@@ -358,17 +410,22 @@ function driver_command(action, power_w, cmd)
   if action == "init" or action == "deinit" then return true end
   if not base_url then return false end
 
+  local now = host.millis()
   local ok
   if action == "ev_set_current" then
+    local cap = order_cap(cmd)
+    if cap then cap_a = cap end
     local amps = amps_for(power_w, cmd)
     ok = apply(amps)
-    if ok and amps > 0 then last_order_a = amps end
+    if ok then order_a, order_ms = amps, now end
   elseif action == "ev_pause" then
     ok = apply(0)
   elseif action == "ev_resume" or action == "ev_start" then
-    local amps = last_order_a or device_min_a()
-    if amps > device_max_a() then amps = device_max_a() end
-    amps = math.floor(amps)
+    local amps = resume_amps(now)
+    if not amps then
+      host.log("warn", "go-e: Core's last cap leaves no room for the minimum current; not starting")
+      return false
+    end
     ok = apply(amps)
   else
     host.log("warn", "go-e: unknown action " .. tostring(action))
@@ -376,24 +433,24 @@ function driver_command(action, power_w, cmd)
   end
   if ok then
     ftw_wrote = true
-    stood_down = false
-    default_failures = 0
+    stood_down, stand_down_try_ms = false, nil
   end
   return ok
 end
 
--- Stand down when FTW can no longer steer: stop the charger once. After
--- DEFAULT_ATTEMPTS refusals in a row it stops trying and reports the default
--- as held, so a charger that will not take the write is not written every tick.
+-- Stand down when FTW can no longer steer: stop the charger. True only when
+-- the charger confirmed the stop, or FTW never wrote to it in this run. A
+-- refused stop returns false and is tried again at most once a minute, so a
+-- charger that will not take the write is not written every tick.
 function driver_default_mode()
   if not base_url or not ftw_wrote or stood_down then return true end
-  if default_failures >= DEFAULT_ATTEMPTS then return true end
+  local now = host.millis()
+  if stand_down_try_ms and now - stand_down_try_ms < RETRY_STOP_MS then return false end
   if apply(0) then
-    stood_down = true
-    default_failures = 0
+    stood_down, stand_down_try_ms = true, nil
     return true
   end
-  default_failures = default_failures + 1
+  stand_down_try_ms = now
   return false
 end
 

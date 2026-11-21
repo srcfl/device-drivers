@@ -29,9 +29,9 @@ upstream_docs:
     kind: api_docs
     url_stability: stable
 min_host_version: "2.1.0"
-size_bytes: 15812
+size_bytes: 18625
 dkb_id: ""
-sha256: "1d543bf0d1440786cb7cf9b8087199e59513d5dca371ff481647cee5fe0de7da"
+sha256: "5b16e08734910604df4ee3b8a1907b1e213aa23a7bbbe4191f3355765f690300"
 signature: ""
 
 bytecode_sha256: ""

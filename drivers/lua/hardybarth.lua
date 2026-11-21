@@ -22,9 +22,10 @@
 --   Writes are form-encoded. manualmodeamp only acts in manual mode, so the
 --   first order that needs current sets the mode to manual. That setting
 --   stays. The API does not list state ids; stateid 5 is charging and 17 is
---   stopped, as evcc has seen on these boxes. The driver remembers which of
---   start and stop it sent last, and sends stop again only while the car
---   still charges.
+--   stopped, as evcc has seen on these boxes. A socket seen stopped (17) is
+--   started again by the next order that needs current. Without a state id
+--   the driver goes by the start or stop it sent last. A stop goes out again
+--   only while the car still charges.
 --
 -- Salia controller (cPH2, cPu2). Source: eCharge Salia REST API,
 --   https://docs.echarge.de/api/salia
@@ -48,10 +49,17 @@
 --   station's own maximum. Below its minimum (at least 6 A) the station is
 --   stopped; an order is never rounded up. Only what differs from the
 --   station's last report is written.
---   driver_default_mode stops the station once: /stop on eCB1, a limit of
---   0 A on Salia. Core runs it at every start, so it acts only after FTW
---   has written to the station in this run. The stop stays until FTW
---   orders current again.
+--   A resume (Core sends no order with it) uses the last order if it is at
+--   most 30 s old, else the minimum, and never more than Core's last cap.
+--   On eCB1, when a poll shows no car and FTW left the socket started, the
+--   driver stops it, so the next car does not start without FTW.
+--   driver_default_mode stops the station: /stop on eCB1, a limit of 0 A on
+--   Salia. Core runs it at every start, so it acts only after FTW has
+--   written to the station in this run. It returns true only when the
+--   station took the stop, and tries again at most once a minute.
+--
+-- A stop stays on the station, as with Zaptec and Easee, until FTW orders
+-- current again or the owner changes it.
 --
 -- Sign convention: w is positive while the car charges.
 --
@@ -102,7 +110,10 @@ local MIN_A = 6
 local MAX_A = 32
 local PHASE_ACTIVE_A = 1.0
 local STALL_MS = 30000
-local DEFAULT_ATTEMPTS = 3
+-- A resume reuses an order at most this old; older, it starts at the minimum.
+local ORDER_FRESH_MS = 30000
+-- A stop the device refused is tried again after this long.
+local RETRY_STOP_MS = 60000
 
 -- eCB1 state ids seen by evcc; the API document does not list them.
 local ECB1_CHARGING = 5
@@ -131,9 +142,12 @@ local phases_cfg = 3           -- config.phases: the installation's phase count
 -- wrote to the charger in this run, or found it already holding FTW's order,
 -- so a charger FTW never steered keeps the owner's own setting.
 local ftw_wrote = false
-local last_order_a = nil
-local stood_down = false
-local default_failures = 0
+local order_a, order_ms = nil, nil  -- the last order (0 included) and when
+local cap_a = nil                   -- Core's last per-phase cap, A
+local left_on = false               -- FTW's last write left the charger on
+local stood_down = false            -- default mode has stopped the charger
+local stand_down_try_ms = nil       -- when a refused stand-down was tried
+local unplug_try_ms = nil           -- when a refused unplug stop was tried
 local stalled_since = nil
 
 ----------------------------------------------------------------------------
@@ -264,6 +278,9 @@ local function ecb1_poll(now)
   dev.amp = num(cc.manualmodeamp)
   local stateid = num(cc.stateid)
   if stateid then dev.stopped = (stateid == ECB1_STOPPED) else dev.stopped = nil end
+  -- The socket reports itself stopped: that, not the last command FTW sent,
+  -- decides whether the next order sends start.
+  if dev.stopped then dev.sent = nil end
   dev.connected = nil
   if type(cc.connected) == "boolean" then dev.connected = cc.connected end
   dev.min_a = num(cc.evminamp)
@@ -307,11 +324,13 @@ local function ecb1_poll(now)
   return true
 end
 
--- start and stop are remembered as sent: the API has no documented field
--- that says a socket is stopped, and a stop sent again on every 0 W order
--- would write each tick. A stop goes out again when the car still charges.
+-- Start and stop follow the socket's own state id where it reports one
+-- (17 is stopped), and the last command sent where it does not. A stop sent
+-- again on every 0 W order would write each tick, so a stop goes out again
+-- only while the car still charges.
 local function ecb1_apply(amps)
   if amps <= 0 then
+    if dev.stopped == true then return true end
     if dev.sent == "stop" and dev.charging ~= true then return true end
     if not post(ecb1_path("/stop"), "", FORM, "stop") then return false end
     dev.sent, dev.stopped = "stop", true
@@ -327,7 +346,8 @@ local function ecb1_apply(amps)
     dev.amp = amps
   end
   -- "start" acts on a connected car. Without one, the next order starts it.
-  if dev.sent ~= "start" and dev.connected ~= false then
+  local need_start = dev.stopped == true or (dev.stopped == nil and dev.sent ~= "start")
+  if need_start and dev.connected ~= false then
     if not post(ecb1_path("/start"), "", FORM, "start") then return false end
     dev.sent, dev.stopped = "start", false
   end
@@ -494,6 +514,63 @@ function driver_init(config)
   host.set_make("HardyBarth")
 end
 
+local function apply(amps)
+  if not kind then detect(host.millis()) end
+  local ok
+  if kind == "ecb1" then
+    ok = ecb1_apply(amps)
+  elseif kind == "salia" then
+    ok = salia_apply(amps)
+  else
+    host.log("warn", "Hardy Barth: controller not known yet; no write")
+    return false
+  end
+  if ok then left_on = amps > 0 end
+  return ok
+end
+
+-- Core's per-phase cap in an order, in whole amps, or nil when it sent none.
+local function order_cap(cmd)
+  if type(cmd) ~= "table" then return nil end
+  local cap = nil
+  local m = num(cmd.max_amps_per_phase)
+  if m and m > 0 then cap = m end
+  local c = num(cmd.cap_amps_per_phase)
+  if c and c >= 0 and (not cap or c < cap) then cap = c end
+  if not cap then return nil end
+  return math.floor(cap + 0.001)
+end
+
+-- The current for a resume: the last order while it is fresh, else the
+-- minimum, never above Core's last cap. nil when even the minimum is too much.
+local function resume_amps(now)
+  local amps = device_min_a()
+  if order_a and order_a > 0 and order_ms and now - order_ms <= ORDER_FRESH_MS then
+    amps = order_a
+  end
+  if amps > device_max_a() then amps = device_max_a() end
+  if cap_a and amps > cap_a then amps = cap_a end
+  amps = math.floor(amps)
+  if amps < device_min_a() then return nil end
+  return amps
+end
+
+-- A car left; if FTW left the station on, stop it so the next car waits for
+-- FTW. A refused stop is tried again after RETRY_STOP_MS.
+local function stop_if_unplugged(connected, now)
+  if connected ~= false or not left_on then
+    unplug_try_ms = nil
+    return
+  end
+  if unplug_try_ms and now - unplug_try_ms < RETRY_STOP_MS then return end
+  if apply(0) then
+    unplug_try_ms = nil
+    host.log("info", "Hardy Barth: no car; stopped the station FTW had left on")
+  else
+    unplug_try_ms = now
+  end
+end
+
 function driver_poll()
   local now = host.millis()
   local snap = nil
@@ -509,31 +586,29 @@ function driver_poll()
     measured_phases, measured_v, stalled_since = nil, nil, nil
     return RETRY_MS
   end
+  if kind == "ecb1" then stop_if_unplugged(dev.connected, now) end
   return POLL_MS
-end
-
-local function apply(amps)
-  if kind == "ecb1" then return ecb1_apply(amps) end
-  if kind == "salia" then return salia_apply(amps) end
-  host.log("warn", "Hardy Barth: controller not known yet; no write")
-  return false
 end
 
 function driver_command(action, power_w, cmd)
   if action == "init" or action == "deinit" then return true end
   if not base_url then return false end
-
+  local now = host.millis()
   local ok
   if action == "ev_set_current" then
+    local cap = order_cap(cmd)
+    if cap then cap_a = cap end
     local amps = amps_for(power_w, cmd)
     ok = apply(amps)
-    if ok and amps > 0 then last_order_a = amps end
+    if ok then order_a, order_ms = amps, now end
   elseif action == "ev_pause" then
     ok = apply(0)
   elseif action == "ev_resume" or action == "ev_start" then
-    local amps = last_order_a or device_min_a()
-    if amps > device_max_a() then amps = device_max_a() end
-    amps = math.floor(amps)
+    local amps = resume_amps(now)
+    if not amps then
+      host.log("warn", "Hardy Barth: Core's last cap leaves no room for the minimum current; not starting")
+      return false
+    end
     ok = apply(amps)
   else
     host.log("warn", "Hardy Barth: unknown action " .. tostring(action))
@@ -541,25 +616,24 @@ function driver_command(action, power_w, cmd)
   end
   if ok then
     ftw_wrote = true
-    stood_down = false
-    default_failures = 0
+    stood_down, stand_down_try_ms = false, nil
   end
   return ok
 end
 
--- Stand down when FTW can no longer steer: stop the station once. After
--- DEFAULT_ATTEMPTS refusals in a row it stops trying and reports the default
--- as held, so a station that will not take the write is not written every tick.
+-- Stand down when FTW can no longer steer: stop the station. True only when
+-- the station confirmed the stop, or FTW never wrote to it in this run. A
+-- refused stop returns false and is tried again at most once a minute, so a
+-- station that will not take the write is not written every tick.
 function driver_default_mode()
   if not base_url or not ftw_wrote or stood_down then return true end
-  if default_failures >= DEFAULT_ATTEMPTS then return true end
-  if not kind then detect(host.millis()) end
-  if kind and apply(0) then
-    stood_down = true
-    default_failures = 0
+  local now = host.millis()
+  if stand_down_try_ms and now - stand_down_try_ms < RETRY_STOP_MS then return false end
+  if apply(0) then
+    stood_down, stand_down_try_ms = true, nil
     return true
   end
-  default_failures = default_failures + 1
+  stand_down_try_ms = now
   return false
 end
 

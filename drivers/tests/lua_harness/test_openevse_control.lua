@@ -120,6 +120,19 @@ check(last_post().state == "active" and last_post().charge_current == 10, "resum
 boot()
 check(driver_command("ev_start", 0, {}), "start failed")
 check(last_post().charge_current == 6, "start without an order claims the minimum")
+-- A resume after a zero order claims the minimum.
+boot()
+check(order(2300) and order(0), "order and zero order failed")
+check(driver_command("ev_resume", 0, {}) and last_post().charge_current == 6, "resume after a zero order claims 6 A")
+-- A stale order (over 30 s) resumes at the minimum; a cap below it refuses.
+boot()
+check(order(2300) and driver_command("ev_pause", 0, {}), "order and pause failed")
+host._millis_counter = host._millis_counter + 31000
+check(driver_command("ev_resume", 0, {}) and last_post().charge_current == 6, "a late resume claims 6 A")
+boot()
+check(order(7360, { phase_mode = "1p", voltage = 230, max_amps_per_phase = 25, cap_amps_per_phase = 5 }), "5 A cap failed")
+n = #posts
+check(driver_command("ev_resume", 0, {}) == false and #posts == n, "a 5 A cap leaves no room to resume")
 
 -- 4. Default mode does nothing until FTW wrote, then settles.
 boot()
@@ -148,10 +161,27 @@ boot()
 check(order(2300), "order before refusal failed")
 posts = {}
 post_mode = "refuse"
-local results = {}
-for i = 1, 6 do results[i] = driver_default_mode() end
-check(#posts == 3, "default mode should stop after three refusals, wrote " .. #posts)
-check(results[1] == false and results[4] == true, "false while trying, true once it holds")
+for i = 1, 6 do check(driver_default_mode() == false, "a refused stand-down must return false") end
+check(#posts == 1, "default mode should claim once inside a minute, wrote " .. #posts)
+host._millis_counter = host._millis_counter + 61000
+post_mode = "ok"
+check(driver_default_mode() == true and held.state == "disabled", "an accepted claim returns true")
+check(driver_default_mode() == true and #posts == 2, "then it settles")
+-- A car leaves while FTW's claim has the charger on: claim disabled once.
+boot({ state = 3 })
+check(order(2300), "order before unplug failed")
+status.vehicle, status.state = 0, 1
+n = #posts
+driver_poll()
+check(#posts == n + 1 and last_post().state == "disabled" and last_post().auto_release == false,
+  "no car after FTW's claim should claim disabled, keeping auto_release off")
+driver_poll(); driver_poll()
+check(#posts == n + 1, "the unplug claim must not repeat")
+-- An unknown phase setup divides by three, even with phases = 1.
+boot(nil, { is_threephase = "unknown" })
+check(order(4140), "order with unknown phases failed")
+check(last_post().charge_current == 6, "phases = 1 with an unknown phase setup divides by three, got "
+  .. tostring(last_post().charge_current))
 
 -- 6. Readings.
 boot({ state = 3, power = 3600, amp = 15652, pilot = 16 })
