@@ -1,5 +1,5 @@
 name: "zaptec_cloud"
-version: "0.2.1"
+version: "0.2.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial. Control written from Zaptec's API docs; not yet confirmed on hardware."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 22491
+size_bytes: 23059
 dkb_id: "zaptec_cloud"
-sha256: "ea8157aaef601ad0d00ccdbc917eac4cc77de84e97729cc670ab2ac352d01a7c"
+sha256: "a438e7b2c28c17be1d0eca6511e2e67157dbc1510966ef95ceebe872e24aff58"
 signature: ""
 
 bytecode_sha256: ""

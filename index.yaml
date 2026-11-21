@@ -829,15 +829,15 @@ drivers:
     size_bytes: 30379
     sha256: "b11198e45d761599939b8201c0969514bbbbc6c2571dcf56d12959cf9ade2b5d"
   - name: "zaptec_cloud"
-    version: "0.2.1"
+    version: "0.2.2"
     tier: community
     protocol: http
     connectivity: cloud
     setup: [vendor_portal]
     ders: [ev]
     control: true
-    size_bytes: 22491
-    sha256: "ea8157aaef601ad0d00ccdbc917eac4cc77de84e97729cc670ab2ac352d01a7c"
+    size_bytes: 23059
+    sha256: "a438e7b2c28c17be1d0eca6511e2e67157dbc1510966ef95ceebe872e24aff58"
   - name: "zuidwijk_p1"
     version: "1.1.2"
     tier: core
