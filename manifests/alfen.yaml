@@ -1,26 +1,33 @@
 name: "alfen"
-version: "1.0.4"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
-ders: [v2x_charger]
-control: false
+setup: [installer]
+ders: [ev]
+control: true
 tested_devices:
   - manufacturer: "Alfen"
-    model_family: "Eve Series"
+    model_family: "Eve Series (NG9xx)"
     variants: [NG910, NG920]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
-    min_driver_version: "1.0.0"
+    notes: "Control written from Alfen's Modbus for ACE configuration guide v1.0 (May 2025); not yet confirmed on hardware. Needs Active Load Balancing (a paid licence) with data source Energy Management System, and Allow writing maximum currents, set in ACE Service Installer. Set phases: 1 for a single-phase installation."
+    min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
-size_bytes: 4649
+size_bytes: 23637
 dkb_id: ""
-sha256: "effe4374a11f46cc174d9bf0167131835adcaaf657aee05469baef8d06f4365e"
+sha256: "89686888462647249888b1b46f254fad7888766911764c63087a57c3e466c297"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
 changelog: ""
+
+upstream_docs:
+  - url: "https://alfen.com/media/1047/download"
+    title: "Alfen Modbus for ACE, Configuration Guide (NG9xx Modbus TCP register map)"
+    kind: register_map
+    url_stability: stable

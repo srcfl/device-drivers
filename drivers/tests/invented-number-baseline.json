@@ -12,10 +12,8 @@
   ],
   "drivers": {
     "abb_meter": 13,
-    "abb_terra": 8,
     "acrel": 13,
     "acuvim": 8,
-    "alfen": 8,
     "alphaess": 10,
     "atmoce": 13,
     "carlo_gavazzi": 13,
@@ -34,7 +32,6 @@
     "janitza": 13,
     "kostal": 22,
     "kstar": 9,
-    "mennekes": 8,
     "schneider_meter": 13,
     "siemens_pac": 13,
     "sigenergy": 5,

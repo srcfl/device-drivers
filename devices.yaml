@@ -19,11 +19,11 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "abb_terra"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from ABB's TAC Modbus Communication v1.7 (July 2022); not yet confirmed on hardware. Modbus TCP is enabled in the Terra Config app. Set phases: 1 for a single-phase installation."
   - name: "ATMOCE"
     model_families:
       - name: "MC100 M-Combiner"
@@ -116,17 +116,17 @@ manufacturers:
         notes: "2400 baud, 8E1, HDLC/DLMS/COSEM"
   - name: "Alfen"
     model_families:
-      - name: "Eve Series"
+      - name: "Eve Series (NG9xx)"
         variants: [NG910, NG920]
         regions: []
         protocols:
           - protocol: modbus
             driver: "alfen"
-            version: "1.0.4"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from Alfen's Modbus for ACE configuration guide v1.0 (May 2025); not yet confirmed on hardware. Needs Active Load Balancing (a paid licence) with data source Energy Management System, and Allow writing maximum currents, set in ACE Service Installer. Set phases: 1 for a single-phase installation."
   - name: "AlphaESS"
     model_families:
       - name: "G2 Series"
@@ -939,17 +939,28 @@ manufacturers:
         notes: "2400 baud, 8E1, HDLC/DLMS/COSEM, may require encryption key"
   - name: "Mennekes"
     model_families:
-      - name: "AMTRON"
-        variants: [AMTRON Charge Control, AMTRON Premium]
+      - name: "AMTRON / AMEDIO with ECU charge controller"
+        variants: [AMEDIO Professional, AMTRON Charge Control, AMTRON Professional]
         regions: []
         protocols:
           - protocol: modbus
             driver: "mennekes"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
+        firmware_versions: ">= 5.12"
+        notes: "Control written from Mennekes' ECU Modbus TCP Server Specification rev 1.07; not yet confirmed on hardware. Turn on Modbus TCP Server in the charger's web interface."
+      - name: "AMTRON with HCC3 controller"
+        variants: [AMTRON Premium, AMTRON Xtra]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "mennekes"
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from Mennekes' AMTRON Modbus description v1.031; not yet confirmed on hardware. The Modbus server is off in the Energy Manager and SCU operation modes. The charger keeps the last limit written, with no timeout: when Core stops or updates it writes 0 A, and the car waits until Core sends a new order, as with easee_cloud. Set phases: 1 for a single-phase installation."
   - name: "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)"
     model_families:
       - name: "MyUplink Heat Pump (telemetry)"
