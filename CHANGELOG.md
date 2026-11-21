@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### lk_arc 0.1.0
+
+New read-only driver for the LK Systems LK Arc underfloor heating gateway
+over Modbus TCP, from LK's published register list. Per zone it reports
+room temperature, humidity, setpoint, override state, thermostat battery
+and signal strength, and how many of the zone's actuators are open. Zones
+are found from their thermostat address and re-checked every half hour;
+the addresses themselves are never emitted.
+
 ### heishamon 0.8.1
 
 Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only

@@ -413,6 +413,15 @@ drivers:
     control: false
     size_bytes: 3615
     sha256: "c6e41381f5a59f197b8e9899a770c32acd1e49c4c70a9faa3fec6b43f291d862"
+  - name: "lk_arc"
+    version: "0.1.0"
+    tier: community
+    protocol: modbus
+    connectivity: local
+    ders: [heatpump]
+    control: false
+    size_bytes: 14651
+    sha256: "d19354c6aef75a31ca0bc1d50b5c59a1139d3903607742446f92322e55f44933"
   - name: "mennekes"
     version: "1.0.3"
     tier: community
