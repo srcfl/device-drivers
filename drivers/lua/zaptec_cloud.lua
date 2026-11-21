@@ -26,8 +26,9 @@
 -- through the API. The driver then refuses current orders and says why.
 --
 -- When FTW can no longer steer (driver_default_mode) it pauses and sets
--- 0 A, as easee_cloud does. maxChargeCurrent is stored on the charger, so an
--- owner who stops using FTW sets it again in the Zaptec app or portal.
+-- 0 A, as easee_cloud does, but only once FTW has written a current in this
+-- run. maxChargeCurrent is stored on the charger, so an owner who stops
+-- using FTW sets it again in the Zaptec app or portal.
 --
 -- Sign convention: positive W is charging (power into the vehicle).
 --
@@ -44,7 +45,7 @@ DRIVER = {
   id           = "zaptec_cloud",
   name         = "Zaptec Cloud",
   manufacturer = "Zaptec",
-  version      = "0.2.0",
+  version      = "0.2.1",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Zaptec Go / Go 2 / Pro via Zaptec Cloud. Email + password; optional charger serial. FTW sets the charging current and pauses or resumes.",
@@ -616,8 +617,11 @@ end
 function driver_default_mode()
   -- Stand down when FTW can no longer steer: 0 A and pause. Settles: once
   -- done it does nothing until a new order, and a failed try waits before
-  -- the next one.
+  -- the next one. Core runs this at every start too, and maxChargeCurrent is
+  -- stored on the charger, so it acts only after FTW wrote a current in this
+  -- run. A charger FTW never steered keeps the owner's own setting.
   if not charger_id or not email or not password then return end
+  if last_written_a == nil then return end
   if stood_down then return end
   local now = host.millis()
   if stand_down_try_ms and now - stand_down_try_ms < STAND_DOWN_RETRY_MS then return end
