@@ -157,6 +157,16 @@ Once it has given up, report the default as held rather than failed. A
 permanent `false` has the watchdog escalate against a device that was never
 under control.
 
+That last rule is for a device FTW never steered: a register that is not
+there, a block another EMS owns. It does not hold for a device FTW did
+command in this run, such as a charger it set to 16 A. Core reads `true` (or
+nothing) from `driver_default_mode` as "stood down": it unblocks control and
+stops retrying. So once the driver has written, a stand-down the device
+refuses returns `false`, and the driver tries the write again no more than
+once a minute, returning `false` in between. That still settles, and Core
+keeps the device marked as out of its hands until the write holds.
+`zaptec_cloud` is the worked example.
+
 ```bash
 make refused-write-report ID=example
 ```

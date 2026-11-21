@@ -45,7 +45,7 @@ DRIVER = {
   id           = "zaptec_cloud",
   name         = "Zaptec Cloud",
   manufacturer = "Zaptec",
-  version      = "0.2.1",
+  version      = "0.2.2",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Zaptec Go / Go 2 / Pro via Zaptec Cloud. Email + password; optional charger serial. FTW sets the charging current and pauses or resumes.",
@@ -102,7 +102,7 @@ local REFRESH_MS = 300000
 local SMALL_RISE_A = 0.5
 local SMALL_RISE_HOLD_MS = 60000
 -- After a failed stand-down, try again no sooner than this.
-local STAND_DOWN_RETRY_MS = 300000
+local STAND_DOWN_RETRY_MS = 60000
 -- A positive order on a paused charger resends resume no more often than this.
 local RESUME_RETRY_MS = 30000
 
@@ -615,25 +615,33 @@ function driver_command(action, power_w, cmd)
 end
 
 function driver_default_mode()
-  -- Stand down when FTW can no longer steer: 0 A and pause. Settles: once
-  -- done it does nothing until a new order, and a failed try waits before
-  -- the next one. Core runs this at every start too, and maxChargeCurrent is
-  -- stored on the charger, so it acts only after FTW wrote a current in this
-  -- run. A charger FTW never steered keeps the owner's own setting.
-  if not charger_id or not email or not password then return end
-  if last_written_a == nil then return end
-  if stood_down then return end
+  -- Stand down when FTW can no longer steer: 0 A and pause. Core runs this at
+  -- every start too, and maxChargeCurrent is stored on the charger, so it acts
+  -- only after FTW wrote a current in this run; a charger FTW never steered
+  -- keeps the owner's own setting.
+  --
+  -- The return value is what Core believes. true means stood down (or nothing
+  -- of FTW's to hand back); false keeps Core's control blocked and its
+  -- recovery retrying. A refused stand-down is false, and the write is tried
+  -- again no more than once a minute, so it settles without lying.
+  if not charger_id or not email or not password then return true end
+  if last_written_a == nil then return true end
+  if stood_down then return true end
   local now = host.millis()
-  if stand_down_try_ms and now - stand_down_try_ms < STAND_DOWN_RETRY_MS then return end
+  if stand_down_try_ms and now - stand_down_try_ms < STAND_DOWN_RETRY_MS then return false end
   stand_down_try_ms = now
-  if not ensure_auth() then return end
+  if not ensure_auth() then return false end
   local wrote = write_current(0)
   local _, applied = send_command(CMD_PAUSE)
   if applied then paused = true end
-  if wrote then
+  -- Either holds the car: below 6 A Zaptec allocates nothing, and a paused
+  -- charger draws nothing.
+  if wrote or applied then
     stood_down = true
     stand_down_try_ms = nil
+    return true
   end
+  return false
 end
 
 function driver_cleanup()
