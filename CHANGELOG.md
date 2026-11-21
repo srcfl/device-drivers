@@ -84,16 +84,22 @@ emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
 - Registers come from Etrel's INCH SmartHome Modbus TCP register list. The old
   map (holding 300-312) was in no Etrel document and is gone. Readings are
   Float32 input registers 0-31; identity is 990-1019.
-- An order becomes a current per phase: power over voltage and phases, where
-  phases is the larger of the order's `phase_mode` and the phases the charger
-  measures current on. It never exceeds Core's `max_amps_per_phase` or
-  `cap_amps_per_phase`, the installer's custom max current or 32 A. It rounds
-  down to 0.1 A, and below 6 A it writes 0 A.
+- An order becomes a current per phase: power over voltage and phases. It is
+  one phase only when config says `phases: 1` and the car has not drawn on
+  more than one phase since it was plugged in, or when Core orders `1p` and
+  the car draws on exactly one. Otherwise, idle or just started too, it is
+  three, so a three-phase car never gets a one-phase sum on each phase. The
+  current never exceeds Core's `max_amps_per_phase` or `cap_amps_per_phase`,
+  the installer's custom max current or 32 A. It rounds down to 0.1 A, and
+  below 6 A it writes 0 A.
 - Pause writes a 0 A setpoint and resume writes the order back. The pause and
   stop registers are one-way triggers with no documented undo, so they are
   never written.
-- Default mode writes 0 A once. A charger that refuses it three times and
-  never took an order is left alone.
+- Default mode acts only after a command wrote in this run. Core runs it at
+  every start, so a charger FTW never steered keeps its own setpoint and a
+  charge already running goes on, as in heishamon 0.8.1. After that it writes
+  0 A once. A charger that refuses it three times and never took an order is
+  left alone.
 - A failed read is left out, not reported as 0. Session energy of 0 is left
   out, since some firmware never moves it (evcc-io/evcc#5346).
 - The second connector of an INCH Duo is not covered.
@@ -109,10 +115,10 @@ emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
   read the error code as L1 current, lifetime energy as session energy, and
   voltages from the current, serial and product registers. Each value is now
   read on its own, as the guide requires. The unit ID default is 255.
-- An order writes 5004 (mA) and then enables with 5014. Phases, caps and
-  rounding work as in etrel 1.1.0, with the hardware limit from 1110. Below
-  6 A, pause and default mode disable with 5014 = 0, since 5004 takes nothing
-  under 6000 mA.
+- An order writes 5004 (mA) and then enables with 5014. Phases, caps,
+  rounding and the default-mode rule work as in etrel 1.1.0, with the
+  hardware limit from 1110. Below 6 A, pause and default mode disable with
+  5014 = 0, since 5004 takes nothing under 6000 mA.
 - A charger that offers more than the order, or charges while disabled, gets
   the order again after 30 s. A configured failsafe timeout is refreshed at
   half its length while an order stands.
@@ -135,9 +141,10 @@ loadpoint. It emits `ev` instead of `v2x_charger` and declares
 - An order writes the current to 101 (whole A) and then authorises with
   100 = 1. A void authorisation is cleared with 100 = 0 first, as the table
   says. With no car plugged in only the current is set. Below 6 A, pause and
-  default mode write 100 = 0.
-- The charger reports no power and no phase currents, so `w` stays empty and a
-  one-phase order is split over three phases unless config says `phases: 1`.
+  default mode write 100 = 0. Default mode acts only after a command wrote in
+  this run, as in etrel 1.1.0.
+- The charger reports no power and no phase currents, so `w` stays empty and
+  orders are split over the phases in config only (`phases`, default 3).
 - The CION Pro is not covered: it speaks OCPP, which FTW handles itself.
 
 Not yet confirmed on hardware.

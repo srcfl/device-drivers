@@ -60,13 +60,15 @@ boot()
 assert(order(4000))
 assert(table.concat(writes(), ",") == "100=0", "below 6 A wrote " .. table.concat(writes(), ","))
 
--- 4. The charger measures no phases: a one-phase order is split over three
--- unless config says the installation has one.
+-- 4. The charger measures no phases, so only config decides. A 1p order on
+-- an idle three-phase installation gives P/(3*V).
 boot()
-assert(order(3680, ONE)); assert(last(100) == 0, "a 1p order reached 16 A on an unknown installation")
+assert(order(7000, ONE)); assert(last(101) == 10, "an idle 1p order was not split over three")
+assert(order(3680, ONE)); assert(last(100) == 0, "a 1p order reached 16 A on a three-phase installation")
 boot({ phases = 1 })
 assert(order(3680, ONE)); assert(last(101) == 16, "phases: 1 was ignored")
-assert(order(11040)); assert(last(101) == 16, "a 3p order on a 1p install was not split")
+-- On a one-phase installation every order is one phase, within the fuse.
+assert(order(11040)); assert(last(101) == 25, "phases: 1 did not decide a 3p order")
 
 -- 5. Caps: Core's max and cap per phase, the charger's maximum and the cable.
 boot()
@@ -115,7 +117,14 @@ assert(driver_command("ev_pause", 0, {})); assert(last(100) == 0, "pause did not
 assert(driver_command("ev_resume", 0, {})); assert(last(100) == 1, "resume did not authorise")
 assert(#writes(101) == 1, "resume rewrote an unchanged current")
 
--- 10. Default mode withdraws once, then writes nothing.
+-- 10. Core runs default mode at every start: a charger FTW never wrote to in
+-- this run is left alone, and a charge already running goes on.
+boot()
+charger({ cp = CP_C, auth = 1, current = 16, bits = 3, offered = 16 })
+driver_poll()
+for _ = 1, 3 do assert(driver_default_mode() == true) end
+assert(#writes() == 0, "default mode wrote to a charger FTW never steered")
+-- Once FTW wrote, default mode withdraws once, then writes nothing.
 boot()
 assert(order(11040))
 assert(driver_default_mode() == true); assert(last(100) == 0, "default mode did not withdraw")
@@ -134,6 +143,7 @@ assert(order(11040)); assert(last(101) == 16 and last(100) == 1, "the order was 
 -- is left alone after three tries. One that took one keeps being asked.
 boot()
 host._modbus_write_error = "modbus exception function=0x06 code=0x02"
+assert(order(4000) == false)
 local counts = {}
 for i = 1, 6 do
     local n = #writes()

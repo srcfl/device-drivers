@@ -211,8 +211,8 @@ drivers:
     setup: [device_ui]
     ders: [ev]
     control: true
-    size_bytes: 17725
-    sha256: "a23d092ebf24247f3379fae3cee4c2307457256372b965b580a2aa67fb5df6aa"
+    size_bytes: 19315
+    sha256: "f1cae22a1faa1cb367b232b1fc1d2dd6c654a64ba6b2d2a1c7cc9c8d4c444764"
   - name: "ferroamp"
     version: "2.1.2"
     tier: core
@@ -377,8 +377,8 @@ drivers:
     setup: [installer]
     ders: [ev]
     control: true
-    size_bytes: 17614
-    sha256: "cf03006c880643b02b2ff5566735f2c2583c8fdea2ed763b80efb115342cbe8e"
+    size_bytes: 19221
+    sha256: "7310dc9b476622c5331272b5a67dc64d883bd3e1b756f104819e5db713915696"
   - name: "konja-261-svk"
     version: "0.3.2"
     tier: community
@@ -564,8 +564,8 @@ drivers:
     setup: [bridge, installer]
     ders: [ev]
     control: true
-    size_bytes: 15947
-    sha256: "8ecce3daae8a8f2bdf6ab948ba7bd4235c7cdf8a6b4f17c71656bc51fe314ab8"
+    size_bytes: 16371
+    sha256: "20ae082c36ca91f255f7ea1c9a71234f248448d0b63250ebdf6c73bb8e04cb9b"
   - name: "sdm630"
     version: "2.0.2"
     tier: core

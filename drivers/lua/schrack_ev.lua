@@ -36,9 +36,11 @@
 -- The register list has no power or energy, so `w` and `session_wh` stay
 -- empty. FTW can order the charger but cannot see what the car draws from it.
 --
--- The charger reports no phase currents. A one-phase order is therefore
--- split over the phases set in config (`phases`, default 3), so it never
--- reaches more than the ordered power. On a one-phase installation set
+-- The charger reports no phase currents, so an order is split over the
+-- phases set in config (`phases`, default 3) and nothing else. Core's
+-- phase_mode cannot be checked against the car here: a one-phase order on a
+-- three-phase installation is still divided by three, so a three-phase car
+-- never gets the whole order on each phase. On a one-phase installation set
 -- `phases: 1`.
 
 DRIVER = {
@@ -124,6 +126,11 @@ local written_auth, written_auth_ms = nil, nil
 local order_a = nil
 local steering = false
 local order_landed = false
+-- True once a command has tried to write in this run. Core runs default mode
+-- at every start, so until then the stand-down leaves the charger alone: a
+-- charger FTW never steered keeps its own state, and a charge already running
+-- goes on. The same rule as heishamon 0.8.1.
+local ftw_wrote = false
 
 local STANDDOWN_ATTEMPTS = 3
 local standdown_refusals = 0
@@ -142,6 +149,8 @@ local STALL_MS = 30000
 ----------------------------------------------------------------------------
 
 local function write(addr, value, what)
+    -- Default mode writes only once this is set, so only a command sets it.
+    ftw_wrote = true
     local ok, err = pcall(host.modbus_write, addr, value)
     if not ok or (err ~= nil and err ~= true and err ~= "") then
         host.log("warn", "Schrack: " .. what .. " not written: " ..
@@ -182,16 +191,13 @@ end
 
 -- Core orders total power. The charger takes whole amperes per phase.
 --
---   phases  the larger of the order's phase_mode (1p is one, anything else
---           three) and the installed phases from config, since the charger
+--   phases  the installed phases from config only, since the charger
 --           measures none
 --   amps    power / (voltage * phases), never above Core's max and cap per
 --           phase or the charger's own limit, rounded down to 1 A
 --   below   MIN_A gives 0 A. A current is never rounded up to the minimum.
 local function amps_for(power_w, cmd)
-    local phases = 3
-    if type(cmd) == "table" and cmd.phase_mode == "1p" then phases = 1 end
-    if installed_phases > phases then phases = installed_phases end
+    local phases = installed_phases
     if type(power_w) ~= "number" or power_w ~= power_w or power_w <= 0 then
         return 0, phases
     end
@@ -386,10 +392,12 @@ function driver_command(action, power_w, cmd)
     return false
 end
 
--- Stand the charger down: withdraw the charging authorisation. Repeated calls
--- write nothing once that has landed. A charger that refuses three times, and
--- never took an authorisation from this driver, is left alone.
+-- Stand the charger down: withdraw the charging authorisation, once a command
+-- wrote in this run. Repeated calls write nothing once that has landed. A
+-- charger that refuses three times, and never took an authorisation from
+-- this driver, is left alone.
 function driver_default_mode()
+    if not ftw_wrote then return true end
     if written_auth == 0 then
         steering = false
         return true

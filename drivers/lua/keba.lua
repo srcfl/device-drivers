@@ -41,6 +41,10 @@
 -- on firmware older than 3.10.16 speaks only UDP: update its firmware.
 -- The P40 has its own guide and is not covered.
 --
+-- Config: `phases: 1` on a one-phase installation. Otherwise an order is
+-- split over three phases unless Core orders one phase and the car draws on
+-- exactly one.
+--
 -- Sign convention: an EVSE is a one-way load, so `w` is positive while the car
 -- charges, as the charger reports it.
 
@@ -149,6 +153,11 @@ local enabled_ms = nil
 local order_a = nil          -- the last current above zero an order asked for
 local steering = false       -- a command landed and no stand-down since
 local order_landed = false   -- an enable of ours may still stand
+-- True once a command has tried to write in this run. Core runs default mode
+-- at every start, so until then the stand-down leaves the charger alone: a
+-- charger FTW never steered keeps its own state, and a charge already running
+-- goes on. The same rule as heishamon 0.8.1.
+local ftw_wrote = false
 
 local STANDDOWN_ATTEMPTS = 3
 local standdown_refusals = 0
@@ -158,7 +167,12 @@ local failsafe_refreshed_ms = nil
 local FAILSAFE_ATTEMPTS = 3
 local failsafe_refusals = 0
 
-local last_phases = nil
+-- Config `phases`: 1 for a one-phase installation, otherwise three.
+local installed_phases = 3
+-- Phases the car drew on at the latest poll, and the most it drew on since
+-- it was plugged in.
+local drawing_phases = 0
+local seen_phases = 0
 local device_limit_a, device_limit_ms = nil, nil
 local stalled_since_ms = nil
 
@@ -180,6 +194,8 @@ end
 
 local function write_current_ma(ma)
     if written_ma == ma then return true end
+    -- Default mode writes only once this is set, so only a command sets it.
+    ftw_wrote = true
     if not write(REG_SET_CURRENT, ma, "charging current " .. tostring(ma) .. " mA") then
         written_ma = nil
         return false
@@ -190,6 +206,7 @@ end
 
 local function set_enabled(on)
     if enabled == on then return true end
+    ftw_wrote = true
     if not write(REG_ENABLE, on and 1 or 0, on and "enable" or "disable") then
         enabled = nil
         return false
@@ -207,17 +224,29 @@ local function finite_positive(v)
     return type(v) == "number" and v == v and v > 0 and v < math.huge
 end
 
+-- Three phases, unless one phase is certain:
+--   * the installation is one-phase (config) and the car has not drawn on
+--     more than one phase since it was plugged in, or
+--   * Core orders one phase and the car draws on exactly one.
+-- An idle or just-started charger counts as three. Core budgets only L1 for a
+-- one-phase order, so a three-phase car must never get that sum per phase.
+local function phases_for(cmd)
+    if installed_phases == 1 and seen_phases <= 1 then return 1 end
+    if type(cmd) == "table" and cmd.phase_mode == "1p" and
+       seen_phases == 1 and drawing_phases == 1 then
+        return 1
+    end
+    return 3
+end
+
 -- Core orders total power. The charger takes a current per phase.
 --
---   phases  the larger of the order's phase_mode (1p is one, anything else
---           three) and the phases the charger measures current on
+--   phases  see phases_for
 --   amps    power / (voltage * phases), never above Core's max and cap per
 --           phase or the charger's own limit, rounded down to 0.1 A
 --   below   MIN_A gives 0 A. A current is never rounded up to the minimum.
 local function amps_for(power_w, cmd)
-    local phases = 3
-    if type(cmd) == "table" and cmd.phase_mode == "1p" then phases = 1 end
-    if last_phases and last_phases > phases then phases = last_phases end
+    local phases = phases_for(cmd)
     if type(power_w) ~= "number" or power_w ~= power_w or power_w <= 0 then
         return 0, phases
     end
@@ -267,6 +296,9 @@ end
 
 function driver_init(config)
     host.set_make("Keba")
+    if type(config) == "table" and tonumber(config.phases) == 1 then
+        installed_phases = 1
+    end
 end
 
 local function read_identity()
@@ -318,7 +350,7 @@ function driver_poll()
 
     if state == nil and cable == nil and w == nil then
         -- Nothing answered: there is no fresh reading to report.
-        last_phases = nil
+        drawing_phases = 0
         return 5000
     end
 
@@ -331,7 +363,11 @@ function driver_poll()
     for i = 1, 3 do
         if amps[i] and amps[i] >= 1 then measured = measured + 1 end
     end
-    last_phases = measured > 0 and measured or nil
+    -- A new car starts unseen: a one-phase car after a three-phase one may
+    -- use one phase again.
+    if connected == false then seen_phases = 0 end
+    drawing_phases = measured
+    if measured > seen_phases then seen_phases = measured end
 
     -- A charger that offers more than this driver ordered, or charges while
     -- this driver disabled it, has lost the order: a reboot clears 5004.
@@ -394,7 +430,7 @@ function driver_poll()
         lifetime_wh             = lifetime_wh,
         l1_v = volts[1], l2_v = volts[2], l3_v = volts[3],
         l1_a = amps[1], l2_a = amps[2], l3_a = amps[3],
-        phases                  = last_phases,
+        phases                  = measured > 0 and measured or nil,
         max_a                   = offered_a,
         current_limit_a         = current_limit_a,
         device_limit_a          = device_limit_a,
@@ -443,10 +479,11 @@ function driver_command(action, power_w, cmd)
     return false
 end
 
--- Stand the charger down: disable it. Repeated calls write nothing once that
--- has landed. A charger that refuses three times, and never took an enable
--- from this driver, is left alone.
+-- Stand the charger down: disable it, once a command wrote in this run.
+-- Repeated calls write nothing once that has landed. A charger that refuses
+-- three times, and never took an enable from this driver, is left alone.
 function driver_default_mode()
+    if not ftw_wrote then return true end
     if enabled == false then
         steering = false
         return true

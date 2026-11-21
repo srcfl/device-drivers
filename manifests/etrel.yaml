@@ -16,9 +16,9 @@ tested_devices:
     notes: "Control written from Etrel's INCH SmartHome Modbus TCP register list; not yet confirmed on hardware. Duo: connector 1 only."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 17725
+size_bytes: 19315
 dkb_id: ""
-sha256: "a23d092ebf24247f3379fae3cee4c2307457256372b965b580a2aa67fb5df6aa"
+sha256: "f1cae22a1faa1cb367b232b1fc1d2dd6c654a64ba6b2d2a1c7cc9c8d4c444764"
 signature: ""
 
 bytecode_sha256: ""

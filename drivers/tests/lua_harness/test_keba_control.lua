@@ -26,11 +26,11 @@ local function charger(state, cable, ma, offered, extra)
     set_u32(1602, (extra and extra.failsafe) or 0)
 end
 
-local function boot(product)
+local function boot(product, config)
     host.reset()
     driver_init, driver_poll, driver_command, driver_default_mode = nil, nil, nil, nil
     dofile(DRIVER_PATH)
-    driver_init({})
+    driver_init(config or {})
     set_u32(1016, product or 304111)
     set_u32(1014, 18416854)
     charger(2, 7, {}, 32000)
@@ -52,12 +52,10 @@ local THREE = { phase_mode = "3p", voltage = 230, max_amps_per_phase = 25 }
 local ONE = { phase_mode = "1p", voltage = 230, max_amps_per_phase = 25 }
 local function order(w, cmd) return driver_command("ev_set_current", w, cmd or THREE) end
 
--- 1. Current first, then enable. Three phases and one.
+-- 1. Current first, then enable.
 boot()
 assert(order(11040))
 assert(table.concat(writes(), ",") == "5004=16000,5014=1", "writes were " .. table.concat(writes(), ","))
-boot()
-assert(order(3680, ONE)); assert(last(5004) == 16000, "3680 W on 1p is not 16 A")
 
 -- 2. Round down to 0.1 A, never up.
 boot()
@@ -68,11 +66,39 @@ boot()
 assert(order(4000))
 assert(table.concat(writes(), ",") == "5014=0", "below 6 A wrote " .. table.concat(writes(), ","))
 
--- 4. A one-phase order on a car that draws on three phases is split over three.
+-- 4. One phase only when it is certain. A 1p order on an idle three-phase
+-- installation gives P/(3*V), so a three-phase car never gets the L1 sum.
+boot()
+assert(order(7000, ONE)); assert(last(5004) == 10100, "an idle 1p order was not split over three")
+-- ...and on a car that draws on three phases.
 boot()
 charger(3, 7, { 10000, 10000, 10000 }, 10000)
 driver_poll()
 assert(order(7000, ONE)); assert(last(5004) == 10100, "measured phases were ignored")
+-- A 1p order on a car that draws on exactly one phase gives P/V.
+boot()
+charger(3, 7, { 10000, 0, 0 }, 10000)
+driver_poll()
+assert(order(3680, ONE)); assert(last(5004) == 16000, "a one-phase car did not get P/V")
+-- A car once seen on three phases stays three until it is unplugged.
+boot()
+charger(3, 7, { 10000, 10000, 10000 }, 10000)
+driver_poll()
+charger(3, 7, { 10000, 0, 0 }, 10000)
+driver_poll()
+assert(order(7000, ONE)); assert(last(5004) == 10100, "a three-phase car got P/V")
+charger(1, 0, {}, 10000)
+driver_poll()
+charger(3, 7, { 10000, 0, 0 }, 10000)
+driver_poll()
+assert(order(3680, ONE)); assert(last(5004) == 16000, "unplugging did not forget the old car")
+-- A one-phase installation (config) gives P/V, idle or not, unless the car
+-- draws on more than one phase.
+boot(nil, { phases = 1 })
+assert(order(3680)); assert(last(5004) == 16000, "phases: 1 was ignored")
+charger(3, 7, { 10000, 10000, 10000 }, 10000)
+driver_poll()
+assert(order(7000)); assert(last(5004) == 10100, "phases: 1 overrode three measured phases")
 
 -- 5. Caps: Core's max and cap per phase, and the charger's hardware limit.
 boot()
@@ -103,7 +129,14 @@ boot()
 assert(driver_command("ev_start", 0, {}))
 assert(table.concat(writes(), ",") == "5004=6000,5014=1", "start without an order is not 6 A")
 
--- 8. Default mode disables once, then writes nothing.
+-- 8. Core runs default mode at every start: a charger FTW never wrote to in
+-- this run is left alone, and a charge already running goes on.
+boot()
+charger(3, 7, { 16000, 16000, 16000 }, 16000)
+driver_poll()
+for _ = 1, 3 do assert(driver_default_mode() == true) end
+assert(#writes() == 0, "default mode wrote to a charger FTW never steered")
+-- Once FTW wrote, default mode disables once, then writes nothing.
 boot()
 assert(order(11040))
 assert(driver_default_mode() == true); assert(last(5014) == 0, "default mode did not disable")
@@ -126,6 +159,7 @@ assert(order(11040) == false, "a refused enable returned true")
 -- alone after three tries. One that took an enable keeps being asked.
 boot()
 host._modbus_write_error = "modbus exception function=0x06 code=0x02"
+assert(order(4000) == false)
 local counts = {}
 for i = 1, 6 do
     local n = #writes()
