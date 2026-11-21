@@ -65,12 +65,12 @@ local DRIVER_SPECS = {
     chint            = { protocol = "modbus", ders = {"meter"} },
 
     -- Modbus EV chargers
-    alfen            = { protocol = "modbus", ders = {"v2x_charger"} },
-    abb_terra        = { protocol = "modbus", ders = {"v2x_charger"} },
+    alfen            = { protocol = "modbus", ders = {"ev"} },
+    abb_terra        = { protocol = "modbus", ders = {"ev"} },
     goe              = { protocol = "modbus", ders = {"v2x_charger"} },
     keba             = { protocol = "modbus", ders = {"v2x_charger"} },
     wallbox          = { protocol = "modbus", ders = {"v2x_charger"} },
-    mennekes         = { protocol = "modbus", ders = {"v2x_charger"} },
+    mennekes         = { protocol = "modbus", ders = {"ev"} },
     schrack_ev       = { protocol = "modbus", ders = {"v2x_charger"} },
     etrel            = { protocol = "modbus", ders = {"v2x_charger"} },
 

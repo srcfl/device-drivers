@@ -37,14 +37,15 @@ drivers:
     size_bytes: 3865
     sha256: "e59cc7382dc43df90be789f675a02cfe64250caa2ac9a910a3e91c20cbbeaf06"
   - name: "abb_terra"
-    version: "1.0.3"
+    version: "1.1.0"
     tier: community
     protocol: modbus
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 3779
-    sha256: "95098bbe0efed794b06d56b1d73e4d18d5582777f0eadd766a534ac66ff9dc56"
+    setup: [vendor_app]
+    ders: [ev]
+    control: true
+    size_bytes: 16353
+    sha256: "3854fdc5ee445c4e01a6d63162da274071111e3cfb181f4bb20b387e4b30a5f1"
   - name: "acrel"
     version: "1.0.4"
     tier: community
@@ -64,14 +65,15 @@ drivers:
     size_bytes: 17436
     sha256: "3c82c1286a0a21c5ed644aef39a28dac523135f8729ecf84e9e8ec2400a8438f"
   - name: "alfen"
-    version: "1.0.4"
+    version: "1.1.0"
     tier: community
     protocol: modbus
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 4649
-    sha256: "effe4374a11f46cc174d9bf0167131835adcaaf657aee05469baef8d06f4365e"
+    setup: [installer]
+    ders: [ev]
+    control: true
+    size_bytes: 23637
+    sha256: "89686888462647249888b1b46f254fad7888766911764c63087a57c3e466c297"
   - name: "alphaess"
     version: "1.1.1"
     tier: community
@@ -405,14 +407,15 @@ drivers:
     size_bytes: 3615
     sha256: "c6e41381f5a59f197b8e9899a770c32acd1e49c4c70a9faa3fec6b43f291d862"
   - name: "mennekes"
-    version: "1.0.3"
+    version: "1.1.0"
     tier: community
     protocol: modbus
     connectivity: local
-    ders: [v2x_charger]
-    control: false
-    size_bytes: 3766
-    sha256: "5f985b8917aea7b08fba13c02506b45e40232a763393dc6af7c6eeb6ab5853af"
+    setup: [device_ui]
+    ders: [ev]
+    control: true
+    size_bytes: 23683
+    sha256: "55bf19052473ca5463522ad7e72a36e571a70e2f8a6166516ec5dd84ccb98ec5"
   - name: "myuplink"
     version: "1.2.4"
     tier: core
