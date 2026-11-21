@@ -2125,11 +2125,11 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "zaptec_cloud"
-            version: "0.1.1"
+            version: "0.2.0"
             ders: [ev]
-            control: false
+            control: true
         firmware_versions: ""
-        notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial."
+        notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial. Control written from Zaptec's API docs; not yet confirmed on hardware."
   - name: "Zuidwijk"
     model_families:
       - name: "Zuidwijk P1 Reader Ethernet"

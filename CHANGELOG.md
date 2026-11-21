@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### zaptec_cloud 0.2.0
+
+FTW now controls a Zaptec Go, Go 2 or Pro. Before this, the driver read the
+charger but declared itself read-only, so FTW accepted the charger and never
+steered it, and an owner whose fuse was overloaded had no way to see why.
+
+- Current goes to the charger's `maxChargeCurrent`. Zaptec asks callers not to
+  change the installation's `AvailableCurrent` more than once every 15
+  minutes, too slow for a fuse guard. The installation's own limit still
+  applies on top.
+- Amps never exceed what Core budgeted per phase. The driver assumes three
+  phases unless Core and the charger both say one, rounds down, and writes
+  0 A below 6 A.
+- Pause sets 0 A and sends command 506. Resume offers the last asked current
+  and sends 507. A "would not change the state" result (codes 520 and 528)
+  counts as done, and any other refusal comes back false.
+- Stand-alone mode, where the charger ignores current from the API, refuses
+  current orders and resumes and says so.
+- The stand-down sets 0 A and pauses once, then waits for a new order. A
+  failed stand-down tries again after five minutes.
+- Missing readings stay empty instead of 0. Phase currents and voltages are
+  reported, and every request carries an FTW User-Agent.
+
+Written from Zaptec's API documentation. Not yet confirmed on hardware.
+
 ### heishamon 0.8.1
 
 Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only
