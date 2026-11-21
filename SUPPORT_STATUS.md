@@ -186,7 +186,7 @@ Catalog source is not proof that a target can install or run a driver.
 | zap | 3.1.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | zaptec | 1.0.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | zaptec | 1.0.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| zaptec_cloud | 0.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| zaptec_cloud | 0.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| zaptec_cloud | 0.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| zaptec_cloud | 0.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | zuidwijk_p1 | 1.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | zuidwijk_p1 | 1.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
