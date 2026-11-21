@@ -292,24 +292,41 @@ assert(#current_writes() == writes, "the stand-down did not settle")
 assert(order(11040, THREE))
 driver_default_mode()
 assert(last_current() == 0, "a new order must re-arm the stand-down")
--- A refused stand-down waits before it tries again.
+-- A refused stand-down says so, waits a minute before it tries again, and
+-- says so again until it holds.
 boot()
 poll(CONNECTED)
 assert(order(11040, THREE))
 post_fail["/update"] = "HTTP 503: down"
-driver_default_mode()
+post_fail["/sendCommand/506"] = 'HTTP 500: {"Code":520}'
+assert(driver_default_mode() == false, "a refused stand-down must not report held")
 local tries = count("/update")
-for _ = 1, 5 do driver_default_mode() end
+for _ = 1, 5 do assert(driver_default_mode() == false) end
 assert(count("/update") == tries, "a refused stand-down retried at once")
-later(301000)
-driver_default_mode()
+later(61000)
+assert(driver_default_mode() == false)
 assert(count("/update") == tries + 1, "the stand-down never retried")
+post_fail = {}
+later(61000)
+assert(driver_default_mode() == true, "a stand-down that held must report it")
+assert(driver_default_mode() == true and count("/update") == tries + 2, "a held stand-down wrote again")
+-- A pause that held is enough even when the 0 A write failed.
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE))
+post_fail["/update"] = "HTTP 503: down"
+assert(driver_default_mode() == true, "a held pause is a stand-down")
+post_fail = {}
+-- ...and a resume after it offers the minimum, not the old 16 A.
+local n_before = #current_writes()
+assert(driver_command("ev_resume", 0, nil))
+assert(#current_writes() == n_before + 1 and last_current() == 6, "resume after a held pause offered a stale current")
 
 -- Core runs the stand-down at every start: a charger FTW never steered in
 -- this run keeps the owner's setting.
 boot()
 poll(CONNECTED)
-for _ = 1, 3 do driver_default_mode() end
+for _ = 1, 3 do assert(driver_default_mode() == true) end
 assert(#current_writes() == 0 and count("/sendCommand/506") == 0,
     "the stand-down touched a charger FTW never steered")
 
