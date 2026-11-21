@@ -185,23 +185,38 @@ assert(count() == settled, "default mode did not settle")
 -- After default mode Core is back in charge; 0 A orders are refreshed again.
 later(20000); assert(order(0)); assert(count() == settled + 1)
 
--- 7. Honest results: a refused write returns false, and default mode stops
--- asking a charger that keeps refusing.
+-- 7. Honest results: a refused write returns false, and so does a refused
+-- stand-down.
 boot()
 driver_poll()
 assert(order(11040))
 host._modbus_write_error = "modbus exception function=0x10 code=0x04"
 assert(order(6900) == false, "a refused write must return false")
 assert(driver_command("ev_pause", 0, {}) == false, "a refused pause must return false")
-local attempts = {}
-for i = 1, 6 do
+-- After FTW wrote, a refused stand-down says false: a car may still be
+-- charging. It is tried again once a minute, not on every call, and says
+-- true only once the charger takes 0 A.
+local function standdown(expect_write)
     local b = host._modbus_write_attempts
-    driver_default_mode()
-    attempts[i] = host._modbus_write_attempts - b
+    local result = driver_default_mode()
+    local wrote = host._modbus_write_attempts - b
+    assert(wrote == (expect_write and 1 or 0),
+        "alfen: stand-down wrote " .. wrote .. " times")
+    return result
 end
-assert(table.concat(attempts, ",") == "1,1,1,0,0,0",
-    "default mode must stop after three refusals, got " .. table.concat(attempts, ","))
+assert(standdown(true) == false, "alfen: a refused stand-down must say false")
+for _ = 1, 5 do
+    later(5000)
+    assert(standdown(false) == false, "alfen: retried inside a minute, or said true")
+end
+later(35000)
+assert(standdown(true) == false, "alfen: not retried after a minute")
+later(30000)
+assert(standdown(false) == false, "alfen: retried inside a minute")
 host._modbus_write_error = nil
+later(31000)
+assert(standdown(true) == true, "alfen: a stand-down the charger took must say true")
+for _ = 1, 3 do assert(standdown(false) == true, "alfen: did not settle") end
 assert(order(11040)); assert(near(last(), 16), "a working charger is written again")
 
 -- 8. Readings: device values only; a failed read stays nil.
