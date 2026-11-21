@@ -21,7 +21,7 @@ local function ecu(opts)
     for i = 0, 2 do
         absent(200 + 2 * i)                 -- per-phase energy: none
         hi_lo(206 + 2 * i, (opts.power or 11000) // 3)
-        hi_lo(212 + 2 * i, opts.amps_ma or 16000)
+        hi_lo(212 + 2 * i, (opts.phase_ma or {})[i + 1] or opts.amps_ma or 16000)
         hi_lo(222 + 2 * i, 231)
     end
     hi_lo(200, 987654)
@@ -42,7 +42,7 @@ local function hcc3(opts)
     I[0x0302] = opts.cp or 6
     I[0x0304] = opts.error or 0
     I[0x0305] = 3
-    I[0x0308] = 3
+    I[0x0308] = opts.phases or 3
     I[0x0309], I[0x030A] = 32, opts.installed or 16
     lo_hi(0x030B, 12345678)
     lo_hi(0x030D, 2500)
@@ -88,7 +88,9 @@ for _, kind in ipairs({ "ecu", "hcc3" }) do
     assert(order(7000)); assert(last() == 10, kind .. ": 7000 W 3p rounds down to 10 A")
     assert(order(4140)); assert(last() == 6, kind .. ": 4140 W 3p is exactly 6 A")
     assert(order(4000)); assert(last() == 0, kind .. ": below 6 A must write 0")
-    assert(order(3680, { phase_mode = "1p", voltage = 230 })); assert(last() == 16)
+    assert(order(3680, { phase_mode = "1p", voltage = 230 }))
+    assert(last() == 0, kind .. ": a 1p order on an idle three-phase charger divides by three")
+    assert(driver_command("ev_start", 0, {}), kind .. ": start after an order")
 
     -- 2. Caps.
     assert(order(11040, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 10 }))
@@ -102,6 +104,8 @@ for _, kind in ipairs({ "ecu", "hcc3" }) do
     -- 3. Pause and resume, through Core's contactor cycle.
     boot(kind)
     driver_poll()
+    assert(driver_command("ev_resume", 0, {}) == false, kind .. ": resume before any order must say no")
+    assert(count() == 0, kind .. ": resume before any order wrote")
     assert(order(11040)); assert(last() == 16)
     assert(driver_command("ev_pause", 0, {})); assert(last() == 0, kind .. ": pause must write 0")
     later(3000); local n = count()
@@ -141,12 +145,39 @@ for _, kind in ipairs({ "ecu", "hcc3" }) do
     later(31000); assert(order(11040)); assert(count() == n + 1, kind .. ": changed limit not restored")
 end
 
--- ECU: phases, refresh, readings.
+-- ECU phases: only a measurement or config makes one phase.
 REG = 1000
+local P1 = { phase_mode = "1p", voltage = 230, max_amps_per_phase = 25 }
 boot("ecu")
 driver_poll()
-assert(order(7360, { phase_mode = "1p", voltage = 230 }))
-assert(last() == 10, "ecu: seen phases must override a 1p order")
+assert(order(7360, P1)); assert(last() == 10, "ecu: three phases measured on a 1p order")
+boot("ecu", { phase_ma = { 15000, 0, 0 } })
+driver_poll()
+assert(order(3680, P1)); assert(last() == 16, "ecu: one phase measured, got " .. tostring(last()))
+H[122] = 1; driver_poll()          -- unplugged
+H[122], H[104] = 2, 5; driver_poll() -- plugged in again, not charging yet
+assert(order(3680, P1)); assert(last() == 0, "ecu: first order after a re-plug")
+boot("ecu", { vehicle = 2, ocpp = 5, amps_ma = 0, power = 0 }, { phases = 1 })
+driver_poll()
+assert(order(3680, P1)); assert(last() == 16, "ecu: config phases: 1")
+
+-- HCC3 phases: no currents are measured, and 0x0308 is a floor.
+REG = 0x0400
+boot("hcc3", { installed = 32 })
+driver_poll()
+assert(order(7360, P1)); assert(last() == 10, "hcc3: 0x0308 = 3 must divide by three, got " .. tostring(last()))
+boot("hcc3", { installed = 32 }, { phases = 1 })
+driver_poll()
+assert(order(3680, P1)); assert(last() == 0, "hcc3: config phases: 1 against 0x0308 = 3")
+boot("hcc3", { installed = 32, phases = 1 })
+driver_poll()
+assert(order(3680, P1)); assert(last() == 0, "hcc3: 0x0308 = 1 alone is not proof")
+boot("hcc3", { installed = 32, phases = 1 }, { phases = 1 })
+driver_poll()
+assert(order(3680, P1)); assert(last() == 16, "hcc3: config and charger agree on one phase")
+
+-- ECU refresh and readings.
+REG = 1000
 boot("ecu")
 driver_poll()
 assert(order(11040)); assert(count() == 1)
@@ -205,5 +236,22 @@ driver_poll()
 for _, c in ipairs(host._calls) do
     assert(not (c.func == "modbus_read" and c.args[3] == "input"), "configured ecu probed the HCC3 map")
 end
+
+-- Detection that fails at boot is retried once a minute, not never.
+host.reset()
+DRIVER, driver_command, driver_default_mode = nil, nil, nil
+dofile(driver)
+H = host._modbus_registers.holding
+I = host._modbus_registers.input
+driver_init({})
+host._modbus_read_fail_addresses[122] = "timeout"
+host._modbus_read_fail_addresses[0x0302] = "timeout"
+for _ = 1, 10 do driver_poll(); later(5000) end
+assert(host._emitted.ev == nil)
+host._modbus_read_fail_addresses[0x0302] = nil
+hcc3()
+host._modbus_read_fail_addresses[0x0302] = nil
+later(25000); driver_poll(); driver_poll()
+assert(host._emitted.ev and #host._emitted.ev > 0, "charger offline at boot never came back")
 
 print("mennekes control: ok")

@@ -44,8 +44,8 @@ drivers:
     setup: [vendor_app]
     ders: [ev]
     control: true
-    size_bytes: 14720
-    sha256: "705f6555f5c091f16a331672b4d411852d0168d37eca24efa42d3282f8269bf3"
+    size_bytes: 16353
+    sha256: "3854fdc5ee445c4e01a6d63162da274071111e3cfb181f4bb20b387e4b30a5f1"
   - name: "acrel"
     version: "1.0.4"
     tier: community
@@ -72,8 +72,8 @@ drivers:
     setup: [installer]
     ders: [ev]
     control: true
-    size_bytes: 20847
-    sha256: "f9d07007ffef83dc8d8d9c6eff930c94a22076ce491b85f6fb6d41a6fbdadb55"
+    size_bytes: 23637
+    sha256: "89686888462647249888b1b46f254fad7888766911764c63087a57c3e466c297"
   - name: "alphaess"
     version: "1.1.1"
     tier: community
@@ -414,8 +414,8 @@ drivers:
     setup: [device_ui]
     ders: [ev]
     control: true
-    size_bytes: 20988
-    sha256: "0962a61d9867b4a18b64b4879e276cb8b1a8737bdb09e1f33f5b4e48c6fa703f"
+    size_bytes: 23683
+    sha256: "55bf19052473ca5463522ad7e72a36e571a70e2f8a6166516ec5dd84ccb98ec5"
   - name: "myuplink"
     version: "1.2.4"
     tier: core

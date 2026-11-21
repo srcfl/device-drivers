@@ -40,11 +40,34 @@
 --      0x030F     power (W, U32): derived from energy, so it lags and
 --                 overshoots; the vendor calls it for display only
 --      0x0400     customer current limitation (A), read/write: 0 or 6..32
---    The HCC3 keeps the last value written, with no timeout. If FTW stops
---    without standing down, the charger holds FTW's last limit.
+--    The HCC3 keeps the last value written, with no timeout.
+--
+-- Stand-down. Default mode writes 0 A once, after FTW wrote a limit in this
+-- process. Core runs default mode when it stops, so a Core restart or update
+-- leaves the charger at 0 A, and the car waits until the new Core sends an
+-- order. easee_cloud does the same. On the ECU, SAFE_CURRENT takes over once
+-- FTW goes quiet for COMM_TIMEOUT. The HCC3 has no such timeout: it stays at
+-- 0 A until FTW or the Mennekes app sets a new limit. Two gaps remain. If
+-- Core crashes, no default mode runs and the charger keeps FTW's last limit.
+-- And a new process does not know an earlier one wrote, so its default mode
+-- writes nothing until FTW writes again. The driver does not guess from the
+-- limit register: an owner's own limit set in the app looks the same.
+--
+-- Phases. This driver does not switch phases, and a 1p order alone proves
+-- nothing: a three-phase car would draw the 1p current on every phase. So it
+-- divides power by one phase only when config says `phases: 1` and the
+-- charger shows no more, or when Core orders 1p and the car is measured
+-- drawing on exactly one phase (ECU only; the HCC3 measures no currents).
+-- Otherwise it divides by three. The HCC3's own phase count (0x0308) is a
+-- floor: a three-phase AMTRON is always divided by three.
 --
 -- Earlier versions of this driver read registers 100-300, which are in
 -- neither map. Everything below is from the vendor documents.
+--
+-- Config (all optional):
+--   family  "ecu" or "hcc3", to skip detection
+--   max_a   lower ceiling in A, 6-31
+--   phases  1 for a single-phase installation (see "Phases")
 --
 -- Sign convention: an EVSE is a one-way load. Positive W is charging.
 
@@ -107,6 +130,7 @@ local WRITE_ATTEMPTS = 3       -- default mode stops after this many refusals
 ----------------------------------------------------------------------------
 local family = nil             -- "ecu" or "hcc3" once known
 local max_a_cfg = HW_MAX_A
+local config_phases = nil      -- config `phases`
 local device_max_a = nil       -- HCC3: rated and installation current
 
 local ordered_a = nil          -- Core's latest order, after every cap
@@ -119,6 +143,8 @@ local default_failures = 0
 
 local readback_a = nil         -- the limit register from the last poll
 local comm_timeout_s = nil     -- ECU register 132
+local reported_phases = nil    -- HCC3 0x0308 from the last poll
+local active_phases = nil      -- phases carrying current in the last poll
 local seen_phases = 0          -- most phases seen carrying current this plug-in
 local stall_since = nil
 local sn_read = false
@@ -127,29 +153,39 @@ local sn_read = false
 -- Reads
 ----------------------------------------------------------------------------
 
--- The host counts every failed modbus_read against the poll whether or not
--- Lua caught it, so a register this charger does not answer -- the 5.22
--- registers on older ECU firmware, the other family's map -- would cost a
--- failed read on every poll and the stale-telemetry watchdog would take the
--- site offline. Ask three times, since one miss can be a slow link, then
--- leave it alone until restart. No read sits on the command path.
+-- A failed read costs the poll. A register this charger does not answer --
+-- the 5.22 registers on older ECU firmware, the other family's map during
+-- detection -- is asked three times, since one miss can be a slow link, then
+-- once a minute, so a charger that was offline at boot comes back without a
+-- restart. The main block of each map is required and is asked every poll:
+-- without it the driver reports nothing, and a poll that reads nothing at
+-- all makes Core reload the driver, which would forget what FTW wrote.
 local GIVE_UP_AFTER = 3
-local read_failures = {}
+local RETRY_MS = 60000
+local read_failures = {}       -- kind..addr -> { n = misses in a row, at = last try }
 
-local function probe_read(addr, count, kind)
+local function probe_read(addr, count, kind, required)
     local key = kind .. addr
-    if (read_failures[key] or 0) >= GIVE_UP_AFTER then return nil end
+    local f = read_failures[key]
+    if f and f.n >= GIVE_UP_AFTER and not required
+        and (host.millis() - f.at) < RETRY_MS then
+        return nil
+    end
     local ok, regs = pcall(host.modbus_read, addr, count, kind)
     if ok and regs and regs[count] ~= nil then
+        if f and f.n >= GIVE_UP_AFTER then
+            host.log("info", string.format("Mennekes: %s register %d answers again", kind, addr))
+        end
         read_failures[key] = nil
         return regs
     end
-    local failures = (read_failures[key] or 0) + 1
-    read_failures[key] = failures
-    if failures == GIVE_UP_AFTER then
+    f = f or { n = 0 }
+    f.n, f.at = f.n + 1, host.millis()
+    read_failures[key] = f
+    if f.n == GIVE_UP_AFTER then
         host.log("info", string.format(
-            "Mennekes: %s register %d did not answer %d times; leaving it " ..
-            "alone until restart", kind, addr, GIVE_UP_AFTER))
+            "Mennekes: %s register %d did not answer %d times; asking once a minute",
+            kind, addr, GIVE_UP_AFTER))
     end
     return nil
 end
@@ -208,7 +244,7 @@ local function poll_ecu()
     local ocpp = probe_read(ECU_OCPP, 1, "holding")
     local veh = probe_read(ECU_VEHICLE, 1, "holding")
     local safe = probe_read(ECU_SAFE, 2, "holding")
-    local meter = probe_read(ECU_METER, 18, "holding")
+    local meter = probe_read(ECU_METER, 18, "holding", true)
     local meter2 = probe_read(ECU_METER_NEW, 10, "holding")
     local sess = probe_read(ECU_SESSION, 2, "holding")
     local sess32 = probe_read(ECU_SESSION32, 2, "holding")
@@ -271,7 +307,7 @@ local function poll_ecu()
         end
     end
 
-    if power_w == nil then return nil, connected, charging, a, offering end
+    if meter == nil or power_w == nil then return nil, connected, charging, a, offering end
     return {
         w               = power_w,
         connected       = connected,
@@ -289,7 +325,7 @@ end
 
 -- One HCC3 poll. Returns the emit table, or nil when the block did not answer.
 local function poll_hcc3()
-    local b = probe_read(HCC3_BLOCK, HCC3_COUNT, "input")
+    local b = probe_read(HCC3_BLOCK, HCC3_COUNT, "input", true)
     local lim = probe_read(HCC3_LIMIT, 1, "holding")
     readback_a = lim and lim[1] or nil
     device_max_a = nil
@@ -298,6 +334,7 @@ local function poll_hcc3()
     local cp = HCC3_CP_STATES[b[1]]
     local error_code = b[3]
     local phase_setting = b[7]
+    if phase_setting == 1 or phase_setting == 3 then reported_phases = phase_setting end
     local rated, installed = b[8], b[9]
     if rated and installed and rated >= MIN_A and installed >= MIN_A then
         device_max_a = math.min(rated, installed)
@@ -347,19 +384,31 @@ local function num(v)
     return nil
 end
 
+-- See "Phases" above.
+local function phases_for(cmd)
+    local one = false
+    if config_phases == 1 and seen_phases <= 1 and reported_phases ~= 3 then
+        one = true
+    end
+    if cmd.phase_mode == "1p" and active_phases == 1 and seen_phases == 1 then
+        one = true
+    end
+    local phases = one and 1 or 3
+    if reported_phases ~= nil and reported_phases > phases then
+        phases = reported_phases
+    end
+    return phases
+end
+
 -- Watts to whole amps per phase, rounded down: both maps take whole amps.
--- Phases is the larger of Core's phase mode (1p is 1, anything else 3) and
--- the phases seen carrying current this plug-in. The 0.001 slack only
--- absorbs float error (4140 W / 690 V must be 6 A, not 5 A).
+-- The 0.001 slack only absorbs float error (4140 W / 690 V must be 6 A).
 local function amps_for(power_w, cmd)
     power_w = num(power_w)
     if power_w == nil or power_w <= 0 then return 0 end
     cmd = type(cmd) == "table" and cmd or {}
     local voltage = num(cmd.voltage)
     if voltage == nil or voltage <= 0 then voltage = 230 end
-    local phases = cmd.phase_mode == "1p" and 1 or 3
-    if seen_phases > phases then phases = seen_phases end
-    local amps = power_w / (voltage * phases)
+    local amps = power_w / (voltage * phases_for(cmd))
     local cap = max_a_cfg
     if device_max_a ~= nil and device_max_a < cap then cap = device_max_a end
     local fuse = num(cmd.max_amps_per_phase)
@@ -424,6 +473,8 @@ function driver_init(config)
         end
         local cap = tonumber(config.max_a)
         if cap and cap >= MIN_A and cap < HW_MAX_A then max_a_cfg = cap end
+        local phases = tonumber(config.phases)
+        if phases == 1 or phases == 3 then config_phases = phases end
     end
 end
 
@@ -435,6 +486,7 @@ function driver_poll()
         host.log("info", "Mennekes: charger speaks the " .. family .. " map")
     end
 
+    active_phases = nil
     local data, connected, charging, a, offering
     if family == "ecu" then
         data, connected, charging, a, offering = poll_ecu()
@@ -442,13 +494,18 @@ function driver_poll()
         data, connected, charging, a, offering = poll_hcc3()
     end
 
+    -- Phases in use now, and the most this plug-in, so a pause does not
+    -- make a three-phase car look single-phase again.
     if connected == false then
-        seen_phases = 0
-    elseif charging then
+        seen_phases, active_phases = 0, 0
+    elseif connected and not charging then
+        active_phases = 0
+    elseif charging and (a[1] or a[2] or a[3]) then
         local active = 0
         for i = 1, 3 do
             if a[i] and a[i] >= ACTIVE_PHASE_A then active = active + 1 end
         end
+        active_phases = active
         if active > seen_phases then seen_phases = active end
     end
 
@@ -492,8 +549,9 @@ function driver_command(action, power_w, cmd)
 
     if action == "ev_resume" or action == "ev_start" then
         paused = false
-        -- No order yet: the next ev_set_current sets the current.
-        if ordered_a == nil then return true end
+        -- No order yet: nothing to resume to. Core's next ev_set_current
+        -- sets the current; say so rather than claim a start.
+        if ordered_a == nil then return false end
         return apply(ordered_a)
     end
 
@@ -501,10 +559,9 @@ function driver_command(action, power_w, cmd)
     return false
 end
 
--- Stand down: write 0 A once. An ECU then falls back to SAFE_CURRENT when
--- FTW goes quiet; an HCC3 holds 0 A until FTW or the app sets a new limit.
--- Nothing is written if FTW never wrote a limit in this process, so a
--- telemetry-only site keeps charging as its installer set it up.
+-- Stand down: write 0 A once (see "Stand-down" above). Nothing is written if
+-- FTW never wrote a limit in this process, so a telemetry-only site keeps
+-- charging as its installer set it up.
 function driver_default_mode()
     ordered_a, paused = 0, false
     if not commanded or written_a == 0 then return true end

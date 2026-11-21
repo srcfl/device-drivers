@@ -31,9 +31,19 @@
 --
 -- Communication timeout (0x4106, default 60 s): the charger counts any read
 -- as contact, and when none arrives in time it enters an error state and
--- stops the session. This driver polls every 5 s, so no refresh write is
--- needed. When FTW stops, the charger stopping on its own is part of the
--- safe stand-down.
+-- stops the session. This driver reads the main block on every 5 s poll, so
+-- no refresh write is needed. When FTW stops, the charger stopping on its
+-- own is part of the safe stand-down.
+--
+-- Phases. This driver does not switch phases, and a 1p order alone proves
+-- nothing: a three-phase car would draw the 1p current on every phase. So it
+-- divides power by one phase only when config says `phases: 1` and the
+-- charger shows no more, or when Core orders 1p and the car is measured
+-- drawing on exactly one phase. Otherwise it divides by three.
+--
+-- Config (all optional):
+--   max_a   lower ceiling in A, 6-31
+--   phases  1 for a single-phase installation (see "Phases")
 --
 -- Sign convention: an EVSE is a one-way load. Positive W is charging.
 
@@ -84,6 +94,7 @@ local WRITE_ATTEMPTS = 3       -- default mode stops after this many refusals
 -- State
 ----------------------------------------------------------------------------
 local max_a_cfg = HW_MAX_A
+local config_phases = nil      -- config `phases`
 local device_max_a = nil       -- 0x4006 from the last poll
 
 local ordered_a = nil          -- Core's latest order, after every cap
@@ -95,6 +106,7 @@ local commanded = false        -- FTW has written a limit in this process
 local default_failures = 0
 
 local limit_a = nil            -- 0x400E from the last poll
+local active_phases = nil      -- phases carrying current in the last poll
 local seen_phases = 0          -- most phases seen carrying current this plug-in
 local stall_since = nil
 local sn_read = false
@@ -103,27 +115,38 @@ local sn_read = false
 -- Reads
 ----------------------------------------------------------------------------
 
--- The host counts every failed modbus_read against the poll whether or not
--- Lua caught it, so a block this charger does not answer would cost a failed
--- read on every poll and the stale-telemetry watchdog would take the site
--- offline. Ask three times, since one miss can be a slow link, then leave it
--- alone until restart. No read sits on the command path.
+-- A failed read costs the poll. A block this charger does not answer is
+-- asked three times, since one miss can be a slow link, then once a minute,
+-- so a charger that was offline at boot comes back without a restart.
+-- The main block is required and is asked every poll: without it the driver
+-- reports nothing, the charger's communication timeout counts these reads,
+-- and a poll that reads nothing at all makes Core reload the driver, which
+-- would forget what FTW wrote.
 local GIVE_UP_AFTER = 3
-local read_failures = {}
+local RETRY_MS = 60000
+local read_failures = {}       -- addr -> { n = misses in a row, at = last try }
 
-local function probe_read(addr, count, kind)
-    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+local function probe_read(addr, count, kind, required)
+    local f = read_failures[addr]
+    if f and f.n >= GIVE_UP_AFTER and not required
+        and (host.millis() - f.at) < RETRY_MS then
+        return nil
+    end
     local ok, regs = pcall(host.modbus_read, addr, count, kind)
     if ok and regs and regs[count] ~= nil then
+        if f and f.n >= GIVE_UP_AFTER then
+            host.log("info", string.format("ABB Terra: register %d answers again", addr))
+        end
         read_failures[addr] = nil
         return regs
     end
-    local failures = (read_failures[addr] or 0) + 1
-    read_failures[addr] = failures
-    if failures == GIVE_UP_AFTER then
+    f = f or { n = 0 }
+    f.n, f.at = f.n + 1, host.millis()
+    read_failures[addr] = f
+    if f.n == GIVE_UP_AFTER then
         host.log("info", string.format(
-            "ABB Terra: register %d did not answer %d times; leaving it " ..
-            "alone until restart", addr, GIVE_UP_AFTER))
+            "ABB Terra: register %d did not answer %d times; asking once a minute",
+            addr, GIVE_UP_AFTER))
     end
     return nil
 end
@@ -162,18 +185,24 @@ local function num(v)
     return nil
 end
 
--- Watts to amps per phase, rounded down to 0.1 A. Phases is the larger of
--- Core's phase mode (1p is 1, anything else 3) and the phases seen carrying
--- current this plug-in. The 0.001-step slack only absorbs float error.
+-- See "Phases" above. The Terra AC reports no phase setting of its own.
+local function phases_for(cmd)
+    if config_phases == 1 and seen_phases <= 1 then return 1 end
+    if cmd.phase_mode == "1p" and active_phases == 1 and seen_phases == 1 then
+        return 1
+    end
+    return 3
+end
+
+-- Watts to amps per phase, rounded down to 0.1 A. The 0.001-step slack only
+-- absorbs float error (4140 W / 690 V must be 6 A, not 5.9 A).
 local function amps_for(power_w, cmd)
     power_w = num(power_w)
     if power_w == nil or power_w <= 0 then return 0 end
     cmd = type(cmd) == "table" and cmd or {}
     local voltage = num(cmd.voltage)
     if voltage == nil or voltage <= 0 then voltage = 230 end
-    local phases = cmd.phase_mode == "1p" and 1 or 3
-    if seen_phases > phases then phases = seen_phases end
-    local amps = power_w / (voltage * phases)
+    local amps = power_w / (voltage * phases_for(cmd))
     local cap = max_a_cfg
     if device_max_a ~= nil and device_max_a >= MIN_A and device_max_a < cap then
         cap = device_max_a
@@ -227,6 +256,8 @@ function driver_init(config)
     if type(config) == "table" then
         local cap = tonumber(config.max_a)
         if cap and cap >= MIN_A and cap < HW_MAX_A then max_a_cfg = cap end
+        local phases = tonumber(config.phases)
+        if phases == 1 or phases == 3 then config_phases = phases end
     end
 end
 
@@ -243,8 +274,8 @@ function driver_poll()
         end
     end
 
-    local b = probe_read(REG_BLOCK, BLOCK_COUNT, "holding")
-    limit_a, device_max_a = nil, nil
+    local b = probe_read(REG_BLOCK, BLOCK_COUNT, "holding", true)
+    limit_a, device_max_a, active_phases = nil, nil, nil
     if not b then
         stall_since = nil
         return 5000  -- nothing read, nothing to report
@@ -273,13 +304,18 @@ function driver_poll()
     local connected = state and state.connected
     local charging = state and state.charging
 
+    -- Phases in use now, and the most this plug-in, so a pause does not
+    -- make a three-phase car look single-phase again.
     if connected == false then
-        seen_phases = 0
+        seen_phases, active_phases = 0, 0
+    elseif connected and not charging then
+        active_phases = 0
     elseif charging then
         local active = 0
         for i = 1, 3 do
             if a[i] and a[i] >= ACTIVE_PHASE_A then active = active + 1 end
         end
+        active_phases = active
         if active > seen_phases then seen_phases = active end
     end
 
@@ -352,8 +388,9 @@ function driver_command(action, power_w, cmd)
 
     if action == "ev_resume" or action == "ev_start" then
         paused = false
-        -- No order yet: the next ev_set_current sets the current.
-        if ordered_a == nil then return true end
+        -- No order yet: nothing to resume to. Core's next ev_set_current
+        -- sets the current; say so rather than claim a start.
+        if ordered_a == nil then return false end
         return apply(ordered_a)
     end
 

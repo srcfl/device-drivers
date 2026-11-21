@@ -23,7 +23,7 @@ manufacturers:
             ders: [ev]
             control: true
         firmware_versions: ""
-        notes: "Control written from ABB's TAC Modbus Communication v1.7 (July 2022); not yet confirmed on hardware. Modbus TCP is enabled in the Terra Config app."
+        notes: "Control written from ABB's TAC Modbus Communication v1.7 (July 2022); not yet confirmed on hardware. Modbus TCP is enabled in the Terra Config app. Set phases: 1 for a single-phase installation."
   - name: "ATMOCE"
     model_families:
       - name: "MC100 M-Combiner"
@@ -126,7 +126,7 @@ manufacturers:
             ders: [ev]
             control: true
         firmware_versions: ""
-        notes: "Control written from Alfen's Modbus for ACE configuration guide v1.0 (May 2025); not yet confirmed on hardware. Needs Active Load Balancing (a paid licence) with data source Energy Management System, and Allow writing maximum currents, set in ACE Service Installer."
+        notes: "Control written from Alfen's Modbus for ACE configuration guide v1.0 (May 2025); not yet confirmed on hardware. Needs Active Load Balancing (a paid licence) with data source Energy Management System, and Allow writing maximum currents, set in ACE Service Installer. Set phases: 1 for a single-phase installation."
   - name: "AlphaESS"
     model_families:
       - name: "G2 Series"
@@ -960,7 +960,7 @@ manufacturers:
             ders: [ev]
             control: true
         firmware_versions: ""
-        notes: "Control written from Mennekes' AMTRON Modbus description v1.031; not yet confirmed on hardware. The Modbus server is off in the Energy Manager and SCU operation modes. The charger keeps the last limit written, with no timeout."
+        notes: "Control written from Mennekes' AMTRON Modbus description v1.031; not yet confirmed on hardware. The Modbus server is off in the Energy Manager and SCU operation modes. The charger keeps the last limit written, with no timeout: when Core stops or updates it writes 0 A, and the car waits until Core sends a new order, as with easee_cloud. Set phases: 1 for a single-phase installation."
   - name: "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)"
     model_families:
       - name: "MyUplink Heat Pump (telemetry)"

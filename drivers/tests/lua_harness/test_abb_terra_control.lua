@@ -21,18 +21,19 @@ local function device(opts)
     set_u32(0x400A, 0x0111)
     set_state(opts.state or 4)
     set_u32(0x400E, opts.limit_ma or 16000)
-    for i = 0, 2 do set_u32(0x4010 + 2 * i, opts.amps_ma or 16000) end
+    local amps = opts.phase_ma or { opts.amps_ma or 16000, opts.amps_ma or 16000, opts.amps_ma or 16000 }
+    for i = 0, 2 do set_u32(0x4010 + 2 * i, amps[i + 1]) end
     for i = 0, 2 do set_u32(0x4016 + 2 * i, 2310) end
     set_u32(0x401C, opts.power or 11000)
     set_u32(0x401E, 4321)
 end
 
-local function boot(opts)
+local function boot(opts, config)
     host.reset()
     DRIVER, driver_command, driver_default_mode = nil, nil, nil
     dofile(driver)
     device(opts)
-    driver_init({})
+    driver_init(config or {})
 end
 
 local function writes()
@@ -61,7 +62,6 @@ assert(order(11040)); assert(near(last(), 16), "11040 W 3p is 16 A")
 assert(order(7000)); assert(near(last(), 10.1), "7000 W 3p rounds down to 10.1 A")
 assert(order(4140)); assert(near(last(), 6), "4140 W 3p is exactly 6 A")
 assert(order(4000)); assert(near(last(), 0), "below 6 A must write 0, never round up")
-assert(order(3680, { phase_mode = "1p", voltage = 230 })); assert(near(last(), 16))
 
 -- 2. Caps: the fuse, Core's room, the charger's own ceiling.
 assert(order(11040, { phase_mode = "3p", voltage = 230, max_amps_per_phase = 10 }))
@@ -72,11 +72,29 @@ boot({ state = 2, max_ma = 16000 })
 driver_poll()
 assert(order(50000)); assert(near(last(), 16), "never above the charger's own ceiling")
 
--- 3. Phases: a three-phase car on a 1p order is divided by three.
+-- 3. Phases. A 1p order alone proves nothing: a three-phase car would draw
+-- the 1p current on every phase.
+local P1 = { phase_mode = "1p", voltage = 230, max_amps_per_phase = 25 }
+boot({ state = 2, amps_ma = 0, power = 0 })
+driver_poll()
+assert(order(3680, P1)); assert(near(last(), 0), "1p order on an idle charger must use three phases")
+assert(order(7360, P1)); assert(near(last(), 10.6), "1p order on an idle charger, got " .. tostring(last()))
+-- The car measured on exactly one phase: divide by one.
+boot({ state = 4, phase_ma = { 15000, 0, 0 } })
+driver_poll()
+assert(order(3680, P1)); assert(near(last(), 16), "one phase measured, got " .. tostring(last()))
+-- A three-phase car on a 1p order.
 boot({ state = 4 })
 driver_poll()
-assert(order(7360, { phase_mode = "1p", voltage = 230 }))
-assert(near(last(), 10.6), "seen phases must override a 1p order")
+assert(order(7360, P1)); assert(near(last(), 10.6), "three phases measured")
+-- Re-plug: the first order after a new plug-in is three phases again.
+set_state(0); driver_poll()
+set_state(2); driver_poll()
+assert(order(3680, P1)); assert(near(last(), 0), "first order after a re-plug")
+-- Config says the installation is single-phase.
+boot({ state = 2, amps_ma = 0, power = 0 }, { phases = 1 })
+driver_poll()
+assert(order(3680, P1)); assert(near(last(), 16), "config phases: 1")
 
 -- 4. Write only on change; a limit the charger lost is written again.
 boot({ state = 4 })
@@ -101,6 +119,11 @@ assert(driver_command("ev_resume", 0, {})); assert(near(last(), 16), "resume mus
 assert(driver_command("ev_pause", 0, {}))
 later(11000)
 assert(order(11040)); assert(near(last(), 16), "a pause must not outlast the hold")
+
+boot()
+driver_poll()
+assert(driver_command("ev_start", 0, {}) == false, "start before any order must say no")
+assert(count() == 0, "start before any order wrote")
 
 -- 6. Default mode: nothing unless FTW wrote; then 0 A once.
 boot()
@@ -157,5 +180,26 @@ driver_poll(); later(31000); driver_poll()
 e = host._emitted.ev[#host._emitted.ev]
 assert(e.command_stalled == true, "B1 under a 16 A offer for 31 s must stall")
 assert(e.reason_no_current_label == "pending authorization")
+
+-- 10. The serial is asked once a minute after three misses, not never; the
+-- main block is asked every poll, which also keeps the charger's
+-- communication timeout from firing.
+boot({ state = 4 })
+host._modbus_read_fail_addresses[0x4000] = "timeout"
+local function reads(addr)
+    local n = 0
+    for _, c in ipairs(host._calls) do
+        if c.func == "modbus_read" and c.args[1] == addr then n = n + 1 end
+    end
+    return n
+end
+for _ = 1, 10 do driver_poll(); later(5000) end
+assert(reads(0x4000) == 3 and reads(0x4006) == 10)
+host._modbus_read_fail_addresses[0x4000] = nil
+later(25000); driver_poll()
+assert(host._sn == "5422040049200025", "serial not retried after a minute")
+host._modbus_read_fail_addresses[0x4006] = "timeout"
+for _ = 1, 5 do driver_poll() end
+assert(reads(0x4006) == 16, "the main block must be asked every poll")
 
 print("abb_terra control: ok")

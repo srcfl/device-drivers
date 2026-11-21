@@ -36,13 +36,22 @@
 -- driver all use the table numbers as they stand (344 for power, 1210 for
 -- the setpoint), and so does this driver.
 --
--- Word order. The 2025 guide says 32-bit values are sent low word first.
--- Every working integration we know (evcc, the Home Assistant community
--- driver) reads and writes high word first. The driver starts with high word
--- first and switches only when the L1 voltage proves the other order: one
--- order gives a mains voltage, the other a number near zero. A write in the
--- wrong order lands as a tiny current, so the charger pauses rather than
--- over-charges.
+-- Word order. The 2025 guide (p. 6) says 32-bit values are sent low word
+-- first. evcc and the Home Assistant community driver read and write high
+-- word first. A current written in the wrong order can decode as an enormous
+-- number (6.2 A becomes about 2.7e23 A), so the driver does not guess. It
+-- learns the order from values that are plausible in one order only: a
+-- phase voltage, the safe current, the applied or written max current. Until
+-- then it reports nothing and refuses every write above 0 A. 0 A is all
+-- zero bits, the same in both orders, so a pause or a stand-down always goes
+-- through.
+--
+-- Phases. This driver does not switch phases, and a 1p order alone proves
+-- nothing: a three-phase car would draw the 1p current on every phase. So it
+-- divides power by one phase only when config says `phases: 1` and the
+-- charger shows no more, or when Core orders 1p and the car is measured
+-- drawing on exactly one phase. Otherwise it divides by three. Register 1215
+-- is a floor: a charger set to three phases is always divided by three.
 --
 -- Setup. The charger only takes a setpoint when the installer has, in ACE
 -- Service Installer: Active Load Balancing on (a paid licence), data source
@@ -57,7 +66,12 @@
 -- charger reports less than 20 s left. When Core stops sending orders the
 -- driver stops refreshing, and the charger returns to the installer's safe
 -- current on its own. That is the device's designed answer to a missing
--- energy manager, and it is part of this driver's safe stand-down.
+-- energy manager, and it is part of this driver's safe stand-down. The safe
+-- current can be higher than FTW's last order.
+--
+-- Config (all optional):
+--   max_a   lower ceiling in A, 6-31
+--   phases  1 for a single-phase installation (see "Phases")
 --
 -- Sign convention: an EVSE is a one-way load. Positive W is charging.
 
@@ -112,9 +126,11 @@ local WRITE_ATTEMPTS = 3       -- default mode stops after this many refusals
 -- State
 ----------------------------------------------------------------------------
 local max_a_cfg = HW_MAX_A
+local config_phases = nil      -- config `phases`
 
 local low_word_first = false   -- see "Word order" above
 local order_known = false
+local order_warned = false
 
 local ordered_a = nil          -- Core's latest order, after every cap
 local paused = false
@@ -126,6 +142,8 @@ local default_failures = 0
 
 local readback_a = nil         -- register 1210 from the last poll
 local valid_left_s = nil       -- register 1208 from the last poll
+local reported_phases = nil    -- register 1215 from the last poll
+local active_phases = nil      -- phases carrying current in the last poll
 local seen_phases = 0          -- most phases seen carrying current this plug-in
 local stall_since = nil
 
@@ -133,28 +151,37 @@ local stall_since = nil
 -- Reads
 ----------------------------------------------------------------------------
 
--- The host counts every failed modbus_read against the poll whether or not
--- Lua caught it, so a block this charger does not answer would cost a failed
--- read on every poll and the stale-telemetry watchdog would take the site
--- offline. Ask three times, since one miss can be a slow link, then leave it
--- alone until restart. No read sits on the command path, so giving up never
--- vetoes a command.
+-- A failed read costs the poll. A block this charger does not answer is
+-- asked three times, since one miss can be a slow link, then once a minute,
+-- so a charger that was offline at boot comes back without a restart.
+-- The measurement block is required and is asked every poll: without it the
+-- driver reports nothing, and a poll that reads nothing at all makes Core
+-- reload the driver, which would forget what FTW wrote.
 local GIVE_UP_AFTER = 3
-local read_failures = {}
+local RETRY_MS = 60000
+local read_failures = {}       -- addr -> { n = misses in a row, at = last try }
 
-local function probe_read(addr, count, kind)
-    if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
+local function probe_read(addr, count, kind, required)
+    local f = read_failures[addr]
+    if f and f.n >= GIVE_UP_AFTER and not required
+        and (host.millis() - f.at) < RETRY_MS then
+        return nil
+    end
     local ok, regs = pcall(host.modbus_read, addr, count, kind)
     if ok and regs and regs[count] ~= nil then
+        if f and f.n >= GIVE_UP_AFTER then
+            host.log("info", string.format("Alfen: register %d answers again", addr))
+        end
         read_failures[addr] = nil
         return regs
     end
-    local failures = (read_failures[addr] or 0) + 1
-    read_failures[addr] = failures
-    if failures == GIVE_UP_AFTER then
+    f = f or { n = 0 }
+    f.n, f.at = f.n + 1, host.millis()
+    read_failures[addr] = f
+    if f.n == GIVE_UP_AFTER then
         host.log("info", string.format(
-            "Alfen: register %d did not answer %d times; leaving it alone " ..
-            "until restart", addr, GIVE_UP_AFTER))
+            "Alfen: register %d did not answer %d times; asking once a minute",
+            addr, GIVE_UP_AFTER))
     end
     return nil
 end
@@ -225,20 +252,20 @@ local function u32_at(regs, base, addr)
     return hi * 65536.0 + lo
 end
 
-local function plausible_voltage(v)
-    return v ~= nil and v >= 80 and v <= 300
-end
-
--- Decide the word order from the L1 voltage, once. Until then (and on a
--- charger that reports 0 V) the high-word-first default stands.
-local function learn_word_order(regs)
-    if order_known then return end
-    local a, b = regs[1], regs[2]
-    local high_first = decode_f32(a, b)
-    local low_first = decode_f32(b, a)
-    if plausible_voltage(high_first) and not plausible_voltage(low_first) then
+-- One value that is plausible in exactly one word order settles the order
+-- for good. A value plausible in both, or in neither (0, NaN), says nothing.
+local function learn_order(regs, base, addr, min, max)
+    if order_known or regs == nil then return end
+    local i = addr - base + 1
+    local a, b = regs[i], regs[i + 1]
+    if a == nil or b == nil then return end
+    local high = decode_f32(a, b)
+    local low = decode_f32(b, a)
+    local high_ok = high ~= nil and high >= min and high <= max
+    local low_ok = low ~= nil and low >= min and low <= max
+    if high_ok and not low_ok then
         low_word_first, order_known = false, true
-    elseif plausible_voltage(low_first) and not plausible_voltage(high_first) then
+    elseif low_ok and not high_ok then
         low_word_first, order_known = true, true
         host.log("info", "Alfen: charger sends 32-bit values low word first")
     end
@@ -284,20 +311,31 @@ local function num(v)
     return nil
 end
 
--- Watts to amps per phase, rounded down to the 0.1 A step. Phases is the
--- larger of Core's phase mode (1p is 1, anything else 3) and the phases seen
--- carrying current this plug-in, so a three-phase car on a one-phase order
--- never gets three times the power. The 0.001-step slack only absorbs float
--- error (4140 W / 690 V must be 6 A, not 5.9 A).
+-- See "Phases" above.
+local function phases_for(cmd)
+    local one = false
+    if config_phases == 1 and seen_phases <= 1 and reported_phases ~= 3 then
+        one = true
+    end
+    if cmd.phase_mode == "1p" and active_phases == 1 and seen_phases == 1 then
+        one = true
+    end
+    local phases = one and 1 or 3
+    if reported_phases ~= nil and reported_phases > phases then
+        phases = reported_phases
+    end
+    return phases
+end
+
+-- Watts to amps per phase, rounded down to the 0.1 A step. The 0.001-step
+-- slack only absorbs float error (4140 W / 690 V must be 6 A, not 5.9 A).
 local function amps_for(power_w, cmd)
     power_w = num(power_w)
     if power_w == nil or power_w <= 0 then return 0 end
     cmd = type(cmd) == "table" and cmd or {}
     local voltage = num(cmd.voltage)
     if voltage == nil or voltage <= 0 then voltage = 230 end
-    local phases = cmd.phase_mode == "1p" and 1 or 3
-    if seen_phases > phases then phases = seen_phases end
-    local amps = power_w / (voltage * phases)
+    local amps = power_w / (voltage * phases_for(cmd))
     local cap = max_a_cfg
     local fuse = num(cmd.max_amps_per_phase)
     if fuse ~= nil and fuse > 0 and fuse < cap then cap = fuse end
@@ -310,6 +348,14 @@ local function amps_for(power_w, cmd)
 end
 
 local function write_setpoint(amps)
+    if amps > 0 and not order_known then
+        if not order_warned then
+            host.log("warn", "Alfen: 32-bit word order not known yet; " ..
+                "refusing to write a current above 0 A")
+            order_warned = true
+        end
+        return false
+    end
     local hi, lo = encode_f32(amps)
     local regs = low_word_first and { lo, hi } or { hi, lo }
     local ok, res = pcall(host.modbus_write_multi, REG_SETPOINT, regs)
@@ -354,15 +400,29 @@ function driver_init(config)
     if type(config) == "table" then
         local cap = tonumber(config.max_a)
         if cap and cap >= MIN_A and cap < HW_MAX_A then max_a_cfg = cap end
+        local phases = tonumber(config.phases)
+        if phases == 1 or phases == 3 then config_phases = phases end
     end
 end
 
 function driver_poll()
     local now = host.millis()
-    local m = probe_read(REG_MEASURE, MEASURE_COUNT, "holding")
+    local m = probe_read(REG_MEASURE, MEASURE_COUNT, "holding", true)
     local s = probe_read(REG_STATUS, STATUS_COUNT, "holding")
 
-    if m then learn_word_order(m) end
+    for i = 0, 2 do learn_order(m, REG_MEASURE, 306 + 2 * i, 80, 300) end
+    learn_order(s, REG_STATUS, 1212, 0.5, 80)
+    learn_order(s, REG_STATUS, 1206, 0.5, 80)
+    learn_order(s, REG_STATUS, 1210, 0.5, 80)
+
+    -- reported_phases is kept across a failed read: the setting rarely moves,
+    -- and forgetting a three-phase setting would lift the floor.
+    readback_a, valid_left_s, active_phases = nil, nil, nil
+    if not order_known then
+        -- Decoding in an unknown order could report any number at all.
+        stall_since = nil
+        return 5000
+    end
 
     local power_w, energy_wh
     local v = {}
@@ -376,8 +436,7 @@ function driver_poll()
         end
     end
 
-    local state, applied_a, safe_a, accounted, phase_setting, available
-    readback_a, valid_left_s = nil, nil
+    local state, applied_a, safe_a, accounted, available
     if s then
         available = s[1]
         state = MODE3[decode_ascii(s, 2, 5) or ""]
@@ -386,21 +445,24 @@ function driver_poll()
         readback_a = f32_at(s, REG_STATUS, 1210)
         safe_a = f32_at(s, REG_STATUS, 1212)
         accounted = s[15]
-        phase_setting = s[16]
+        if s[16] == 1 or s[16] == 3 then reported_phases = s[16] end
     end
 
     local connected = state and state.connected
     local charging = state and state.charging
 
-    -- Phases in use, remembered for the plug-in so a pause does not make a
-    -- three-phase car look single-phase again.
+    -- Phases in use now, and the most this plug-in, so a pause does not
+    -- make a three-phase car look single-phase again.
     if connected == false then
-        seen_phases = 0
-    elseif charging then
+        seen_phases, active_phases = 0, 0
+    elseif connected and not charging then
+        active_phases = 0
+    elseif charging and (a[1] or a[2] or a[3]) then
         local active = 0
         for i = 1, 3 do
             if a[i] and a[i] >= ACTIVE_PHASE_A then active = active + 1 end
         end
+        active_phases = active
         if active > seen_phases then seen_phases = active end
     end
 
@@ -432,8 +494,8 @@ function driver_poll()
     local phases
     if seen_phases > 0 then
         phases = seen_phases
-    elseif phase_setting == 1 or phase_setting == 3 then
-        phases = phase_setting
+    else
+        phases = reported_phases
     end
 
     -- Power is the defining reading: without it there is nothing to report.
@@ -485,8 +547,9 @@ function driver_command(action, power_w, cmd)
 
     if action == "ev_resume" or action == "ev_start" then
         paused = false
-        -- No order yet: the next ev_set_current sets the current.
-        if ordered_a == nil then return true end
+        -- No order yet: nothing to resume to. Core's next ev_set_current
+        -- sets the current; say so rather than claim a start.
+        if ordered_a == nil then return false end
         return apply(ordered_a)
     end
 
@@ -497,7 +560,9 @@ end
 -- Stand down: write 0 A once and stop refreshing. When the validity time
 -- runs out the charger goes to its own safe current. Nothing is written if
 -- FTW never wrote a setpoint in this process, so a telemetry-only site keeps
--- charging as its installer set it up.
+-- charging as its installer set it up. The gap: after a Core crash the new
+-- process does not know FTW wrote; the validity time still hands the
+-- charger back to its safe current within a minute.
 function driver_default_mode()
     ordered_a, paused = 0, false
     if not commanded or written_a == 0 then return true end
