@@ -1,5 +1,5 @@
 name: "abb_terra"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Control written from ABB's TAC Modbus Communication v1.7 (July 2022); not yet confirmed on hardware. Modbus TCP is enabled in the Terra Config app. Set phases: 1 for a single-phase installation."
     min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
-size_bytes: 16353
+size_bytes: 16611
 dkb_id: ""
-sha256: "3854fdc5ee445c4e01a6d63162da274071111e3cfb181f4bb20b387e4b30a5f1"
+sha256: "dd9ea74490c5f618d7654e0f381d209bd1422685def78e9739a69704a85dbecd"
 signature: ""
 
 bytecode_sha256: ""

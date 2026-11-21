@@ -81,7 +81,7 @@ DRIVER = {
   id           = "alfen",
   name         = "Alfen Eve (NG9xx)",
   manufacturer = "Alfen",
-  version      = "1.1.0",
+  version      = "1.1.1",
   protocols    = { "modbus" },
   capabilities = { "ev" },
   description  = "Alfen Eve Single/Double Pro-line and S-line (NG9xx) over Modbus TCP. Telemetry and current-limit control through the Modbus server max current.",
@@ -120,7 +120,7 @@ local READBACK_MS    = 30000   -- rewrite a value the charger lost, at this pace
 local PAUSE_HOLD_MS  = 10000   -- keep a pause through Core's 3 s contactor cycle
 local STALL_MS       = 30000
 local ACTIVE_PHASE_A = 2       -- a phase carrying this much is in use
-local WRITE_ATTEMPTS = 3       -- default mode stops after this many refusals
+local STANDDOWN_RETRY_MS = 60000 -- a refused stand-down is tried again at this pace
 
 ----------------------------------------------------------------------------
 -- State
@@ -138,7 +138,7 @@ local paused_at = 0
 local written_a = nil          -- last value the charger accepted; nil = unknown
 local written_at = 0
 local commanded = false        -- FTW has written a setpoint in this process
-local default_failures = 0
+local standdown_failed_at = nil -- when the last stand-down write failed
 
 local readback_a = nil         -- register 1210 from the last poll
 local valid_left_s = nil       -- register 1208 from the last poll
@@ -367,7 +367,7 @@ local function write_setpoint(amps)
     end
     written_a, written_at = amps, host.millis()
     readback_a = nil       -- the next poll reads the new value
-    default_failures = 0   -- one success proves the register takes writes
+    standdown_failed_at = nil
     return true
 end
 
@@ -565,12 +565,18 @@ end
 -- charger back to its safe current within a minute.
 function driver_default_mode()
     ordered_a, paused = 0, false
+    -- true tells Core the charger is stood down: FTW wrote nothing in this
+    -- process, or the charger took 0 A.
     if not commanded or written_a == 0 then return true end
-    -- A charger that refuses the write would otherwise be asked again on
-    -- every watchdog tick for the life of the session.
-    if default_failures >= WRITE_ATTEMPTS then return true end
+    -- FTW wrote a current and the charger has not taken 0 A, so a car may
+    -- still be charging: say so. Retry once a minute, not on every watchdog
+    -- tick, and say false in between.
+    local now = host.millis()
+    if standdown_failed_at ~= nil and now - standdown_failed_at < STANDDOWN_RETRY_MS then
+        return false
+    end
     if write_setpoint(0) then return true end
-    default_failures = default_failures + 1
+    standdown_failed_at = now
     return false
 end
 
