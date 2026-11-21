@@ -2103,7 +2103,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "zaptec_cloud"
-            version: "0.2.0"
+            version: "0.2.1"
             ders: [ev]
             control: true
         firmware_versions: ""

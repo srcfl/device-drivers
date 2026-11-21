@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### zaptec_cloud 0.2.1
+
+The stand-down now acts only after FTW has written a current in this run.
+Core runs it at every start, and `maxChargeCurrent` is stored on the
+charger, so 0.2.0 would have set 0 A and paused a charger FTW never
+steered, for example one added only to watch it. That charger now keeps
+the owner's own setting. The same rule as heishamon 0.8.1.
+
 ### zaptec_cloud 0.2.0
 
 FTW now controls a Zaptec Go, Go 2 or Pro. Before this, the driver read the

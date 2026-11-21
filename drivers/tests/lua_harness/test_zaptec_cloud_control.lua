@@ -295,6 +295,7 @@ assert(last_current() == 0, "a new order must re-arm the stand-down")
 -- A refused stand-down waits before it tries again.
 boot()
 poll(CONNECTED)
+assert(order(11040, THREE))
 post_fail["/update"] = "HTTP 503: down"
 driver_default_mode()
 local tries = count("/update")
@@ -303,6 +304,14 @@ assert(count("/update") == tries, "a refused stand-down retried at once")
 later(301000)
 driver_default_mode()
 assert(count("/update") == tries + 1, "the stand-down never retried")
+
+-- Core runs the stand-down at every start: a charger FTW never steered in
+-- this run keeps the owner's setting.
+boot()
+poll(CONNECTED)
+for _ = 1, 3 do driver_default_mode() end
+assert(#current_writes() == 0 and count("/sendCommand/506") == 0,
+    "the stand-down touched a charger FTW never steered")
 
 -- 8. Telemetry: no invented numbers, power and phases as measured.
 boot()
