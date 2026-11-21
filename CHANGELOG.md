@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### hardybarth 1.1.1
+
+A Salia station FTW left on now stops when the car leaves, as eCB1 already
+did. When a poll shows no car and FTW's last write left a limit above 0 A,
+the driver sets `grid_current_limit` to 0 once, so the next car waits for
+FTW. A refused stop is tried again at most once a minute. A station FTW
+never set is left alone. Not yet checked on hardware.
+
 ### goe 1.1.0
 
 The driver controls the charger and reads the registers go-e documents. It

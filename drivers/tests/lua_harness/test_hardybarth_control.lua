@@ -345,4 +345,31 @@ n = #host._emitted.ev
 driver_poll()
 check(#host._emitted.ev == n, "no power, no emit")
 
+-- 7. A car leaves while FTW's limit has the station on: set 0 A once.
+boot_salia({ cp = "C" })
+check(order(6900) and lane() == "10", "order before unplug failed")
+snap.secc.port0.ci.charge.cp.status = "A"
+local before_salia = #posts
+driver_poll()
+check(#posts == before_salia + 1 and lane() == "0", "no car should set the Salia limit to 0")
+check(posts[#posts].body == '{"grid_current_limit":"0"}', "the unplug stop writes 0, got " .. posts[#posts].body)
+driver_poll(); driver_poll()
+check(#posts == before_salia + 1, "the Salia unplug stop must not repeat")
+-- A refused unplug stop is tried again at most once a minute.
+boot_salia({ cp = "C" })
+check(order(6900), "order before refused unplug failed")
+snap.secc.port0.ci.charge.cp.status = "A"
+post_mode = "refuse"
+before_salia = #posts
+driver_poll(); driver_poll(); driver_poll()
+check(#posts == before_salia + 1, "a refused unplug stop waits a minute, wrote " .. (#posts - before_salia))
+host._millis_counter = host._millis_counter + 61000
+post_mode = "ok"
+driver_poll()
+check(#posts == before_salia + 2 and lane() == "0", "the unplug stop is tried again after a minute")
+-- A station FTW never set is left alone.
+boot_salia({ cp = "A" })
+driver_poll()
+check(#posts == 0, "an unplugged station FTW never set must not be written")
+
 print("PASS test_hardybarth_control")
