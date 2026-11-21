@@ -30,6 +30,16 @@
 -- vehicle_device_data. Do not grant vehicle_cmds / vehicle_charging_cmds for
 -- this driver; it never posts a command.
 --
+-- Why there is no control. Fleet API has charge_start, charge_stop,
+-- set_charging_amps and set_charge_limit, but a current car rejects any
+-- command not signed with a virtual key paired to that car, and does
+-- nothing. Tesla's Vehicle Command Proxy or SDK does the signing; only
+-- pre-2021 Model S and X still take unsigned commands. Signing needs a key
+-- exchange and authenticated encryption that a sandboxed Lua driver cannot
+-- do. Commands are also billed. tesla_vehicle already sends charge_start,
+-- signed, through a local BLE proxy.
+--   https://developer.tesla.com/docs/fleet-api/endpoints/vehicle-commands
+--
 -- Which car is plugged in (FTW docs/cars.md, rule 2). The same charge_state
 -- read says whether a cable is in (conn_charge_cable, else charging_state).
 -- The driver sends no plugged_since_ms: it reads the car minutes apart, so
@@ -70,12 +80,12 @@ DRIVER = {
   id           = "tesla_cloud",
   name         = "Tesla Vehicle (Fleet API)",
   manufacturer = "Tesla",
-  version      = "0.2.0",
+  version      = "0.2.1",
   protocols    = { "http" },
   capabilities = { "vehicle" },
   read_only    = true,
   auth_post_path = "/oauth2/v3/token",
-  description  = "Read-only Tesla vehicle SoC, charge limit and charging state via the official Fleet API. Optional next to the local BLE-proxy driver. Does not wake or command the car.",
+  description  = "Reads a Tesla's charge level, limit, charging state and cable from Tesla's Fleet API. Read-only: Tesla accepts a command only when it is signed with a key paired to the car, and this driver cannot sign. Use tesla_vehicle (BLE) to start the car's charge, or a charger FTW can control.",
   homepage     = "https://developer.tesla.com/docs/fleet-api",
   http_hosts   = {
     "fleet-auth.prd.vn.cloud.tesla.com",

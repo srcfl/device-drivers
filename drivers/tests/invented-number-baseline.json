@@ -12,10 +12,8 @@
   ],
   "drivers": {
     "abb_meter": 13,
-    "abb_terra": 8,
     "acrel": 13,
     "acuvim": 8,
-    "alfen": 8,
     "alphaess": 10,
     "atmoce": 13,
     "carlo_gavazzi": 13,
@@ -25,21 +23,15 @@
     "ctek_hybrid": 9,
     "ctek_v2": 9,
     "deye": 28,
-    "easee": 4,
-    "etrel": 8,
     "ferroamp_modbus": 18,
     "fronius": 11,
-    "goe": 8,
     "goodwe": 24,
     "growatt": 16,
     "hello": 3,
     "janitza": 13,
-    "keba": 8,
     "kostal": 22,
     "kstar": 9,
-    "mennekes": 8,
     "schneider_meter": 13,
-    "schrack_ev": 8,
     "siemens_pac": 13,
     "sigenergy": 5,
     "sma": 28,
@@ -53,7 +45,6 @@
     "solis_string": 21,
     "sungrow": 20,
     "varta": 5,
-    "victron": 10,
-    "wallbox": 2
+    "victron": 10
   }
 }

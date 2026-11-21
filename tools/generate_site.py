@@ -25,6 +25,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ftw_repository import (
+    _lua_named_table_body, declares_read_only, driver_controls)
 from manifest_parser import (
     parse_tested_devices, parse_upstream_docs, parse_yaml_simple)
 
@@ -107,6 +109,34 @@ VERIFICATION = {
 }
 HARDWARE_VERIFIED = {"production", "tested"}
 MAX_SOURCE_NOTE_LINES = 12
+# What FTW can do with a device through this driver. A new owner reads this
+# before anything else, and a charger FTW accepted but never controlled, with
+# nothing to say why, is how they learned it the first time. The state comes
+# from the code the way the signed channel reads it, never from the
+# manifest's control field alone.
+CONTROL_STATES = {
+    "controls": "Controls the device",
+    "reads_only": "Reads only",
+    "telemetry": "Telemetry only",
+}
+# Meters and PV report what they measure; FTW does not expect to steer them,
+# so a driver that only reads them is complete, not held back.
+TELEMETRY_DERS = {"meter", "pv"}
+# Words a driver uses when it explains why it does not control. Only text
+# that says so counts as the driver's reason; a plain product description
+# does not.
+READ_ONLY_WORDS = re.compile(
+    r"read[- ]?only|observ|\bcontrol(?:s|led|ling)?\b|\bcommand(?:s|ed)?\b|\bwrites?\b",
+    re.IGNORECASE)
+# A header line that starts a new "Key: value" fact, such as "Protocol: ...".
+HEADER_FIELD = re.compile(r"^[A-Z][A-Za-z /()-]{0,30}:\s")
+MAX_REASON_CHARS = 420
+# The page already says "FTW reads this device but cannot control it", so a
+# reason that opens by saying the same loses that opening. What is left has
+# to say more than "the driver never writes" to count as a reason.
+REASON_LEAD_IN = re.compile(
+    r"^(ftw can read it but not control it|read-only)\s*[:.]\s*", re.IGNORECASE)
+MIN_REASON_WORDS = 5
 
 
 def git_output(*args: str) -> str:
@@ -174,7 +204,12 @@ def read_driver_source(path: Path) -> dict:
     if not path.exists():
         return {}
     text = path.read_text(encoding="utf-8")
-    info: dict = {}
+    info: dict = {
+        "controls": driver_controls(text),
+        "declares_read_only": declares_read_only(
+            _lua_named_table_body(text, "DRIVER")),
+        "header": header_comment(text),
+    }
 
     table = re.search(r'^DRIVER\s*=\s*\{(.*?)^\}', text, re.MULTILINE | re.DOTALL)
     if table:
@@ -208,6 +243,108 @@ def read_driver_source(path: Path) -> dict:
         if note:
             info["source_note"] = "\n".join(note)
     return info
+
+
+def header_passage(lines: list[str]) -> str:
+    """The first header comment passage that may explain control, or "".
+
+    It starts at a line that uses one of READ_ONLY_WORDS and runs to the end of
+    its paragraph or to the next "Key: value" line. An "Emits:" line lists
+    outputs, so a "(READ-ONLY)" there is a label, not a reason.
+    """
+    for i, raw in enumerate(lines):
+        line = raw.strip()
+        if not READ_ONLY_WORDS.search(line) or line.startswith("Emits:"):
+            continue
+        taken = [line]
+        for following in lines[i + 1:]:
+            following = following.strip()
+            if not following or HEADER_FIELD.match(following):
+                break
+            taken.append(following)
+        return " ".join(taken)
+    return ""
+
+
+def clip(text: str) -> str:
+    """The text from the sentence that names control, at most MAX_REASON_CHARS.
+
+    "Huawei SUN2000 ... via Modbus TCP. Read-only until a held-zero command is
+    verified" keeps only the second sentence: the first says what the driver
+    is, which the page already shows.
+    """
+    text = " ".join(text.split())
+    match = READ_ONLY_WORDS.search(text)
+    if match:
+        start = text.rfind(". ", 0, match.start())
+        if start >= 0:
+            text = text[start + 2:]
+    if len(text) <= MAX_REASON_CHARS:
+        return text
+    cut = text[:MAX_REASON_CHARS]
+    end = cut.rfind(". ")
+    if end > MAX_REASON_CHARS // 3:
+        return cut[:end + 1]
+    return cut.rsplit(" ", 1)[0] + "…"
+
+
+def plain_reason(text: str) -> str:
+    """The reason without a lead-in that repeats the page, or "" if none is left.
+
+    "FTW can read it but not control it: Tesla offers no way ..." becomes
+    "Tesla offers no way ...". sonnen's "Read-only." and zap's "The driver
+    never writes." say nothing the page has not, so they give no reason.
+    """
+    text = REASON_LEAD_IN.sub("", text.strip(), count=1)
+    text = text[:1].upper() + text[1:]
+    return text if len(text.split()) >= MIN_REASON_WORDS else ""
+
+
+def read_only_reason(description: str, notes: list[str], header: list[str]) -> str:
+    """Why a driver does not control, in its own words, or "" if it never says.
+
+    The DRIVER description comes first, then the manifest notes, then the
+    header comment. The first that talks about reading or control decides:
+    "Zaptec Go via Zaptec Cloud" is what the driver is, not why it reads only.
+
+    FTW Core shows the same reason on the box from the description alone:
+    readOnlyReason in go/internal/drivers/catalog.go in srcfl/ftw. Change the
+    two together.
+    """
+    for text in [description, *notes]:
+        if text and READ_ONLY_WORDS.search(text):
+            return plain_reason(clip(text))
+    passage = header_passage(header)
+    return plain_reason(clip(passage)) if passage else ""
+
+
+def control_summary(source: dict, ders: list[str], notes: list[str],
+                    hardware_verified: bool) -> dict:
+    """Which of the three things FTW can do, with the words the page shows."""
+    if source.get("controls"):
+        state = "controls"
+        note = ("Confirmed on real hardware, by the driver's verification record."
+                if hardware_verified else
+                "Experimental until a field report confirms control on real hardware.")
+        reason = ""
+    elif ders and set(ders) <= TELEMETRY_DERS:
+        state = "telemetry"
+        note = "FTW reads this device. A meter or solar inverter needs no control to be useful."
+        reason = ""
+    else:
+        state = "reads_only"
+        why = ("The driver turns its control off." if source.get("declares_read_only")
+               else "The driver has no control code yet.")
+        note = "FTW reads this device but cannot control it. " + why
+        reason = read_only_reason(
+            source.get("description", ""), notes, source.get("header", []))
+    return {
+        "control": state == "controls",
+        "control_state": state,
+        "control_label": CONTROL_STATES[state],
+        "control_note": note,
+        "control_reason": reason,
+    }
 
 
 def upstream_documents(text: str) -> list[dict]:
@@ -277,6 +414,9 @@ def collect_drivers() -> list[dict]:
                 verification["status"], (verification["status"], "partial"))
             verification["label"] = label
             verification["level"] = level
+        hardware_verified = bool(
+            verification and verification["status"] in HARDWARE_VERIFIED)
+        ders = data.get("ders", []) or []
 
         drivers.append({
             "id": driver_id,
@@ -290,8 +430,10 @@ def collect_drivers() -> list[dict]:
             "protocol": data.get("protocol", ""),
             "connectivity": data.get("connectivity", ""),
             "setup": data.get("setup", []) or [],
-            "ders": data.get("ders", []) or [],
-            "control": bool(data.get("control", False)),
+            "ders": ders,
+            **control_summary(
+                source, ders, [d["notes"] for d in tested if d["notes"]],
+                hardware_verified),
             "author": data.get("author", ""),
             "min_host_version": data.get("min_host_version", ""),
             "size_bytes": data.get("size_bytes", 0),
@@ -299,8 +441,7 @@ def collect_drivers() -> list[dict]:
             "tested_devices": tested,
             "upstream_docs": upstream_documents(text),
             "verification": verification,
-            "hardware_verified": bool(
-                verification and verification["status"] in HARDWARE_VERIFIED),
+            "hardware_verified": hardware_verified,
             "targets": {
                 name: {
                     "conformance": target.get("target_conformance", "not_assessed"),
@@ -344,6 +485,7 @@ def build_catalog() -> dict:
             "setup": SETUP_LABELS,
             "doc_kinds": DOC_KIND_LABELS,
             "url_stability": URL_STABILITY_LABELS,
+            "control_states": CONTROL_STATES,
         },
         "totals": {
             "drivers": len(drivers),
@@ -351,6 +493,7 @@ def build_catalog() -> dict:
             "model_families": len(families),
             "variants": variants,
             "control": sum(1 for d in drivers if d["control"]),
+            "reads_only": sum(1 for d in drivers if d["control_state"] == "reads_only"),
             "hardware_verified": sum(1 for d in drivers if d["hardware_verified"]),
         },
         "source": {
@@ -454,15 +597,24 @@ main { padding-bottom: 72px; }
 .catalog-body { padding-top: 30px; }
 .driver { border: 1px solid var(--line); background: var(--surface); margin-bottom: -1px; }
 .driver.is-open { border-color: var(--ink); position: relative; z-index: 1; }
-.driver-head { width: 100%; display: grid; grid-template-columns: minmax(0, 3fr) 90px 74px minmax(0, 1.6fr) 76px 92px 74px 22px; align-items: center; gap: 14px; padding: 15px 18px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.driver-head { width: 100%; display: grid; grid-template-columns: minmax(0, 3fr) 90px 74px minmax(0, 1.6fr) 150px 92px 74px 22px; align-items: center; gap: 14px; padding: 15px 18px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .driver-head:hover { background: var(--signal-light); }
 .driver-id { display: block; color: var(--ink); font-family: var(--mono); font-size: 14px; font-weight: 700; }
 .driver-title { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cell-label { display: none; }
 .badge { display: inline-block; padding: 2px 8px; border: 1px solid var(--line); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
 .badge.tier-core { border-color: var(--ink); background: var(--ink); color: var(--cream); }
-.badge.control-yes { border-color: var(--signal); color: var(--signal); font-weight: 700; }
-.badge.control-no { color: var(--muted); opacity: 0.7; }
+.badge.control-controls { border-color: var(--signal); color: var(--signal); font-weight: 700; }
+/* A charger or battery FTW cannot steer is the case people miss, so it reads
+   as a warning, not as a quieter version of the control badge. */
+.badge.control-reads_only { border-color: var(--ink); color: var(--ink); border-style: dashed; }
+.badge.control-telemetry { color: var(--muted); opacity: 0.7; }
+.capability { max-width: 88ch; margin: 16px 0 0; padding: 9px 13px; border-left: 2px solid var(--muted); background: rgba(103, 103, 98, 0.09); font-size: 13px; }
+.capability b { margin-right: 9px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.capability .why { display: block; margin-top: 5px; color: var(--muted); }
+.capability.control-controls { border-left-color: var(--signal); background: var(--signal-light); }
+.capability.control-reads_only { border-left-color: var(--ink); }
+.family .driver-link .state-reads_only { color: var(--ink); font-weight: 700; }
 /* Local-first is the default this project is built for, so the badge that
    earns attention is the one that says a device stops without the internet. */
 .badge.conn-cloud { border-style: dotted; color: var(--muted); }
@@ -519,7 +671,7 @@ table.models .note { color: var(--muted); font-size: 12px; }
 
 .empty { padding: 60px 0; color: var(--muted); text-align: center; }
 noscript .empty { color: var(--body); }
-.table-head { display: grid; grid-template-columns: minmax(0, 3fr) 90px minmax(0, 1.6fr) 76px 92px 74px 22px; gap: 14px; padding: 0 18px 8px; color: var(--muted); font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
+.table-head { display: grid; grid-template-columns: minmax(0, 3fr) 90px 74px minmax(0, 1.6fr) 150px 92px 74px 22px; gap: 14px; padding: 0 18px 8px; color: var(--muted); font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
 
 footer { background: var(--ink); color: var(--cream); padding-block: 44px 26px; }
 footer h2 { margin-bottom: 10px; font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
@@ -534,7 +686,7 @@ footer p { max-width: 62ch; color: rgba(245, 242, 225, 0.66); }
 .footer-bottom a { color: rgba(245, 242, 225, 0.66); }
 
 @media (max-width: 1080px) {
-  .driver-head, .table-head { grid-template-columns: minmax(0, 2.4fr) 84px minmax(0, 1.4fr) 70px 74px 22px; }
+  .driver-head, .table-head { grid-template-columns: minmax(0, 2.4fr) 84px 70px minmax(0, 1.4fr) 150px 70px 22px; }
   .driver-head .cell-host, .table-head .cell-host { display: none; }
 }
 @media (max-width: 780px) {
@@ -672,9 +824,14 @@ SCRIPT = r"""
 
   function driverCard(d) {
     var ders = d.ders.map(function (x) { return '<span class="badge">' + esc(derLabel(x)) + "</span>"; }).join("");
-    var control = d.control
-      ? '<span class="badge control-yes">Control</span>'
-      : '<span class="badge control-no">Read only</span>';
+    // What FTW can do with the device, in the same three words everywhere.
+    var control = '<span class="badge control-' + esc(d.control_state) + '">' +
+      esc(d.control_label) + "</span>";
+    var controlNote = '<p class="capability control-' + esc(d.control_state) + '">' +
+      "<b>" + esc(d.control_label) + "</b>" + esc(d.control_note) +
+      (d.control_reason
+        ? '<span class="why">In the driver’s words: ' + esc(d.control_reason) + "</span>" : "") +
+      "</p>";
     var reach = d.connectivity
       ? '<span class="badge conn-' + esc(d.connectivity) + '">' +
         (d.connectivity === "cloud" ? "Cloud" : "Local") + "</span>"
@@ -724,6 +881,7 @@ SCRIPT = r"""
       "</button>" +
       '<div class="driver-body" id="body-' + esc(d.id) + '">' +
         (d.description ? '<p class="desc">' + esc(d.description) + "</p>" : "") +
+        controlNote +
         sourceNote +
         verified +
         modelsTable(d) +
@@ -760,7 +918,8 @@ SCRIPT = r"""
             (row.dev.notes ? '<div class="note">' + esc(row.dev.notes) + "</div>" : "") + "</div>" +
           '<div class="driver-link"><a href="#driver-' + esc(row.driver.id) + '" data-jump="' + esc(row.driver.id) + '">' +
             esc(row.driver.id) + "</a> v" + esc(row.driver.version) +
-            (row.driver.control ? " &middot; control" : "") + "</div>" +
+            ' &middot; <span class="state-' + esc(row.driver.control_state) + '">' +
+            esc(row.driver.control_label.toLowerCase()) + "</span></div>" +
         "</div>";
       }).join("");
       return '<section class="mfr"><h2>' + esc(name) + "</h2>" + families + "</section>";
@@ -904,7 +1063,7 @@ def render_html(catalog: dict) -> str:
         f"{PROTOCOL_LABELS.get(d['protocol'], d['protocol'])} &middot; "
         f"{CONNECTIVITY_LABELS.get(d['connectivity'], d['connectivity'])} &middot; "
         f"{', '.join(DER_LABELS.get(x, x) for x in d['ders']) or 'unspecified'}"
-        f"{' &middot; control' if d['control'] else ''}</li>"
+        f" &middot; {d['control_label'].lower()}</li>"
         for d in drivers)
 
     commit_line = ""
@@ -973,7 +1132,8 @@ def render_html(catalog: dict) -> str:
       <div><dt>Manufacturers</dt><dd>{totals['manufacturers']}</dd></div>
       <div><dt>Model families</dt><dd>{totals['model_families']}</dd></div>
       <div><dt>Listed variants</dt><dd>{totals['variants']}</dd></div>
-      <div><dt>With control</dt><dd>{totals['control']}</dd></div>
+      <div><dt>Controls the device</dt><dd>{totals['control']}</dd></div>
+      <div><dt>Reads only</dt><dd>{totals['reads_only']}</dd></div>
       <div><dt>Verified on hardware</dt><dd>{totals['hardware_verified']}</dd></div>
     </dl>
   </div>
@@ -999,7 +1159,7 @@ def render_html(catalog: dict) -> str:
       <div class="filter-group"><span>Reach</span>{connectivity_chips}</div>
       <div class="filter-group"><span>To set up</span>{setup_chips}</div>
       <div class="filter-group"><span>Tier</span>{tier_chips}</div>
-      <div class="filter-group"><span>Evidence</span>{chip("control", "control", "Can control")}{chip("verified", "verified", "Verified on hardware")}</div>
+      <div class="filter-group"><span>Evidence</span>{chip("control", "control", "Controls the device")}{chip("verified", "verified", "Verified on hardware")}</div>
     </div>
     <p class="result-line"><span id="result-count">{totals['drivers']} drivers</span>
       <button id="clear-filters" type="button" hidden>Clear</button></p>
@@ -1008,7 +1168,7 @@ def render_html(catalog: dict) -> str:
 
 <div class="wrap catalog-body">
   <div class="table-head" id="table-head">
-    <span>Driver</span><span>Protocol</span><span>Reach</span><span>Emits</span><span>Capability</span>
+    <span>Driver</span><span>Protocol</span><span>Reach</span><span>Emits</span><span>Control</span>
     <span class="cell-host">Tier</span><span>Version</span><span></span>
   </div>
   <div id="list"></div>

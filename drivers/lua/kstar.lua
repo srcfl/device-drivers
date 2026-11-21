@@ -4,6 +4,22 @@
 -- Port: 502
 -- Community tier (untested)
 
+-- No control code has been written for this inverter yet: driver_command
+-- only refuses. It says read_only so FTW and the catalog tell the owner
+-- plainly, instead of offering control that cannot work.
+DRIVER = {
+  host_api_min = 1,
+  host_api_max = 1,
+  id           = "kstar",
+  name         = "KSTAR inverter",
+  manufacturer = "KSTAR",
+  version      = "1.1.2",
+  protocols    = { "modbus" },
+  capabilities = { "pv", "battery", "meter" },
+  read_only    = true,
+  description  = "KSTAR KSE and BluE-S series inverters via Modbus TCP. Read-only: no control code has been written for it yet, so FTW reads it but cannot charge or discharge the battery.",
+}
+
 PROTOCOL = "modbus"
 
 -- Reading a register the device does not have costs a failed read on every

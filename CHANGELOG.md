@@ -12,6 +12,460 @@
 - Prefer valid timestamps over missing or invalid ones. Equal or unavailable
   timestamps retain the existing dataset-order fallback.
 
+### hardybarth 1.1.1
+
+A Salia station FTW left on now stops when the car leaves, as eCB1 already
+did. When a poll shows no car and FTW's last write left a limit above 0 A,
+the driver sets `grid_current_limit` to 0 once, so the next car waits for
+FTW. A refused stop is tried again at most once a minute. A station FTW
+never set is left alone. Not yet checked on hardware.
+
+### goe 1.1.0
+
+The driver controls the charger and reads the registers go-e documents. It
+reports as a charger (`ev`), so FTW can use it as a loadpoint.
+
+- Earlier releases read holding registers 0 to 15. go-e's Modbus map for API
+  v2 firmware has nothing there. The driver now reads the car state (input
+  100), voltage, current and power (input 107 to 121), energy (input 128 and
+  132) and the owner's maximum current (holding 211).
+- An order becomes whole amps per phase, rounded down, and goes to
+  AMPERE_VOLATILE (299) with function 16. go-e does not save that register to
+  EEPROM. Start and stop go to FORCE_STATE (337), which needs firmware 55.6 or
+  later.
+- The current never exceeds Core's `max_amps_per_phase` or
+  `cap_amps_per_phase`, the owner's maximum or 32 A. Below 6 A the driver
+  stops the charger and never rounds up.
+- The driver writes only registers that differ from the charger's last report.
+  A setpoint it could not read back counts as unknown and is written again.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- FORCE_STATE=2 forces charging past the charger's RFID check and schedules.
+  When a car leaves and FTW left the charger on, the driver stops it once,
+  so the next car waits for FTW.
+- Default mode stops the charger, but only after FTW has written to it in
+  this run, since Core runs it at every start. It returns true only when the
+  charger took the stop. A refused stop returns false and is tried again at
+  most once a minute.
+- A stop stays on the charger, as with Zaptec and Easee. The owner sets the
+  charger back to neutral in the go-e app.
+
+Written from go-e's documentation. Not yet checked on hardware.
+
+### goe_http 1.1.0
+
+The driver controls the charger through go-e's HTTP API v2 and reports as a
+charger (`ev`).
+
+- An order becomes whole amps per phase, rounded down. The driver writes
+  `amp`, and `frc=2` only once the charger confirmed `amp`; `frc=1` stops. A
+  key the charger does not confirm with `true` fails the command. go-e takes
+  these writes as GET requests.
+- The current never exceeds Core's caps, the owner's `ama` or the unit's
+  rating (`var`). Below `mca` (at least 6 A) the driver stops the charger.
+- The driver reports `acu` as `current_limit_a`, `ama` as `device_limit_a` and
+  the reason from `modelStatus` when a car waits.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- `frc=2` forces charging past the charger's RFID check and schedules. When
+  a car leaves and FTW left the charger on, the driver stops it once, so the
+  next car waits for FTW.
+- Default mode stops the charger, but only after FTW has written to it in
+  this run, since Core runs it at every start. It returns true only when the
+  charger took the stop. A refused stop returns false and is tried again at
+  most once a minute.
+- `frc` is a setting, so a stop stays on the charger, as with Zaptec and
+  Easee. The owner sets it back to neutral in the go-e app.
+
+Written from go-e's documentation. Not yet checked on hardware.
+
+### openevse 1.1.0
+
+The driver controls the charger through the WiFi firmware's claims and
+reports as a charger (`ev`).
+
+- Earlier releases read `amp` as amps. The firmware sends milliamps, so
+  power read a thousand times too high. They also read `watt_seconds`, which
+  the firmware does not send. Power now comes from `power` and session energy
+  from `session_energy`.
+- An order becomes whole amps per phase, rounded down, and goes out as a claim
+  at the API priority: `POST /claims/1179910145`. Below the charger's minimum
+  the claim is `disabled`, because the firmware would raise a smaller current
+  to the minimum.
+- The driver reads its claim back on every poll and claims again after a
+  reboot drops it.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the charger's `/config` says it is not three-phase. An
+  unknown setup divides by three. OpenEVSE reports one current, so Core's
+  `1p` alone does not divide by one.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- When a car leaves and FTW's claim left the charger on, the driver claims
+  `disabled` once, so the next car waits for FTW. The claim keeps
+  `auto_release` off.
+- Default mode claims `disabled`, but only after FTW has written to the
+  charger in this run, since Core runs it at every start. It returns true
+  only when the charger accepted the claim. A refused claim returns false and
+  is tried again at most once a minute.
+- A stand-down stays on the charger, as with Zaptec and Easee, until FTW
+  claims again, the owner uses the manual override, or the charger reboots.
+- An optional `username` and `password` cover chargers with an admin password.
+
+Written from OpenEVSE's API description. Not yet checked on hardware.
+
+### hardybarth 1.1.0
+
+Earlier releases read `/api/status`, which neither Hardy Barth controller
+documents. The driver now finds the eCB1 controller (cPH1) or the Salia
+controller (cPH2, cPu2) and uses each one's own API. It reports as a charger
+(`ev`).
+
+- eCB1: the first order that needs current sets the mode to manual, which
+  stays. The driver then writes `manualmodeamp` and sends start and stop,
+  form-encoded. A socket that reports itself stopped (state id 17) is
+  started again by the next order that needs current. When a car leaves and
+  FTW left the socket started, the driver stops it once.
+- Salia: the driver writes `grid_current_limit` with `POST /api/`; 0 stops
+  charging. Firmware 2.3.81 and later needs `api_key`. The limit is a ceiling:
+  eco mode or the web slider can hold the car lower, and the driver says so.
+  Power needs the station's meter.
+- An order becomes whole amps per phase, rounded down, within Core's caps and
+  the station's own limits.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- Default mode stops the station, but only after FTW has written to it in
+  this run, since Core runs it at every start. It returns true only when the
+  station took the stop. A refused stop returns false and is tried again at
+  most once a minute.
+- A stop stays on the station, as with Zaptec and Easee, until FTW orders
+  current again or the owner changes it.
+
+Written from the eCB1 REST API 1.3 and the eCharge Salia REST API. Not yet
+checked on hardware.
+
+### zaptec_cloud 0.2.2
+
+A refused stand-down now returns `false`. Before, `driver_default_mode`
+returned nothing, which Core reads as "stood down", so a charger that kept
+charging after a failed 0 A write and a failed pause looked held, and Core
+unblocked control and stopped retrying. The driver now returns `true` only
+when the 0 A write or the pause held, or when FTW wrote nothing in this run,
+and it retries a refused stand-down once a minute instead of every five.
+When the pause held but the 0 A write did not, a later resume offers 6 A
+instead of the current the charger had before.
+
+`docs/WRITING-A-DRIVER.md` now says that "report held after giving up" is for
+a device FTW never steered, not for a charger it commanded.
+### alfen 1.1.1, abb_terra 1.1.1, mennekes 1.1.1
+
+Default mode no longer reports a refused stand-down as done. Core reads
+`true` as "the charger is stood down": it unblocks control and stops
+recovery. After three refused writes these drivers said `true`, so Core could
+believe a car had stopped while it was still charging at FTW's last current.
+
+- `true` now means FTW wrote nothing in this process, or the charger took
+  0 A.
+- Once FTW has written, a refused or failed stand-down returns `false`. The
+  write is tried again at most once a minute, and calls in between return
+  `false` without writing, so the watchdog does not repeat it on every tick.
+- The "report held after three refusals" rule is for registers a device
+  does not have, where it was never under control. It does not fit a
+  charger FTW has steered.
+
+### alfen 1.1.0
+
+The driver can now steer the charger. It emits `ev` with `DRIVER.capabilities
+= { "ev" }`, so FTW can use it as a loadpoint, and it writes the socket's
+Modbus server max current (1210) from Alfen's Modbus for ACE configuration
+guide. Not yet confirmed on hardware; `verification_status` is experimental.
+
+- Watts become amps per phase, rounded down to 0.1 A. The driver does not
+  switch phases, and a 1p order alone proves nothing: a three-phase car
+  would draw the 1p current on every phase. So it divides by one phase only
+  when config says `phases: 1` and the charger shows no more, or when Core
+  orders 1p and the car is measured drawing on exactly one phase. Otherwise
+  it divides by three. Register 1215 is a floor. The fuse,
+  `cap_amps_per_phase`, 32 A and an optional `max_a` cap the result. Below
+  6 A the driver writes 0 A.
+- The charger drops a setpoint when its validity time (60 s by default) runs
+  out. While Core sends orders the driver rewrites the setpoint every 15 s,
+  sooner when register 1208 shows less than 20 s left, and again when a
+  reboot lost it.
+- Pause writes 0 A and holds it for 10 s, through Core's contactor cycle.
+  Resume restores Core's last order; with no order yet it returns false.
+- Default mode writes 0 A once, and only after FTW wrote a setpoint in this
+  process. The charger then returns to its installer's safe current when the
+  validity time runs out. It stops after three refused writes.
+- A refused write returns false.
+- A block that does not answer is asked again once a minute, so a charger
+  offline at boot comes back. The measurement block is asked every poll.
+
+Readings are fixed. Earlier versions read 326 as voltage (it is current sum),
+346 as session energy (apparent power L1) and 1201 as a number (a 5-register
+Mode 3 string), and reported NaN as 0. Voltages now come from 306, lifetime
+energy from 374 as `total_charge_wh`, and the state from the Mode 3 string.
+A NaN stays nil.
+
+The 2025 guide says 32-bit values come low word first; evcc and the Home
+Assistant driver use high word first. In the wrong order 6.2 A reads as about
+2.7e23 A, so the driver does not guess. It learns the order from a value that
+is plausible in only one order (a phase voltage, the safe current, the
+applied or written current). Until then it reports nothing and refuses every
+current above 0 A. 0 A reads the same in both orders.
+
+### abb_terra 1.1.0
+
+The driver can now steer the charger. It emits `ev` with `DRIVER.capabilities
+= { "ev" }` and writes the charging current limit (0x4100, mA) from ABB's TAC
+Modbus Communication v1.7. Not yet confirmed on hardware.
+
+- Earlier versions read registers 1000-1037, which are not in ABB's map. All
+  readings now come from 0x4000-0x401F: state, the limit the charger chose
+  (0x400E, emitted as `max_a` and `current_limit_a`), phase currents and
+  voltages, power and session energy. The serial number is reported.
+- Watts become amps per phase with the same phase rule as alfen 1.1.0,
+  also capped at the charger's own ceiling (0x4006). Below 6 A the driver
+  writes 0 A, which ABB documents as a pause.
+- The charger counts reads as contact, so no refresh write is needed. The
+  main block is read every poll; the serial is retried once a minute. A
+  limit the charger lost is written again.
+- Default mode writes 0 A once, and only after FTW wrote a limit. It stops
+  after three refused writes. A refused write returns false, and so does a
+  resume with no order yet.
+
+### mennekes 1.1.0
+
+The driver can now steer the charger, on both of Mennekes' Modbus maps. It
+emits `ev` with `DRIVER.capabilities = { "ev" }`. Not yet confirmed on
+hardware.
+
+- ECU (AMTRON Professional, AMTRON Charge Control, AMEDIO Professional),
+  from the ECU Modbus TCP Server Specification rev 1.07: writes
+  HEMS_CURRENT_LIMIT (1000). The charger falls back to its SAFE_CURRENT when
+  the master goes quiet, so the driver rewrites the limit every 15 s, or a
+  third of COMM_TIMEOUT, while Core sends orders.
+- HCC3 (AMTRON Xtra, AMTRON Premium), from the AMTRON Modbus description
+  v1.031: writes the customer current limitation (0x0400). This charger keeps
+  the last value with no timeout. When Core stops or updates, default mode
+  leaves it at 0 A and the car waits for the next order, as with
+  easee_cloud. After a Core crash it keeps FTW's last limit.
+- The driver tells the two apart on the first polls, or takes `family:
+  ecu|hcc3` from config. The default unit id is 255: the ECU answers any
+  id, and 255 is the one HCC3 integrations use.
+- Whole amps per phase, rounded down, with the same phase rule, caps,
+  pause, resume and default-mode rules as alfen 1.1.0. The HCC3 measures no
+  currents, and its phase count (0x0308) is a floor.
+- Detection and absent blocks are retried once a minute, so a charger
+  offline at boot comes back.
+- Earlier versions read registers 100-300, which are in neither map. All
+  readings now come from the vendor maps, and the ECU's 0xFFFFFFFF "no meter"
+  value stays nil.
+
+### alphaess 1.1.2, kstar 1.1.2, solax 1.1.2, varta 1.1.2
+
+These four declare `read_only = true` and say why in their new `DRIVER`
+table: no control code has been written for them. Their `driver_command`
+only logs and refuses, yet the signed channel shipped them as controlling,
+because it counts any `driver_command` as control. FTW then offered control
+that could not work. Reading is unchanged. Their channel artifacts change:
+the generated header now marks them read-only and drops their write
+permissions.
+
+### zaptec_cloud 0.2.1
+
+The stand-down now acts only after FTW has written a current in this run.
+Core runs it at every start, and `maxChargeCurrent` is stored on the
+charger, so 0.2.0 would have set 0 A and paused a charger FTW never
+steered, for example one added only to watch it. That charger now keeps
+the owner's own setting. The same rule as heishamon 0.8.1.
+
+### zaptec_cloud 0.2.0
+
+FTW now controls a Zaptec Go, Go 2 or Pro. Before this, the driver read the
+charger but declared itself read-only, so FTW accepted the charger and never
+steered it, and an owner whose fuse was overloaded had no way to see why.
+
+- Current goes to the charger's `maxChargeCurrent`. Zaptec asks callers not to
+  change the installation's `AvailableCurrent` more than once every 15
+  minutes, too slow for a fuse guard. The installation's own limit still
+  applies on top.
+- Amps never exceed what Core budgeted per phase. The driver assumes three
+  phases unless the installation has one, or Core asks for one and the
+  charger is drawing on exactly one. It rounds down, writes 0 A below 6 A,
+  and keeps Core's last cap when an order carries none.
+- Pause sets 0 A and sends command 506. Resume offers 6 A, never above Core's
+  last cap, and sends 507. A positive order on a paused charger also resumes
+  it, so a stand-down never strands the car. Code 528 counts as done unless
+  the driver paused the charger itself; 520 means the command never reached
+  the charger and comes back false, as does a 200 that carries an error code.
+- A 401 signs in again once and retries.
+- Stand-alone mode, where the charger ignores current from the API, refuses
+  current orders and resumes and says so.
+- The stand-down sets 0 A and pauses once, then waits for a new order. A
+  failed stand-down tries again after five minutes.
+- Missing readings stay empty instead of 0. Phase currents and voltages are
+  reported, and every request carries an FTW User-Agent.
+
+Written from Zaptec's API documentation. Not yet confirmed on hardware.
+### Removed: local `easee` and local `zaptec`
+
+Both read a device API that does not exist, so the catalog stops listing
+them. `easee` read an invented Modbus map: Easee documents no local Modbus or
+REST API. `zaptec` read `/api/charger/state` over HTTP: Zaptec documents no
+local API on Go, Go 2 or Pro. On a real charger they read nothing, and
+`easee` then sent 0 W as if the charger had said so. Neither was ever run on
+hardware.
+
+Use `easee_cloud` or `zaptec_cloud` instead. For local control, point the
+charger's OCPP at FTW: Easee from firmware 344 and Zaptec Go, Go 2 and Pro
+can connect to an OCPP 1.6J server of the owner's choice, and FTW has one
+built in (FTW `docs/ocpp.md`). `driver-history.json` keeps their record,
+as it did for `foxess`.
+
+### tesla_wall_connector 0.2.0
+
+The driver says plainly that FTW can read the charger but not control it:
+Tesla offers no way for another system to set its current or start and stop
+it. Tesla's own current control is Dynamic Power Management, an installer
+setting fed by a Tesla energy meter; its application note is now in
+`upstream_docs`. Control goes through the car (`tesla_vehicle`) or a charger
+FTW can control, such as one on OCPP.
+
+`driver_command` now refuses every control action with `false`. It used to
+answer `true` to `ev_set_current`, `ev_pause`, `ev_resume` and `ev_start`
+while writing nothing. FTW Core never sent those to this read-only driver,
+so nothing changes there, but no host may now read a refusal as success.
+
+### teslamate_vehicle 0.2.1, home_assistant_vehicle 0.1.1, tesla_cloud 0.2.1
+
+Each description and manifest note now says why FTW cannot control the car
+through it, and where control goes instead. TeslaMate only logs data and
+takes no commands. The Home Assistant driver only listens and sends nothing
+back. Tesla's Fleet API accepts a command only when it is signed with a key
+paired to the car, and a Lua driver cannot sign. To start a Tesla's charge,
+add `tesla_vehicle` (BLE proxy). No behaviour changes.
+
+### etrel 1.1.0
+
+The driver now controls the charger, so FTW can use it as a loadpoint. It
+emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
+
+- Registers come from Etrel's INCH SmartHome Modbus TCP register list. The old
+  map (holding 300-312) was in no Etrel document and is gone. Readings are
+  Float32 input registers 0-31; identity is 990-1019.
+- An order becomes a current per phase: power over voltage and phases. It is
+  one phase only when config says `phases: 1` and the car has not drawn on
+  more than one phase since it was plugged in, or when Core orders `1p` and
+  the car draws on exactly one. Otherwise, idle or just started too, it is
+  three, so a three-phase car never gets a one-phase sum on each phase. The
+  current never exceeds Core's `max_amps_per_phase` or `cap_amps_per_phase`,
+  the installer's custom max current or 32 A. It rounds down to 0.1 A, and
+  below 6 A it writes 0 A.
+- Pause writes a 0 A setpoint. Core sends resume and start without a budget,
+  so resume writes an order back only when it is under 30 s old. Otherwise it
+  writes 6 A, and only when the limit named with the last positive order
+  allows 6 A (a 0 W order carries no cap, so it does not replace that limit).
+  With a limit below 6 A it writes nothing and returns false. With no limit
+  known, after a reload for example, it writes nothing, accepts the resume and
+  logs once that the charger waits for Core's next order. The pause and stop
+  registers are one-way triggers with no documented undo, so they are never
+  written.
+- Default mode acts only after a command wrote in this run. Core runs it at
+  every start, so a charger FTW never steered keeps its own setpoint and a
+  charge already running goes on, as in heishamon 0.8.1. After that it writes
+  0 A once, and returns true only when that lands. A refused stand-down
+  returns false and is tried again at most once a minute.
+- A charger that holds the charge paused against an order for 30 s reports
+  `command_stalled`, and the next order writes the setpoint again, at most
+  every 30 s.
+- A failed read is left out, not reported as 0. Session energy of 0 is left
+  out, since some firmware never moves it (evcc-io/evcc#5346).
+- The second connector of an INCH Duo is not covered.
+
+Not yet confirmed on hardware.
+
+### keba 1.1.0
+
+The driver now controls a KeContact P30, so FTW can use it as a loadpoint. It
+emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
+
+- Registers follow KEBA's P30 Modbus TCP Programmers Guide V1.07. The old map
+  read the error code as L1 current, lifetime energy as session energy, and
+  voltages from the current, serial and product registers. Each value is now
+  read on its own, as the guide requires. The unit ID default is 255.
+- An order writes 5004 (mA) and then enables with 5014. Phases, caps,
+  rounding, resume and the default-mode rule work as in etrel 1.1.0, with the
+  hardware limit from 1110. A resume of an old order writes 5004 = 6000 mA
+  before the enable. Below 6 A, pause and default mode disable with
+  5014 = 0, since 5004 takes nothing under 6000 mA.
+- Phases count as measured only when all three phase currents answered in
+  that poll; otherwise orders use three. A phase current that stops answering
+  is tried again once a minute.
+- A charger that offers more than the order, or charges while disabled, gets
+  the order again after 30 s. One that stays suspended against an enable for
+  30 s gets the enable again, at most every 30 s.
+- A configured failsafe timeout is refreshed at half its length while FTW
+  steers, paused or not, and while FTW holds the charger disabled after a
+  stand-down, so the failsafe current cannot start a charge FTW stopped.
+  After three refused refreshes it is tried once a minute. Whether the
+  failsafe current overrides a disable once FTW stops is not verified.
+- A charger whose product code is not a P30 is not controlled.
+- The UDP interface is not used: FTW's driver host has no UDP, and KEBA
+  forbids using both. A c-series below firmware 3.10.16 needs an update.
+
+Not yet confirmed on hardware.
+
+### schrack_ev 1.1.0
+
+The driver now controls a CION Home or Semipublic, so FTW can use it as a
+loadpoint. It emits `ev` instead of `v2x_charger` and declares
+`capabilities = { "ev" }`.
+
+- Registers follow Schrack's CION Home and Semipublic Modbus table. The old map
+  read the charging authorisation as a state and power from registers Schrack
+  does not list. These chargers speak Modbus RTU, so FTW needs a Modbus TCP to
+  RTU gateway.
+- An order writes the current to 101 (whole A) and then authorises with
+  100 = 1. A void authorisation is cleared with 100 = 0 first, as the table
+  says, at most every 30 s while the charger calls it void. With no car
+  plugged in only the current is set.
+  Below 6 A, pause and default mode write 100 = 0. Resume and default mode
+  work as in etrel 1.1.0; a resume of an old order writes 101 = 6 first.
+- The charger reports no power and no phase currents, so `w` stays empty and
+  orders are split over the phases in config only (`phases`, default 3).
+- The CION Pro is not covered: it speaks OCPP, which FTW handles itself.
+
+Not yet confirmed on hardware.
+
+### wallbox 1.1.0
+
+The driver says it cannot control the charger: `read_only = true`, with the
+reason in its description. We found no documented local Modbus interface for
+the Pulsar Plus, Pulsar Max, Commander 2 or Copper SB, and the registers this
+driver reads come from no Wallbox document, so its power and energy are
+unverified. Wallbox documents OCPP 1.6J, and FTW's built-in OCPP central
+system reads and controls these chargers without a driver.
+
+The driver emits `ev` instead of `v2x_charger`, and only fields whose register
+answered. It no longer reports 0 W, 0 Wh or 0 A for registers that did not
+answer.
+
 ### heishamon 0.8.1
 
 Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only
