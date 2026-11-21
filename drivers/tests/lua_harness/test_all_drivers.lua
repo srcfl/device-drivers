@@ -70,7 +70,6 @@ local DRIVER_SPECS = {
     goe              = { protocol = "modbus", ders = {"v2x_charger"} },
     keba             = { protocol = "modbus", ders = {"v2x_charger"} },
     wallbox          = { protocol = "modbus", ders = {"v2x_charger"} },
-    easee            = { protocol = "modbus", ders = {"v2x_charger"} },
     mennekes         = { protocol = "modbus", ders = {"v2x_charger"} },
     schrack_ev       = { protocol = "modbus", ders = {"v2x_charger"} },
     etrel            = { protocol = "modbus", ders = {"v2x_charger"} },
@@ -84,7 +83,6 @@ local DRIVER_SPECS = {
     -- HTTP EV chargers
     goe_http         = { protocol = "http", ders = {"v2x_charger"}, port = 8080 },
     openevse         = { protocol = "http", ders = {"v2x_charger"} },
-    zaptec           = { protocol = "http", ders = {"v2x_charger"} },
     hardybarth       = { protocol = "http", ders = {"v2x_charger"} },
 
     -- MQTT drivers
@@ -252,18 +250,7 @@ local function setup_modbus_data(driver_name)
     ---------------------------------------------------------------------------
     -- Per-driver Modbus overrides for special cases
     ---------------------------------------------------------------------------
-    if driver_name == "easee" then
-        -- Easee uses F32 at low addresses (0-9) and U16 at 10
-        hi, lo = host.encode_f32(16.0)
-        holding[0] = hi; holding[1] = lo
-        hi, lo = host.encode_f32(15.0)
-        holding[2] = hi; holding[3] = lo
-        hi, lo = host.encode_f32(3500.0)
-        holding[4] = hi; holding[5] = lo
-        hi, lo = host.encode_f32(5000.0)
-        holding[8] = hi; holding[9] = lo
-        holding[10] = 3  -- charging state
-    elseif driver_name == "goe" then
+    if driver_name == "goe" then
         -- go-e Modbus: U16 values at low addresses
         holding[0] = 2    -- state: charging
         holding[3] = 160  -- max current 0.1A -> 16A
@@ -372,9 +359,6 @@ local function setup_http_data(driver_name, port)
     elseif driver_name == "goe_http" then
         host._http_responses[base .. "/api/status"] =
             '{"nrg":[230,229,231,0,5.2,4.8,5.0,1196,1099,1155,0,3450,0.98,0.97,0.99,0],"wh":5000,"car":2,"amp":16}'
-    elseif driver_name == "zaptec" then
-        host._http_responses[base .. "/api/charger/state"] =
-            '{"ChargingPower":7200,"TotalChargingEnergy":3500,"ChargingCurrent":31.3,"Voltage":230,"ChargerState":"charging"}'
     elseif driver_name == "hardybarth" then
         host._http_responses[base .. "/api/status"] =
             '{"power":3500,"energy":2500,"current":15.2,"voltage":230,"state":"charging"}'

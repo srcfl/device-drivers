@@ -30,6 +30,43 @@ steered it, and an owner whose fuse was overloaded had no way to see why.
   reported, and every request carries an FTW User-Agent.
 
 Written from Zaptec's API documentation. Not yet confirmed on hardware.
+### Removed: local `easee` and local `zaptec`
+
+Both read a device API that does not exist, so the catalog stops listing
+them. `easee` read an invented Modbus map: Easee documents no local Modbus or
+REST API. `zaptec` read `/api/charger/state` over HTTP: Zaptec documents no
+local API on Go, Go 2 or Pro. On a real charger they read nothing, and
+`easee` then sent 0 W as if the charger had said so. Neither was ever run on
+hardware.
+
+Use `easee_cloud` or `zaptec_cloud` instead. For local control, point the
+charger's OCPP at FTW: Easee from firmware 344 and Zaptec Go, Go 2 and Pro
+can connect to an OCPP 1.6J server of the owner's choice, and FTW has one
+built in (FTW `docs/ocpp.md`). `driver-history.json` keeps their record,
+as it did for `foxess`.
+
+### tesla_wall_connector 0.2.0
+
+The driver says plainly that FTW can read the charger but not control it:
+Tesla offers no way for another system to set its current or start and stop
+it. Tesla's own current control is Dynamic Power Management, an installer
+setting fed by a Tesla energy meter; its application note is now in
+`upstream_docs`. Control goes through the car (`tesla_vehicle`) or a charger
+FTW can control, such as one on OCPP.
+
+`driver_command` now refuses every control action with `false`. It used to
+answer `true` to `ev_set_current`, `ev_pause`, `ev_resume` and `ev_start`
+while writing nothing. FTW Core never sent those to this read-only driver,
+so nothing changes there, but no host may now read a refusal as success.
+
+### teslamate_vehicle 0.2.1, home_assistant_vehicle 0.1.1, tesla_cloud 0.2.1
+
+Each description and manifest note now says why FTW cannot control the car
+through it, and where control goes instead. TeslaMate only logs data and
+takes no commands. The Home Assistant driver only listens and sends nothing
+back. Tesla's Fleet API accepts a command only when it is signed with a key
+paired to the car, and a Lua driver cannot sign. To start a Tesla's charge,
+add `tesla_vehicle` (BLE proxy). No behaviour changes.
 
 ### heishamon 0.8.1
 

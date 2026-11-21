@@ -7,10 +7,14 @@
 -- this testdata file is the in-tree source until that pin lands. Operators
 -- can drop the same file in the user-drivers directory in the meantime.
 --
--- The wall connector has no local current setpoint. ev_set_current,
--- ev_pause and ev_resume are accepted so the planner does not mark the
--- driver failed; they do not write hardware. Steer a Tesla through
--- tesla_vehicle. Sign convention: positive W is charging.
+-- Read-only. Tesla documents no way for another system to set this
+-- charger's current or to start and stop it over the network: /api/1/vitals
+-- only reports. Its own current control is Dynamic Power Management, an
+-- installer setting fed by a Tesla energy meter on RS-485 (Tesla's
+-- application note, in the manifest's upstream_docs). So the driver refuses
+-- every command. FTW controls the charge through the car (tesla_vehicle) or
+-- through a charger it can control, such as one on OCPP.
+-- Sign convention: positive W is charging.
 --
 -- Config:
 --   host       LAN hostname or IP (no scheme)
@@ -26,11 +30,11 @@ DRIVER = {
   id           = "tesla_wall_connector",
   name         = "Tesla Wall Connector",
   manufacturer = "Tesla",
-  version      = "0.1.2",
+  version      = "0.2.0",
   protocols    = { "http" },
   capabilities = { "ev" },
   read_only    = true,
-  description  = "Tesla Wall Connector Gen 3 on the LAN. Observation only; no cloud account.",
+  description  = "Reads a Tesla Wall Connector Gen 3 on your network. FTW can read it but not control it: Tesla offers no way for another system to set its current. Control goes through the car (tesla_vehicle) or a charger FTW can control, such as one on OCPP.",
   homepage     = "https://www.tesla.com/support/charging/wall-connector",
   authors      = { "FTW contributors" },
   tested_models = { "Wall Connector Gen 3" },
@@ -240,26 +244,24 @@ function driver_poll()
   return 5000
 end
 
+-- FTW Core never sends a command to a read_only driver. A host that does
+-- gets a plain refusal: nothing was written, so nothing may be reported as
+-- done. init and deinit are a host's lifecycle steps, not device writes.
 function driver_command(action, power_w, cmd)
   if action == "init" or action == "deinit" then
     return true
   end
-  if action == "ev_set_current" or action == "ev_pause"
-      or action == "ev_resume" or action == "ev_start" then
-    if not warned_readonly then
-      host.log("warn",
-        "Tesla Wall Connector has no local current setpoint; " ..
-        "steer a Tesla through tesla_vehicle")
-      warned_readonly = true
-    end
-    return true
+  if not warned_readonly then
+    host.log("warn",
+      "Tesla Wall Connector: read-only, refused " .. tostring(action) ..
+      "; Tesla offers no way to set its current from another system")
+    warned_readonly = true
   end
-  host.log("warn", "Tesla Wall Connector: unknown action " .. tostring(action))
   return false
 end
 
 function driver_default_mode()
-  -- Observation-only: the box keeps charging at the car's last request.
+  -- Nothing to hand back: the driver never takes control.
 end
 
 function driver_cleanup()
