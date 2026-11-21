@@ -2,6 +2,145 @@
 
 ## [Unreleased]
 
+### goe 1.1.0
+
+The driver controls the charger and reads the registers go-e documents. It
+reports as a charger (`ev`), so FTW can use it as a loadpoint.
+
+- Earlier releases read holding registers 0 to 15. go-e's Modbus map for API
+  v2 firmware has nothing there. The driver now reads the car state (input
+  100), voltage, current and power (input 107 to 121), energy (input 128 and
+  132) and the owner's maximum current (holding 211).
+- An order becomes whole amps per phase, rounded down, and goes to
+  AMPERE_VOLATILE (299) with function 16. go-e does not save that register to
+  EEPROM. Start and stop go to FORCE_STATE (337), which needs firmware 55.6 or
+  later.
+- The current never exceeds Core's `max_amps_per_phase` or
+  `cap_amps_per_phase`, the owner's maximum or 32 A. Below 6 A the driver
+  stops the charger and never rounds up.
+- The driver writes only registers that differ from the charger's last report.
+  A setpoint it could not read back counts as unknown and is written again.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- FORCE_STATE=2 forces charging past the charger's RFID check and schedules.
+  When a car leaves and FTW left the charger on, the driver stops it once,
+  so the next car waits for FTW.
+- Default mode stops the charger, but only after FTW has written to it in
+  this run, since Core runs it at every start. It returns true only when the
+  charger took the stop. A refused stop returns false and is tried again at
+  most once a minute.
+- A stop stays on the charger, as with Zaptec and Easee. The owner sets the
+  charger back to neutral in the go-e app.
+
+Written from go-e's documentation. Not yet checked on hardware.
+
+### goe_http 1.1.0
+
+The driver controls the charger through go-e's HTTP API v2 and reports as a
+charger (`ev`).
+
+- An order becomes whole amps per phase, rounded down. The driver writes
+  `amp`, and `frc=2` only once the charger confirmed `amp`; `frc=1` stops. A
+  key the charger does not confirm with `true` fails the command. go-e takes
+  these writes as GET requests.
+- The current never exceeds Core's caps, the owner's `ama` or the unit's
+  rating (`var`). Below `mca` (at least 6 A) the driver stops the charger.
+- The driver reports `acu` as `current_limit_a`, `ama` as `device_limit_a` and
+  the reason from `modelStatus` when a car waits.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- `frc=2` forces charging past the charger's RFID check and schedules. When
+  a car leaves and FTW left the charger on, the driver stops it once, so the
+  next car waits for FTW.
+- Default mode stops the charger, but only after FTW has written to it in
+  this run, since Core runs it at every start. It returns true only when the
+  charger took the stop. A refused stop returns false and is tried again at
+  most once a minute.
+- `frc` is a setting, so a stop stays on the charger, as with Zaptec and
+  Easee. The owner sets it back to neutral in the go-e app.
+
+Written from go-e's documentation. Not yet checked on hardware.
+
+### openevse 1.1.0
+
+The driver controls the charger through the WiFi firmware's claims and
+reports as a charger (`ev`).
+
+- Earlier releases read `amp` as amps. The firmware sends milliamps, so
+  power read a thousand times too high. They also read `watt_seconds`, which
+  the firmware does not send. Power now comes from `power` and session energy
+  from `session_energy`.
+- An order becomes whole amps per phase, rounded down, and goes out as a claim
+  at the API priority: `POST /claims/1179910145`. Below the charger's minimum
+  the claim is `disabled`, because the firmware would raise a smaller current
+  to the minimum.
+- The driver reads its claim back on every poll and claims again after a
+  reboot drops it.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the charger's `/config` says it is not three-phase. An
+  unknown setup divides by three. OpenEVSE reports one current, so Core's
+  `1p` alone does not divide by one.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- When a car leaves and FTW's claim left the charger on, the driver claims
+  `disabled` once, so the next car waits for FTW. The claim keeps
+  `auto_release` off.
+- Default mode claims `disabled`, but only after FTW has written to the
+  charger in this run, since Core runs it at every start. It returns true
+  only when the charger accepted the claim. A refused claim returns false and
+  is tried again at most once a minute.
+- A stand-down stays on the charger, as with Zaptec and Easee, until FTW
+  claims again, the owner uses the manual override, or the charger reboots.
+- An optional `username` and `password` cover chargers with an admin password.
+
+Written from OpenEVSE's API description. Not yet checked on hardware.
+
+### hardybarth 1.1.0
+
+Earlier releases read `/api/status`, which neither Hardy Barth controller
+documents. The driver now finds the eCB1 controller (cPH1) or the Salia
+controller (cPH2, cPu2) and uses each one's own API. It reports as a charger
+(`ev`).
+
+- eCB1: the first order that needs current sets the mode to manual, which
+  stays. The driver then writes `manualmodeamp` and sends start and stop,
+  form-encoded. A socket that reports itself stopped (state id 17) is
+  started again by the next order that needs current. When a car leaves and
+  FTW left the socket started, the driver stops it once.
+- Salia: the driver writes `grid_current_limit` with `POST /api/`; 0 stops
+  charging. Firmware 2.3.81 and later needs `api_key`. The limit is a ceiling:
+  eco mode or the web slider can hold the car lower, and the driver says so.
+  Power needs the station's meter.
+- An order becomes whole amps per phase, rounded down, within Core's caps and
+  the station's own limits.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- Default mode stops the station, but only after FTW has written to it in
+  this run, since Core runs it at every start. It returns true only when the
+  station took the stop. A refused stop returns false and is tried again at
+  most once a minute.
+- A stop stays on the station, as with Zaptec and Easee, until FTW orders
+  current again or the owner changes it.
+
+Written from the eCB1 REST API 1.3 and the eCharge Salia REST API. Not yet
+checked on hardware.
+
 ### zaptec_cloud 0.2.2
 
 A refused stand-down now returns `false`. Before, `driver_default_mode`

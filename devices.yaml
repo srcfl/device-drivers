@@ -584,17 +584,17 @@ manufacturers:
         notes: "Community driver, untested"
   - name: "HardyBarth"
     model_families:
-      - name: "cPH / Salia"
-        variants: [Salia, cPH1]
+      - name: "eCB1 and Salia controllers"
+        variants: [cPH1, cPH2, cPu2]
         regions: []
         protocols:
           - protocol: http
             driver: "hardybarth"
-            version: "1.0.1"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from the eCB1 REST API 1.3 (apidoc.ecb1.de) and the eCharge Salia REST API (docs.echarge.de); not yet confirmed on hardware. eCB1: sets manual mode, manualmodeamp, start and stop. Salia: sets grid_current_limit; firmware 2.3.81 and later needs api_key from the web UI, and power needs the station's meter. Earlier releases read /api/status, which neither controller documents."
   - name: "Home Assistant"
     model_families:
       - name: "Vehicle (Home Assistant MQTT)"
@@ -1002,17 +1002,17 @@ manufacturers:
         notes: "NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Read-only by default; opt-in write path feeds the pump's native Solar PV surplus input (2107/2109)."
   - name: "OpenEVSE"
     model_families:
-      - name: "OpenEVSE"
-        variants: []
+      - name: "OpenEVSE WiFi"
+        variants: [OpenEVSE WiFi]
         regions: []
         protocols:
           - protocol: http
             driver: "openevse"
-            version: "1.0.1"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
+            version: "1.1.0"
+            ders: [ev]
+            control: true
+        firmware_versions: "WiFi 4.1.9 and later"
+        notes: "Control written from OpenEVSE's WiFi firmware API description (api.yml); not yet confirmed on hardware. Claims the current at the API priority with POST /claims; a claim below the minimum becomes disabled. Optional username and password for an admin password."
   - name: "Panasonic"
     model_families:
       - name: "Panasonic Aquarea (Heishamon)"
@@ -2134,28 +2134,28 @@ manufacturers:
         notes: "Dutch DSMR P1 smart-meter via Zuidwijk Serial-to-Ethernet bridge (raw TCP, port 23)."
   - name: "go-e"
     model_families:
-      - name: "Gemini"
-        variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
-        regions: []
-        protocols:
-          - protocol: modbus
-            driver: "goe"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
-      - name: "Gemini HTTP"
+      - name: "go-e Charger (HTTP API v2)"
         variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
         regions: []
         protocols:
           - protocol: http
             driver: "goe_http"
-            version: "1.0.1"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "HTTP alternative to Modbus driver"
+            version: "1.1.0"
+            ders: [ev]
+            control: true
+        firmware_versions: "051.4 and later"
+        notes: "Control written from go-e's HTTP API v2 documentation (http-en.md, apikeys-en.md); not yet confirmed on hardware. Turn on HTTP API v2 in the go-e app. Sets amp and frc; frc=1 stops the charger and stays until FTW or the owner changes it."
+      - name: "go-e Charger (Modbus TCP)"
+        variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goe"
+            version: "1.1.0"
+            ders: [ev]
+            control: true
+        firmware_versions: "55.6 and later"
+        notes: "Control written from go-e's Modbus documentation for API v2 firmware (modbus-en.md); not yet confirmed on hardware. Turn on Modbus in the go-e app. Writes AMPERE_VOLATILE (299) and FORCE_STATE (337, firmware 55.6 and later) with function 16. Earlier releases read registers go-e does not document."
   - name: "sonnen"
     model_families:
       - name: "sonnenBatterie"
