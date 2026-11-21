@@ -126,7 +126,6 @@ local last_written_a  = nil   -- nil until the first write this run
 local last_write_ms   = 0
 local last_cap_a      = nil   -- Core's last max_amps_per_phase
 local paused          = false -- the charger is paused (506 or the poll says so)
-local want_paused     = false -- Core paused or stood down and has not asked to charge since
 local resume_try_ms   = nil
 local stood_down      = false
 local stand_down_try_ms = nil
@@ -356,21 +355,23 @@ local function write_current(amps)
   return true
 end
 
--- send_command posts a charger command and says whether it holds.
+-- send_command posts a charger command. It returns whether the result
+-- holds, and whether the charger took the command itself rather than
+-- answering that there was nothing to do.
 local function send_command(cmd_id)
   local err = post("/api/chargers/" .. charger_id .. "/sendCommand/" .. cmd_id, "")
-  if err == nil then return true end
+  if err == nil then return true, true end
   local rejected = error_code(err) == CODE_REJECTED
   if cmd_id == CMD_PAUSE then
     -- Rejected means already paused, or no car to pause. Nothing flows.
-    if rejected or op_mode == OP_DISCONNECTED then return true end
+    if rejected or op_mode == OP_DISCONNECTED then return true, false end
   elseif cmd_id == CMD_RESUME then
     -- Rejected means nothing to resume, which holds unless the driver
     -- itself paused the charger and has not seen it charge since.
-    if rejected and not paused then return true end
+    if rejected and not paused then return true, false end
   end
   host.log("warn", "Zaptec: command " .. cmd_id .. " failed: " .. redact_http_err(err))
-  return false
+  return false, false
 end
 
 local function live_phase_count()
@@ -383,15 +384,17 @@ local function live_phase_count()
 end
 
 -- amps_for turns Core's watts into amps per phase, never above Core's cap.
--- It divides by three phases unless the installation has one phase, or Core
--- asks for one and the charger is drawing on exactly one. An idle charger
+-- It divides by three phases unless the installation has one phase and the
+-- charger is not drawing on more, or Core asks for one and the charger is
+-- drawing on exactly one. An idle charger
 -- proves nothing, so a three-phase car can never get a one-phase sum.
 local function amps_for(power_w, cmd, cap)
   local voltage = as_number(cmd.voltage)
   if not voltage or voltage <= 0 then voltage = 230 end
   local mode = type(cmd.phase_mode) == "string" and cmd.phase_mode or ""
   local phases = 3
-  if phases_cfg == 1 or (mode == "1p" and live_phase_count() == 1) then phases = 1 end
+  local live = live_phase_count()
+  if (phases_cfg == 1 and live <= 1) or (mode == "1p" and live == 1) then phases = 1 end
   local amps = (as_number(power_w) or 0) / (voltage * phases)
   if cap and amps > cap then amps = cap end
   if amps > MAX_A then amps = MAX_A end
@@ -442,7 +445,6 @@ local function set_current(power_w, cmd)
   end
   if write then wrote = write_current(amps) end
   if amps < MIN_A or not wrote then return wrote end
-  want_paused = false
   if paused and (resume_try_ms == nil or now - resume_try_ms >= RESUME_RETRY_MS) then
     return send_resume()
   end
@@ -450,10 +452,9 @@ local function set_current(power_w, cmd)
 end
 
 local function pause()
-  want_paused = true
   local wrote = write_current(0)
-  local sent = send_command(CMD_PAUSE)
-  if sent then paused = true end
+  local sent, applied = send_command(CMD_PAUSE)
+  if applied then paused = true end
   -- 0 A alone is enough: below 6 A the charger allocates nothing.
   return wrote or sent
 end
@@ -462,7 +463,6 @@ end
 -- than Core's last cap, and Core's next order sets the level.
 local function resume()
   if stand_alone then return refuse_stand_alone() end
-  want_paused = false
   if (last_written_a == nil or last_written_a < MIN_A)
       and (last_cap_a == nil or last_cap_a >= MIN_A) then
     if not write_current(MIN_A) then return false end
@@ -623,9 +623,9 @@ function driver_default_mode()
   if stand_down_try_ms and now - stand_down_try_ms < STAND_DOWN_RETRY_MS then return end
   stand_down_try_ms = now
   if not ensure_auth() then return end
-  want_paused = true
   local wrote = write_current(0)
-  if send_command(CMD_PAUSE) then paused = true end
+  local _, applied = send_command(CMD_PAUSE)
+  if applied then paused = true end
   if wrote then
     stood_down = true
     stand_down_try_ms = nil

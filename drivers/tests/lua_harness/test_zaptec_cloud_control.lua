@@ -130,6 +130,11 @@ poll(CONNECTED)
 assert(order(11040, {phase_mode = "3p", voltage = 230, max_amps_per_phase = 10}))
 assert(order(11040, {phase_mode = "3p", voltage = 230})); assert(last_current() == 10, "missing cap ignored Core's last")
 assert(order(11040, nil)); assert(last_current() == 10)
+-- A one-phase config does not outvote three phases measured.
+boot({phases = 1})
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 10, [508] = 10, [509] = 10, [510] = 16})
+assert(order(7360, {voltage = 230, max_amps_per_phase = 32}))
+assert(last_current() == 10.6, "phases = 1 in config must not outvote three live phases")
 -- An installation set to one phase in config counts when Core gives no mode.
 boot({phases = 1})
 poll(CONNECTED)
@@ -177,6 +182,17 @@ boot()
 poll(CONNECTED)
 assert(order(11040, THREE)); assert(driver_command("ev_pause", 0, nil))
 assert(order(11040, THREE)); assert(count("/sendCommand/507") == 1)
+-- A pause Zaptec turned away (no car) does not mark the charger paused:
+-- once a car plugs in, a positive order whose resume gets 528 holds.
+boot()
+poll({[710] = 1, [718] = 0, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 16})
+post_fail["/sendCommand/506"] = 'HTTP 400: {"Code":528}'
+assert(driver_command("ev_pause", 0, nil))
+post_fail = {}
+poll(CONNECTED)
+post_fail["/sendCommand/507"] = 'HTTP 400: {"Code":528}'
+assert(order(11040, THREE), "a 528 resume after a turned-away pause must hold")
+post_fail = {}
 -- A failing resume is retried no faster than every 30 s.
 boot()
 poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})

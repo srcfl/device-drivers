@@ -16,9 +16,9 @@ tested_devices:
     notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial. Control written from Zaptec's API docs; not yet confirmed on hardware."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 22102
+size_bytes: 22186
 dkb_id: "zaptec_cloud"
-sha256: "6a40a14655d9bdc9ad8017296c2b9ce0e6714bcaf4e8dbb0f3906e16e165353b"
+sha256: "0d002cfa6b162a540f34b54030e0e2ef84194654504a25b4d6e6bbc2ee4fb0fc"
 signature: ""
 
 bytecode_sha256: ""
