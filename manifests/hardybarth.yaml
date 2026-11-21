@@ -1,5 +1,5 @@
 name: "hardybarth"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -29,9 +29,9 @@ upstream_docs:
     kind: api_docs
     url_stability: stable
 min_host_version: "2.1.0"
-size_bytes: 24020
+size_bytes: 24108
 dkb_id: ""
-sha256: "a10d1cff71133a06efe90f3921b8b8a54a62d38156557a21ff830e859a21562c"
+sha256: "0a38adcf7f827f84f6c5ac14ebd2407d4ea2a81a0e8beaccdf601ad6cf388374"
 signature: ""
 
 bytecode_sha256: ""

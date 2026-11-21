@@ -72,8 +72,8 @@ Catalog source is not proof that a target can install or run a driver.
 | goodwe | 2.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | growatt | 2.1.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | growatt | 2.1.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| hardybarth | 1.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| hardybarth | 1.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| hardybarth | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| hardybarth | 1.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | heishamon | 0.8.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | heishamon | 0.8.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | hello | 1.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
