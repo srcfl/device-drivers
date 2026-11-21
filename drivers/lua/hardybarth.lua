@@ -51,8 +51,9 @@
 --   station's last report is written.
 --   A resume (Core sends no order with it) uses the last order if it is at
 --   most 30 s old, else the minimum, and never more than Core's last cap.
---   On eCB1, when a poll shows no car and FTW left the socket started, the
---   driver stops it, so the next car does not start without FTW.
+--   When a poll shows no car and FTW left the station on, the driver stops
+--   it: /stop on eCB1, a limit of 0 A on Salia. The next car then does not
+--   start without FTW. A refused stop is tried again at most once a minute.
 --   driver_default_mode stops the station: /stop on eCB1, a limit of 0 A on
 --   Salia. Core runs it at every start, so it acts only after FTW has
 --   written to the station in this run. It returns true only when the
@@ -84,7 +85,7 @@ DRIVER = {
   id           = "hardybarth",
   name         = "Hardy Barth / eCharge",
   manufacturer = "HardyBarth",
-  version      = "1.1.0",
+  version      = "1.1.1",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Hardy Barth / eCharge wallbox on the LAN, eCB1 (cPH1) or Salia (cPH2, cPu2) controller. Reads power and energy, and sets the charging current and start/stop.",
@@ -400,6 +401,7 @@ local function salia_poll(now, snap)
   elseif cp == "C" or cp == "D" then
     connected, charging = true, true
   end
+  dev.connected = connected
 
   local a, v = {}, {}
   for i, l in ipairs({ "l1", "l2", "l3" }) do
@@ -586,7 +588,7 @@ function driver_poll()
     measured_phases, measured_v, stalled_since = nil, nil, nil
     return RETRY_MS
   end
-  if kind == "ecb1" then stop_if_unplugged(dev.connected, now) end
+  stop_if_unplugged(dev.connected, now)
   return POLL_MS
 end
 

@@ -318,15 +318,15 @@ drivers:
     size_bytes: 9923
     sha256: "684c788e989c6f90b7a64fd79521f913104486f2c939bf13d4aaa2fbfddd9dad"
   - name: "hardybarth"
-    version: "1.1.0"
+    version: "1.1.1"
     tier: community
     protocol: http
     connectivity: local
     setup: [device_ui]
     ders: [ev]
     control: true
-    size_bytes: 24020
-    sha256: "a10d1cff71133a06efe90f3921b8b8a54a62d38156557a21ff830e859a21562c"
+    size_bytes: 24108
+    sha256: "0a38adcf7f827f84f6c5ac14ebd2407d4ea2a81a0e8beaccdf601ad6cf388374"
   - name: "heishamon"
     version: "0.8.1"
     tier: core
