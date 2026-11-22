@@ -59,12 +59,12 @@ upstream_docs:
     kind: register_map
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 19443
+size_bytes: 21704
 dkb_id: "fronius_symo_gen24"
-sha256: "fb0beed13d3b51675ed90437979f5d0e78775c6c1696341e70a9790711972d70"
+sha256: "63472dda17a0ed32c167dadb4ecf02f032bf4fb2e648df046a56de818124d16c"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Read battery power, voltage and SoC where the GEN24 and Verto storage maps put them, send no battery without storage, and decode floats correctly on 32-bit Lua."
+changelog: "Read battery power, voltage and SoC where the GEN24 and Verto storage maps put them, take PV from the MPPT inputs when a battery is fitted, send no battery without storage, and decode floats correctly on 32-bit Lua."

@@ -199,20 +199,52 @@ local mppt_len = nil        -- L of model 160, from its header
 local mppt_missing = false  -- model 160 is not where the float map puts it
 local storage_addr = nil    -- wire address of model 124's ID, with storage
 local storage_checked = false
+local mppt_logged = false
+
+-- A battery fitted after the driver started changes the chain: model 160
+-- grows by the two battery blocks and model 124 appears after it. So while
+-- no storage model is known the driver looks again every five minutes, and
+-- at once when model 160's own length no longer matches. That costs two
+-- short reads every five minutes on an inverter without a battery.
+local RECHECK_MS = 5 * 60 * 1000
+local checked_at = nil
+
+local function forget_models()
+    mppt_len = nil
+    mppt_missing = false
+    storage_addr = nil
+    storage_checked = false
+    checked_at = nil
+end
 
 local function find_models()
+    if storage_addr == nil and checked_at ~= nil
+            and host.millis() - checked_at >= RECHECK_MS then
+        forget_models()
+    end
     if mppt_len == nil and not mppt_missing then
         local hdr = probe_read(MPPT_ADDR, 2, "holding")
-        if hdr == nil or hdr[2] == nil then return end
+        if hdr == nil or hdr[2] == nil then
+            -- A model 160 that never answers is treated as absent.
+            if (read_failures[MPPT_ADDR] or 0) >= GIVE_UP_AFTER then
+                mppt_missing = true
+                checked_at = host.millis()
+            end
+            return
+        end
         local len = hdr[2]
         if hdr[1] == 160 and len >= 28 and (len - 8) % 20 == 0
                 and len + 2 <= MAX_READ then
             mppt_len = len
         else
             mppt_missing = true
-            host.log("info", string.format(
-                "Fronius: register 40264 holds model %d, not 160; reading no " ..
-                "DC input or battery values (is Modbus set to 'float'?)", hdr[1]))
+            checked_at = host.millis()
+            if not mppt_logged then
+                mppt_logged = true
+                host.log("info", string.format(
+                    "Fronius: register 40264 holds model %d, not 160; reading no " ..
+                    "DC input or battery values (is Modbus set to 'float'?)", hdr[1]))
+            end
             return
         end
     end
@@ -221,6 +253,7 @@ local function find_models()
         local nxt = probe_read(addr, 2, "holding")
         if nxt == nil or nxt[2] == nil then return end
         storage_checked = true
+        checked_at = host.millis()
         if nxt[1] == 124 and nxt[2] == 24 then storage_addr = addr end
     end
 end
@@ -272,10 +305,8 @@ function driver_poll()
     local le_regs = probe_read(40101, 2, "holding")
     if le_regs then lifetime_wh = decode_f32_be(le_regs[1], le_regs[2]) end
 
-    -- DCW, model 113 "DC Power". Not changed here: evcc's fronius-gen24
-    -- template sums the MPPT inputs for PV instead, and Fronius's map does
-    -- not say whether this point includes the battery input. A field report
-    -- from a GEN24 with storage would settle it.
+    -- DCW, model 113 "DC Power". Used for PV only without a battery input
+    -- (see "PV power" below).
     local dc_w = nil
     local dcw_regs = probe_read(40107, 2, "holding")
     if dcw_regs then dc_w = decode_f32_be(dcw_regs[1], dcw_regs[2]) end
@@ -301,7 +332,12 @@ function driver_poll()
     local mppt = nil
     if mppt_len ~= nil then
         mppt = probe_read(MPPT_ADDR, 2 + mppt_len, "holding")
-        if mppt and (mppt[1] ~= 160 or mppt[2 + mppt_len] == nil) then
+        if mppt and mppt[1] == 160 and mppt[2] ~= mppt_len then
+            -- Model 160 changed length, for example a battery was fitted:
+            -- find the chain again on the next poll.
+            forget_models()
+            mppt = nil
+        elseif mppt and (mppt[1] ~= 160 or mppt[2 + mppt_len] == nil) then
             mppt = nil
         end
     end
@@ -324,6 +360,38 @@ function driver_poll()
         end
     end
 
+    -- The battery blocks: the last two of model 160, named "StCha" and
+    -- "StDisCha" in both storage maps. The names are checked, so a layout
+    -- the driver does not know gives no battery blocks.
+    local cha, dis = nil, nil
+    if mppt and modules ~= nil and modules >= 3
+            and module_name(mppt, modules - 1):sub(1, 5) == "StCha"
+            and module_name(mppt, modules):sub(1, 8) == "StDisCha" then
+        cha, dis = modules - 1, modules
+    end
+
+    -- PV power. Fronius's map does not say whether model 113's DC power
+    -- includes the battery input, and evcc's fronius-gen24 template sums
+    -- the MPPT blocks instead. So with storage PV is the sum of the MPPT
+    -- blocks before the battery blocks; a 3 kW discharge then cannot show
+    -- as 3 kW of sun. Model 113's DC power is used only where there is no
+    -- battery input: no storage model after model 160, or a model 160 with
+    -- no battery blocks. With storage and no readable battery blocks, PV is
+    -- left out for that poll.
+    local pv_dc_w = nil
+    if cha ~= nil then
+        local sum = 0
+        for k = 1, cha - 1 do
+            local w = sunspec_u16(mppt[module_base(k) + 11], dcw_sf)
+            if w == nil then sum = nil; break end
+            sum = sum + w
+        end
+        pv_dc_w = sum
+    elseif storage_addr == nil and (mppt_missing or storage_checked
+            or (mppt and modules ~= nil)) then
+        pv_dc_w = dc_w
+    end
+
     -- Per-phase AC current: 40073, 40075, 40077 (F32 BE pairs)
     local l1_a, l2_a, l3_a = nil, nil, nil
     local l1a_regs = probe_read(40073, 2, "holding")
@@ -342,12 +410,12 @@ function driver_poll()
     local l3v_regs = probe_read(40089, 2, "holding")
     if l3v_regs then l3_v = decode_f32_be(l3v_regs[1], l3v_regs[2]) end
 
-    -- Emit PV (dc_w magnitude → negative for generation, per site
+    -- Emit PV (DC power magnitude → negative for generation, per site
     -- convention). DC power is PV's defining value: without it there is no
     -- PV reading. Each other field is left out when it did not answer.
-    if dc_w ~= nil then
+    if pv_dc_w ~= nil then
         host.emit("pv", {
-            w           = -dc_w,
+            w           = -pv_dc_w,
             mppt1_v     = mppt1_v,
             mppt1_a     = mppt1_a,
             mppt2_v     = mppt2_v,
@@ -371,15 +439,14 @@ function driver_poll()
     --
     -- Only with storage, which model 124 following model 160 proves.
     --
-    -- Power and voltage come from the two battery blocks of model 160, the
-    -- last two: "StCha" and "StDisCha". Fronius sets the charge block to 0
+    -- Power and voltage come from the two battery blocks of model 160 (see
+    -- above). Fronius sets the charge block to 0
     -- while the battery discharges and the discharge block to 0 while it
     -- charges, so battery W = charge DCW - discharge DCW, positive charging
     -- (site convention; evcc's fronius-gen24 template reads it the same
     -- way). Both blocks carry the battery port's voltage since firmware
     -- 1.31; up to 1.30 only the active one did, so the driver takes the
-    -- larger, and leaves the voltage out when both are 0. The names are
-    -- checked, so a map the driver does not know sends no battery power.
+    -- larger, and leaves the voltage out when both are 0.
     --
     -- SoC is model 124's ChaState (offset 8) x 10^ChaState_SF (offset 22),
     -- in percent: "Estimated_Capacity_Remaining [Wh] /
@@ -396,18 +463,14 @@ function driver_poll()
 
     local bat_w, bat_v, bat_soc = nil, nil, nil
     if storage_addr ~= nil then
-        if mppt and modules ~= nil and modules >= 3 then
-            local cha, dis = modules - 1, modules
-            if module_name(mppt, cha):sub(1, 5) == "StCha"
-                    and module_name(mppt, dis):sub(1, 8) == "StDisCha" then
-                local cha_w = sunspec_u16(mppt[module_base(cha) + 11], dcw_sf)
-                local dis_w = sunspec_u16(mppt[module_base(dis) + 11], dcw_sf)
-                if cha_w ~= nil and dis_w ~= nil then bat_w = cha_w - dis_w end
-                local cha_v = sunspec_u16(mppt[module_base(cha) + 10], dcv_sf)
-                local dis_v = sunspec_u16(mppt[module_base(dis) + 10], dcv_sf)
-                local v = math.max(cha_v or 0, dis_v or 0)
-                if v > 0 then bat_v = v end
-            end
+        if cha ~= nil then
+            local cha_w = sunspec_u16(mppt[module_base(cha) + 11], dcw_sf)
+            local dis_w = sunspec_u16(mppt[module_base(dis) + 11], dcw_sf)
+            if cha_w ~= nil and dis_w ~= nil then bat_w = cha_w - dis_w end
+            local cha_v = sunspec_u16(mppt[module_base(cha) + 10], dcv_sf)
+            local dis_v = sunspec_u16(mppt[module_base(dis) + 10], dcv_sf)
+            local v = math.max(cha_v or 0, dis_v or 0)
+            if v > 0 then bat_v = v end
         end
 
         local st = probe_read(storage_addr, 23, "holding")
@@ -454,8 +517,5 @@ end
 
 function driver_cleanup()
     sn_read = false
-    mppt_len = nil
-    mppt_missing = false
-    storage_addr = nil
-    storage_checked = false
+    forget_models()
 end

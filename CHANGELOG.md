@@ -30,11 +30,17 @@ Not yet checked on hardware (srcfl/device-drivers#260).
   each other PV field and metric only when its own read did. The MPPT values
   come from one read of model 160, with the scale factors that go with them.
   `fronius` leaves `invented-number-baseline.json` (10 to 0).
-- **Not changed.** PV power still comes from model 113's DC power. evcc's
-  GEN24 template sums the MPPT inputs instead, and Fronius's map does not
-  say whether model 113 includes the battery input. In the int+SF setting
-  model 160 starts at 40254; the driver reads only the float maps, so it
-  now sends no DC input or battery values there rather than wrong ones.
+- **PV power with storage** is the sum of the MPPT blocks before the
+  battery blocks, as evcc's GEN24 template reads it. Fronius's map does not
+  say whether model 113's DC power includes the battery input, so a 3 kW
+  discharge could have shown as 3 kW of sun. Model 113's DC power is used
+  only where there is no battery input.
+- **A battery fitted later is found.** While no storage model is known the
+  driver looks for it again every five minutes, and at once when model
+  160's length changes.
+- **Not changed.** In the int+SF setting model 160 starts at 40254; the
+  driver reads only the float maps, so it now sends no DC input or battery
+  values there rather than wrong ones.
 
 ### ferroamp_modbus 2.2.2
 
