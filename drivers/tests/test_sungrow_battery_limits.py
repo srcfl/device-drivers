@@ -16,6 +16,11 @@ Residential Hybrid Inverter" V1.1.9, documented number / host address):
 - the running state it already read, 13000 / 12999 -> device_state
   "standby" or "starting" while the inverter says it is not running
 
+The running-state codes come from Appendix 2 of that protocol, and the
+owner's box confirms the low ones: in all 14 standby episodes the state went
+0x0800 (forced mode) -> 0x0008 -> 0x0020 -> 0x0800, and 0x0010 showed in 3 of
+them.
+
 Between full polls the battery blob carries them like the other slow values,
 and only while its own power read succeeds. A read that fails leaves the
 field out until the next full poll that reads it.
@@ -193,6 +198,18 @@ def test_a_temperature_out_of_range_is_dropped(raw: int) -> None:
     assert metrics(out, 1)["battery_temp_c"] == "nil"
 
 
+@pytest.mark.parametrize("raw, expected", [
+    (0xFE70, "-40.0"),   # -400 tenths: the edge is kept
+    (1000, "100.0"),
+    (0xFE6F, "nil"),     # -401 tenths: just outside
+    (1001, "nil"),
+])
+def test_the_temperature_range_keeps_its_edges(raw: int, expected: str) -> None:
+    out = run_polls(1, setup=f"host._modbus_registers.input[13024] = {{{raw}}}")
+    assert battery(out, 1)["temp"] == expected
+    assert metrics(out, 1)["battery_temp_c"] == expected
+
+
 def test_the_not_available_value_is_dropped_for_amps() -> None:
     out = run_polls(1, setup="host._modbus_registers.input[5634] = {0xFFFF, 0xFFFF}")
     b, m = battery(out, 1), metrics(out, 1)
@@ -231,6 +248,23 @@ def test_no_watts_without_a_real_voltage(raw_v: int) -> None:
 def test_device_state_follows_the_running_state(state: int, expected: str) -> None:
     out = run_polls(1, setup=f"host._modbus_registers.input[12999] = {{{state:#06x}}}")
     assert battery(out, 1)["state"] == expected
+
+
+@pytest.mark.parametrize("running", [0x0800, 0x0040])
+def test_device_state_clears_when_the_inverter_runs_again(running: int) -> None:
+    """The episode the owner's box showed 14 times, one state per full poll.
+
+    Full polls are 1, 6, 11 and 16: forced mode, standby, startup, then
+    running again. device_state must leave on the poll that reads running.
+    """
+    episode = f'''
+local states = {{[1] = 0x0800, [6] = 0x0008, [11] = 0x0020, [16] = {running:#06x}}}
+if states[poll] then host._modbus_registers.input[12999] = {{states[poll]}} end'''
+    out = run_polls(20, before_poll=episode)
+    expected = {1: "nil", 6: "standby", 11: "starting", 16: "nil"}
+    for poll in range(1, 21):
+        want = expected[max(p for p in expected if p <= poll)]
+        assert battery(out, poll)["state"] == want, (poll, out[f"BATTERY{poll}"])
 
 
 def test_no_device_state_when_the_running_state_does_not_answer() -> None:

@@ -546,10 +546,12 @@ local MAX_LIMIT_A = 1000
 -- reads as 6553.5 V and lands above it.
 local MAX_BATTERY_V = 1000
 
+-- Compare in the register's own tenths, so -40.0 and 100.0 stay in on any
+-- float width.
 local function battery_temperature_c(raw)
-    local c = host.decode_i16(raw) * 0.1
-    if c < MIN_BATTERY_C or c > MAX_BATTERY_C then return nil end
-    return c
+    local tenths = host.decode_i16(raw)
+    if tenths < MIN_BATTERY_C * 10 or tenths > MAX_BATTERY_C * 10 then return nil end
+    return tenths * 0.1
 end
 
 local function limit_amps(raw)
@@ -571,6 +573,12 @@ end
 -- not a bitfield: 0x0014 means running with a generator and 0x2501 means
 -- restarting, so whole values are matched. Any state not listed here leaves
 -- device_state out.
+--
+-- One SH-RT with an SBR096 pack confirms the low codes (owner's box, 30 days
+-- to November 2026). In all 14 standby episodes during a forced order the
+-- state went 0x0800 (forced mode) to 0x0008, then 0x0020, then back to
+-- 0x0800; 0x0010 showed in 3 of them. 0x1200, 0x1400 and 0x1600 rest on
+-- the appendix alone.
 local NOT_RUNNING = {
     [0x0008] = "standby",  [0x1400] = "standby",   -- Standby
     [0x0010] = "standby",  [0x1200] = "standby",   -- Initial standby

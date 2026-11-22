@@ -14,12 +14,14 @@ standby and then startup for 2 to 9 minutes while an order stood.
   13024), S16 × 0.1 °C.
 - `available_charge_W` and `available_discharge_W`: the BMS's max charge and
   discharge current, documented 5635 and 5636 (host 5634 and 5635), times the
-  battery voltage read in the same poll. Sungrow does not say whether these
-  move with temperature and charge level; that is not yet checked on
-  hardware.
+  battery voltage read in the same poll. Whether 5635 and 5636 follow the
+  BMS live is unconfirmed on hardware: Sungrow does not say whether they
+  move with temperature and charge level.
 - `device_state`: `"standby"` or `"starting"` while the running state
   (documented 13000) says so. The values come from Appendix 2 of Sungrow's
-  protocol V1.1.9 and are matched whole, not as bits.
+  protocol V1.1.9 and are matched whole, not as bits. The owner's box
+  confirms the low codes: in all 14 episodes the state went 0x0800 (forced
+  mode), 0x0008, 0x0020, 0x0800, and 0x0010 showed in 3 of them.
 
 The same values go to `battery_temp_c`, `battery_charge_limit_a`,
 `battery_discharge_limit_a`, `battery_available_charge_w` and

@@ -726,8 +726,8 @@ drivers:
     connectivity: local
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 61421
-    sha256: "b0a9fb0645fa8ab4d6900aa9d45032d9abc564afc3eee6f2e75d2db3e87a2ff0"
+    size_bytes: 61866
+    sha256: "f6f30ae48cd0344d7697032998f068e6c2b65c903b5d214a4d5173436d27d0c9"
   - name: "tesla_cloud"
     version: "0.2.1"
     tier: community
