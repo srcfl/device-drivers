@@ -1808,7 +1808,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.2.0",
       "driver_id": "victron_mqtt",
       "targets": {
         "blixt-l1": {

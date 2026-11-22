@@ -1,5 +1,5 @@
 name: "victron_mqtt"
-version: "1.1.1"
+version: "1.2.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -12,7 +12,7 @@ tested_devices:
     variants: [Cerbo GX, Venus GX, Ekrano GX]
     regions: []
     firmware_versions: ""
-    notes: "Requires Venus OS with MQTT enabled on GX device. Battery limits come from the BMS the GX names in ActiveBmsInstance. With several battery services and that topic not yet received, no limits are sent. The driver sends no keep-alive, so another client must keep the GX publishing."
+    notes: "Requires Venus OS with MQTT enabled on GX device. Battery limits come from the BMS the GX names in ActiveBmsInstance. With several battery services and that topic not yet received, no limits are sent. The driver sends the Venus keep-alive itself; where the host refuses MQTT publishing for a read-only driver, another client must keep the GX publishing."
     min_driver_version: "1.0.0"
   - manufacturer: "Victron Energy"
     model_family: "MultiPlus-II"
@@ -43,15 +43,15 @@ tested_devices:
     notes: "Requires Venus OS with MQTT enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 14983
+size_bytes: 21628
 dkb_id: ""
-sha256: "91b142b90523a0e6bcbaece9d13d6af6e148c81b6e8f314697032a422046934a"
+sha256: "b8fdaf360454ce04307d38b2587358c30680a482ec1f438f4ac5e48da3fb9cc4"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Pass battery power through with Victron's own sign, charge positive; it was negated before. Not yet measured on a real GX."
+changelog: "Send the Venus keep-alive every 30 s and ask for a full republish every 120 s; drop a system battery value a full republish leaves out."
 
 upstream_docs:
   - url: "https://raw.githubusercontent.com/victronenergy/dbus-flashmq/master/README.md"

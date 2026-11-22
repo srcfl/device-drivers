@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+### victron_mqtt 1.2.0
+
+Venus OS publishes MQTT values only while some client sends a keep-alive to
+`R/<portal ID>/keepalive` (victronenergy/dbus-flashmq README). The driver
+sent none, so on a GX with no other MQTT client its values stopped after
+60 s. It now sends one itself.
+
+- The driver learns the portal ID from the topics it receives.
+  dbus-flashmq publishes `N/<portal ID>/system/0/Serial` retained, so it
+  arrives as soon as the driver subscribes. When that topic names another
+  portal ID, the driver follows the new GX, forgets the old one's values and
+  asks the new one for all of them.
+- A keep-alive goes out every 30 s, the interval in Victron's example, also
+  on polls that bring no messages. Victron suggests the
+  `suppress-republish` option on the timer; the driver uses it, and sends an
+  empty payload, which asks for a full republish, at first, when the GX
+  speaks again after 60 s of silence, and every 120 s.
+- A full republish resends every value the GX has and ends with
+  `N/<portal ID>/full_publish_completed`. The system's SoC, voltage,
+  current and battery temperature are now left out once a full republish
+  has not resent them, so a value whose device left while the driver was
+  not listening no longer stays forever. A value counts as resent when it
+  arrived within two polls or 5 s before the completion, so a republish
+  that straddles a poll on a host polling every 5 s or slower is not
+  misread. Without a completed full republish they behave as before.
+- FTW refuses `host.mqtt_publish` from a driver it runs read-only, which is
+  how it runs a `control: false` driver installed from the signed channel.
+  The driver then logs one warning, keeps reading, and tries again every
+  30 s; the GX publishes only while another client keeps it awake, as
+  before.
+
+Not yet checked on a real GX.
+
 ### victron_mqtt 1.1.1
 
 Battery power had the wrong sign: a charging battery showed as discharging

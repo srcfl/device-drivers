@@ -806,14 +806,14 @@ drivers:
     size_bytes: 8877
     sha256: "d2eb6bee7bb4c0fb1620264133721ec00cf6a1477ce75e7e51469b7b6a447022"
   - name: "victron_mqtt"
-    version: "1.1.1"
+    version: "1.2.0"
     tier: community
     protocol: mqtt
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 14983
-    sha256: "91b142b90523a0e6bcbaece9d13d6af6e148c81b6e8f314697032a422046934a"
+    size_bytes: 21628
+    sha256: "b8fdaf360454ce04307d38b2587358c30680a482ec1f438f4ac5e48da3fb9cc4"
   - name: "wallbox"
     version: "1.1.0"
     tier: community
