@@ -36,6 +36,82 @@ changed. Not yet checked on hardware.
 FTW's bundled copy does not move with this commit. Bump the pin and run
 `scripts/sync-bundled-drivers.sh`.
 
+### victron_mqtt 1.1.0
+
+The driver reports what the battery's BMS allows now, so FTW can tell a
+battery at its limit from one out of control.
+
+- `available_charge_W` and `available_discharge_W` are the BMS's charge and
+  discharge current limits (CCL and DCL, `/Info/MaxChargeCurrent` and
+  `/Info/MaxDischargeCurrent` on the battery service) times the voltage the
+  same BMS reports. A DCL of 0 sends 0 W: the BMS allows no discharge now.
+  Without that voltage the watts are left out.
+- With more than one battery service, the driver uses the BMS the GX names in
+  `system/0/ActiveBmsInstance`. Until the GX names one, it uses the only
+  service that sent a limit, and none when two or more did.
+- New metrics: `battery_temp_c`, `battery_charge_limit_a`,
+  `battery_discharge_limit_a`, `battery_available_charge_w`,
+  `battery_available_discharge_w`, `battery_cell_temp_min_c` and
+  `battery_cell_temp_max_c`.
+- SoC, voltage, current and temperature stay out until the GX sends them.
+  They used to start at 0, so a GX that sent only power showed an empty pack
+  at 0 °C. A `{"value": null}` or an empty payload now clears a value instead
+  of keeping the last one.
+- A temperature outside -40 to 100 °C and a limit outside 0 to 100 kW are
+  dropped.
+- Venus sends a value only when it changes, so a quiet topic is not a stale
+  one. The watts need the BMS's voltage from the last 60 s. The BMS's limits
+  and cell temperatures count only while that BMS has sent something in the
+  last 60 s. When nothing at all arrives for 60 s, the driver forgets every
+  battery value, since a null sent meanwhile is lost. A tighter bound per
+  value would need a keep-alive that asks for a full republish; the driver
+  sends none.
+
+Victron says some BMS makes send fixed limits and others dynamic ones, and
+does not say how often they change. Not yet checked on hardware.
+
+### victron 2.2.0
+
+Register 844 on the GX system service is the battery state (0 idle,
+1 charging, 2 discharging), not a temperature. The driver read it as 0.1 °C
+and reported a battery at 0.0 to 0.2 °C. It now reports no battery
+temperature, because the system service has none. A battery read that fails
+now sends no battery reading and no battery metrics, where it sent 0 V, 0 A,
+0 W and 0 % SoC.
+
+The BMS's own current limits and cell temperatures are on the battery
+service, which the GX serves on another unit ID. This driver reads one unit
+ID and the host cannot read a second, so it cannot report them;
+`victron_mqtt` does. Not yet checked on hardware.
+
+### ferroamp_modbus 2.2.0
+
+A battery register that does not answer now leaves its field out instead of
+sending 0. The driver sends whatever answered, and no battery reading when
+nothing did. Ferroamp's
+Modbus map (Revision D) has no battery temperature and no live limit, so the
+driver reports nothing new.
+
+The float decoder now works on 16-bit halves. On a host with 32-bit Lua
+integers it decoded every float wrong; FTW and Blixt L1 were not affected.
+Not yet checked on hardware.
+
+### zap 3.2.0
+
+- The battery temperature now comes only from the battery's `temperature_C`
+  in Zap data model 2.7.0, which the Zap firmware defines as the cell or pack
+  temperature. Older firmware sent `heatsink_C` instead. That held the
+  battery's temperature on some profiles but Pixii's cabinet and Ferroamp's
+  converter temperature on others, so the driver no longer reports it as the
+  battery's.
+- New metric `inverter_temp_c` from the inverter DER's `temperature_C`.
+- A temperature outside -40 to 100 °C is dropped.
+- Zap's battery `upper_limit_W` and `lower_limit_W` are not reported as
+  available power: the Zap works them out from ratings, PV output and the SoC
+  window.
+
+Not yet checked on hardware.
+
 ### hardybarth 1.1.1
 
 A Salia station FTW left on now stops when the car leaves, as eCB1 already

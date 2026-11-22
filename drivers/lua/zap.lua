@@ -39,7 +39,7 @@
 --   pv:      the DER is "solar"; power and energy are on one side, _ac or _dc;
 --            mppt1_V -> mppt[1].V_dc; heatsink_C -> inverter.temperature_C
 --   battery: power and energy likewise; V -> V_dc, A -> A_dc;
---            SoC_nom_fract -> soc_nom_fract; heatsink_C -> temperature_C
+--            SoC_nom_fract -> soc_nom_fract; temperature_C (see below)
 --   ratings: from /api/devices: rated_power_W_ac on the "inverter" DER,
 --            installed_power_W_dc on "solar", rated_power_W_dc and
 --            capacity_Wh_dc on "battery"
@@ -50,7 +50,7 @@ DRIVER = {
   id           = "zap",
   name         = "Sourceful Zap (P1/HAN meter)",
   manufacturer = "Sourceful",
-  version      = "3.1.3",
+  version      = "3.2.0",
   protocols    = { "http" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -143,6 +143,28 @@ local function sane_power(v, rated_power_w)
     local rated = number(rated_power_w) or 0
     if rated > 0 and math.abs(n) > rated * 10 then return nil end
     return n
+end
+
+-- The battery's own temperature, from Zap data model 2.7.0 and later: battery
+-- temperature_C is "the battery's own cell or pack temperature" and the
+-- inverter's goes on the inverter DER (srcful-zap-x-firmware
+-- components/data_models/README.md, "Temperatures"). Earlier firmware sent
+-- the battery's heatsink_C instead. That field held the battery's temperature
+-- on some profiles (Solis, Sungrow, Deye, Huawei, SMA) but the cabinet
+-- temperature on Pixii and the converter's on Ferroamp, and this driver
+-- cannot tell which, so it is not reported as the battery's.
+local MIN_TEMP_C, MAX_TEMP_C = -40, 100
+
+local function battery_temperature(battery)
+    return bounded(battery.temperature_C, MIN_TEMP_C, MAX_TEMP_C)
+end
+
+-- The inverter's internal or heatsink temperature, on the inverter DER of a
+-- device that has one (data model 2.7.0).
+local function inverter_temperature(data)
+    local inverter = type(data) == "table" and data.inverter
+    if type(inverter) ~= "table" then return nil end
+    return bounded(inverter.temperature_C, MIN_TEMP_C, MAX_TEMP_C)
 end
 
 local function metric_tag(sn)
@@ -551,6 +573,13 @@ local function emit_pv(snapshots)
     end
 end
 
+-- Zap's battery upper_limit_W / lower_limit_W are not reported as available
+-- power. When a profile does not set them, the Zap works them out from the
+-- battery's and inverter's ratings, PV output and the SoC window
+-- (srcful-zap-x-firmware components/data_models/README.md, "Battery limits"),
+-- and the payload does not say which. Neither is a limit the battery reports.
+-- Its available_*_Wh are worked out from the SoC window and the configured
+-- capacity in the same way.
 local function emit_battery(snapshots)
     local source_count = count_kind("battery")
     if source_count == 0 then return end
@@ -611,7 +640,8 @@ local function emit_battery(snapshots)
             if source_count > 1 and soc ~= nil then host.emit_metric("battery_soc" .. tag, soc, "fraction") end
             emit_optional_metric("battery_dc_v" .. tag, dc_side(battery, "V"), "V")
             emit_optional_metric("battery_dc_a" .. tag, dc_side(battery, "A"), "A")
-            emit_optional_metric("battery_temp_c" .. tag, number(battery.heatsink_C) or number(battery.temperature_C), "°C")
+            emit_optional_metric("battery_temp_c" .. tag, battery_temperature(battery), "°C")
+            emit_optional_metric("inverter_temp_c" .. tag, inverter_temperature(data), "°C")
         end
     end
 
@@ -638,7 +668,7 @@ local function emit_battery(snapshots)
     if source_count == 1 and single then
         battery_reading.v = dc_side(single, "V")
         battery_reading.a = dc_side(single, "A")
-        battery_reading.temp_c = number(single.heatsink_C) or number(single.temperature_C)
+        battery_reading.temp_c = battery_temperature(single)
     end
 
     host.emit("battery", battery_reading)

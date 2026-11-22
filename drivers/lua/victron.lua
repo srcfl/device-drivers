@@ -8,7 +8,7 @@ DRIVER = {
   id           = "victron",
   name         = "Victron Energy GX",
   manufacturer = "Victron Energy",
-  version      = "2.1.2",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -23,6 +23,9 @@ DRIVER = {
     unit_id = 1,
   },
 }
+--
+-- Register map: Victron's dbus_modbustcp attributes.csv (the source of the
+-- CCGX-Modbus-TCP-register-list.xlsx), service com.victronenergy.system.
 --
 -- Register conventions:
 --   Register type: HOLDING (FC 0x03)
@@ -156,32 +159,42 @@ function driver_poll()
     -- Battery
     ------------------------------------------------------------------
 
-    -- Battery block: 840-844 in one atomic read.
-    --   840 — voltage  (U16, 0.1 V)
-    --   841 — current  (I16, 0.1 A) — positive = charging
-    --   842 — power    (I16, W)     — positive = charging (matches site)
-    --   843 — SoC      (U16, %)     — convert to 0.0–1.0 fraction
-    --   844 — temp     (I16, 0.1 C)
-    local bat_regs = probe_read(840, 5, "holding")
-    local bat_v, bat_a, bat_w, bat_soc, bat_temp = 0, 0, 0, 0, 0
+    -- Battery block: 840-843 in one atomic read (com.victronenergy.system).
+    --   840 — /Dc/Battery/Voltage (U16, 0.1 V)
+    --   841 — /Dc/Battery/Current (I16, 0.1 A) — positive = charging
+    --   842 — /Dc/Battery/Power   (I16, W)     — positive = charging (matches site)
+    --   843 — /Dc/Battery/Soc     (U16, %)     — convert to 0.0–1.0 fraction
+    --
+    -- 844 is /Dc/Battery/State (0 idle, 1 charging, 2 discharging), not a
+    -- temperature. Earlier versions read it as 0.1 °C and reported a battery
+    -- at 0.0, 0.1 or 0.2 °C. The system service has no battery temperature
+    -- register (Victron's attributes.csv for dbus_modbustcp).
+    --
+    -- The BMS's own limits and temperatures (/Info/MaxChargeCurrent 307,
+    -- /Info/MaxDischargeCurrent 308, /Dc/0/Temperature 262,
+    -- /System/MinCellTemperature 318, /System/MaxCellTemperature 319) live on
+    -- the battery service, which the GX serves on its own unit ID. This
+    -- driver talks to one unit ID and the host cannot read another one, so it
+    -- cannot report them. victron_mqtt reads them.
+    --
+    -- A read that failed leaves the battery out: zeros would look like an
+    -- empty, idle pack.
+    local bat_regs = probe_read(840, 4, "holding")
     if bat_regs then
-        bat_v    = bat_regs[1] * 0.1
-        bat_a    = host.decode_i16(bat_regs[2]) * 0.1
-        bat_w    = host.decode_i16(bat_regs[3])
-        bat_soc  = bat_regs[4] / 100
-        bat_temp = host.decode_i16(bat_regs[5]) * 0.1
-    end
+        local bat_v   = bat_regs[1] * 0.1
+        local bat_a   = host.decode_i16(bat_regs[2]) * 0.1
+        local bat_w   = host.decode_i16(bat_regs[3])
+        local bat_soc = bat_regs[4] / 100
 
-    host.emit("battery", {
-        w      = bat_w,
-        v      = bat_v,
-        a      = bat_a,
-        soc    = bat_soc,
-        temp_c = bat_temp,
-    })
-    host.emit_metric("battery_dc_v",    bat_v)
-    host.emit_metric("battery_dc_a",    bat_a)
-    host.emit_metric("battery_temp_c",  bat_temp)
+        host.emit("battery", {
+            w   = bat_w,
+            v   = bat_v,
+            a   = bat_a,
+            soc = bat_soc,
+        })
+        host.emit_metric("battery_dc_v", bat_v)
+        host.emit_metric("battery_dc_a", bat_a)
+    end
 
     return 5000
 end
