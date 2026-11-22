@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+### sungrow 1.7.0
+
+The battery now says what it can do now, so FTW Core can tell a device
+limit from lost control (docs/WRITING-A-DRIVER.md, "What a battery can do
+now"). On one SH-RT with an SBR096 pack, forced discharge stayed at 21.6 to
+23.1 A DC whatever the order, and 14 times in 30 days the inverter went to
+standby and then startup for 2 to 9 minutes while an order stood.
+
+- `temperature_C`: the pack temperature, documented register 13025 (host
+  13024), S16 × 0.1 °C.
+- `available_charge_W` and `available_discharge_W`: the BMS's max charge and
+  discharge current, documented 5635 and 5636 (host 5634 and 5635), times the
+  battery voltage read in the same poll. Sungrow does not say whether these
+  move with temperature and charge level; that is not yet checked on
+  hardware.
+- `device_state`: `"standby"` or `"starting"` while the running state
+  (documented 13000) says so. The values come from Appendix 2 of Sungrow's
+  protocol V1.1.9 and are matched whole, not as bits.
+
+The same values go to `battery_temp_c`, `battery_charge_limit_a`,
+`battery_discharge_limit_a`, `battery_available_charge_w` and
+`battery_available_discharge_w`. Two reads join the full poll every five
+seconds; fast polls carry the last values only while the battery read
+succeeds. A failed read leaves its field out. A temperature outside -40 to
+100 °C, a current above 1000 A and a power above 100 kW are dropped, which
+also drops Sungrow's "not available" values. No `available_import_W`:
+Sungrow's protocol has no register for it. No control, write or command
+changed. Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
 ### hardybarth 1.1.1
 
 A Salia station FTW left on now stops when the car leaves, as eCB1 already

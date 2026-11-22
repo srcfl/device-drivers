@@ -9,7 +9,7 @@ DRIVER = {
   id           = "sungrow",
   name         = "Sungrow SH Hybrid Inverter",
   manufacturer = "Sungrow",
-  version      = "1.6.1",
+  version      = "1.7.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery", "pv-curtail" },
   description  = "Sungrow SH-series hybrid inverters with LFP battery, via Modbus TCP.",
@@ -495,10 +495,11 @@ end
 --
 -- The live view moves once a second, so power, SoC, per-phase values and the
 -- EMS readback are read on every poll. Energy counters, nameplate,
--- temperature, frequency and fault bits change slowly and keep their
--- five-second rate. Between those full reads each blob carries their last
--- values, so a counter never drops out of the energy ledger -- but only on a
--- poll whose own power read succeeded, so they never outlive the device.
+-- temperatures, frequency, fault bits, running state and the BMS limits
+-- change slowly and keep their five-second rate. Between those full reads
+-- each blob carries their last values, so a counter never drops out of the
+-- energy ledger -- but only on a poll whose own power read succeeded, so they
+-- never outlive the device.
 --
 -- A host that ignores the returned interval polls every five seconds, and
 -- then every poll is a full read, as before.
@@ -508,6 +509,73 @@ local POLL_MS = 1000
 local FULL_READ_MS = 5000
 local last_full_read_ms = nil
 local slow = {}
+
+----------------------------------------------------------------------------
+-- What the battery can do now
+--
+-- Core marks a battery "not following" when it gives less than it was told.
+-- Often the device is the limit and says so. These readings let Core tell a
+-- limit from lost control (docs/WRITING-A-DRIVER.md, "What a battery can do
+-- now"). Sungrow's "Communication Protocol of Residential Hybrid Inverter"
+-- V1.1.9 (2025-06-20) documents them; documented number first, host address
+-- second, all read on full polls only:
+--
+--   13025 / 13024  input S16, 0.1 C  Battery temperature
+--   5635  / 5634   input U16, 1 A    Max. Charging Current (BMS)
+--   5636  / 5635   input U16, 1 A    Max. Discharging Current (BMS)
+--
+-- Sungrow does not say whether 5635 and 5636 move with temperature and
+-- charge level, and no one has checked it on hardware yet. Their names say
+-- the BMS sets them, so they are taken as the BMS's limit now. If a site
+-- shows them flat while the battery is held back, they are a rating and do
+-- not belong in available_*.
+--
+-- The protocol answers 0x7FFF for a signed register it does not have and
+-- 0xFFFF for an unsigned one (section 1.2, note 5). Both fall outside the
+-- bounds below, so the same check drops them.
+--
+-- The protocol has no register for how much more the inverter will take from
+-- the grid, so this driver emits no available_import_W.
+----------------------------------------------------------------------------
+
+local MIN_BATTERY_C, MAX_BATTERY_C = -40, 100
+local MAX_AVAILABLE_W = 100000
+-- 100 kW at 100 V. No home battery allows more, and 0xFFFF lands above it.
+local MAX_LIMIT_A = 1000
+-- A home battery bus runs well below 1000 V. 0xFFFF in the voltage register
+-- reads as 6553.5 V and lands above it.
+local MAX_BATTERY_V = 1000
+
+local function battery_temperature_c(raw)
+    local c = host.decode_i16(raw) * 0.1
+    if c < MIN_BATTERY_C or c > MAX_BATTERY_C then return nil end
+    return c
+end
+
+local function limit_amps(raw)
+    if raw > MAX_LIMIT_A then return nil end
+    return raw
+end
+
+-- Amps become watts only at the battery voltage read in this same poll.
+-- 0 A gives 0 W: the BMS allows nothing now, which is a real reading.
+local function limit_watts(amps, volts)
+    if amps == nil or volts <= 0 or volts > MAX_BATTERY_V then return nil end
+    local w = math.floor(amps * volts + 0.5)
+    if w > MAX_AVAILABLE_W then return nil end
+    return w
+end
+
+-- Running state (documented 13000, host 12999), Appendix 2 of the same
+-- protocol. Each state has one value, some an older and a newer one. It is
+-- not a bitfield: 0x0014 means running with a generator and 0x2501 means
+-- restarting, so whole values are matched. Any state not listed here leaves
+-- device_state out.
+local NOT_RUNNING = {
+    [0x0008] = "standby",  [0x1400] = "standby",   -- Standby
+    [0x0010] = "standby",  [0x1200] = "standby",   -- Initial standby
+    [0x0020] = "starting", [0x1600] = "starting",  -- Starting
+}
 
 local function full_read_due(now_ms)
     -- Half a poll early, so jitter cannot push each full read a second late.
@@ -575,6 +643,16 @@ local function read_and_emit()
         if flow_regs then power_flow_status = flow_regs[1] end
     end
     local is_discharging = (math.floor(power_flow_status / 4) % 2) == 1
+
+    -- Whether the inverter says it is not running, for the battery blob.
+    -- Set on full polls and carried between them like the other slow
+    -- values. A running state that did not answer says nothing.
+    if full then
+        slow.device_state = nil
+        if running_state_known then
+            slow.device_state = NOT_RUNNING[running_state]
+        end
+    end
 
     -- PV power: 5016-5017, U32 LE, watts
     -- Observed on at least one SH-series firmware: this register stays
@@ -812,17 +890,51 @@ local function read_and_emit()
                     host.decode_u32_le(bdis_regs[1], bdis_regs[2]) * 0.1 * 1000
             end
             slow.charge_wh, slow.discharge_wh = battery.charge_wh, battery.discharge_wh
+
+            -- What the battery can do now. Each value is left out when its
+            -- read failed, so a fast poll never carries an older one.
+            slow.battery_c = nil
+            local temp_regs = optional_read(13024, 1, "input")
+            if temp_regs then slow.battery_c = battery_temperature_c(temp_regs[1]) end
+
+            slow.charge_limit_a, slow.discharge_limit_a = nil, nil
+            local limit_regs = optional_read(5634, 2, "input")
+            if limit_regs then
+                slow.charge_limit_a = limit_amps(limit_regs[1])
+                slow.discharge_limit_a = limit_amps(limit_regs[2])
+            end
         else
             battery.charge_wh, battery.discharge_wh = slow.charge_wh, slow.discharge_wh
         end
+
+        battery.temperature_C = slow.battery_c
+        battery.available_charge_W = limit_watts(slow.charge_limit_a, bat_v)
+        battery.available_discharge_W = limit_watts(slow.discharge_limit_a, bat_v)
+        battery.device_state = slow.device_state
 
         host.emit("battery", battery)
         if full then
             host.emit_metric("battery_dc_v", bat_v)
             host.emit_metric("battery_dc_a", bat_a)
+            if battery.temperature_C then
+                host.emit_metric("battery_temp_c", battery.temperature_C)
+            end
+            if slow.charge_limit_a then
+                host.emit_metric("battery_charge_limit_a", slow.charge_limit_a)
+            end
+            if slow.discharge_limit_a then
+                host.emit_metric("battery_discharge_limit_a", slow.discharge_limit_a)
+            end
+            if battery.available_charge_W then
+                host.emit_metric("battery_available_charge_w", battery.available_charge_W)
+            end
+            if battery.available_discharge_W then
+                host.emit_metric("battery_available_discharge_w", battery.available_discharge_W)
+            end
         end
     elseif full then
         slow.charge_wh, slow.discharge_wh = nil, nil
+        slow.battery_c, slow.charge_limit_a, slow.discharge_limit_a = nil, nil, nil
     end
 
     -- Grid meter power: 5600-5601, I32 LE, watts (positive=import, negative=export)
