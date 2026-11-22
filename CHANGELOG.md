@@ -13,7 +13,9 @@ the battery.
 - **victron 2.2.1** sends the meter reading only when the grid power read
   (820-822) answers. PV is the sum of the AC-coupled (808-810) and
   DC-coupled (850) parts that answered; with neither, there is no PV
-  reading.
+  reading. So a one-off failure of the AC-coupled read (808) while 850
+  answers sends a PV figure without the AC-coupled part until the next
+  poll. That is the cost of serving a GX that has only one of the two.
 - **ferroamp_modbus 2.2.1** sends the meter reading only when the grid
   power (3100) answers, and the PV reading only when the solar power (5100)
   answers. Frequency, voltages, currents and energy counters are left out
