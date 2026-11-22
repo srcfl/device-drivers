@@ -4,7 +4,9 @@ Core judges a battery against what its BMS allows now. The driver reads
 GoodWe's "BMS Operation Data" block (37000-37023) for the pack temperature,
 the BMS charge and discharge current limits and the cell temperature
 extremes, and multiplies the limits by the battery 1 voltage (35180) read
-in the same poll. See docs/WRITING-A-DRIVER.md, "What a battery can do now".
+in the same poll. The block counts only while 37011 names a BMS protocol:
+a battery with no BMS link answers zeros. See docs/WRITING-A-DRIVER.md,
+"What a battery can do now".
 
 The values come from GoodWe's "Modbus Protocol Hybrid for Energy Storage
 Inverters" (2 February 2024). They are synthetic here, not a capture.
@@ -38,11 +40,16 @@ def _lua_list(values) -> str:
     return "{" + ", ".join(str(v) for v in values) + "}"
 
 
+PYLONTECH = 0x101       # GoodWe Table 8-33
+EMS_BATTERY = 0x11F     # "no direct communication between inverter and battery"
+
+
 def registers(*, volts_raw=4000, mode=3, pack_raw=251, charge_a=25,
               discharge_a=30, cell_max_raw=280, cell_min_raw=230,
-              sink_raw=455) -> dict[int, list[int]]:
+              sink_raw=455, protocol=PYLONTECH) -> dict[int, list[int]]:
     """A charging HV pack at 400.0 V. Raw values as the registers hold them."""
     bms = [0] * 24
+    bms[11] = protocol         # 37011, battery protocol
     bms[3] = pack_raw          # 37003, 0.1 C
     bms[4] = charge_a          # 37004, A
     bms[5] = discharge_a       # 37005, A
@@ -146,6 +153,38 @@ def test_goodwe_no_battery_mode_leaves_bms_figures_out():
     for metric in METRICS[:-1]:
         assert out[f"M_{metric}"] == "nil", metric
     assert "37000" not in out["READS"].split(",")
+
+
+def test_goodwe_battery_without_a_talking_bms_sends_nothing():
+    """Mode 1 says a battery is there; an all-zero block says no BMS talks.
+
+    0 C and 0 W would read as a cold battery that may not charge.
+    """
+    zeros = registers(mode=1)
+    zeros[37000] = [0] * 24
+    out = poll(zeros)
+    assert out["BATTERY"] == "true"
+    for field in FIELDS:
+        assert out[f"F_{field}"] == "nil", field
+    for metric in METRICS[:-1]:
+        assert out[f"M_{metric}"] == "nil", metric
+
+
+@pytest.mark.parametrize("protocol", [0, EMS_BATTERY, 0xFFFF])
+def test_goodwe_no_direct_bms_link_sends_no_bms_figures(protocol):
+    out = poll(registers(protocol=protocol))
+    for field in FIELDS:
+        assert out[f"F_{field}"] == "nil", field
+    for metric in METRICS[:-1]:
+        assert out[f"M_{metric}"] == "nil", metric
+
+
+def test_goodwe_talking_bms_with_zero_limits_still_says_zero():
+    """A BMS that talks and allows nothing is not hidden."""
+    out = poll(registers(charge_a=0, discharge_a=0, protocol=0x122))
+    assert num(out, "F_available_charge_W") == 0
+    assert num(out, "F_available_discharge_W") == 0
+    assert close(num(out, "F_temp_c"), 25.1)
 
 
 def test_goodwe_failed_bms_read_leaves_fields_out_not_zero():

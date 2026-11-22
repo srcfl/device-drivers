@@ -2,8 +2,9 @@
 
 Solis's "RS485_MODBUS RTU Hybrid Inverter Protocol" marks the charge and
 discharge current limits at 33143 and 33144 "(From BMS)". The driver sends
-them as watts, multiplied by the battery voltage (33133) of the same poll.
-See docs/WRITING-A-DRIVER.md, "What a battery can do now".
+them as watts, multiplied by the battery voltage (33133) of the same poll,
+and only while 33160 names a battery maker: a lead-acid or BMS-less battery
+reports 0 A there. See docs/WRITING-A-DRIVER.md, "What a battery can do now".
 
 33096 is the inverter's lead-acid battery probe. Without that probe it reads
 200.2 C (Pho3niX90/solis_modbus#186), which the range check drops.
@@ -38,12 +39,20 @@ def _lua_list(values) -> str:
     return "{" + ", ".join(str(v) for v in values) + "}"
 
 
+PYLON_LV = 0x0001   # Solis map, 33160 "Current Battery Model"
+
+
 def registers(*, volts_raw=512, charge_raw=1000, discharge_raw=1500,
-              bat_temp_raw=231, inv_temp_raw=412) -> dict[int, list[int]]:
+              bat_temp_raw=231, inv_temp_raw=412,
+              model=PYLON_LV) -> dict[int, list[int]]:
     """A 51.2 V LV pack allowed 100.0 A charge and 150.0 A discharge."""
+    block = [0] * 18                     # 33143-33160, one read
+    block[0] = charge_raw                # 33143
+    block[1] = discharge_raw             # 33144
+    block[17] = model                    # 33160
     return {
         33133: [volts_raw],
-        33143: [charge_raw, discharge_raw],
+        33143: block,
         33096: [bat_temp_raw],
         33093: [inv_temp_raw],
     }
@@ -103,6 +112,31 @@ def test_solis_reports_bms_limits_in_watts():
     assert close(num(out, "M_battery_discharge_limit_a"), 150.0)
     assert close(num(out, "M_battery_available_charge_w"), 5120)
     assert close(num(out, "M_battery_available_discharge_w"), 7680)
+
+
+@pytest.mark.parametrize("model", [0x0003, 0x0004, 0x0100, 0x0300, 0x0600])
+def test_solis_battery_makers_report_limits(model):
+    out = poll(registers(model=model))
+    assert close(num(out, "F_available_charge_W"), 5120)
+
+
+@pytest.mark.parametrize("model", [
+    0x0000,   # no battery model
+    0x0002,   # LV "User define"
+    0x0200,   # HV "User define"
+    101,      # LV lead-acid (Pho3niX90/solis_modbus battery-model list)
+    100,      # LV generic lithium
+    0x6300,   # HV generic lithium
+    0x0201,   # not a code either list gives
+    0xFFFF,
+])
+def test_solis_no_bms_battery_model_sends_no_limit(model):
+    """A lead-acid or BMS-less battery reports 0 A; 0 W would be a lie."""
+    out = poll(registers(model=model, charge_raw=0, discharge_raw=0))
+    assert out["F_available_charge_W"] == "nil"
+    assert out["F_available_discharge_W"] == "nil"
+    assert out["M_battery_charge_limit_a"] == "nil"
+    assert out["M_battery_available_discharge_w"] == "nil"
 
 
 def test_solis_reports_temperatures():

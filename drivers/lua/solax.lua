@@ -61,8 +61,10 @@ end
 --   0x0025  BMS DischargeMaxCurrent  uint16, 0.1 A
 -- The two currents are what the BMS allows now, a live limit.
 -- homeassistant-solax-modbus uses the same addresses and scales for Gen3 to
--- Gen6, except that some Gen5/Gen6 X3 units report 0x0008 in tenths; this
--- driver follows the G4 map its manifest lists.
+-- Gen6, except that some X3 Gen5/Gen6 units report 0x0008 in tenths of a
+-- degree. This driver has no generation check and follows the G4 map its
+-- manifest lists, so on such a unit inverter_temp_c reads ten times high
+-- (or is dropped above 100). It is history only; nothing decides on it.
 ----------------------------------------------------------------------------
 
 -- A temperature outside -40..100 C or a power outside 0..100 kW is a
@@ -213,7 +215,8 @@ function driver_poll()
         host.emit_metric("battery_available_discharge_w", discharge_w)
     end
 
-    -- Inverter (radiator) temperature: 8, I16, whole degrees C.
+    -- Inverter (radiator) temperature: 8, I16, whole degrees C on G4. X3
+    -- Gen5/Gen6 may report tenths here (see above); history only.
     local itemp_regs = probe_read(8, 1, "input")
     if itemp_regs then
         local inv_temp = plausible_temp(host.decode_i16(itemp_regs[1]))

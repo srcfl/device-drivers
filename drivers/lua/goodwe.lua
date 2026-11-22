@@ -77,6 +77,11 @@ end
 --                                                disconnected
 --   37000-37023  "BMS Operation Data", read as one block like the
 --                goodwe library does
+--     37011      battery protocol, the codes of GoodWe's Table 8-33:
+--                0x101 Pylontech, 0x102/0x105/0x106 BYD, 0x104 LG,
+--                0x11E Dyness and others, 0x122 GoodWe. 0x11F, "EMS
+--                Battery", means the inverter has no direct link to the
+--                battery, and 0 means no protocol at all.
 --     37003      BMS pack temperature            x 0.1 C
 --     37004      max BMS charge current          A
 --     37005      max BMS discharge current       A
@@ -85,9 +90,16 @@ end
 -- The charge and discharge currents come from the BMS, so they move with
 -- temperature and charge level: a live limit, not a rating.
 --
+-- A battery mode other than 0 says a battery is there, not that a BMS
+-- talks to the inverter. Without one the block answers zeros, and 0 C and
+-- 0 W would read as a cold battery that may not charge. So the block's
+-- figures count only while 37011 names a BMS protocol (not 0, 0x11F or
+-- 0xFFFF). A 0 A limit from a BMS that does talk is sent as 0 W.
+--
 -- GoodWe's map puts the BUS voltage at 35178 and battery power at
 -- 35182-35183, where the battery reads in driver_poll still look. Those
--- reads are left as they were; this block reads its own voltage at 35180.
+-- reads are left as they were (srcfl/device-drivers#264); this block reads
+-- its own voltage at 35180.
 ----------------------------------------------------------------------------
 
 -- A temperature outside -40..100 C or a power outside 0..100 kW is a
@@ -117,6 +129,13 @@ end
 local function limit_w(amps, volts)
     if amps == nil or volts == nil or volts <= 0 then return nil end
     return plausible_power(amps * volts)
+end
+
+-- True when 37011 names a BMS the inverter talks to (Table 8-33).
+local GOODWE_NO_DIRECT_BMS = 0x11F
+local function bms_talks(protocol)
+    return protocol ~= nil and protocol ~= 0 and protocol ~= 0xFFFF
+        and protocol ~= GOODWE_NO_DIRECT_BMS
 end
 
 ----------------------------------------------------------------------------
@@ -227,10 +246,9 @@ function driver_poll()
         soc = bat_soc,
     }
 
-    -- Battery 1 voltage and mode: 35180-35184. The temperature and limits
-    -- below are read only while the mode says a battery is connected; a
-    -- PV-only install answers the BMS block with zeros, and 0 C or 0 W
-    -- would read as a cold battery that may not charge.
+    -- Battery 1 voltage and mode: 35180-35184. The BMS block is read only
+    -- while the mode says a battery is connected, and its figures count
+    -- only while 37011 says a BMS talks (see the top of this file).
     local b1_regs = probe_read(35180, 5, "holding")
     local b1_v, b1_mode
     if b1_regs and b1_regs[5] ~= nil then
@@ -242,6 +260,9 @@ function driver_poll()
     if b1_mode ~= nil and b1_mode ~= 0 then
         bms_regs = probe_read(37000, 24, "holding")
         if bms_regs and bms_regs[24] == nil then bms_regs = nil end
+        if bms_regs and not bms_talks(bms_regs[12]) then      -- 37011
+            bms_regs = nil
+        end
     end
 
     if bms_regs then

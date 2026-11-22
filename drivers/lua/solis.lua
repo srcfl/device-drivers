@@ -29,6 +29,7 @@
 --   33139        Battery SoC       U16 percent
 --   33143        BMS charge limit  U16 × 0.1 A (From BMS)
 --   33144        BMS dischg limit  U16 × 0.1 A (From BMS)
+--   33160        Battery model     U16 code, 0 = no battery model
 --   33149-33150  Battery W         I32 BE W (unsigned magnitude, dir from 33135)
 --   33161-33162  Battery charge    U32 BE kWh
 --   33165-33166  Battery discharge U32 BE kWh
@@ -120,11 +121,22 @@ end
 -- move with temperature and charge level, so they are live limits, unlike
 -- 43130/43131, which this driver writes itself.
 --
--- 33096 is the inverter's probe for a lead-acid battery. Without that probe
--- it reads 200.2 C (Pho3niX90/solis_modbus#186); the range check drops it.
--- Solis protocol V3.2 adds a BMS temperature at 33043, but it is reserved in
--- the published 2020 map and reads 0.0 when the BMS does not report one, so
--- this driver does not use it.
+-- They count only while 33160, "Current Battery Model", names a battery
+-- maker, so a BMS talks to the inverter. A lead-acid or other BMS-less
+-- battery reports 0 A there, and 0 W would read as a battery that may not
+-- charge. Solis's map gives 0x0000 "no battery model", 0x0002 / 0x0200
+-- "User define" and maker codes for LV (low byte) and HV (high byte).
+-- Pho3niX90/solis_modbus lists more makers and puts the generic and
+-- lead-acid choices at LV 99-103 and HV 0x6300. So a maker is LV 1-98
+-- except 2, or HV 0x0100-0x6200 except 0x0200 with a zero low byte. An
+-- unknown code sends no limit rather than a wrong 0 W.
+--
+-- 33096 is the inverter's probe for a lead-acid battery, not a value from
+-- a BMS; a lithium pack's BMS temperature is not in this map. Without the
+-- probe it reads 200.2 C (Pho3niX90/solis_modbus#186); the range check
+-- drops it. Solis protocol V3.2 adds a BMS temperature at 33043, but it is
+-- reserved in the published 2020 map and reads 0.0 when the BMS does not
+-- report one, so this driver does not use it.
 ----------------------------------------------------------------------------
 
 -- A temperature outside -40..100 C or a power outside 0..100 kW is a
@@ -146,6 +158,15 @@ end
 local function limit_w(amps, volts)
     if amps == nil or volts == nil or volts <= 0 then return nil end
     return plausible_power(amps * volts)
+end
+
+-- True when 33160 names a battery maker (see above).
+local function battery_maker(model)
+    if model == nil then return false end
+    if model >= 1 and model <= 98 then return model ~= 2 end
+    if model % 256 ~= 0 then return false end
+    local hv = math.floor(model / 256)
+    return hv >= 1 and hv <= 0x62 and hv ~= 2
 end
 
 ----------------------------------------------------------------------------
@@ -306,21 +327,24 @@ function driver_poll()
         bat_discharge_wh = host.decode_u32_be(bdis_regs[1], bdis_regs[2]) * 1000
     end
 
-    -- Battery temperature: 33096, I16 × 0.1 C (lead-acid probe, see above)
+    -- Battery temperature: 33096, I16 × 0.1 C. The inverter's lead-acid
+    -- battery probe, not a BMS value (see above).
     local btemp_regs = probe_read(33096, 1, "input")
     local bat_temp
     if btemp_regs then
         bat_temp = plausible_temp(host.decode_i16(btemp_regs[1]) * 0.1)
     end
 
-    -- BMS charge / discharge current limits: 33143-33144, U16 × 0.1 A.
-    -- Watts need this poll's battery voltage; a pack that reports no
-    -- voltage gets no limit rather than a 0 W one.
+    -- BMS charge / discharge current limits: 33143-33144, U16 × 0.1 A,
+    -- read with the battery model at 33160 in one 18-register read. They
+    -- count only for a battery maker's BMS, and the watts need this poll's
+    -- battery voltage; a pack that reports no voltage gets no limit rather
+    -- than a 0 W one.
     local fresh_v
     if bv_regs then fresh_v = bat_v end
     local charge_a, discharge_a, charge_w, discharge_w
-    local blim_regs = probe_read(33143, 2, "input")
-    if blim_regs and blim_regs[2] ~= nil then
+    local blim_regs = probe_read(33143, 18, "input")
+    if blim_regs and blim_regs[18] ~= nil and battery_maker(blim_regs[18]) then
         charge_a = blim_regs[1] * 0.1
         discharge_a = blim_regs[2] * 0.1
         charge_w = limit_w(charge_a, fresh_v)

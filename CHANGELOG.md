@@ -13,17 +13,22 @@ outside 0 to 100 kW is dropped. A read that fails is left out, never sent as
 sources in each manifest's `upstream_docs`. Not yet checked on hardware.
 
 - **goodwe 2.2.0** reads GoodWe's BMS block (37000-37023) while 35184 says a
-  battery is connected: pack temperature (37003), the BMS's charge and
-  discharge current limits (37004, 37005) and the cell temperature extremes.
+  battery is connected, and uses it only while 37011 names a BMS protocol
+  (not 0 or 0x11F, "no direct communication"): pack temperature (37003), the
+  BMS's charge and discharge current limits (37004, 37005) and the cell
+  temperature extremes.
   The limits are multiplied by the battery 1 voltage at 35180. The heat sink
   temperature (35176) goes to `inverter_temp_c`. Earlier releases sent
   register 35183 as the battery temperature, and 0 °C when it failed; in
   GoodWe's map 35183 is the low word of battery power. GoodWe's map also
   disagrees with the driver's other battery, PV and meter reads (35178 is the
-  BUS voltage, for example). This release leaves those reads as they were.
+  BUS voltage, for example; srcfl/device-drivers#264). This release leaves
+  those reads as they were.
 - **solis 2.2.0** reports the BMS charge and discharge current limits (33143,
-  33144, "From BMS" in Solis's map) times the battery voltage at 33133. 33096
-  is Solis's lead-acid battery probe and reads 200.2 °C when no probe is
+  33144, "From BMS" in Solis's map) times the battery voltage at 33133, only
+  while the battery model (33160) names a battery maker, not "no battery",
+  "User define", lead-acid or a generic battery. 33096 is Solis's lead-acid
+  battery probe, not a BMS value, and reads 200.2 °C when no probe is
   fitted; that value is now dropped. The battery and inverter temperatures
   are no longer sent as 0 when their reads fail.
 - **sofar 2.2.0** sends the battery temperature (0x0607) only when it
