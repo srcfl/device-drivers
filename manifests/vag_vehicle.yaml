@@ -21,9 +21,9 @@ upstream_docs:
     kind: other
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 50686
+size_bytes: 50958
 dkb_id: "vag_vehicle"
-sha256: "3fa36ee8547e6d513531df221be1fd3c2e26a815bb5ad750d93b6ebf71176739"
+sha256: "699729824bcc3a434c476af37edad433d3a06d4e396d4479fb7988dfb1374647"
 signature: ""
 
 bytecode_sha256: ""

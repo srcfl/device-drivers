@@ -640,13 +640,20 @@ local function iso_epoch(s)
   local y, mo, d, h, mi, se, rest =
     s:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)[T ](%d%d):(%d%d):(%d%d)(.*)$")
   if not y then return nil end
-  local t = days_from_civil(tonumber(y), tonumber(mo), tonumber(d)) * 86400 +
-    tonumber(h) * 3600 + tonumber(mi) * 60 + tonumber(se)
+  y, mo, d = tonumber(y), tonumber(mo), tonumber(d)
+  h, mi, se = tonumber(h), tonumber(mi), tonumber(se)
+  if mo < 1 or mo > 12 or h > 23 or mi > 59 or se > 59 then return nil end
+  local leap = y % 4 == 0 and (y % 100 ~= 0 or y % 400 == 0)
+  local month_days = ({31, leap and 29 or 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31})[mo]
+  if d < 1 or d > month_days then return nil end
+  local t = days_from_civil(y, mo, d) * 86400 + h * 3600 + mi * 60 + se
   rest = rest:gsub("^%.%d+", "")
   if rest == "" or rest == "Z" then return t end
   local sign, oh, om = rest:match("^([+-])(%d%d):?(%d%d)$")
   if not sign then return nil end
-  local off = tonumber(oh) * 3600 + tonumber(om) * 60
+  oh, om = tonumber(oh), tonumber(om)
+  if oh > 23 or om > 59 then return nil end
+  local off = oh * 3600 + om * 60
   if sign == "+" then return t - off end
   return t + off
 end
@@ -930,10 +937,8 @@ local function api_get(path, extra)
   return r.body
 end
 
--- Choose by measured timestamp, then dataset order; the same row keeps
--- the earlier candidate priority.
--- Compare measurement times before dataset order. A missing timestamp
--- cannot replace a known one. Equal or unknown times retain row ordering.
+-- A valid measurement time outranks an invalid or missing time. Equal
+-- or unavailable times are resolved by choosing the higher row sequence.
 local function point_is_newer(candidate, current)
   if current == nil then return true end
   local ct, bt = iso_epoch(candidate.ts), iso_epoch(current.ts)
