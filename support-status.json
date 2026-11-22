@@ -2,7 +2,7 @@
   "drivers": [
     {
       "catalog_source": true,
-      "catalog_version": "0.2.5",
+      "catalog_version": "0.3.0",
       "driver_id": "50-125k-svk-ac-slew",
       "targets": {
         "blixt-l1": {
@@ -23,7 +23,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.1.13",
+      "catalog_version": "0.2.0",
       "driver_id": "50-125k-svk-slew",
       "targets": {
         "blixt-l1": {
@@ -44,7 +44,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.4",
+      "catalog_version": "0.3.0",
       "driver_id": "50-125k-svk",
       "targets": {
         "blixt-l1": {
@@ -170,7 +170,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.2",
+      "catalog_version": "1.3.0",
       "driver_id": "alphaess",
       "targets": {
         "blixt-l1": {
@@ -401,7 +401,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.1",
+      "catalog_version": "2.2.0",
       "driver_id": "deye",
       "targets": {
         "blixt-l1": {
@@ -527,7 +527,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.3",
+      "catalog_version": "2.2.2",
       "driver_id": "ferroamp_modbus",
       "targets": {
         "blixt-l1": {
@@ -548,7 +548,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.9.6",
+      "catalog_version": "0.10.0",
       "driver_id": "foxess_h3_smart",
       "targets": {
         "blixt-l1": {
@@ -569,7 +569,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.2",
+      "catalog_version": "2.3.0",
       "driver_id": "fronius",
       "targets": {
         "blixt-l1": {
@@ -674,7 +674,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.2",
+      "catalog_version": "2.3.0",
       "driver_id": "goodwe",
       "targets": {
         "blixt-l1": {
@@ -695,7 +695,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.3",
+      "catalog_version": "2.2.2",
       "driver_id": "growatt",
       "targets": {
         "blixt-l1": {
@@ -800,7 +800,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.3",
+      "catalog_version": "2.2.0",
       "driver_id": "huawei",
       "targets": {
         "blixt-l1": {
@@ -863,7 +863,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.2",
+      "catalog_version": "0.4.0",
       "driver_id": "konja-261-svk",
       "targets": {
         "blixt-l1": {
@@ -884,7 +884,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.2",
+      "catalog_version": "2.2.0",
       "driver_id": "kostal",
       "targets": {
         "blixt-l1": {
@@ -905,7 +905,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.2",
+      "catalog_version": "1.3.0",
       "driver_id": "kstar",
       "targets": {
         "blixt-l1": {
@@ -1220,7 +1220,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.0",
+      "catalog_version": "1.3.0",
       "driver_id": "saj",
       "targets": {
         "blixt-l1": {
@@ -1346,7 +1346,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.3",
+      "catalog_version": "1.2.0",
       "driver_id": "sigenergy",
       "targets": {
         "blixt-l1": {
@@ -1367,7 +1367,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.2",
+      "catalog_version": "2.2.0",
       "driver_id": "sma",
       "targets": {
         "blixt-l1": {
@@ -1430,7 +1430,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.2",
+      "catalog_version": "2.2.0",
       "driver_id": "sofar",
       "targets": {
         "blixt-l1": {
@@ -1514,7 +1514,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.2",
+      "catalog_version": "1.2.0",
       "driver_id": "solax",
       "targets": {
         "blixt-l1": {
@@ -1535,7 +1535,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.2.0",
       "driver_id": "solinteg",
       "targets": {
         "blixt-l1": {
@@ -1556,7 +1556,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.1",
+      "catalog_version": "2.2.0",
       "driver_id": "solis",
       "targets": {
         "blixt-l1": {
@@ -1619,7 +1619,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.6.1",
+      "catalog_version": "1.7.0",
       "driver_id": "sungrow",
       "targets": {
         "blixt-l1": {
@@ -1787,7 +1787,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.2",
+      "catalog_version": "2.2.1",
       "driver_id": "victron",
       "targets": {
         "blixt-l1": {
@@ -1808,7 +1808,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.3",
+      "catalog_version": "1.2.1",
       "driver_id": "victron_mqtt",
       "targets": {
         "blixt-l1": {
@@ -1850,7 +1850,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "3.1.3",
+      "catalog_version": "3.2.0",
       "driver_id": "zap",
       "targets": {
         "blixt-l1": {

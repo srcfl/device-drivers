@@ -80,6 +80,10 @@ VALID_FIELDS = {
         # sonnenBatterie FullChargeCapacity; Ferroamp multi-ESO capability.
         "capacity_wh",
         "discharge_capable", "charge_capable",
+        # The device says it is not running, so it cannot follow an order:
+        # "standby" or "starting" (docs/WRITING-A-DRIVER.md, What a battery
+        # can do now).
+        "device_state",
     },
     "v2x_charger": {
         "w", "a", "v", "hz",

@@ -11,7 +11,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from manifest_parser import parse_yaml_simple, parse_tested_devices, parse_upstream_docs
+from manifest_parser import (mqtt_read_request_topic_error, parse_tested_devices,
+                             parse_upstream_docs, parse_yaml_simple)
 
 REQUIRED_FIELDS = ["name", "version", "tier", "protocol", "ders", "size_bytes",
                    "connectivity"]
@@ -125,6 +126,24 @@ def validate_manifest(yaml_path: Path, drivers_dir: Path) -> list[str]:
                         f"(expected: {', '.join(sorted(VALID_SETUP))})")
             if "none" in setup and len(setup) > 1:
                 errors.append("setup 'none' cannot be combined with another requirement")
+
+    # Validate mqtt_read_request_topics: the read requests a read-only MQTT
+    # driver may publish, such as Victron's R/+/keepalive. The signed channel
+    # grants mqtt.publish for exactly these topics.
+    if "mqtt_read_request_topics" in data:
+        topics = data["mqtt_read_request_topics"]
+        if not isinstance(topics, list) or not topics:
+            errors.append("mqtt_read_request_topics must be a non-empty list: "
+                          "omit the field, or list the topics")
+        else:
+            for topic in topics:
+                problem = mqtt_read_request_topic_error(topic)
+                if problem:
+                    errors.append(problem)
+        if protocol != "mqtt":
+            errors.append("mqtt_read_request_topics is only for an MQTT driver")
+        if data.get("control") is not False:
+            errors.append("mqtt_read_request_topics is only for a read-only driver (control: false)")
 
     # Validate size_bytes
     size = data.get("size_bytes", 0)

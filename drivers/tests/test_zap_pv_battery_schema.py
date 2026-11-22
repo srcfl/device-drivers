@@ -19,6 +19,10 @@ ROOT = Path(__file__).resolve().parents[2]
         "v2_null",
         "v2_null_soc",
         "v2_not_opted_in",
+        "v2_battery_only_temps",
+        "v2_temps_out_of_range",
+        "v2_temps_cold_limit",
+        "v2_null_temps",
     ],
 )
 def test_zap_pv_battery_schema(scenario):

@@ -40,6 +40,7 @@ FAST_READS = {
 SLOW_READS = {
     "input:12999", "input:13002", "input:5000", "input:5007", "input:5241",
     "input:13049", "input:13040", "input:13026", "input:13036", "input:13045",
+    "input:13024", "input:5634",
 }
 
 HEALTHY_HYBRID = '''

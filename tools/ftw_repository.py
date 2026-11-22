@@ -29,7 +29,14 @@ except ImportError as exc:  # pragma: no cover - exercised by CLI environments
         "ftw_repository.py requires the package extra: uv run --extra package ..."
     ) from exc
 
-from manifest_parser import parse_tested_devices, parse_yaml_simple
+from manifest_parser import (
+    MQTT_READ_REQUEST_NAMESPACE,
+    MQTT_READ_REQUEST_PAYLOAD_MAX_BYTES,
+    MQTT_READ_REQUEST_TOPIC_MAX_BYTES,
+    mqtt_read_request_topic_error,
+    parse_tested_devices,
+    parse_yaml_simple,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -430,6 +437,7 @@ def _ftw_artifact(
     read_only: bool,
     auth_post_paths: list[str] | None = None,
     preserve_controls: bool = False,
+    mqtt_read_request_topics: list[str] | None = None,
 ) -> bytes:
     """Add FTW metadata and the host-call polyfills older hosts lack.
 
@@ -453,6 +461,15 @@ def _ftw_artifact(
     a site pointing the driver at its own base URL. A web login posts more
     than one form, so a driver may declare several paths. The same rule holds
     for a POST through host.http_request.
+
+    `mqtt_read_request_topics` is for a read-only MQTT driver whose device
+    publishes only while a client asks, as Venus OS does for
+    R/<portal ID>/keepalive. The guard lets host.mqtt_publish through only to
+    a topic under R/, Venus's read-request namespace, that matches a declared
+    pattern level by level ("+" is one whole level), with at most 1 KiB of
+    payload, and raises for anything else. FTW
+    Core checks the same and also bounds the rate; the guard keeps an older
+    host to the topics.
     """
     protocols = metadata.get("protocols", [])
     capabilities = metadata.get("capabilities", [])
@@ -546,6 +563,55 @@ def _ftw_artifact(
                 "    end\n"
                 "end\n"
             )
+        # Only a driver that declares read requests gets this guard, so every
+        # other published artifact stays byte-identical.
+        mqtt_guard = (
+            "host.mqtt_pub = __sourceful_ftw_write_denied\n"
+            "host.mqtt_publish = __sourceful_ftw_write_denied\n"
+        )
+        if mqtt_read_request_topics:
+            mqtt_guard = (
+                "local __sourceful_ftw_mqtt_publish = host.mqtt_publish or host.mqtt_pub\n"
+                "local __sourceful_ftw_read_requests = "
+                f"{_lua_string_list(mqtt_read_request_topics)}\n"
+                "local function __sourceful_ftw_levels(topic)\n"
+                "    local levels = {}\n"
+                "    for level in string.gmatch(topic .. \"/\", \"([^/]*)/\") do\n"
+                "        levels[#levels + 1] = level\n"
+                "    end\n"
+                "    return levels\n"
+                "end\n"
+                "local function __sourceful_ftw_is_read_request(topic)\n"
+                "    if type(topic) ~= \"string\" or "
+                f"#topic > {MQTT_READ_REQUEST_TOPIC_MAX_BYTES} then return false end\n"
+                "    local got = __sourceful_ftw_levels(topic)\n"
+                f"    if got[1] ~= {_lua_string(MQTT_READ_REQUEST_NAMESPACE)} then return false end\n"
+                "    for _, pattern in ipairs(__sourceful_ftw_read_requests) do\n"
+                "        local want = __sourceful_ftw_levels(pattern)\n"
+                "        local match = #want == #got\n"
+                "        for i = 1, #want do\n"
+                "            local level = got[i]\n"
+                "            if not match then break end\n"
+                "            if not level:find(\"^[!-~]+$\") or level:find(\"[+#]\") then\n"
+                "                match = false\n"
+                "            elseif want[i] ~= \"+\" and want[i] ~= level then\n"
+                "                match = false\n"
+                "            end\n"
+                "        end\n"
+                "        if match then return true end\n"
+                "    end\n"
+                "    return false\n"
+                "end\n"
+                "host.mqtt_publish = function(topic, payload)\n"
+                "    if __sourceful_ftw_is_read_request(topic) and type(payload) == \"string\"\n"
+                f"            and #payload <= {MQTT_READ_REQUEST_PAYLOAD_MAX_BYTES} then\n"
+                "        return __sourceful_ftw_mqtt_publish(topic, payload)\n"
+                "    end\n"
+                "    error(\"this driver declares itself read-only: "
+                "MQTT publish is allowed only for a declared read request\")\n"
+                "end\n"
+                "host.mqtt_pub = host.mqtt_publish\n"
+            )
         write_guards = (
             "local function __sourceful_ftw_write_denied()\n"
             "    error(\"this driver declares itself read-only\")\n"
@@ -554,9 +620,8 @@ def _ftw_artifact(
             "host.modbus_write = __sourceful_ftw_write_denied\n"
             "host.modbus_write_multi = __sourceful_ftw_write_denied\n"
             "host.modbus_write_multiple = __sourceful_ftw_write_denied\n"
-            "host.mqtt_pub = __sourceful_ftw_write_denied\n"
-            "host.mqtt_publish = __sourceful_ftw_write_denied\n"
-            "host.serial_write = __sourceful_ftw_write_denied\n"
+            + mqtt_guard
+            + "host.serial_write = __sourceful_ftw_write_denied\n"
         )
     builtin_type_capture = (
         "local __sourceful_ftw_builtin_type = type\n" if preserve_controls else ""
@@ -745,6 +810,22 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
         # still an error -- that is a manifest someone forgot to fill in.
         if not isinstance(capabilities, list):
             raise RepositoryError(f"{driver_id}: catalog must declare its DERs, even if none")
+        # A read-only MQTT driver whose device reports only while a client asks
+        # (Venus OS and R/<portal ID>/keepalive). The catalog manifest names the
+        # topics; the generated guard and FTW Core hold publishes to exactly
+        # those -- see _ftw_artifact. A read request is not a write, so the
+        # driver gets no write permission for it: an FTW Core that does not
+        # know the field still runs the driver, read-only, as before.
+        read_request_topics = catalog.get("mqtt_read_request_topics", [])
+        if not isinstance(read_request_topics, list):
+            raise RepositoryError(f"{driver_id}: mqtt_read_request_topics must be a list")
+        for topic in read_request_topics:
+            problem = mqtt_read_request_topic_error(topic)
+            if problem:
+                raise RepositoryError(f"{driver_id}: {problem}")
+        if read_request_topics and protocol != "mqtt":
+            raise RepositoryError(
+                f"{driver_id}: mqtt_read_request_topics is only for an MQTT driver")
 
         if body is not None:
             metadata_id = _string_field(body, "id")
@@ -775,6 +856,10 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             if isinstance(model, str) and model and model not in tested_models:
                 tested_models.append(model)
         controls = driver_controls(source)
+        if read_request_topics and controls:
+            raise RepositoryError(
+                f"{driver_id}: mqtt_read_request_topics only means anything for a "
+                "read-only driver; one that controls already publishes")
         # The DRIVER block's verification claim reaches the artifact only
         # when it is one the review actually gated: a driver declaring
         # production or beta made a checkable statement that a reviewer
@@ -840,6 +925,8 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             metadata["auth_post_path"] = auth_post_path
         if extra_auth_paths and not controls:
             metadata["auth_post_paths"] = extra_auth_paths
+        if read_request_topics:
+            metadata["mqtt_read_request_topics"] = read_request_topics
 
         artifact = _ftw_artifact(
             raw,
@@ -847,6 +934,7 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             read_only=not controls,
             auth_post_paths=auth_post_paths if not controls else [],
             preserve_controls=controls and declares_controls,
+            mqtt_read_request_topics=read_request_topics,
         )
         if len(artifact) > MAX_DRIVER_BYTES:
             raise RepositoryError(f"{driver_id}: generated FTW artifact is too large")
@@ -962,6 +1050,20 @@ def _validate_manifest(manifest: dict[str, Any]) -> None:
         allowed_write = set()
         if metadata.get("auth_post_path") or metadata.get("auth_post_paths"):
             allowed_write = {"http.post"}
+        # Declared read requests grant no write permission: mqtt.publish stays
+        # refused below, so an FTW Core that does not know the field runs the
+        # driver read-only. The guard and a Core that knows the field confine
+        # publishes to these topics.
+        read_request_topics = metadata.get("mqtt_read_request_topics", [])
+        if not isinstance(read_request_topics, list):
+            raise RepositoryError(f"{driver_id}: mqtt_read_request_topics must be a list")
+        for topic in read_request_topics:
+            problem = mqtt_read_request_topic_error(topic)
+            if problem:
+                raise RepositoryError(f"{driver_id}: {problem}")
+        if read_request_topics and "mqtt.subscribe" not in permissions:
+            raise RepositoryError(
+                f"{driver_id}: declared MQTT read requests need mqtt.subscribe")
         if read_only and write_permissions.intersection(permissions) - allowed_write:
             raise RepositoryError(f"{driver_id}: read-only driver has a write-capable permission")
         if driver.get("channel") not in {"beta", "stable"}:

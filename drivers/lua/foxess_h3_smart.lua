@@ -148,7 +148,7 @@ DRIVER = {
   id = "foxess_h3_smart",
   name = "FoxESS H3-Smart / 1K5",
   manufacturer = "Fox ESS",
-  version = "0.9.6",
+  version = "0.10.0",
   host_api_min = 1,
   host_api_max = 2,
   protocols = { "modbus" },
@@ -197,6 +197,30 @@ local ENERGY_COUNT = 18
 -- BMS singles (the individual-read-only block).
 local SOC_ADDR      = 37612
 local BAT_TEMP_ADDR = 37611
+-- Highest and lowest cell temperature, i16 x 0.1 C, battery 1
+-- (foxess_modbus _bms_entities, H3_PRO_SET | H3_SMART). Not yet seen
+-- answering on the 1K5, and an unknown address here costs a timeout, so
+-- each is read on every sixth poll (CELL_TEMP_EVERY_POLLS). They have
+-- their own retry rather than `read`'s give-up, which lasts until restart:
+-- one comms outage would turn them off for good. After three misses in a
+-- row an address is asked again on every CELL_TEMP_RETRY_POLLS-th poll
+-- until it answers, one timeout per retry on a unit without them.
+local CELL_TEMP_EVERY_POLLS = 6
+local CELL_TEMP_RETRY_POLLS = 60
+local CELL_TEMPS = {
+  { addr = 37617, metric = "battery_cell_temp_max_c", misses = 0, wait = 0 },
+  { addr = 37618, metric = "battery_cell_temp_min_c", misses = 0, wait = 0 },
+}
+
+-- What the battery can do now (docs/WRITING-A-DRIVER.md).
+local TEMP_MIN_C, TEMP_MAX_C = -40, 100
+
+local function plausible_temp(c)
+  if c == nil or c < TEMP_MIN_C or c > TEMP_MAX_C then
+    return nil
+  end
+  return c
+end
 
 -- Remote control block (single-register writes only for enable/timeout;
 -- the setpoint is one multi-register write, high word at 46003).
@@ -573,6 +597,15 @@ function driver_poll()
   local pv     = read(PV_ADDR, PV_COUNT)
   local ct     = read(CT_ADDR, CT_COUNT)
   local energy = read(ENERGY_ADDR, ENERGY_COUNT)
+  -- The BMS charge ceiling (46018), read once per poll for the battery
+  -- emit and the foxess_bms_charge_limit_w metric below.
+  local bms_limit = read_battery_charge_limit_w()
+  -- Inverter heatsink temperature, from the status block.
+  local inverter_c = nil
+  if status then
+    inverter_c = plausible_temp(
+      host.decode_i16(reg(status, STATUS_ADDR, 39141)) * 0.1)
+  end
 
   -- ---- PV ----
   -- A string that reads all-zero V, A and W is not fitted; trailing
@@ -605,7 +638,7 @@ function driver_poll()
       pv_out.rated_w = rated_w
     end
     -- Inverter heatsink temperature rides the pv stream, sungrow-style.
-    pv_out.temp_c = host.decode_i16(reg(status, STATUS_ADDR, 39141)) * 0.1
+    pv_out.temp_c = inverter_c
     if energy then
       pv_out.total_generation_Wh = u32(energy, ENERGY_ADDR, 39601) * 10
     end
@@ -636,7 +669,20 @@ function driver_poll()
     end
     local bat_temp = read(BAT_TEMP_ADDR, 1)
     if bat_temp then
-      bat_out.temperature_C = host.decode_i16(bat_temp[1]) * 0.1
+      bat_out.temperature_C = plausible_temp(host.decode_i16(bat_temp[1]) * 0.1)
+    end
+    -- How much the battery takes now. foxess_modbus reads 46018 as the
+    -- most the battery accepts, BMS limits included, and this unit has
+    -- shown it moving with the BMS (see the CHARGE header). The contract
+    -- says 0 means "not allowed now", but here a 0 is left out, on
+    -- purpose. A pack that has sat idle reads 0 and still charges when
+    -- asked; sending that 0 would excuse a battery that could have
+    -- followed. The cost: a cold or full pack that truly refuses charge
+    -- also reads 0, the field is absent, and Core sees "unknown" rather
+    -- than "limited" (compare srcfl/ftw#1993, the refusal near full). No
+    -- discharge counterpart is documented for this map.
+    if bms_limit ~= nil and bms_limit > 0 then
+      bat_out.available_charge_W = bms_limit
     end
     -- Lifetime counters live in the energy block this poll already
     -- read; added only when it answered (a zero would read as a reset
@@ -646,6 +692,32 @@ function driver_poll()
       bat_out.total_discharge_Wh = u32(energy, ENERGY_ADDR, 39609) * 10
     end
     host.emit("battery", bat_out)
+    if bat_out.temperature_C ~= nil then
+      host.emit_metric("battery_temp_c", bat_out.temperature_C)
+    end
+    if bat_out.available_charge_W ~= nil then
+      host.emit_metric("battery_available_charge_w", bat_out.available_charge_W)
+    end
+  end
+
+  -- Cell temperature range, for history only.
+  for _, t in ipairs(CELL_TEMPS) do
+    if t.wait <= 0 then
+      local ok, regs = pcall(host.modbus_read, t.addr, 1, "holding")
+      if ok and regs and regs[1] ~= nil then
+        t.misses = 0
+        local c = plausible_temp(host.decode_i16(regs[1]) * 0.1)
+        if c ~= nil then host.emit_metric(t.metric, c) end
+      else
+        t.misses = t.misses + 1
+      end
+      if t.misses >= GIVE_UP_AFTER then
+        t.wait = CELL_TEMP_RETRY_POLLS
+      else
+        t.wait = CELL_TEMP_EVERY_POLLS
+      end
+    end
+    t.wait = t.wait - 1
   end
 
   -- ---- Meter ----
@@ -694,8 +766,9 @@ function driver_poll()
     end
     -- Diagnostics for the metric browser: the values this week's
     -- debugging kept needing and never had.
-    host.emit_metric("inverter_temp_c",
-      host.decode_i16(reg(status, STATUS_ADDR, 39141)) * 0.1)
+    if inverter_c ~= nil then
+      host.emit_metric("inverter_temp_c", inverter_c)
+    end
     host.emit_metric("foxess_inverter_state", reg(status, STATUS_ADDR, 39063) or -1)
   end
   host.emit_metric("foxess_rc_enabled", rc_enabled and 1 or 0)
@@ -705,8 +778,8 @@ function driver_poll()
   -- The BMS charge ceiling as a time series: the 2026-08-18/19 night of
   -- refused charging was undiagnosable precisely because this value
   -- was only ever read inside command paths. One extra register pair
-  -- per poll buys the ability to see the BMS's mood remotely.
-  local bms_limit = read_battery_charge_limit_w()
+  -- per poll buys the ability to see the BMS's mood remotely. Read at
+  -- the top of the poll, zeros included.
   if bms_limit ~= nil then
     host.emit_metric("foxess_bms_charge_limit_w", bms_limit)
   end

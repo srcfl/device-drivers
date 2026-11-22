@@ -10,6 +10,599 @@ power. A disconnect clears the power watermark. If the source clock moves
 back, advancing readings on the lower timeline can restore telemetry after
 30 seconds.
 
+### victron_mqtt 1.2.1
+
+The manifest declares `R/+/keepalive` in `mqtt_read_request_topics`, so the
+keep-alive 1.2.0 sends can reach a GX from the signed channel. Before, the
+channel's guard and FTW refused every publish from this read-only driver,
+and the GX went quiet 60 s after the last keep-alive from anyone.
+
+The channel's guard now lets the driver publish to that topic alone, with at
+most 1 KiB of payload, and an FTW Core with srcfl/ftw#2071 allows six such
+requests a minute. Every other publish is still refused. A read request is
+not a write, so the driver still holds only `mqtt.subscribe`. The Lua source
+is unchanged.
+
+A Core without srcfl/ftw#2071 runs this version as it runs 1.2.0: it refuses
+the keep-alive, the driver logs one warning and keeps reading, and the GX
+publishes only while another client keeps it awake. Not yet checked on a
+real GX.
+
+### alphaess 1.3.0, kstar 1.3.0
+
+Both drivers read the registers their vendor's own Modbus map gives
+(srcfl/device-drivers#257). Earlier releases read addresses no source
+supports, so their PV, battery and meter values were probably wrong. Each
+stream now goes out only when its read answered, never as zeros. Written
+from the sources in each manifest's `upstream_docs`. Not yet checked on
+hardware.
+
+- **alphaess 1.3.0** follows AlphaESS's parameter address table. Grid meter:
+  total power at 0x0021 (S32, positive when drawing from the grid), phase A
+  current at 0x0017, frequency at 0x001A. Battery: power at 0x0126, which
+  AlphaESS counts positive when discharging, so the driver negates it;
+  voltage at 0x0100 and SoC at 0x0102 (0.1 %). PV: the sum of the six string
+  powers at 0x041F-0x0433, with string 1 voltage and current. Earlier
+  releases read meter energy counters and voltages at 0x0010-0x0028 as PV,
+  battery and meter values. The grid phase voltage is no longer sent: the
+  sources disagree on its scale. 0x0111/0x0112 are still not used as live
+  BMS limits. The meter and PV strings 4 to 6 are read only once 0x074E
+  (Protocol Version, in the System info block V1.20 added) answers; firmware
+  on the 2020 map (V1.17, meter at 0x0000-0x0019) gets PV strings 1 to 3
+  and no meter.
+- **kstar 1.3.0** reads KSTAR's input registers (function 04H) from 3000, as
+  KSTAR's Hybrid Inverter Modbus V2.9.1 gives them for the KSE, BluE-S and
+  E-series three-phase models: PV at 3000-3025, battery voltage, power and
+  SoC at 3063-3066 (beside the temperatures it already read) and the grid
+  meter at 3097-3108. KSTAR gives no signs; following ha-solarman, the
+  meter power (positive when exporting) and the battery power (positive
+  when discharging) are negated. The model at 3045 says whether the S and
+  T phases exist; a code KSTAR's model table does not name sends no meter.
+  Earlier releases read holding registers 10-54, which no source has.
+
+In both drivers, battery voltage and SoC both 0 means no pack is connected,
+so the battery stream is left out rather than sent as an empty pack.
+Neither vendor map has a flag that says a grid meter is fitted, so with no
+meter both drivers send whatever the meter registers hold: 0 W there cannot
+be told from a balanced site.
+
+### fronius 2.3.0
+
+Battery power, voltage and SoC now come from the registers Fronius's GEN24
+and Verto storage maps give them (register map bundle 1.2.7-2, float maps).
+Not yet checked on hardware (srcfl/device-drivers#260).
+
+- **Where the battery is.** Earlier releases read model 124 at fixed
+  addresses that assume a model 160 with two inputs. With storage, Fronius's
+  model 160 has two more, for the battery, so those reads landed inside
+  model 160's battery blocks. The driver now reads model 160's header,
+  learns its length, and finds model 124 directly after it.
+- **Battery power** is the charge input's DC power minus the discharge
+  input's (the last two blocks of model 160, "StCha" and "StDisCha"),
+  positive when charging. Earlier releases took it from OutWRte and InWRte
+  times WChaMax, which are rate setpoints and a rating, not a measurement.
+- **Voltage** is the larger of the two inputs' DC voltage (before firmware
+  1.31 only the active input carries it), and is left out when both read 0.
+  **SoC** is model 124's ChaState with its scale factor.
+- **No storage, no battery.** Model 124 exists only with storage. Without it
+  the driver sends no battery, where earlier releases sent 0 W, 0 V and 0 %.
+- **Floats.** The float decoder works on the 16-bit halves. It joined the
+  words into one 32-bit number first, so on 32-bit Lua every float came out
+  negative (FTW and Blixt L1 use 64-bit integers and were not affected). NaN
+  and infinity are now left out instead of sent as 0.
+- **Failed reads are left out.** PV is sent only when DC power answered, and
+  each other PV field and metric only when its own read did. The MPPT values
+  come from one read of model 160, with the scale factors that go with them.
+  `fronius` leaves `invented-number-baseline.json` (10 to 0).
+- **PV power with storage** is the sum of the MPPT blocks before the
+  battery blocks, as evcc's GEN24 template reads it. Fronius's map does not
+  say whether model 113's DC power includes the battery input, so a 3 kW
+  discharge could have shown as 3 kW of sun. Model 113's DC power is used
+  only where there is no battery input.
+- **A battery fitted later is found.** While no storage model is known the
+  driver looks for it again every five minutes, and at once when model
+  160's length changes.
+- **Not changed.** In the int+SF setting model 160 starts at 40254; the
+  driver reads only the float maps, so it now sends no DC input or battery
+  values there rather than wrong ones.
+
+### ferroamp_modbus 2.2.2
+
+A float that answers NaN or infinity is now left out instead of sent as 0
+(docs/WRITING-A-DRIVER.md, "Never fabricate" and "Numbers"). The EnergyHub
+uses them for "not present", and the decoder turned them into 0, so a NaN
+grid power went out as a 0 W meter and a NaN SoC as an empty pack. The
+same rule now covers a reply that is missing a word, also on the battery
+reads, and a value that only becomes infinite after scaling, as float32's
+largest value times 1000 does where Lua numbers are 32-bit floats. The
+meter and PV readings still go out only with their power, and each
+per-phase watt figure only with that phase's voltage and current. A real
+0.0 is still a reading. Not yet checked on hardware.
+
+### growatt 2.2.2
+
+A failed read no longer becomes 0 (docs/WRITING-A-DRIVER.md, "Never
+fabricate"). Up to 2.2.1 every PV, battery and meter value started at 0, so a
+read that did not answer sent 0 W, 0 V or 0 % SoC. A 0 W meter looks like a
+site in balance, a 0 % SoC like an empty pack.
+
+- Each field comes only from a read that answered with every register asked
+  for; metrics likewise.
+- PV goes out only when its power (1-2) answers, and the meter only when its
+  power (1015-1016) answers. So a failed power read also drops that
+  stream's energy counter and its MPPT or phase values for that poll; the
+  phase values still reach history as metrics.
+- The battery follows "A hybrid inverter may have no battery": each field
+  only from a read that answered, and the stream when what answered shows a
+  battery. Its power needs both 1009 and 1011, since either alone is not the
+  net.
+
+This is the never-fabricate half of srcfl/device-drivers#263. Which
+registers the meter should read is srcfl/device-drivers#271 and is not
+changed here. growatt leaves `drivers/tests/invented-number-baseline.json`.
+Not yet checked on hardware.
+
+### victron 2.2.1, ferroamp_modbus 2.2.1
+
+A failed read no longer sends 0 on the meter and PV streams
+(docs/WRITING-A-DRIVER.md, "Never fabricate"). A 0 W meter reading looks
+like a site in balance. Each field now comes only from a register that
+answered, and each stream only from its power read. 2.2.0 did the same for
+the battery.
+
+- **victron 2.2.1** sends the meter reading only when the grid power read
+  (820-822) answers. PV is the sum of the AC-coupled (808-810) and
+  DC-coupled (850) parts that answered; with neither, there is no PV
+  reading. So a one-off failure of the AC-coupled read (808) while 850
+  answers sends a PV figure without the AC-coupled part until the next
+  poll. That is the cost of serving a GX that has only one of the two.
+- **ferroamp_modbus 2.2.1** sends the meter reading only when the grid
+  power (3100) answers, and the PV reading only when the solar power (5100)
+  answers. Frequency, voltages, currents and energy counters are left out
+  when their read fails; per-phase watts need both voltage and current. A
+  reply with fewer registers than asked for counts as failed, since the
+  missing word decoded as 0. Fields that did answer still go to history as
+  metrics.
+
+Both drivers leave `drivers/tests/invented-number-baseline.json`. Not yet
+checked on hardware.
+
+### victron_mqtt 1.2.0
+
+Venus OS publishes MQTT values only while some client sends a keep-alive to
+`R/<portal ID>/keepalive` (victronenergy/dbus-flashmq README). The driver
+sent none, so on a GX with no other MQTT client its values stopped after
+60 s. It now sends one itself.
+
+- The driver learns the portal ID from the topics it receives.
+  dbus-flashmq publishes `N/<portal ID>/system/0/Serial` retained, so it
+  arrives as soon as the driver subscribes. When that topic names another
+  portal ID, the driver follows the new GX, forgets the old one's values and
+  asks the new one for all of them.
+- A keep-alive goes out every 30 s, the interval in Victron's example, also
+  on polls that bring no messages. Victron suggests the
+  `suppress-republish` option on the timer; the driver uses it, and sends an
+  empty payload, which asks for a full republish, at first, when the GX
+  speaks again after 60 s of silence, and every 120 s.
+- A full republish resends every value the GX has and ends with
+  `N/<portal ID>/full_publish_completed`. The system's SoC, voltage,
+  current and battery temperature are now left out once a full republish
+  has not resent them, so a value whose device left while the driver was
+  not listening no longer stays forever. A value counts as resent when it
+  arrived within two polls or 5 s before the completion, so a republish
+  that straddles a poll on a host polling every 5 s or slower is not
+  misread. Without a completed full republish they behave as before.
+- FTW refuses `host.mqtt_publish` from a driver it runs read-only, which is
+  how it runs a `control: false` driver installed from the signed channel.
+  The driver then logs one warning, keeps reading, and tries again every
+  30 s; the GX publishes only while another client keeps it awake, as
+  before.
+
+Not yet checked on a real GX.
+
+### victron_mqtt 1.1.1
+
+Battery power had the wrong sign: a charging battery showed as discharging
+and the reverse. Victron's D-Bus documentation gives battery power as
+"positive when charged, negative when discharged", and dbus-systemcalc-py
+copies that value into `system/0/Dc/Battery/Power`, the topic this driver
+reads. That is already the site convention, but the driver negated it. It
+now passes it through, as `victron` does with the same value at Modbus
+register 842. Battery current was already passed through unchanged. The
+driver is read-only, so no command went the wrong way.
+
+Not yet measured on a real GX. An owner can check it: while the battery
+charges and its SoC rises, the battery `W` in FTW should be positive; while
+it discharges, negative.
+
+### growatt 2.2.1
+
+`battery.w` had the wrong sign: a charging battery showed as discharging and
+the reverse. Growatt's Modbus RTU Protocol II V1.39 puts discharge power
+(Pdischarge1) at 1009-1010 and charge power (Pcharge1) at 1011-1012, and
+Growatt-Local-Modbus maps them the same way. The driver read them the other
+way round. It now reads them as the protocol says, so charge is positive.
+The driver is read-only, so no command went the wrong way. Not yet checked
+on hardware: on a Growatt, `battery.w` should be positive while the SoC
+rises.
+
+### goodwe 2.3.0
+
+The driver now reads PV, battery and meter values from the registers in
+GoodWe's own map, "Modbus Protocol Hybrid for Energy Storage Inverters"
+(2 February 2024). evcc's goodwe-hybrid template and the goodwe library read
+the same registers and give the signs (srcfl/device-drivers#264). Not yet
+checked on hardware.
+
+- **Battery.** Power is the S32 at 35182-35183, voltage 35180, current
+  35181, SoC 37007 from the BMS block. GoodWe counts discharge as positive,
+  so the driver turns power and current round. Earlier releases read power
+  from 35180 (the battery voltage), voltage and current from 35178/35179
+  (the BUS and NBUS voltages) and SoC from 35182. SoC is sent only while
+  the BMS talks to the inverter (37011), like the other BMS figures. When
+  35184 says there is no battery, no battery stream goes out.
+- **PV.** Power is the sum of the four MPPT powers (U32 W at 35105, 35109,
+  35113, 35117). Earlier releases read PV1 power alone and scaled it by 0.1.
+  PV2 voltage and current are 35107/35108, not 35109/35110. Grid frequency
+  is 35123, not 35113 (PV3 power).
+- **Meter.** The meter comes from the meter block: total power 36025, power
+  per phase 36019/36021/36023 (S32), frequency 36014, energy sold and bought
+  36015/36017 (float32 Wh), and voltage and current per phase 36052-36057.
+  GoodWe counts export as positive; the driver turns it round. Earlier
+  releases read the inverter's own phase registers at 35121-35141 and the
+  energy counters at 35195/35199, which are inverter counters at best and,
+  for 35199, a daily value. No meter is sent while 36004 says the inverter
+  does not hear its meter.
+- **Never fabricate.** A read that fails is left out, never sent as 0. The
+  driver is clean in `invented-number-baseline.json` (was 23 fields).
+- **Old firmware.** GoodWe's map puts meter power at 36019-36041 only
+  above ARM firmware version 9 (35019, read once), and at 36005-36008
+  before that. No source gives the sign of the old registers, so on ARM 9
+  or older, or while the version is unknown, no meter is sent rather than
+  a 0 W one.
+- **No-value sentinels.** A PV power or PV energy of 0xFFFFFFFF (as evcc
+  reads them) is left out, and an MPPT without a value adds nothing to PV
+  power. A SoC above 100 % (0xFFFF) is left out.
+- **Tests.** `test_goodwe_map.py` encodes the map. The four Lua files under
+  `drivers/tests/lua_harness/` for the `community-v1` and `gw8kn-et-hk3000`
+  profiles are removed: no test ran them, and the driver lost those
+  profiles in #27. So is the `THIRD_PARTY_NOTICES.md` entry for the
+  `gw8kn-et-hk3000` profile, since no file derives from it any more.
+
+### goodwe 2.2.0, solis 2.2.0, sofar 2.2.0, solax 1.2.0, saj 1.3.0, growatt 2.2.0, solinteg 1.2.0
+
+These drivers report what the battery can do now, where the device says so
+(docs/WRITING-A-DRIVER.md, "What a battery can do now"). A limit in amps
+becomes `available_charge_W` or `available_discharge_W` only with a battery
+voltage from the same poll. A temperature outside -40 to 100 °C or a power
+outside 0 to 100 kW is dropped. A read that fails is left out, never sent as
+0. Temperatures and limits also go to history as metrics. Written from the
+sources in each manifest's `upstream_docs`. Not yet checked on hardware.
+
+- **goodwe 2.2.0** reads GoodWe's BMS block (37000-37023) while 35184 says a
+  battery is connected, and uses it only while 37011 names a BMS protocol
+  (not 0 or 0x11F, "no direct communication"): pack temperature (37003), the
+  BMS's charge and discharge current limits (37004, 37005) and the cell
+  temperature extremes.
+  The limits are multiplied by the battery 1 voltage at 35180. The heat sink
+  temperature (35176) goes to `inverter_temp_c`. Earlier releases sent
+  register 35183 as the battery temperature, and 0 °C when it failed; in
+  GoodWe's map 35183 is the low word of battery power. GoodWe's map also
+  disagrees with the driver's other battery, PV and meter reads (35178 is the
+  BUS voltage, for example; srcfl/device-drivers#264). This release leaves
+  those reads as they were.
+- **solis 2.2.0** reports the BMS charge and discharge current limits (33143,
+  33144, "From BMS" in Solis's map) times the battery voltage at 33133, only
+  while the battery model (33160) names a battery maker, not "no battery",
+  "User define", lead-acid or a generic battery. 33096 is Solis's lead-acid
+  battery probe, not a BMS value, and reads 200.2 °C when no probe is
+  fitted; that value is now dropped. The battery and inverter temperatures
+  are no longer sent as 0 when their reads fail.
+- **sofar 2.2.0** sends the battery temperature (0x0607) only when it
+  answered and the pack reports a voltage, and the heat sink temperature
+  (0x041A) as `inverter_temp_c`. Sofar's map has no live BMS limit, so the
+  driver sends no `available_*` figures.
+- **solax 1.2.0** reports the BMS charge and discharge max current (0x0024,
+  0x0025, "real time" in SolaX's V3.28 map) times the battery voltage at
+  0x0014, and the radiator temperature (0x0008) as `inverter_temp_c`. The
+  battery temperature (0x0018) is whole degrees: earlier releases scaled it
+  by 0.1, so 25 °C showed as 2.5 °C.
+- **saj 1.3.0** reports the current limits at 0xA036 (discharge) and 0xA037
+  (charge) in the BMS block, times the battery 1 voltage. The community map
+  names them but does not say they are live; that is unconfirmed. The heat
+  sink temperature (0x4010) goes to `inverter_temp_c`.
+- **growatt 2.2.0** reports the BMS's max and min cell temperature (1114,
+  1115) and the inverter temperature (93). Growatt's one BMS current figure
+  (1090) covers both directions and has no documented unit, so the driver
+  sends no `available_*` figures. Growatt's protocol puts discharge power at
+  1009 and charge power at 1011, the other way round from this driver, so
+  `battery.w` has the wrong sign. This release does not change that.
+- **solinteg 1.2.0** reports the max and min cell temperature (33009, 33011)
+  and sends the inverter temperature (11032) as `inverter_temp_c`. The pack
+  temperature needs a pack voltage in the same poll. No source settles where
+  a live charge or discharge limit is, so the driver sends no `available_*`
+  figures.
+
+### huawei 2.2.0
+
+The battery says what it may charge and discharge at now. The driver reads
+37046 and 37048, "[Energy storage] Maximum charge/discharge power" (U32, W),
+and sends them as `available_charge_W` and `available_discharge_W`, with the
+history metrics `battery_available_charge_w` and
+`battery_available_discharge_w`. Huawei defines each as the smaller of the
+inverter's and the battery's capability and keeps the rated power apart
+(37007/37009). These values are not shown to be live on hardware: Huawei
+does not say they follow the BMS, and no one has seen them move. If a site
+shows them flat while the battery is held back, they are a rating.
+
+The battery's temperature and limits are read only once energy storage
+unit 1 reports a rated charge or discharge power above 0 (37007/37009). A
+SUN2000 with no LUNA2000 may answer the battery registers with 0, and 0 W
+would read as "may not charge now". Only unit 1 is read, as for power and
+SoC; a second unit is not.
+
+The battery temperature (37022) and the inverter temperature (32087) are
+left out when the read fails, or when the value is outside -40 to 100 °C.
+Earlier releases sent 0 °C, which looks like a cold battery. Per-pack
+temperatures (38452 to 38463) are documented but not read, since Huawei does
+not say what an empty pack slot answers. Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### sma 2.2.0
+
+The battery temperature (30849) and the inverter temperature (30953) are
+left out when the read fails, when SMA answers NaN, or when the value is
+outside -40 to 100 °C. Earlier releases sent 0 °C. SMA documents no live
+charge or discharge limit for these devices: 40189/40191 sit with the
+device's ratings, so nothing is sent as `available_*`. Not yet checked on
+hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### fronius 2.2.0
+
+The inverter temperature comes from TmpCab, the cabinet temperature at
+address 40109. Earlier releases read 40111, which is TmpSnk; Fronius marks
+it "not supported" on GEN24, Tauro and Verto, so it answered NaN and the
+driver sent 0 °C. A failed read, NaN or a value outside -40 to 100 °C is now
+left out of `temp_c` and `inverter_temp_c`. Fronius documents no battery
+temperature and no live charge or discharge limit over Modbus, so none is
+sent. Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### kostal 2.2.0
+
+The battery reports its temperature and what it may charge and discharge at
+now, from KOSTAL's own registers: `temperature_C` from 0xD6 (214), and
+`available_charge_W` / `available_discharge_W` from 0x434/0x436
+(1076/1078), "Maximum charge/discharge power limit (read-out from battery)".
+Each is a Float in the word order KOSTAL's byte-order register (0x05)
+reports. The values are read only once that register has answered and the
+battery type (0x24C) shows a battery, and each also goes to history
+(`battery_temp_c`, `battery_available_charge_w`,
+`battery_available_discharge_w`). The inverter temperature is left out when
+its value or scale factor does not answer, instead of being sent as 0 °C.
+Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### sigenergy 1.2.0
+
+The battery reports what the plant may charge and discharge at now, from
+30047 and 30049, "[ESS] Available max charging/discharging power" (Sigenergy
+Modbus Protocol V2.9), and its average cell temperature from 30286, as
+`available_charge_W`, `available_discharge_W` and `temperature_C`, with the
+matching history metrics. They are read only when the ESS answered that
+poll, so a PV-only plant is not asked. 30286 is new in V2.9; older firmware
+that does not answer it is left alone after three tries. Not yet checked on
+hardware.
+
+### 50-125k-svk 0.2.5, 50-125k-svk-slew 0.1.14
+
+With control on, a failed battery-power read (34755) made the self-heal
+check raise: `math.abs(nil)` in 50-125k-svk and `nil - committed` in the
+slew driver. The whole poll failed, so one missed read cost all telemetry
+for that poll. The check now skips a poll with no battery reading and
+starts its count of disagreeing polls again. With a reading, the self-heal
+works as before. 50-125k-svk-ac-slew already checked its AC reading and is
+unchanged. Not yet checked on hardware.
+
+### deye 2.2.0, foxess_h3_smart 0.10.0, alphaess 1.2.0, kstar 1.2.0
+
+These drivers now report what the battery can do now, so Core can tell a
+battery held back by its BMS from one that is out of control. See "What a
+battery can do now" in `docs/WRITING-A-DRIVER.md` (#250). A value that fails to
+read, or falls outside -40 to 100 °C or 0 to 100 kW, is left out. None of
+this is checked on hardware yet.
+
+- **deye**: on three-phase hybrids (device type 0x0005, 0x0500 or 0x0006)
+  whose battery runs on its BMS (register 111 = 1), the BMS charge and
+  discharge current limits (212, 213) go out as `available_charge_W` and
+  `available_discharge_W`, at the battery voltage read in the same poll.
+  The heatsink temperature (541) now takes off Deye's offset of 1000;
+  earlier releases reported it 100 °C too high. A failed battery or
+  heatsink temperature read is left out; earlier releases sent 0 °C.
+- **foxess_h3_smart**: register 46018 goes out as `available_charge_W` when
+  it reads above 0. A 0 is left out, since this unit reads 0 while an idle
+  pack still charges when asked. No discharge limit is documented for this
+  map. The cell temperature range (37617, 37618) goes to history every
+  sixth poll.
+- **alphaess**: the lowest and highest cell temperature (0x010D, 0x0110) go
+  to history. Two open maps place the battery and grid meter elsewhere than
+  the driver's other reads assume; that needs its own check.
+- **kstar**: the battery temperature (input 3067) goes out as
+  `temperature_C`, and the inverter radiator temperature (input 3055) to
+  history. As for alphaess, KSTAR's own map does not match the driver's
+  other reads.
+
+### sungrow 1.7.0
+
+The battery now says what it can do now, so FTW Core can tell a device
+limit from lost control (docs/WRITING-A-DRIVER.md, "What a battery can do
+now"). On one SH-RT with an SBR096 pack, forced discharge stayed at 21.6 to
+23.1 A DC whatever the order, and 14 times in 30 days the inverter went to
+standby and then startup for 2 to 9 minutes while an order stood.
+
+- `temperature_C`: the pack temperature, documented register 13025 (host
+  13024), S16 × 0.1 °C.
+- `available_charge_W` and `available_discharge_W`: the BMS's max charge and
+  discharge current, documented 5635 and 5636 (host 5634 and 5635), times the
+  battery voltage read in the same poll. Whether 5635 and 5636 follow the
+  BMS live is unconfirmed on hardware: Sungrow does not say whether they
+  move with temperature and charge level.
+- `device_state`: `"standby"` or `"starting"` while the running state
+  (documented 13000) says so. The values come from Appendix 2 of Sungrow's
+  protocol V1.1.9 and are matched whole, not as bits. The owner's box
+  confirms the low codes: in all 14 episodes the state went 0x0800 (forced
+  mode), 0x0008, 0x0020, 0x0800, and 0x0010 showed in 3 of them.
+
+The same values go to `battery_temp_c`, `battery_charge_limit_a`,
+`battery_discharge_limit_a`, `battery_available_charge_w` and
+`battery_available_discharge_w`. Two reads join the full poll every five
+seconds; fast polls carry the last values only while the battery read
+succeeds. A failed read leaves its field out. A temperature outside -40 to
+100 °C, a current above 1000 A and a power above 100 kW are dropped, which
+also drops Sungrow's "not available" values. No `available_import_W`:
+Sungrow's protocol has no register for it. No control, write or command
+changed. Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### victron_mqtt 1.1.0
+
+The driver reports what the battery's BMS allows now, so FTW can tell a
+battery at its limit from one out of control.
+
+- `available_charge_W` and `available_discharge_W` are the BMS's charge and
+  discharge current limits (CCL and DCL, `/Info/MaxChargeCurrent` and
+  `/Info/MaxDischargeCurrent` on the battery service) times the voltage the
+  same BMS reports. A DCL of 0 sends 0 W: the BMS allows no discharge now.
+  Without that voltage the watts are left out.
+- With more than one battery service, the driver uses the BMS the GX names in
+  `system/0/ActiveBmsInstance`. Until the GX names one, it uses the only
+  service that sent a limit, and none when two or more did.
+- New metrics: `battery_temp_c`, `battery_charge_limit_a`,
+  `battery_discharge_limit_a`, `battery_available_charge_w`,
+  `battery_available_discharge_w`, `battery_cell_temp_min_c` and
+  `battery_cell_temp_max_c`.
+- SoC, voltage, current and temperature stay out until the GX sends them.
+  They used to start at 0, so a GX that sent only power showed an empty pack
+  at 0 °C. A `{"value": null}` or an empty payload now clears a value instead
+  of keeping the last one.
+- A temperature outside -40 to 100 °C and a limit outside 0 to 100 kW are
+  dropped.
+- Venus sends a value only when it changes, so a quiet topic is not a stale
+  one. The watts need the BMS's voltage from the last 60 s. The BMS's limits
+  and cell temperatures count only while that BMS has sent something in the
+  last 60 s. When nothing at all arrives for 60 s, the driver forgets every
+  battery value, since a null sent meanwhile is lost. A tighter bound per
+  value would need a keep-alive that asks for a full republish; the driver
+  sends none.
+
+Victron says some BMS makes send fixed limits and others dynamic ones, and
+does not say how often they change. Not yet checked on hardware.
+
+### victron 2.2.0
+
+Register 844 on the GX system service is the battery state (0 idle,
+1 charging, 2 discharging), not a temperature. The driver read it as 0.1 °C
+and reported a battery at 0.0 to 0.2 °C. It now reports no battery
+temperature, because the system service has none. A battery read that fails
+now sends no battery reading and no battery metrics, where it sent 0 V, 0 A,
+0 W and 0 % SoC.
+
+The BMS's own current limits and cell temperatures are on the battery
+service, which the GX serves on another unit ID. This driver reads one unit
+ID and the host cannot read a second, so it cannot report them;
+`victron_mqtt` does. Not yet checked on hardware.
+
+### ferroamp_modbus 2.2.0
+
+A battery register that does not answer now leaves its field out instead of
+sending 0. The driver sends whatever answered, and no battery reading when
+nothing did. Ferroamp's
+Modbus map (Revision D) has no battery temperature and no live limit, so the
+driver reports nothing new.
+
+The float decoder now works on 16-bit halves. On a host with 32-bit Lua
+integers it decoded every float wrong; FTW and Blixt L1 were not affected.
+Not yet checked on hardware.
+
+### zap 3.2.0
+
+- The battery temperature now comes only from the battery's `temperature_C`
+  in Zap data model 2.7.0, which the Zap firmware defines as the cell or pack
+  temperature. Older firmware sent `heatsink_C` instead. That held the
+  battery's temperature on some profiles but Pixii's cabinet and Ferroamp's
+  converter temperature on others, so the driver no longer reports it as the
+  battery's.
+- New metric `inverter_temp_c` from the inverter DER's `temperature_C`.
+- A temperature outside -40 to 100 °C is dropped.
+- Zap's battery `upper_limit_W` and `lower_limit_W` are not reported as
+  available power: the Zap works them out from ratings, PV output and the SoC
+  window.
+
+Not yet checked on hardware.
+
+### 50-125k-svk 0.3.0, 50-125k-svk-slew 0.2.0, 50-125k-svk-ac-slew 0.3.0
+
+The three Solis 50-125 kW drivers stop resending old limits and send them
+to history, so Core can tell a device limit from lost control.
+
+- `available_charge_W` and `available_discharge_W` on `battery`, and
+  `available_import_W` and `available_export_W` on `inverter`, keep their
+  source: the parallel-system figure (25012-25019) first, then this unit's
+  (25004-25011), read about every 60 s as before. A value is held until the
+  next read. A read that fails now clears it; earlier versions sent the last
+  values again for as long as the block stayed silent.
+- A power above 1000 kW, such as the 0xFFFFFFFF not-present value, is left
+  out. 0 W is kept: it means the device does not allow that direction now.
+- `temperature_C` on `battery`: the middle of the lowest and highest cell
+  temperature (34350/34351, 0.1 °C), read on the same poll as the limits.
+  That is two small reads a minute more on the bus.
+- Metrics `battery_available_charge_w`, `battery_available_discharge_w`,
+  `battery_temp_c`, `battery_cell_temp_min_c`, `battery_cell_temp_max_c`
+  and `inverter_temp_c` (33093) on each read.
+- A temperature outside -40 to 100 °C (inverter: -40 to 150 °C) is left
+  out, and so is a failed temperature read.
+- A SoC that did not answer is left out instead of sent as 0 %, and so is
+  the energy headroom without a SoC or a configured capacity.
+
+This unit's own registers exist and would match `battery.W` more closely,
+but switching to them is a decision for the Solis site owners. The
+temperature addresses come from the full Blixt Solis driver, which cites
+Solis documents we could not read. The vendor's notes do not say outright
+that 25004-25019 are live limits. Control, slew and writes are unchanged.
+Not yet checked on hardware.
+
+### konja-261-svk 0.4.0
+
+The driver reports what the battery can do now from the BMS and PCS blocks
+it already reads, with no new reads.
+
+- `temperature_C`, `available_charge_W` and `available_discharge_W` come from
+  this poll's BMS block. A failed BMS read now leaves them out; earlier
+  versions sent the last limits again.
+- Metrics `battery_temp_c`, `battery_available_charge_w`,
+  `battery_available_discharge_w` and `inverter_temp_c` (PCS IGBT, 8059),
+  once every 10 s rather than at the 20 Hz poll.
+- A battery temperature outside -40 to 100 °C, an IGBT temperature outside
+  -40 to 150 °C or a power above 1000 kW is left out.
+- Battery `W` is left out when the PCS did not answer, instead of 0 W. A SoC
+  that never answered is left out instead of 0 %, and so is the energy
+  headroom without a SoC or a configured capacity.
+
+The workbook rows quoted in the driver do not say outright that the BMS
+powers (2758-2761) are live. Control, slew and writes are unchanged. Not yet
+checked on hardware.
+
 ### hardybarth 1.1.1
 
 A Salia station FTW left on now stops when the car leaves, as eCB1 already
