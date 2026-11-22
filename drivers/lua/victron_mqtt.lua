@@ -3,6 +3,7 @@
 -- Subscribes to N/+/system/0/... topics on the Venus OS MQTT broker, and to
 -- the BMS's own limits on N/+/battery/+/...
 -- Values come as JSON: {"value": 123.4}
+-- Sends the Venus keep-alive on R/<portal ID>/keepalive, see "Keep-alive".
 --
 -- Topic format and payload rules: victronenergy/dbus-flashmq README.
 --   N/<portal ID>/<service type>/<device instance>/<D-Bus path>
@@ -33,6 +34,8 @@ local bat_soc = nil
 local bat_v = nil
 local bat_a = nil
 local bat_temp = nil
+-- host.millis() of the last valid message for each of the values above.
+local bat_soc_ms, bat_v_ms, bat_a_ms, bat_temp_ms = nil, nil, nil, nil
 
 -- What the battery's BMS says it allows now, per battery service.
 --
@@ -53,10 +56,9 @@ local bat_temp = nil
 -- is known, it uses the only service that sent a limit, and none when more
 -- than one did.
 --
--- This driver sends no keep-alive (R/<portal ID>/keepalive). Venus OS
--- publishes only while some client keeps it alive, and a value that seldom
--- changes, such as a fixed CCL or ActiveBmsInstance, arrives only when a
--- keep-alive asks for a full republish. Until then the limit is left out.
+-- A value that seldom changes, such as a fixed CCL or ActiveBmsInstance,
+-- arrives only in a full republish (see "Keep-alive" below). Until then the
+-- limit is left out.
 --
 -- How old a value may be. Venus sends a value when it changes and never
 -- repeats it on its own, so a quiet topic is not a stale one: a fixed CCL or
@@ -74,12 +76,51 @@ local bat_temp = nil
 --     every battery value: Venus stops publishing 60 s after the last
 --     keep-alive (dbus-flashmq README), and a null sent while the driver was
 --     not listening is lost.
--- A tighter bound per value, for SoC and temperature too, would need the
--- driver to ask for a full republish with a keep-alive every 30 s or so.
--- It sends none today.
+--   * The system's SoC, voltage, current and temperature count until a
+--     full republish leaves them out. A full republish resends every value
+--     the GX has and ends with N/<portal ID>/full_publish_completed, so a
+--     value older than that last message was not in it: the GX no longer
+--     has it. Until a full republish has completed, for example when the
+--     host refuses to send the keep-alive, they stay until a null, an empty
+--     payload or a silent link clears them.
 local BMS_MAX_AGE_MS = 60000
 local LINK_SILENT_MS = 60000
 local last_message_ms = nil   -- host.millis() of the latest message batch
+
+-- Keep-alive (victronenergy/dbus-flashmq README, "Keep-alive").
+--
+-- Venus OS publishes value changes only while some client has sent a
+-- read request to R/<portal ID>/keepalive in the last 60 s. The README
+-- sends one every 30 s. An empty payload asks for a full republish of every
+-- topic, ending with N/<portal ID>/full_publish_completed; the option
+-- {"keepalive-options": ["suppress-republish"]} keeps the GX awake without
+-- one. Victron suggests the second on the timer and the first when the
+-- program needs fresh values. This driver asks for a full republish when it
+-- first learns the portal ID, when the GX speaks again after a silent link,
+-- and every REPUBLISH_MS,
+-- so values that seldom change are seen again and an old one can be told
+-- from a current one.
+--
+-- The portal ID is the second part of every N/ topic. dbus-flashmq
+-- publishes N/<portal ID>/system/0/Serial retained (Item::should_be_retained
+-- in its source), so a client that subscribes to it learns the ID at once,
+-- before any keep-alive.
+--
+-- host.mqtt_publish returns nothing on FTW when it sends and an error text
+-- when it refuses, for example for a driver FTW runs read-only. Then the GX
+-- publishes only while another client keeps it awake, as before 1.2.0, and
+-- the driver tries again on the next keep-alive.
+local KEEPALIVE_MS = 30000
+local REPUBLISH_MS = 120000
+-- A full republish can span a few polls before its last message arrives.
+local REPUBLISH_SLACK_MS = 5000
+local SUPPRESS_REPUBLISH = '{"keepalive-options": ["suppress-republish"]}'
+local portal_id = nil
+local last_keepalive_ms = nil     -- last keep-alive the driver tried
+local last_republish_ms = nil     -- last full republish the host sent
+local republish_due = true        -- ask for every value on the next one
+local keepalive_refused = false   -- host refused the last keep-alive
+local last_full_publish_ms = nil  -- latest full_publish_completed seen
 local BMS_TOPIC = "^N/[^/]+/battery/(%d+)/(.+)$"
 local BMS_PATHS = {
     ["Info/MaxChargeCurrent"]      = "charge_a",
@@ -167,13 +208,62 @@ local function selected_bms(now)
     return only
 end
 
+-- A system battery value, or nil once a full republish has left it out.
+local function current(value, at_ms)
+    if value == nil or last_full_publish_ms == nil then return value end
+    if at_ms == nil or at_ms < last_full_publish_ms - REPUBLISH_SLACK_MS then
+        return nil
+    end
+    return value
+end
+
 local function forget_battery_values()
     bat_soc = nil
     bat_v = nil
     bat_a = nil
     bat_temp = nil
+    bat_soc_ms, bat_v_ms, bat_a_ms, bat_temp_ms = nil, nil, nil, nil
     bms = {}
     active_bms = nil
+    last_full_publish_ms = nil
+end
+
+-- FTW returns nothing when it sends and an error text when it refuses; a
+-- host or mock that returns true has sent it too.
+local function publish(topic, payload)
+    local ok, result = pcall(host.mqtt_publish, topic, payload)
+    if not ok then return false, tostring(result) end
+    if result == nil or result == true then return true end
+    return false, tostring(result)
+end
+
+local function keep_alive(now)
+    if portal_id == nil then return end
+    -- When the GX speaks after a silent link, ask at once; a refused one
+    -- waits its turn.
+    local due = last_keepalive_ms == nil or now - last_keepalive_ms >= KEEPALIVE_MS
+        or (republish_due and not keepalive_refused)
+    if not due then return end
+    local full = republish_due or last_republish_ms == nil
+        or now - last_republish_ms >= REPUBLISH_MS
+    last_keepalive_ms = now
+    local sent, err = publish("R/" .. portal_id .. "/keepalive",
+                              full and "" or SUPPRESS_REPUBLISH)
+    if sent then
+        if full then
+            last_republish_ms = now
+            republish_due = false
+        end
+        if keepalive_refused then
+            host.log("info", "Victron MQTT: the host sends the keep-alive again")
+            keepalive_refused = false
+        end
+    elseif not keepalive_refused then
+        host.log("warn", "Victron MQTT: the host refused the keep-alive (" ..
+            tostring(err) .. "); the GX publishes only while another client " ..
+            "keeps it awake")
+        keepalive_refused = true
+    end
 end
 
 ----------------------------------------------------------------------------
@@ -182,6 +272,11 @@ end
 
 function driver_init(config)
     host.set_make("Victron")
+
+    -- The portal ID (retained, so it arrives before any keep-alive) and the
+    -- end of a full republish
+    host.mqtt_subscribe("N/+/system/0/Serial")
+    host.mqtt_subscribe("N/+/full_publish_completed")
 
     -- Grid power per phase
     host.mqtt_subscribe("N/+/system/0/Ac/Grid/L1/Power")
@@ -222,7 +317,12 @@ function driver_poll()
         last_message_ms = nil
     end
 
-    if not messages or #messages == 0 then return 1000 end
+    if not messages or #messages == 0 then
+        keep_alive(now)
+        return 1000
+    end
+    -- The first word after a silent link: ask for every value again.
+    if last_message_ms == nil then republish_due = true end
     last_message_ms = now
 
     local fresh_pv = false
@@ -237,7 +337,13 @@ function driver_poll()
         local val = parse_value(msg.payload)
         local instance, path = string.match(topic, BMS_TOPIC)
 
-        if instance then
+        if portal_id == nil then
+            portal_id = string.match(topic, "^N/([^/]+)/")
+        end
+
+        if topic_ends_with(topic, "/full_publish_completed") then
+            last_full_publish_ms = now
+        elseif instance then
             local field = BMS_PATHS[path]
             if field then
                 instance = tonumber(instance)
@@ -255,15 +361,15 @@ function driver_poll()
         -- Battery values that ride along with battery power. A null or an
         -- empty payload clears them.
         elseif topic_ends_with(topic, "Dc/Battery/Soc") then
-            bat_soc = val
+            bat_soc, bat_soc_ms = val, now
         elseif topic_ends_with(topic, "Dc/Battery/Voltage") then
-            bat_v = val
+            bat_v, bat_v_ms = val, now
         elseif topic_ends_with(topic, "Dc/Battery/Current") then
-            bat_a = val
+            bat_a, bat_a_ms = val, now
         elseif topic_ends_with(topic, "Dc/Battery/Temperature") then
             -- The system's battery temperature: the battery monitor's or
             -- BMS's sensor, not an inverter heatsink.
-            bat_temp = val
+            bat_temp, bat_temp_ms = val, now
 
         elseif val then
             -- Grid power
@@ -301,6 +407,8 @@ function driver_poll()
         end
     end
 
+    keep_alive(now)
+
     -- Emit PV telemetry
     -- Total PV = AC PV (all phases) + DC PV, negate for generation convention
     local pv_ac_total = pv_ac_l1_w + pv_ac_l2_w + pv_ac_l3_w
@@ -321,11 +429,14 @@ function driver_poll()
     -- negated it (srcfl/device-drivers#255).
     if fresh_battery then
         local battery = { W = bat_w }
-        if bat_v ~= nil then battery.V = bat_v end
-        if bat_a ~= nil then battery.A = bat_a end
-        if bat_soc ~= nil then battery.SoC_nom_fract = bat_soc / 100 end  -- percent to fraction
+        local v = current(bat_v, bat_v_ms)
+        local a = current(bat_a, bat_a_ms)
+        local soc = current(bat_soc, bat_soc_ms)
+        if v ~= nil then battery.V = v end
+        if a ~= nil then battery.A = a end
+        if soc ~= nil then battery.SoC_nom_fract = soc / 100 end  -- percent to fraction
 
-        local temp_c = temperature(bat_temp)
+        local temp_c = temperature(current(bat_temp, bat_temp_ms))
         if temp_c ~= nil then battery.temperature_C = temp_c end
 
         local b = selected_bms(now)
@@ -379,4 +490,9 @@ function driver_cleanup()
     bat_w = 0
     forget_battery_values()
     last_message_ms = nil
+    portal_id = nil
+    last_keepalive_ms = nil
+    last_republish_ms = nil
+    republish_due = true
+    keepalive_refused = false
 end
