@@ -1,5 +1,5 @@
 name: "sma"
-version: "2.1.2"
+version: "2.2.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -56,10 +56,15 @@ tested_devices:
     firmware_versions: ""
     notes: "Energy meter / system manager"
     min_driver_version: "1.2.0"
+upstream_docs:
+  - url: "https://files.sma.de/downloads/SMA-Modbus-TI-en-10.pdf"
+    title: "SMA Modbus technical information for Sunny Boy, Sunny Boy Storage, Sunny Tripower and Sunny Highpower (SMA-Modbus-TI-en-10); register lists are in each device's Modbus HTML file"
+    kind: manual
+    url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 13974
+size_bytes: 15553
 dkb_id: "sma"
-sha256: "5faa2235261c22f6a59b17fc4f027f7d66ce4607dd6132d5a911e8079e793b7f"
+sha256: "5c09a008e00c153a62d86d101b585429ddb2ac1707f113cd4431b76f4d8f6993"
 signature: ""
 
 bytecode_sha256: ""

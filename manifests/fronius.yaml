@@ -1,5 +1,5 @@
 name: "fronius"
-version: "2.1.2"
+version: "2.2.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -49,10 +49,19 @@ tested_devices:
     firmware_versions: ""
     notes: "Classic single-phase string inverter"
     min_driver_version: "1.2.0"
+upstream_docs:
+  - url: "https://www.fronius.com/en/~/downloads/Solar%20Energy/Operating%20Instructions/42,0410,2649.pdf"
+    title: "Fronius GEN24 Modbus TCP & RTU operating instructions (42,0410,2649)"
+    kind: manual
+    url_stability: stable
+  - url: "https://www.fronius.com/QR-link/0024"
+    title: "Fronius GEN24 Modbus register maps (gen24-modbus-api-external-docs.zip, linked from the manual)"
+    kind: register_map
+    url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 12744
+size_bytes: 15342
 dkb_id: "fronius_symo_gen24"
-sha256: "9ba747b7d54fb5e31fe9334c6a9e9408c9130370900f7ba30f019f232bc022ed"
+sha256: "c277eee7c0e829b6f385648109ae0fe1dd4dd0d7d0cd1015e4df07b12e84f58f"
 signature: ""
 
 bytecode_sha256: ""
