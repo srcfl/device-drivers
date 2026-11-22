@@ -13,6 +13,12 @@ AlphaESS's "Parameter address table" (protocol history up to V1.39) puts:
 Earlier releases read 0x0010-0x0028 as PV, battery and meter. In the
 vendor's map those are grid meter energy counters, voltages and powers.
 Each stream is sent only when its read answered, never as zeros.
+
+AlphaESS's protocol V1.17 (2020) had the meter at 0x0000-0x0019 and only
+three PV strings. V1.19 changed the meter table and V1.20 added the System
+info block (0x0740-0x074E). The driver uses the current meter and strings
+4 to 6 only when 0x074E (Protocol Version) answers. Its value is not used:
+it read 0 on a real system (Alpha2MQTT's register dump).
 """
 
 from __future__ import annotations
@@ -44,11 +50,15 @@ end
 for name, m in pairs(host._metrics) do
   print("metric." .. name .. " " .. tostring(m.value))
 end
+local calls = {}
 for _, c in ipairs(host._calls) do
   if c.func == "modbus_read" then
-    print("read." .. tostring(c.args[3]) .. ":" .. tostring(c.args[1]) .. " " .. tostring(c.args[2]))
+    local key = tostring(c.args[3]) .. ":" .. tostring(c.args[1])
+    print("read." .. key .. " " .. tostring(c.args[2]))
+    calls[key] = (calls[key] or 0) + 1
   end
 end
+for key, n in pairs(calls) do print("calls." .. key .. " " .. n) end
 '''
 
 
@@ -62,7 +72,7 @@ def i32(value: int) -> tuple[int, int]:
 
 
 def run(registers: dict[int, int], fail: tuple[int, ...] = (),
-        short: dict[int, int] | None = None) -> dict[str, str]:
+        short: dict[int, int] | None = None, polls: int = 1) -> dict[str, str]:
     lines = [f"host._modbus_registers.holding[{a}] = {v}" for a, v in registers.items()]
     lines += [f'host._modbus_read_fail_addresses[{a}] = "Illegal Data Address"' for a in fail]
     lines += [f"host._modbus_read_short_counts[{a}] = {n}" for a, n in (short or {}).items()]
@@ -73,8 +83,10 @@ def run(registers: dict[int, int], fail: tuple[int, ...] = (),
         + "\n".join(lines) + "\n"
         f'dofile("{DRIVER}")\n'
         "driver_init({})\n"
-        "local ok, err = pcall(driver_poll)\n"
-        'if not ok then print("POLL_ERROR " .. tostring(err)) os.exit(1) end\n'
+        f"for _ = 1, {polls} do\n"
+        "  local ok, err = pcall(driver_poll)\n"
+        '  if not ok then print("POLL_ERROR " .. tostring(err)) os.exit(1) end\n'
+        "end\n"
         + REPORT)
     result = subprocess.run([str(LUA), "-e", script],
                             capture_output=True, text=True, cwd=ROOT)
@@ -164,3 +176,42 @@ def test_old_map_registers_are_not_read():
     out = run({})
     for addr in (16, 18, 32, 33, 34, 36, 38, 39, 40):
         assert f"read.holding:{addr}" not in out, addr
+
+
+def test_no_battery_sends_no_battery_stream():
+    # Voltage and SoC both 0: no pack on the DC bus, not an empty one.
+    out = run({0x0100: 0, 0x0102: 0, 0x0126: 0, 0x010D: 0, 0x0110: 0})
+    assert not any(k.startswith("battery.") for k in out)
+    assert "metric.battery_cell_temp_min_c" not in out
+    assert "metric.battery_cell_temp_max_c" not in out
+    assert "pv.W" in out
+
+
+def test_empty_pack_with_a_voltage_is_still_sent():
+    out = run({0x0100: 4600, 0x0102: 0, 0x0126: 0})
+    assert num(out, "battery.SoC_nom_fract") == 0
+    assert num(out, "battery.V") == pytest.approx(460.0)
+
+
+def test_current_map_is_confirmed_once_by_the_protocol_version_register():
+    out = run(meter_regs(2300), polls=3)
+    assert out["calls.holding:1870"] == "1"     # 0x074E
+    assert out["calls.holding:23"] == "3"
+    assert num(out, "meter.W") == 2300
+
+
+def test_old_firmware_without_system_info_gets_no_meter_and_three_strings():
+    regs = meter_regs(2300)
+    regs.update({0x041D: 3500, 0x041E: 82, 0x041F: 0, 0x0420: 2870,
+                 0x0429: 250, 0x042B: 1, 0x042C: 0,
+                 0x0100: 5120, 0x0102: 875, 0x0126: 0})
+    out = run(regs, fail=(0x074E,), polls=5)
+    assert not any(k.startswith("meter.") for k in out)
+    assert "read.holding:23" not in out
+    # PV1-PV3 sit where they always have; 0x0429 was the inverter
+    # temperature in V1.17, so strings 4 to 6 are not read.
+    assert out["read.holding:1053"] == "12"
+    assert num(out, "pv.W") == -2870
+    assert "battery.W" in out
+    # The probe is bounded: three tries, then left alone.
+    assert out["calls.holding:1870"] == "3"

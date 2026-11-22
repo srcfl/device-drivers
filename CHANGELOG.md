@@ -20,8 +20,10 @@ hardware.
   releases read meter energy counters and voltages at 0x0010-0x0028 as PV,
   battery and meter values. The grid phase voltage is no longer sent: the
   sources disagree on its scale. 0x0111/0x0112 are still not used as live
-  BMS limits. Firmware on the 2020 map (protocol V1.17, meter at
-  0x0000-0x0019) is not covered.
+  BMS limits. The meter and PV strings 4 to 6 are read only once 0x074E
+  (Protocol Version, in the System info block V1.20 added) answers; firmware
+  on the 2020 map (V1.17, meter at 0x0000-0x0019) gets PV strings 1 to 3
+  and no meter.
 - **kstar 1.3.0** reads KSTAR's input registers (function 04H) from 3000, as
   KSTAR's Hybrid Inverter Modbus V2.9.1 gives them for the KSE, BluE-S and
   E-series three-phase models: PV at 3000-3025, battery voltage, power and
@@ -29,8 +31,14 @@ hardware.
   meter at 3097-3108. KSTAR gives no signs; following ha-solarman, the
   meter power (positive when exporting) and the battery power (positive
   when discharging) are negated. The model at 3045 says whether the S and
-  T phases exist; an unknown model sends no meter. Earlier releases read
-  holding registers 10-54, which no source has.
+  T phases exist; a code KSTAR's model table does not name sends no meter.
+  Earlier releases read holding registers 10-54, which no source has.
+
+In both drivers, battery voltage and SoC both 0 means no pack is connected,
+so the battery stream is left out rather than sent as an empty pack.
+Neither vendor map has a flag that says a grid meter is fitted, so with no
+meter both drivers send whatever the meter registers hold: 0 W there cannot
+be told from a balanced site.
 
 ### fronius 2.3.0
 

@@ -120,10 +120,37 @@ def test_three_phase_meter_sums_the_phases():
     assert out["read.input:3097"] == "12"
 
 
-def test_unknown_model_sends_no_meter():
-    out = run(meter_regs(0x40, 1800))
+@pytest.mark.parametrize("code", [10, 13, 16, 19, 31, 35, 47, 0x40])
+def test_unlisted_model_sends_no_meter(code):
+    # Table 3.1.5 marks 10, 13, 16, 19-31 and 35-47 "reserve".
+    out = run(meter_regs(code, 1800))
     assert not any(k.startswith("meter.") for k in out)
     assert "read.input:3097" not in out
+
+
+@pytest.mark.parametrize("code, count", [
+    (0, "4"), (9, "4"), (11, "4"), (14, "4"), (18, "4"),
+    (32, "12"), (33, "12"), (34, "12"),
+])
+def test_listed_models_read_their_phases(code, count):
+    out = run(meter_regs(code, 1800))
+    assert out["read.input:3097"] == count
+    assert "meter.W" in out
+
+
+def test_no_battery_sends_no_battery_stream():
+    # Voltage and SoC both 0: no pack, not an empty one.
+    out = run({3055: 455, 3063: 0, 3065: 0, 3066: 0, 3067: 0})
+    assert not any(k.startswith("battery.") for k in out)
+    assert "metric.battery_temp_c" not in out
+    # The inverter's own temperature is not the battery's.
+    assert num(out, "metric.inverter_temp_c") == pytest.approx(45.5)
+
+
+def test_empty_pack_with_a_voltage_is_still_sent():
+    out = run({3063: 4610, 3065: 0, 3066: 0})
+    assert num(out, "battery.SoC_nom_fract") == 0
+    assert num(out, "battery.V") == pytest.approx(46.10)
 
 
 def test_model_read_failure_sends_no_meter_but_keeps_the_rest():

@@ -81,7 +81,7 @@ def num(out: dict[str, str], key: str) -> float:
 
 
 def test_kstar_reports_battery_and_inverter_temperature():
-    out = run({3055: 455, 3067: i16(-50)})
+    out = run({3055: 455, 3063: 5230, 3067: i16(-50)})
     assert num(out, "battery.temperature_C") == pytest.approx(-5.0, abs=1e-3)
     assert num(out, "metric.battery_temp_c") == pytest.approx(-5.0, abs=1e-3)
     assert num(out, "metric.inverter_temp_c") == pytest.approx(45.5, abs=1e-3)
@@ -100,7 +100,7 @@ def test_kstar_failed_temperature_read_is_left_out():
 
 
 def test_kstar_out_of_range_temperature_is_dropped():
-    out = run({3055: 455, 3067: 1500})
+    out = run({3055: 455, 3063: 5230, 3067: 1500})
     assert "battery.temperature_C" not in out
     assert "metric.battery_temp_c" not in out
     assert num(out, "metric.inverter_temp_c") == pytest.approx(45.5, abs=1e-3)

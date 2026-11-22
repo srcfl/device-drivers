@@ -16,8 +16,10 @@
 --
 -- Older firmware: protocol V1.17 (2020) put the grid meter at
 -- 0x0000-0x0019 (total power at 0x0006) and the inverter temperature at
--- 0x0429, where V1.39 has PV4. V1.19 (2020-10-20) changed the meter table.
--- This driver follows the current map only.
+-- 0x0429, where V1.39 has PV4. V1.19 (2020-10-20) changed the meter table
+-- and V1.20 (2020-10-25) added the System info block, 0x0740-0x074E. The
+-- driver uses the current meter and PV strings 4 to 6 only once 0x074E
+-- answers (see detect_map below).
 
 -- No control code has been written for this inverter yet: driver_command
 -- only refuses. It says read_only so FTW and the catalog tell the owner
@@ -78,23 +80,50 @@ local function plausible_temp(c)
     return c
 end
 
+-- Which map the firmware speaks. 0x074E "Protocol Version" is in the
+-- System info block that V1.20 added; the vendor's model table lists it for
+-- every model. Its value is not used: Alpha2MQTT's register dump from a
+-- real system shows it as 0. So the gate is whether it answers at all.
+-- nil while asking; "current" once it answered; "old" after it failed
+-- GIVE_UP_AFTER times. A firmware between V1.20 and V1.22, which changed the
+-- inverter block again, cannot be told apart from a later one.
+local map_version = nil
+
+local function detect_map()
+    if map_version ~= nil then return map_version end
+    if probe_read(0x074E, 1, "holding") then
+        map_version = "current"
+    elseif (read_failures[0x074E] or 0) >= GIVE_UP_AFTER then
+        map_version = "old"
+        host.log("warn", "AlphaESS: register 0x074E does not answer, so this " ..
+            "firmware predates protocol V1.20; grid meter and PV strings 4-6 " ..
+            "left out")
+    end
+    return map_version
+end
+
 function driver_init(config)
     host.set_make("AlphaESS")
 end
 
 function driver_poll()
+    local map = detect_map()
+
     -- ---- PV ----
     --
     -- 0x041D-0x0434 in one read: per string voltage (U16 x 0.1 V), current
     -- (U16 x 0.1 A) and power (U32, 1 W), strings 1 to 6, four registers
-    -- apart. PV power is their sum. 0x0453 "Pv total power" is newer than
-    -- the 0x0400-0x0452 block the vendor lists for every model, so it is not
-    -- used. A PV meter for an AC-coupled inverter (0x00A1) is not added:
-    -- that inverter may have its own driver.
-    local pv_regs = probe_read(0x041D, 24, "holding")
+    -- apart. PV power is their sum. Strings 1 to 3 (0x041D-0x0428) sit in
+    -- the same place in V1.17; until the current map is confirmed only they
+    -- are read. 0x0453 "Pv total power" is newer than the 0x0400-0x0452
+    -- block the vendor lists for every model, so it is not used. A PV meter
+    -- for an AC-coupled inverter (0x00A1) is not added: that inverter may
+    -- have its own driver.
+    local pv_count = (map == "current") and 24 or 12
+    local pv_regs = probe_read(0x041D, pv_count, "holding")
     if pv_regs then
         local pv_w = 0
-        for i = 3, 23, 4 do
+        for i = 3, pv_count - 1, 4 do
             pv_w = pv_w + host.decode_u32_be(pv_regs[i], pv_regs[i + 1])
         end
         host.emit("pv", {
@@ -123,7 +152,14 @@ function driver_poll()
     -- the BMS, and Alpha2MQTT's author saw the charge value stay at 0 and
     -- the discharge value at 100 A on a 50 A pack. A 0 would tell Core the
     -- battery may not charge.
+    --
+    -- Voltage and SoC both 0 means no pack is connected, not an empty one
+    -- (docs/WRITING-A-DRIVER.md, "A hybrid inverter may have no battery"):
+    -- the battery stream and its metrics are left out.
     local bat_regs = probe_read(0x0100, 39, "holding")
+    if bat_regs and bat_regs[1] == 0 and bat_regs[3] == 0 then
+        bat_regs = nil
+    end
     if bat_regs then
         local battery = {
             W = -host.decode_i16(bat_regs[39]),       -- 0x0126
@@ -159,7 +195,16 @@ function driver_poll()
     -- Phase voltage (0x0014) is left out: the vendor says 1 V per bit,
     -- Alpha2MQTT's author read 2421 for 242.1 V, and the sources do not
     -- agree on the scale.
-    local m_regs = probe_read(0x0017, 12, "holding")
+    --
+    -- The map has no flag that says a meter is fitted. 0x0000 "Grid Meter
+    -- CT Enable" read 0 on a working system in Alpha2MQTT's dump, and
+    -- 0x0806 "Meter CT Select" only says CT or meter. So with no meter the
+    -- driver sends whatever these registers hold, and 0 W cannot be told
+    -- from a balanced site. Read only on the current map (see detect_map).
+    local m_regs = nil
+    if map == "current" then
+        m_regs = probe_read(0x0017, 12, "holding")
+    end
     if m_regs then
         host.emit("meter", {
             W    = host.decode_i32_be(m_regs[11], m_regs[12]),  -- 0x0021

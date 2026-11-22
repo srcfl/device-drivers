@@ -81,8 +81,8 @@ drivers:
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 7450
-    sha256: "49cd62736e64e798f9b23fa634c9a0d3cb8768d3429aa08727f7021ee2b5fc91"
+    size_bytes: 9564
+    sha256: "ad6de3206098e063f6e2344b35a4ff836c20d69549777aaf6a9b3c68eca4545d"
   - name: "ambibox"
     version: "1.2.0"
     tier: core
@@ -409,8 +409,8 @@ drivers:
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 7749
-    sha256: "c9273b026ec6ec2457e17d2a5c709babd566ee376be225dfbd82a9803b6086d3"
+    size_bytes: 9159
+    sha256: "b13d4a0e1d8a7a41e0f3fd175c60159b1324273c066167cf7903fc0a73c521d0"
   - name: "mennekes"
     version: "1.1.1"
     tier: community

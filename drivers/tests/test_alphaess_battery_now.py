@@ -81,7 +81,7 @@ def num(out: dict[str, str], key: str) -> float:
 
 
 def test_alphaess_reports_cell_temperature_range():
-    out = run({269: i16(-50), 272: 312})
+    out = run({0x0100: 5120, 269: i16(-50), 272: 312})
     assert num(out, "metric.battery_cell_temp_min_c") == pytest.approx(-5.0, abs=1e-3)
     assert num(out, "metric.battery_cell_temp_max_c") == pytest.approx(31.2, abs=1e-3)
     assert "battery.temperature_C" not in out
@@ -92,13 +92,13 @@ def test_alphaess_reports_cell_temperature_range():
 
 
 def test_alphaess_failed_cell_temperature_read_is_left_out():
-    out = run({269: i16(-50), 272: 312}, fail=(0x0100,))
+    out = run({0x0100: 5120, 269: i16(-50), 272: 312}, fail=(0x0100,))
     assert "metric.battery_cell_temp_min_c" not in out
     assert "metric.battery_cell_temp_max_c" not in out
     assert not any(k.startswith("battery.") for k in out)
 
 
 def test_alphaess_out_of_range_cell_temperature_is_dropped():
-    out = run({269: i16(-500), 272: 1500})
+    out = run({0x0100: 5120, 269: i16(-500), 272: 1500})
     assert "metric.battery_cell_temp_min_c" not in out
     assert "metric.battery_cell_temp_max_c" not in out

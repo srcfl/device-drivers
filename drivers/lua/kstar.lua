@@ -71,28 +71,46 @@ local function plausible_temp(c)
     return c
 end
 
--- Inverter model, input 3045, KSTAR table 3.1.5: 0x00-0x1F are the
--- single-phase KSE and BluE-S models, 0x20-0x2F the three-phase ones. The
--- S and T phase meter registers (3101-3108) are "only for three phase
--- model". The model does not change, so it is read until it answers once.
--- nil until known; "single", "three", or "unknown" for a code outside the
--- table.
+-- Inverter model, input 3045, KSTAR table 3.1.5. Only the codes the table
+-- names are used; the rest are marked "reserve", and a reserved code gets no
+-- meter rather than a guess. The S and T phase meter registers (3101-3108)
+-- are "only for three phase model". The model does not change, so it is read
+-- until it answers once.
+local MODEL_PHASES = {
+    [0]  = "single",  -- KSE-2K-048S
+    [1]  = "single",  -- KSE-3K-048S
+    [2]  = "single",  -- KSE-3.6K-048S
+    [3]  = "single",  -- KSE-4.6K-048S
+    [4]  = "single",  -- KSE-5K-048S
+    [5]  = "single",  -- KSE-3.6K-048
+    [6]  = "single",  -- KSE-4.6K-048
+    [7]  = "single",  -- KSE-5K-048
+    [8]  = "single",  -- KSE-6K-048
+    [9]  = "single",  -- BluE-S 3680D
+    [11] = "single",  -- BluE-S 5000D
+    [12] = "single",  -- BluE-S 6000D
+    [14] = "single",  -- KSE-3K-048S M1
+    [15] = "single",  -- BluE-S 3680D M1
+    [17] = "single",  -- BluE-S 5000D M1
+    [18] = "single",  -- BluE-S 6000D M1
+    [32] = "three",   -- E10KT
+    [33] = "three",   -- E8KT
+    [34] = "three",   -- E12KT
+}
+
+-- nil until known; "single", "three", or "unknown" for a code the table
+-- does not name.
 local phases = nil
 
 local function detect_phases()
     if phases ~= nil then return phases end
     local regs = probe_read(3045, 1, "input")
     if not regs then return nil end
-    local code = regs[1]
-    if code <= 0x1F then
-        phases = "single"
-    elseif code <= 0x2F then
-        phases = "three"
-    else
-        phases = "unknown"
+    phases = MODEL_PHASES[regs[1]] or "unknown"
+    if phases == "unknown" then
         host.log("warn", string.format(
-            "KSTAR: inverter model code 0x%02X is not in KSTAR's model table; " ..
-            "grid meter left out", code))
+            "KSTAR: inverter model code %d is not named in KSTAR's model " ..
+            "table; grid meter left out", regs[1]))
     end
     return phases
 end
@@ -136,7 +154,21 @@ function driver_poll()
     -- 3070/3071 BAT_CHG_LIMIT_CURR / BAT_DISCHG_LIMIT_CURR (1 A) are not
     -- sent as available power: the map does not say whether they come from
     -- the BMS or move with it. 3078/3079 are percent settings.
+    --
+    -- Voltage and SoC both 0 means no pack is connected, not an empty one
+    -- (docs/WRITING-A-DRIVER.md, "A hybrid inverter may have no battery"):
+    -- the battery stream and the battery temperature are left out. The
+    -- inverter temperature in the same read still goes out.
     local bat_regs = probe_read(3055, 13, "input")
+    if bat_regs then
+        local inverter_c = plausible_temp(host.decode_i16(bat_regs[1]) * 0.1)  -- 3055
+        if inverter_c ~= nil then
+            host.emit_metric("inverter_temp_c", inverter_c)
+        end
+        if bat_regs[9] == 0 and bat_regs[12] == 0 then  -- 3063, 3066
+            bat_regs = nil
+        end
+    end
     if bat_regs then
         local battery = {
             W = -host.decode_i16(bat_regs[11]),   -- 3065
@@ -151,10 +183,6 @@ function driver_poll()
         host.emit("battery", battery)
         if bat_temp_c ~= nil then
             host.emit_metric("battery_temp_c", bat_temp_c)
-        end
-        local inverter_c = plausible_temp(host.decode_i16(bat_regs[1]) * 0.1)  -- 3055
-        if inverter_c ~= nil then
-            host.emit_metric("inverter_temp_c", inverter_c)
         end
     end
 
@@ -171,6 +199,11 @@ function driver_poll()
     -- importing. So the raw value is positive when exporting, and the
     -- driver negates it. The current is sent as read; its sign is not
     -- documented.
+    --
+    -- The map has no flag that says a meter or CT is fitted (3264 "CT Or
+    -- Meter" only says which, and the alarm table has no meter fault). So
+    -- with none fitted the driver sends whatever these registers hold, and
+    -- 0 W cannot be told from a balanced site.
     local p = detect_phases()
     local m_regs = nil
     if p == "single" then
