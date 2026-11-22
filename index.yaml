@@ -234,14 +234,14 @@ drivers:
     size_bytes: 13358
     sha256: "997fc712c5ef0336620fd5d628175c4df831e26b7826b9fdc36f56b5ca3f69d7"
   - name: "ferroamp_modbus"
-    version: "2.2.1"
+    version: "2.2.2"
     tier: core
     protocol: modbus
     connectivity: local
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 12099
-    sha256: "b37f6356e8010a80f7c9477e70a582b7f16eba359858bb9fd43f6c3530a0f306"
+    size_bytes: 12624
+    sha256: "f4f4a8c9809d56a8f27021b4159574b6727a2a4936375f12b3344f2136f5fbd7"
   - name: "foxess_h3_smart"
     version: "0.10.0"
     tier: community

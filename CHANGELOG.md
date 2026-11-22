@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### ferroamp_modbus 2.2.2
+
+A float that answers NaN or infinity is now left out instead of sent as 0
+(docs/WRITING-A-DRIVER.md, "Never fabricate" and "Numbers"). The EnergyHub
+uses them for "not present", and the decoder turned them into 0, so a NaN
+grid power went out as a 0 W meter and a NaN SoC as an empty pack. The
+same rule now covers a reply that is missing a word, also on the battery
+reads, and a value that only becomes infinite after scaling, as float32's
+largest value times 1000 does where Lua numbers are 32-bit floats. The
+meter and PV readings still go out only with their power, and each
+per-phase watt figure only with that phase's voltage and current. A real
+0.0 is still a reading. Not yet checked on hardware.
+
 ### growatt 2.2.2
 
 A failed read no longer becomes 0 (docs/WRITING-A-DRIVER.md, "Never

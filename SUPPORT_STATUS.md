@@ -54,8 +54,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ferroamp | 2.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ferroamp_dc2_v2x | 2.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | ferroamp_dc2_v2x | 2.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| ferroamp_modbus | 2.2.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| ferroamp_modbus | 2.2.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| ferroamp_modbus | 2.2.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| ferroamp_modbus | 2.2.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | foxess_h3_smart | 0.10.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | foxess_h3_smart | 0.10.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | fronius | 2.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |

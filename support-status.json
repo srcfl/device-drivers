@@ -527,7 +527,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.2.1",
+      "catalog_version": "2.2.2",
       "driver_id": "ferroamp_modbus",
       "targets": {
         "blixt-l1": {
