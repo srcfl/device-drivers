@@ -59,6 +59,13 @@ battery at its limit from one out of control.
   of keeping the last one.
 - A temperature outside -40 to 100 °C and a limit outside 0 to 100 kW are
   dropped.
+- Venus sends a value only when it changes, so a quiet topic is not a stale
+  one. The watts need the BMS's voltage from the last 60 s. The BMS's limits
+  and cell temperatures count only while that BMS has sent something in the
+  last 60 s. When nothing at all arrives for 60 s, the driver forgets every
+  battery value, since a null sent meanwhile is lost. A tighter bound per
+  value would need a keep-alive that asks for a full republish; the driver
+  sends none.
 
 Victron says some BMS makes send fixed limits and others dynamic ones, and
 does not say how often they change. Not yet checked on hardware.
@@ -80,7 +87,8 @@ ID and the host cannot read a second, so it cannot report them;
 ### ferroamp_modbus 2.2.0
 
 A battery register that does not answer now leaves its field out instead of
-sending 0. Without battery power there is no battery reading. Ferroamp's
+sending 0. The driver sends whatever answered, and no battery reading when
+nothing did. Ferroamp's
 Modbus map (Revision D) has no battery temperature and no live limit, so the
 driver reports nothing new.
 

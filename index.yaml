@@ -240,8 +240,8 @@ drivers:
     connectivity: local
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 11757
-    sha256: "46fbad5465336d0b32d47afba1abd32a76181b4e0d57840388c03eadfdba7da9"
+    size_bytes: 11874
+    sha256: "3e3351c71255b5d1400c28b122311ece46acaaec95521d0737d3809e8f1528a4"
   - name: "foxess_h3_smart"
     version: "0.9.6"
     tier: community
@@ -812,8 +812,8 @@ drivers:
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 12154
-    sha256: "a316fc11f481373aa06c4eff48bf1bb3e4ace13d965b6d689ea4209f7dbc46ed"
+    size_bytes: 14650
+    sha256: "72f607fd9906f4cf0854a4741fecb1708bf278acd5b640e024772da81d801320"
   - name: "wallbox"
     version: "1.1.0"
     tier: community

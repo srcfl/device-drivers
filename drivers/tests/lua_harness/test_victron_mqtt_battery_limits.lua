@@ -203,6 +203,75 @@ elseif scenario == "out_of_range" then
     want("battery.temperature_C at -40", b.temperature_C, -40)
     want("battery_cell_temp_max_c at 100", metric("battery_cell_temp_max_c"), 100)
 
+elseif scenario == "bms_goes_quiet" then
+    -- The BMS stops talking but the link stays up (grid and battery power
+    -- every 10 s): no null or empty payload ever comes. After 60 s its
+    -- limits, voltage and cell temperatures no longer count.
+    poll(bms_messages())
+    local b
+    for _ = 1, 5 do
+        host._millis_counter = host._millis_counter + 10000
+        b = poll({ battery_power(), msg("system/0/Ac/Grid/L1/Power", 300) })
+    end
+    -- 50 s on: still within the bound.
+    want("battery.available_charge_W at 50 s", b.available_charge_W, 2600)
+
+    host._millis_counter = host._millis_counter + 11000
+    b = poll({ battery_power(), msg("system/0/Ac/Grid/L1/Power", 300) })
+    absent("battery.available_charge_W at 61 s", b.available_charge_W)
+    absent("battery.available_discharge_W at 61 s", b.available_discharge_W)
+    absent("battery_charge_limit_a at 61 s", metric("battery_charge_limit_a"))
+    absent("battery_cell_temp_min_c at 61 s", metric("battery_cell_temp_min_c"))
+    -- The system's own values ride on its live power messages.
+    want("battery.temperature_C with the link up", b.temperature_C, 17.5)
+
+    -- The BMS speaks again with a cell temperature but no new voltage: its
+    -- limits count again, the watts still need a fresh voltage.
+    b = poll({ battery_power(), msg("battery/512/System/MinCellTemperature", 16.5) })
+    want("battery_charge_limit_a after the BMS speaks", metric("battery_charge_limit_a"), 50)
+    absent("battery.available_charge_W with an old voltage", b.available_charge_W)
+
+elseif scenario == "fixed_ccl_kept" then
+    -- A BMS with a fixed CCL never sends it again, but its voltage keeps
+    -- moving. The limit stays valid while the BMS talks.
+    poll(bms_messages())
+    local b
+    for i = 1, 12 do
+        host._millis_counter = host._millis_counter + 10000
+        b = poll({ battery_power(), msg("battery/512/Dc/0/Voltage", 52 + i / 100) })
+    end
+    want("battery.available_charge_W after 120 s", b.available_charge_W, 50 * 52.12)
+    want("battery.available_discharge_W after 120 s", b.available_discharge_W, 100 * 52.12)
+
+elseif scenario == "link_gap_forgets" or scenario == "link_gap_after_idle_poll" then
+    -- Nothing at all for over 60 s: the link was down or Venus stopped
+    -- publishing. A null sent meanwhile is lost, so nothing cached counts.
+    poll(bms_messages())
+    host._millis_counter = host._millis_counter + 61000
+    if scenario == "link_gap_after_idle_poll" then
+        poll({})
+        if host._emitted.battery then error(scenario .. ": an idle poll emitted") end
+    end
+    local b = poll({ battery_power(-300) })
+    want("battery.W", b.W, 300)
+    for key, value in pairs(b) do
+        if key ~= "W" and key ~= "w" then
+            error(scenario .. ": kept " .. key .. " = " .. tostring(value) .. " across the gap")
+        end
+    end
+    for name in pairs(host._metrics) do
+        error(scenario .. ": kept metric " .. name .. " across the gap")
+    end
+
+elseif scenario == "short_gap_keeps" then
+    -- Under 60 s of quiet is a quiet GX, not a lost link.
+    poll(bms_messages())
+    host._millis_counter = host._millis_counter + 50000
+    local b = poll({ battery_power() })
+    want("battery.temperature_C", b.temperature_C, 17.5)
+    want("battery.SoC_nom_fract", b.SoC_nom_fract, 0.64)
+    want("battery.available_charge_W", b.available_charge_W, 2600)
+
 elseif scenario == "nothing_invented" then
     -- Only battery power arrived. Nothing else may be made up: no 0 % SoC,
     -- no 0 V, no 0 °C, no limit.

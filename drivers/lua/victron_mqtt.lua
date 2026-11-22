@@ -57,6 +57,29 @@ local bat_temp = nil
 -- publishes only while some client keeps it alive, and a value that seldom
 -- changes, such as a fixed CCL or ActiveBmsInstance, arrives only when a
 -- keep-alive asks for a full republish. Until then the limit is left out.
+--
+-- How old a value may be. Venus sends a value when it changes and never
+-- repeats it on its own, so a quiet topic is not a stale one: a fixed CCL or
+-- a full pack's 100 % SoC can stand for hours. What goes stale is a value
+-- whose null or empty payload the driver never heard, because the broker
+-- link was down or the device left without one. So:
+--   * Watts need the BMS's own voltage from the last BMS_MAX_AGE_MS. Its
+--     voltage moves in 0.01 V steps and changes within seconds once current
+--     flows, so a working BMS refreshes it well inside that time. A battery
+--     at rest can hold its voltage longer; then the watts are left out.
+--   * The BMS's limits and cell temperatures count only while that BMS has
+--     sent something in the last BMS_MAX_AGE_MS (in practice its voltage).
+--     A fixed CCL stays valid while its BMS keeps talking and goes with it.
+--   * When nothing at all has arrived for LINK_SILENT_MS, the driver forgets
+--     every battery value: Venus stops publishing 60 s after the last
+--     keep-alive (dbus-flashmq README), and a null sent while the driver was
+--     not listening is lost.
+-- A tighter bound per value, for SoC and temperature too, would need the
+-- driver to ask for a full republish with a keep-alive every 30 s or so.
+-- It sends none today.
+local BMS_MAX_AGE_MS = 60000
+local LINK_SILENT_MS = 60000
+local last_message_ms = nil   -- host.millis() of the latest message batch
 local BMS_TOPIC = "^N/[^/]+/battery/(%d+)/(.+)$"
 local BMS_PATHS = {
     ["Info/MaxChargeCurrent"]      = "charge_a",
@@ -65,7 +88,8 @@ local BMS_PATHS = {
     ["System/MinCellTemperature"]  = "cell_min_c",
     ["System/MaxCellTemperature"]  = "cell_max_c",
 }
-local bms = {}            -- device instance (number) -> fields above
+local bms = {}            -- device instance (number) -> fields above, plus
+                          -- seen_ms (last valid value) and v_ms (last voltage)
 local active_bms = nil    -- system/0/ActiveBmsInstance, nil until known
 
 -- Plausible ranges (docs/WRITING-A-DRIVER.md, "What a battery can do now").
@@ -111,24 +135,45 @@ local function limit_a(v)
     return v
 end
 
--- Amps from the BMS times the voltage the same BMS service reports. Without
--- that voltage there is no wattage.
-local function limit_w(amps, volts)
+local function fresh(at_ms, now)
+    return at_ms ~= nil and now - at_ms <= BMS_MAX_AGE_MS
+end
+
+-- Amps from the BMS times the voltage the same BMS service reported in the
+-- last BMS_MAX_AGE_MS. Without that voltage there is no wattage.
+local function limit_w(amps, b, now)
     amps = limit_a(amps)
+    local volts = b.v
     if amps == nil or volts == nil or volts ~= volts or volts <= 0 then return nil end
+    if not fresh(b.v_ms, now) then return nil end
     return in_range(amps * volts, 0, MAX_LIMIT_W)
 end
 
-local function selected_bms()
-    if active_bms ~= nil then return bms[active_bms] end
+-- The BMS whose limits count now, or nil. A BMS that has said nothing for
+-- BMS_MAX_AGE_MS does not count.
+local function selected_bms(now)
+    if active_bms ~= nil then
+        local b = bms[active_bms]
+        if b and fresh(b.seen_ms, now) then return b end
+        return nil
+    end
     local only = nil
     for _, b in pairs(bms) do
-        if b.charge_a ~= nil or b.discharge_a ~= nil then
+        if fresh(b.seen_ms, now) and (b.charge_a ~= nil or b.discharge_a ~= nil) then
             if only then return nil end
             only = b
         end
     end
     return only
+end
+
+local function forget_battery_values()
+    bat_soc = nil
+    bat_v = nil
+    bat_a = nil
+    bat_temp = nil
+    bms = {}
+    active_bms = nil
 end
 
 ----------------------------------------------------------------------------
@@ -168,8 +213,17 @@ function driver_init(config)
 end
 
 function driver_poll()
+    local now = host.millis()
     local messages = host.mqtt_messages()
+
+    -- A silent link: what was cached may have changed or gone unheard.
+    if last_message_ms ~= nil and now - last_message_ms > LINK_SILENT_MS then
+        forget_battery_values()
+        last_message_ms = nil
+    end
+
     if not messages or #messages == 0 then return 1000 end
+    last_message_ms = now
 
     local fresh_pv = false
     local fresh_battery = false
@@ -190,6 +244,10 @@ function driver_poll()
                 local b = bms[instance] or {}
                 bms[instance] = b
                 b[field] = val
+                if val ~= nil then
+                    b.seen_ms = now
+                    if field == "v" then b.v_ms = now end
+                end
             end
         elseif topic_ends_with(topic, "system/0/ActiveBmsInstance") then
             active_bms = val
@@ -265,13 +323,13 @@ function driver_poll()
         local temp_c = temperature(bat_temp)
         if temp_c ~= nil then battery.temperature_C = temp_c end
 
-        local b = selected_bms()
+        local b = selected_bms(now)
         local charge_a, discharge_a, charge_w, discharge_w, cell_min_c, cell_max_c
         if b then
             charge_a    = limit_a(b.charge_a)
             discharge_a = limit_a(b.discharge_a)
-            charge_w    = limit_w(b.charge_a, b.v)
-            discharge_w = limit_w(b.discharge_a, b.v)
+            charge_w    = limit_w(b.charge_a, b, now)
+            discharge_w = limit_w(b.discharge_a, b, now)
             cell_min_c  = temperature(b.cell_min_c)
             cell_max_c  = temperature(b.cell_max_c)
         end
@@ -314,10 +372,6 @@ function driver_cleanup()
     pv_ac_l3_w = 0
     pv_dc_w = 0
     bat_w = 0
-    bat_soc = nil
-    bat_v = nil
-    bat_a = nil
-    bat_temp = nil
-    bms = {}
-    active_bms = nil
+    forget_battery_values()
+    last_message_ms = nil
 end

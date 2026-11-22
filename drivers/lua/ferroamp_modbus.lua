@@ -256,9 +256,10 @@ function driver_poll()
         bat_data.charge_wh    = decode_f32_ws_at(be_regs, 5) * 1000   -- 6068-6069
     end
 
-    -- Battery power is the reading that defines the stream: without it
-    -- there is no battery reading this poll.
-    if bat_data.w ~= nil then host.emit("battery", bat_data) end
+    -- Send whatever answered (docs/WRITING-A-DRIVER.md, "A hybrid inverter
+    -- may have no battery"): a failed power read must not also drop a good
+    -- SoC or energy count. With nothing answered there is no battery reading.
+    if next(bat_data) ~= nil then host.emit("battery", bat_data) end
 
     return 5000
 end

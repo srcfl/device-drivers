@@ -18,6 +18,7 @@ pytestmark = pytest.mark.skipif(
     [
         "battery",
         "power_read_fails",
+        "all_battery_reads_fail",
         "energy_read_fails",
         "soc_read_fails",
     ],

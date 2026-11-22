@@ -57,8 +57,21 @@ if scenario == "battery" then
     end
 
 elseif scenario == "power_read_fails" then
+    -- A failed power read leaves the power out and keeps what did answer.
     host._modbus_read_fail_addresses[6100] = "Illegal Data Address"
-    if poll() then error(scenario .. ": no battery power, but a battery reading") end
+    local b = poll()
+    if not b then error(scenario .. ": a good SoC and counters were dropped with the power") end
+    if b.w ~= nil then error(scenario .. ": a failed power read became " .. tostring(b.w) .. " W") end
+    want("battery.soc", b.soc, 0.64)
+    want("battery.discharge_wh", b.discharge_wh, 1200000)
+    want("battery.charge_wh", b.charge_wh, 1500000)
+    if not host._emitted.meter then error(scenario .. ": the meter went with the battery") end
+
+elseif scenario == "all_battery_reads_fail" then
+    for _, addr in ipairs({ 6100, 6016, 6064 }) do
+        host._modbus_read_fail_addresses[addr] = "Illegal Data Address"
+    end
+    if poll() then error(scenario .. ": nothing answered, but a battery reading") end
     if not host._emitted.meter then error(scenario .. ": the meter went with the battery") end
 
 elseif scenario == "energy_read_fails" then

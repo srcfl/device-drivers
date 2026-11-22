@@ -12,7 +12,7 @@ tested_devices:
     variants: [Cerbo GX, Venus GX, Ekrano GX]
     regions: []
     firmware_versions: ""
-    notes: "Requires Venus OS with MQTT enabled on GX device"
+    notes: "Requires Venus OS with MQTT enabled on GX device. Battery limits come from the BMS the GX names in ActiveBmsInstance. With several battery services and that topic not yet received, no limits are sent. The driver sends no keep-alive, so another client must keep the GX publishing."
     min_driver_version: "1.0.0"
   - manufacturer: "Victron Energy"
     model_family: "MultiPlus-II"
@@ -43,15 +43,15 @@ tested_devices:
     notes: "Requires Venus OS with MQTT enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 12154
+size_bytes: 14650
 dkb_id: ""
-sha256: "a316fc11f481373aa06c4eff48bf1bb3e4ace13d965b6d689ea4209f7dbc46ed"
+sha256: "72f607fd9906f4cf0854a4741fecb1708bf278acd5b640e024772da81d801320"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Emit each stream only after a fresh power message for that stream."
+changelog: "Report the BMS charge and discharge limits as available power, battery and cell temperatures. Leave out values the GX never sent, cleared, or that went quiet."
 
 upstream_docs:
   - url: "https://raw.githubusercontent.com/victronenergy/dbus-flashmq/master/README.md"
