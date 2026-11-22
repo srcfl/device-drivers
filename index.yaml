@@ -10,23 +10,23 @@ drivers:
     size_bytes: 37524
     sha256: "82ff5376ce2f698b3488cd4b4ded011d869d528b20c66b62f91ddeb2ca116838"
   - name: "50-125k-svk-slew"
-    version: "0.1.13"
+    version: "0.1.14"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery]
     control: true
-    size_bytes: 34620
-    sha256: "d30ac2b50d39cc402b9226ce2022fac2a33dd5b3cd41f9b44191c99c338ce027"
+    size_bytes: 34831
+    sha256: "c47df9cb249a16fb56d3cd4ebf5bbbe08e9f3ebe7cd36a6cf4a9c64cdefd78dc"
   - name: "50-125k-svk"
-    version: "0.2.4"
+    version: "0.2.5"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery]
     control: true
-    size_bytes: 22821
-    sha256: "0c0061094c43fcd46a386c6787fd984459f4510644ecc2260cf29ebbf3147433"
+    size_bytes: 23039
+    sha256: "61fb53676e27e5507426ca75b580d65428e0e68b07330835f2b61767e759ef37"
   - name: "abb_meter"
     version: "1.0.6"
     tier: community

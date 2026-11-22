@@ -23,7 +23,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.1.13",
+      "catalog_version": "0.1.14",
       "driver_id": "50-125k-svk-slew",
       "targets": {
         "blixt-l1": {
@@ -44,7 +44,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.4",
+      "catalog_version": "0.2.5",
       "driver_id": "50-125k-svk",
       "targets": {
         "blixt-l1": {
