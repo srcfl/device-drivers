@@ -135,7 +135,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.2.0"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -146,7 +146,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.2.0"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -257,7 +257,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye"
-            version: "2.2.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -268,7 +268,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye"
-            version: "2.2.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -279,7 +279,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye"
-            version: "2.2.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -290,7 +290,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye"
-            version: "2.2.0"
+            version: "2.1.1"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -395,7 +395,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.10.0"
+            version: "0.9.6"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
@@ -406,7 +406,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.10.0"
+            version: "0.9.6"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
@@ -761,7 +761,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kstar"
-            version: "1.2.0"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -772,7 +772,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kstar"
-            version: "1.2.0"
+            version: "1.1.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -851,7 +851,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "konja-261-svk"
-            version: "0.3.2"
+            version: "0.4.0"
             ders: [battery, meter]
             control: true
         firmware_versions: ""
@@ -1715,17 +1715,17 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "50-125k-svk-ac-slew"
-            version: "0.2.5"
+            version: "0.3.0"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk-slew"
-            version: "0.1.14"
+            version: "0.2.0"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk"
-            version: "0.2.5"
+            version: "0.3.0"
             ders: [battery]
             control: true
         firmware_versions: ""

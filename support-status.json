@@ -2,7 +2,7 @@
   "drivers": [
     {
       "catalog_source": true,
-      "catalog_version": "0.2.5",
+      "catalog_version": "0.3.0",
       "driver_id": "50-125k-svk-ac-slew",
       "targets": {
         "blixt-l1": {
@@ -23,7 +23,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.1.14",
+      "catalog_version": "0.2.0",
       "driver_id": "50-125k-svk-slew",
       "targets": {
         "blixt-l1": {
@@ -44,7 +44,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.5",
+      "catalog_version": "0.3.0",
       "driver_id": "50-125k-svk",
       "targets": {
         "blixt-l1": {
@@ -863,7 +863,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.2",
+      "catalog_version": "0.4.0",
       "driver_id": "konja-261-svk",
       "targets": {
         "blixt-l1": {

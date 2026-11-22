@@ -1,32 +1,32 @@
 version: 1
 drivers:
   - name: "50-125k-svk-ac-slew"
-    version: "0.2.5"
+    version: "0.3.0"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery]
     control: true
-    size_bytes: 37524
-    sha256: "82ff5376ce2f698b3488cd4b4ded011d869d528b20c66b62f91ddeb2ca116838"
+    size_bytes: 40824
+    sha256: "95484aed64944c0826d3f691cf035137c4e6585da90c748ba9549774f31fc477"
   - name: "50-125k-svk-slew"
-    version: "0.1.14"
+    version: "0.2.0"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery]
     control: true
-    size_bytes: 34831
-    sha256: "c47df9cb249a16fb56d3cd4ebf5bbbe08e9f3ebe7cd36a6cf4a9c64cdefd78dc"
+    size_bytes: 37919
+    sha256: "5766493ccf4106b5594eea113f6cb58e8e20f7a5a872c29cad64336d6a3e3782"
   - name: "50-125k-svk"
-    version: "0.2.5"
+    version: "0.3.0"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery]
     control: true
-    size_bytes: 23039
-    sha256: "61fb53676e27e5507426ca75b580d65428e0e68b07330835f2b61767e759ef37"
+    size_bytes: 26107
+    sha256: "a6d6e76bf0465b2960510d0d5edc481b5932d58f35e32f708c603b762655f2ac"
   - name: "abb_meter"
     version: "1.0.6"
     tier: community
@@ -75,14 +75,14 @@ drivers:
     size_bytes: 23895
     sha256: "e38da421ba6e5d3ceed2e9c6b7fdd620537b34e63ca48da14ac1e42080b133d0"
   - name: "alphaess"
-    version: "1.2.0"
+    version: "1.1.2"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 6394
-    sha256: "f1bf71b8f0a1e1e76c416f84e8f1bd7b08cb84f31fbb249a7c85921a7159a74d"
+    size_bytes: 4704
+    sha256: "a7721ee771ad5d818df1e870e3556d34b553405d122693d731aea7685647a1aa"
   - name: "ambibox"
     version: "1.2.0"
     tier: core
@@ -177,14 +177,14 @@ drivers:
     size_bytes: 21949
     sha256: "ce957acebd6b98060e2736148af5fe53784109b243678e9d216becaa6e116088"
   - name: "deye"
-    version: "2.2.0"
+    version: "2.1.1"
     tier: core
     protocol: modbus
     connectivity: local
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 29597
-    sha256: "13bfc38dcd636ea5fda9ce0453f92e614d24e2efbd0f5d0fe3d56ebb499880ff"
+    size_bytes: 23467
+    sha256: "5fdc1acd72f881ff02696e765df0528a68f300fa9ca557a4fba068874f0129df"
   - name: "easee_cloud"
     version: "1.4.1"
     tier: core
@@ -243,14 +243,14 @@ drivers:
     size_bytes: 11874
     sha256: "3e3351c71255b5d1400c28b122311ece46acaaec95521d0737d3809e8f1528a4"
   - name: "foxess_h3_smart"
-    version: "0.10.0"
+    version: "0.9.6"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
     control: true
-    size_bytes: 43733
-    sha256: "c7b3ce58731031340a76c21f15fb87cddb4b6a2cb6ac4320b39f748cf7eae9e9"
+    size_bytes: 40705
+    sha256: "c7dd1abf8069785667f5a7e419a304a0550594f89620ef1c173ff3952a9e7675"
   - name: "fronius"
     version: "2.1.2"
     tier: core
@@ -385,14 +385,14 @@ drivers:
     size_bytes: 23439
     sha256: "1cb5b73fe49525d1d2500eca0d3d18b340e83fc7a0943fb63c3c568113069f49"
   - name: "konja-261-svk"
-    version: "0.3.2"
+    version: "0.4.0"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [battery, meter]
     control: true
-    size_bytes: 88536
-    sha256: "be06598829fa88048c4d0ede0703ca7e5e53376341cdcdbdb47062604ce470db"
+    size_bytes: 92346
+    sha256: "c4467396798fee298fcb7c913e273ed789c988c90db20ed4f95c6b98b3cd612d"
   - name: "kostal"
     version: "2.1.2"
     tier: community
@@ -403,14 +403,14 @@ drivers:
     size_bytes: 11222
     sha256: "d85eabff2e1cb3076c27c0d980bd93c4c26df3d27a4801310baec30fda96c127"
   - name: "kstar"
-    version: "1.2.0"
+    version: "1.1.2"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 5508
-    sha256: "1855663dd2c8f2a1c08eda1cd6af06f9f3391df0900b29a654c89229216d635f"
+    size_bytes: 4278
+    sha256: "77442a239ebdc41832c86cc39f5186cd5f74d782a7c9c455743a2c7f6c0f59f1"
   - name: "mennekes"
     version: "1.1.1"
     tier: community

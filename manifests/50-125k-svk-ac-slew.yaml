@@ -1,5 +1,5 @@
 name: "50-125k-svk-ac-slew"
-version: "0.2.5"
+version: "0.3.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,9 +15,9 @@ tested_devices:
     notes: "AC-stage variant (44284/85) of 50-125k-svk-slew; PV shares the AC stage."
     min_driver_version: "0.2.3"
 min_host_version: "2.0.0"
-size_bytes: 37524
+size_bytes: 40824
 dkb_id: "50-125k-svk-ac-slew"
-sha256: "82ff5376ce2f698b3488cd4b4ded011d869d528b20c66b62f91ddeb2ca116838"
+sha256: "95484aed64944c0826d3f691cf035137c4e6585da90c748ba9549774f31fc477"
 signature: ""
 
 bytecode_sha256: ""

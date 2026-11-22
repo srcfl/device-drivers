@@ -150,6 +150,52 @@ Not yet checked on hardware.
 
 Not yet checked on hardware.
 
+### 50-125k-svk 0.3.0, 50-125k-svk-slew 0.2.0, 50-125k-svk-ac-slew 0.3.0
+
+The three Solis 50-125 kW drivers stop resending old limits and send them
+to history, so Core can tell a device limit from lost control.
+
+- `available_charge_W` and `available_discharge_W` on `battery`, and
+  `available_import_W` and `available_export_W` on `inverter`, keep their
+  source: the parallel-system figure (25012-25019) first, then this unit's
+  (25004-25011), read about every 60 s as before. A value is held until the
+  next read. A read that fails now clears it; earlier versions sent the last
+  values again for as long as the block stayed silent.
+- A power above 1000 kW, such as the 0xFFFFFFFF not-present value, is left
+  out. 0 W is kept: it means the device does not allow that direction now.
+- Metrics `battery_available_charge_w` and `battery_available_discharge_w`
+  on each read.
+- A SoC that did not answer is left out instead of sent as 0 %, and so is
+  the energy headroom without a SoC or a configured capacity.
+
+This unit's own registers exist and would match `battery.W` more closely,
+but switching to them is a decision for the Solis site owners. The cell and
+inverter temperature registers are not read yet: that waits for hardware
+evidence about the extra bus traffic. The vendor's notes do not say
+outright that 25004-25019 are live limits. Control, slew and writes are
+unchanged. Not yet checked on hardware.
+
+### konja-261-svk 0.4.0
+
+The driver reports what the battery can do now from the BMS and PCS blocks
+it already reads, with no new reads.
+
+- `temperature_C`, `available_charge_W` and `available_discharge_W` come from
+  this poll's BMS block. A failed BMS read now leaves them out; earlier
+  versions sent the last limits again.
+- Metrics `battery_temp_c`, `battery_available_charge_w`,
+  `battery_available_discharge_w` and `inverter_temp_c` (PCS IGBT, 8059),
+  once every 10 s rather than at the 20 Hz poll.
+- A battery temperature outside -40 to 100 °C, an IGBT temperature outside
+  -40 to 150 °C or a power above 1000 kW is left out.
+- Battery `W` is left out when the PCS did not answer, instead of 0 W. A SoC
+  that never answered is left out instead of 0 %, and so is the energy
+  headroom without a SoC or a configured capacity.
+
+The workbook rows quoted in the driver do not say outright that the BMS
+powers (2758-2761) are live. Control, slew and writes are unchanged. Not yet
+checked on hardware.
+
 ### hardybarth 1.1.1
 
 A Salia station FTW left on now stops when the car leaves, as eCB1 already
