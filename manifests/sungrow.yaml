@@ -1,5 +1,5 @@
 name: "sungrow"
-version: "1.6.1"
+version: "1.7.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -12,21 +12,21 @@ tested_devices:
     variants: [SH5.0RT, SH6.0RT, SH8.0RT, SH10RT]
     regions: [EU]
     firmware_versions: ""
-    notes: "Three-phase hybrid inverter, tested"
+    notes: "Three-phase hybrid inverter, tested. From 1.7.0 the driver reports the BMS's max charge and discharge current (documented 5635/5636) as available power; whether these follow the BMS live is unconfirmed on hardware."
     min_driver_version: "1.2.0"
   - manufacturer: "Sungrow"
     model_family: "SH-RS (Single-Phase Hybrid)"
     variants: [SH3.0RS, SH3.6RS, SH4.0RS, SH5.0RS, SH6.0RS]
     regions: [EU]
     firmware_versions: ""
-    notes: "Single-phase hybrid inverter"
+    notes: "Single-phase hybrid inverter. From 1.7.0 the driver reports the BMS's max charge and discharge current (documented 5635/5636) as available power; whether these follow the BMS live is unconfirmed on hardware."
     min_driver_version: "1.2.0"
   - manufacturer: "Sungrow"
     model_family: "SH-T (Three-Phase Hybrid High-Power)"
     variants: [SH8.0RT, SH10RT, SH15T, SH20T, SH25T]
     regions: [EU]
     firmware_versions: ""
-    notes: "High-power three-phase hybrid"
+    notes: "High-power three-phase hybrid. From 1.7.0 the driver reports the BMS's max charge and discharge current (documented 5635/5636) as available power; whether these follow the BMS live is unconfirmed on hardware."
     min_driver_version: "1.2.0"
   - manufacturer: "Sungrow"
     model_family: "SG-RT (Three-Phase String)"
@@ -43,9 +43,9 @@ tested_devices:
     notes: "Commercial/industrial three-phase string inverter. Needs 1.5.3: 1.2.1 stopped polling the SH battery registers this family does not answer, and 1.5.3 refuses a battery dispatch instead of writing them. A zero-watt command is still written on every family from 1.5.4 -- it is the release, and on a model without the registers it fails harmlessly."
     min_driver_version: "1.5.3"
 min_host_version: "2.0.0"
-size_bytes: 56325
+size_bytes: 61866
 dkb_id: "sungrow_sh_rt"
-sha256: "b89fd9cd70ea67be3c7f0089a3c6d5552d8bbc994e39b8720dbd8d4d9892261b"
+sha256: "f6f30ae48cd0344d7697032998f068e6c2b65c903b5d214a4d5173436d27d0c9"
 signature: ""
 
 bytecode_sha256: ""
