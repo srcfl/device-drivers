@@ -176,6 +176,34 @@ make refused-write-report ID=example
 `refused-write-baseline.json` recording what already shipped. `sungrow` is the
 worked example, and the only one clean when this was first measured.
 
+## A read-only driver that has to ask
+
+A read-only driver from the signed channel cannot write, in any phase. Two
+kinds of request only ask to read, and a driver may declare them:
+
+- A cloud driver that has to sign in before it can read names its sign-in
+  paths in its `DRIVER` table: `auth_post_path`, and `auth_post_paths` for a
+  login that posts more than one form. It may POST to those paths and no
+  others.
+- An MQTT driver whose device reports only while a client asks names its
+  read-request topics in its catalog manifest. Venus OS on a Victron GX
+  publishes only while it receives `R/<portal ID>/keepalive`:
+
+  ```yaml
+  mqtt_read_request_topics: ["R/+/keepalive"]
+  ```
+
+  A topic must start with `R/`, Venus's read-request namespace; `+` stands
+  for one whole level and `#` is refused. The driver may publish only to a
+  matching topic, with at most 1 KiB of payload, and FTW Core allows six such
+  requests a minute. Setup measurement mode and fingerprint probes hold them
+  as they hold writes. A read request
+  needs no write permission, so the signed channel grants none: an FTW Core
+  that does not know the field runs the driver read-only and refuses it. The generated
+  guard raises an error for any other publish; Core returns its refusal as a
+  string, so log it and try again later. Declare only a topic that asks the
+  device to report, never one that changes a setting.
+
 ## Sign convention
 
 **Positive watts flow into the site.** Every driver, every device, no
@@ -450,3 +478,47 @@ for power calculated from the inverter's own battery, PV or load readings.
 Use `power_origin="derived"` for such calculated meter values. Failed reads
 must set `control_power_available=false`; sensor identity alone cannot
 confirm a command.
+
+### What a battery can do now
+
+Core judges a battery against what it can do now, not only against the order.
+A battery that gives 4.3 kW of a 5 kW order because its BMS allows no more is
+limited, not out of control. Report these when the device has them, with the
+canonical names from `spec/host-api-profile.json` where one exists, and leave
+each one out when its read fails:
+
+- `temperature_C` on `battery` (the catalog's older `temp_c` means the same):
+  the battery's temperature in °C as its BMS reports it. Use the pack or
+  module value, never the inverter's heatsink.
+- `available_charge_W` and `available_discharge_W` on `battery`: the most the
+  battery will take or give now, in positive watts, as the BMS or inverter
+  reports it. 0 means the device does not allow it now, for example charging
+  below 0 °C. When the device reports amps, multiply by the battery voltage
+  read in the same poll; without a fresh voltage, leave the watts out.
+- `available_import_W` and `available_export_W` on the `inverter` stream: how
+  much more the inverter will take from or give to the grid now, when the
+  device reports that headroom.
+- `device_state` on `battery`: `"standby"` or `"starting"` while the device
+  reports that it is not running and so cannot follow an order. Leave it out
+  while it runs. This key is FTW's own; @srcful/data-models has none yet, so
+  it is allowed in `drivers/tests/test_emit_fields.py` rather than listed as
+  canonical in the profile. Core uses it to say why a battery gives nothing.
+
+Only a live value belongs in an `available_*` field: one that moves with
+temperature, charge level or the BMS's own state. A rating, a configured
+ceiling or a register the driver writes itself is not one. When the vendor's
+document does not say which a register is, say so in a comment and in the
+pull request.
+
+Drop a temperature outside -40 to 100 °C and a power outside 0 to 100 kW.
+A register that did not answer is left out, never sent as zero. A
+battery temperature of 0 from a failed read looks like a cold battery. In
+November 2026, `huawei`, `goodwe`, `solis`, `sofar` and `victron` started their
+battery temperature at 0 and emitted it whether or not the read answered.
+
+Emit the same numbers with `host.emit_metric` so they reach history:
+`battery_temp_c`, `battery_available_charge_w`, `battery_available_discharge_w`,
+and, when the device reports them, `battery_cell_temp_min_c`,
+`battery_cell_temp_max_c`, `battery_charge_limit_a` and
+`battery_discharge_limit_a`. The inverter's own temperature goes in
+`inverter_temp_c`.

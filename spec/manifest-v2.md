@@ -17,6 +17,7 @@ Each driver has a YAML manifest in `manifests/` that describes its metadata, cap
 | `control` | bool | Yes | Whether FTW can command the device through this driver: `driver_command` writes to it and the `DRIVER` table does not declare `read_only = true`. A stub that only refuses is `false` and declares `read_only` |
 | `tested_devices` | list | No | Devices tested against (see below) |
 | `upstream_docs` | list | No | Vendor reference documents to watch for register/protocol changes (see below) |
+| `mqtt_read_request_topics` | list | No | For a read-only MQTT driver: the topics it may publish read requests to, such as `R/+/keepalive`. FTW lets the driver publish to these topics only; they grant no write permission (see `docs/WRITING-A-DRIVER.md`) |
 | `min_host_version` | string | No | Minimum gateway firmware version required |
 | `size_bytes` | int | Yes | Size of the `.lua` file in bytes |
 | `dkb_id` | string | No | Corresponding Hugin DKB device profile ID |
@@ -208,6 +209,7 @@ Version changes must be accompanied by a `CHANGELOG.md` entry under `[Unreleased
 10. Every manifest must have a corresponding `.lua` file in `drivers/`
 11. `tested_devices` entries must have `manufacturer` and `model_family`
 12. `upstream_docs` entries must have an `http(s)` `url`; `kind` and `url_stability`, when present, must be known values
+13. `mqtt_read_request_topics`, when present, must be a non-empty list on an `mqtt` driver with `control: false`. Each topic starts with `R/`, Venus's read-request namespace, and is at most 256 bytes of printable ASCII without spaces; `+` is a whole level; `#` is refused
 
 ## Migration from V1
 
@@ -220,6 +222,8 @@ V2.1 extends `tested_devices` with: `model_family` (replaces `model`), `variants
 V2.2 adds bytecode fields: `bytecode_sha256`, `bytecode_signature`, `bytecode_size` for Lua 5.5.0 compiled bytecode.
 
 V2.3 adds `upstream_docs`: an optional list of vendor reference documents (`url`, `title`, `kind`, `url_stability`) to watch for register/protocol changes.
+
+V2.5 adds the optional `mqtt_read_request_topics`: the read requests a read-only MQTT driver may publish.
 
 V2.4 adds `connectivity` (`local`/`cloud`) and the optional `setup` list: where a driver talks while it is running, and what a human must obtain once before it can connect at all. `connectivity` is required, so every manifest carries it.
 

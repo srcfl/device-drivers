@@ -70,7 +70,10 @@ local function poll(config)
     if not ok then error("driver_poll failed: " .. tostring(err)) end
 end
 
-local function assert_full_reading()
+-- v1 firmware's battery heatsink_C is not the battery's own temperature on
+-- every profile (Pixii's cabinet, Ferroamp's converter), so only data model
+-- 2.7.0's battery temperature_C is reported.
+local function assert_full_reading(want_battery_temp)
     local pv = host._emitted.pv and host._emitted.pv[1]
     if not pv then error(scenario .. ": no pv reading") end
     want("pv.w", pv.w, -3000)
@@ -83,7 +86,12 @@ local function assert_full_reading()
     want("battery.soc", battery.soc, 0.75)
     want("battery.v", battery.v, 52)
     want("battery.a", battery.a, 10)
-    want("battery.temp_c", battery.temp_c, 24)
+    if want_battery_temp then
+        want("battery.temp_c", battery.temp_c, want_battery_temp)
+        want("battery_temp_c", metric("battery_temp_c"), want_battery_temp)
+    elseif battery.temp_c ~= nil or metric("battery_temp_c") ~= nil then
+        error(scenario .. ": a heatsink temperature became the battery's")
+    end
     want("battery.total_charge_wh", battery.total_charge_wh, 4200000)
     want("battery.total_discharge_wh", battery.total_discharge_wh, 1800000)
     want("battery.rated_w", battery.rated_w or battery.rated_power_w, 5000)
@@ -101,13 +109,69 @@ if scenario == "v1" then
     respond("/api/devices", V1_DEVICES)
     respond("/api/devices/INV-1/data/json", V1_DATA)
     poll({ read_pv = true, read_battery = true })
-    assert_full_reading()
+    assert_full_reading(nil)
+    if metric("inverter_temp_c") ~= nil then
+        error("v1: an inverter temperature was invented")
+    end
 
 elseif scenario == "v2" then
     respond("/api/devices", V2_DEVICES)
     respond("/api/devices/INV-1/data/json", V2_DATA)
     poll({ read_pv = true, read_battery = true })
-    assert_full_reading()
+    assert_full_reading(24)
+    want("inverter_temp_c", metric("inverter_temp_c"), 45)
+
+elseif scenario == "v2_battery_only_temps" then
+    -- The battery's and the inverter's temperatures need no read_pv.
+    respond("/api/devices", V2_DEVICES)
+    respond("/api/devices/INV-1/data/json", V2_DATA)
+    poll({ read_battery = true })
+    want("battery.temp_c", host._emitted.battery[1].temp_c, 24)
+    want("battery_temp_c", metric("battery_temp_c"), 24)
+    want("inverter_temp_c", metric("inverter_temp_c"), 45)
+
+elseif scenario == "v2_temps_out_of_range" or scenario == "v2_temps_cold_limit" then
+    -- Outside -40 to 100 °C is not a temperature; at the edges it still is.
+    local battery_c, inverter_c = 101, -40.5
+    if scenario == "v2_temps_cold_limit" then battery_c, inverter_c = -40, 100 end
+    respond("/api/devices", V2_DEVICES)
+    respond("/api/devices/INV-1/data/json", string.format([[
+{"battery":{"W_dc":100,"temperature_C":%s},
+ "inverter":{"W_ac":-2400,"temperature_C":%s},"version":"v2"}
+]], battery_c, inverter_c))
+    poll({ read_battery = true })
+    local battery = host._emitted.battery[1]
+    if scenario == "v2_temps_out_of_range" then
+        if battery.temp_c ~= nil or metric("battery_temp_c") ~= nil then
+            error(scenario .. ": 101 °C became a battery temperature")
+        end
+        if metric("inverter_temp_c") ~= nil then
+            error(scenario .. ": -40.5 °C became an inverter temperature")
+        end
+    else
+        want("battery.temp_c", battery.temp_c, -40)
+        want("battery_temp_c", metric("battery_temp_c"), -40)
+        want("inverter_temp_c", metric("inverter_temp_c"), 100)
+    end
+
+elseif scenario == "v2_null_temps" then
+    -- A temperature the Zap did not read is null: left out, never 0.
+    respond("/api/devices", V2_DEVICES)
+    respond("/api/devices/INV-1/data/json", [[
+{"battery":{"W_dc":100,"temperature_C":null,"upper_limit_W_dc":5000,"lower_limit_W_dc":-5000},
+ "inverter":{"W_ac":-2400,"temperature_C":null},"version":"v2"}
+]])
+    poll({ read_battery = true })
+    local battery = host._emitted.battery[1]
+    if battery.temp_c ~= nil or metric("battery_temp_c") ~= nil or metric("inverter_temp_c") ~= nil then
+        error(scenario .. ": an unread temperature was invented")
+    end
+    -- Zap's limits come from ratings and the SoC window, not from the battery.
+    for key in pairs(battery) do
+        if string.find(string.lower(key), "available") then
+            error(scenario .. ": a worked-out limit became " .. key)
+        end
+    end
 
 elseif scenario == "v2_panels_rating" then
     -- No inverter rating set: the rating falls back on the installed panels.

@@ -1,5 +1,5 @@
 name: "kostal"
-version: "2.1.2"
+version: "2.2.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -12,14 +12,14 @@ tested_devices:
     variants: [Plenticore Plus 3.0, Plenticore Plus 4.2, Plenticore Plus 5.5, Plenticore Plus 7.0, Plenticore Plus 8.5, Plenticore Plus 10.0]
     regions: []
     firmware_versions: ""
-    notes: "SunSpec compliant, port 1502"
+    notes: "SunSpec compliant, port 1502. From 2.2.0 the driver reports the battery's own maximum charge/discharge power limit (0x434/0x436) as available power; how often it refreshes is unconfirmed on hardware."
     min_driver_version: "1.0.0"
   - manufacturer: "Kostal"
     model_family: "Plenticore BI"
     variants: [Plenticore BI 3.0, Plenticore BI 4.2, Plenticore BI 5.5, Plenticore BI 7.0, Plenticore BI 8.5, Plenticore BI 10.0]
     regions: []
     firmware_versions: ""
-    notes: "SunSpec compliant, port 1502"
+    notes: "SunSpec compliant, port 1502. From 2.2.0 the driver reports the battery's own maximum charge/discharge power limit (0x434/0x436) as available power; how often it refreshes is unconfirmed on hardware."
     min_driver_version: "1.0.0"
   - manufacturer: "Kostal"
     model_family: "PIKO MP Plus"
@@ -35,10 +35,15 @@ tested_devices:
     firmware_versions: ""
     notes: "SunSpec compliant, port 1502"
     min_driver_version: "1.0.0"
+upstream_docs:
+  - url: "https://www.kostal-solar-electric.com/fileadmin/downloadcenter/kse/BA/Protokollbeschreibung/BA_KOSTAL_Interface_MODBUS-TCP_SunSpec_with_Control.pdf"
+    title: "KOSTAL PIKO IQ / PLENTICORE interface description MODBUS (TCP) & SunSpec with control information"
+    kind: register_map
+    url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 11222
+size_bytes: 17688
 dkb_id: ""
-sha256: "d85eabff2e1cb3076c27c0d980bd93c4c26df3d27a4801310baec30fda96c127"
+sha256: "a5ea16a0f5a3315487384589589e14a3c0ef0407339997a0251dc5b50039008e"
 signature: ""
 
 bytecode_sha256: ""

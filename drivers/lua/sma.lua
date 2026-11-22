@@ -13,7 +13,7 @@ DRIVER = {
   id           = "sma",
   name         = "SMA hybrid inverter",
   manufacturer = "SMA",
-  version      = "2.1.2",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -91,6 +91,31 @@ local function probe_read(addr, count, kind)
     end
     return nil
 end
+
+-- What the battery can do now (docs/WRITING-A-DRIVER.md). A value outside
+-- these bounds is a sentinel or a decoding slip, not a reading, so it is
+-- left out rather than sent.
+--
+-- SMA's TEMP format is one decimal place in the unit the device is set to:
+-- °C, °F or K (SMA Modbus TI for Sunny Boy / Sunny Tripower, version 1.4,
+-- data formats). The driver reads it as °C, the factory setting in Europe.
+-- A unit set to K lands outside the window and is dropped; one set to °F
+-- does not, and would read high.
+--
+-- Compared in the register's own tenths so -40.0 and 100.0 stay in on any
+-- float width.
+local function temp_c_from_tenths(tenths)
+    if tenths < -400 or tenths > 1000 then return nil end
+    return tenths * 0.1
+end
+
+-- SMA documents no live charge or discharge limit for these devices.
+-- 40189/40191 "Maximum charge/discharge power of the battery (W)" are
+-- read-only, but they sit in the device-parameter block beside the nominal
+-- capacity and the maximum apparent power, and SMA does not say they follow
+-- the BMS. 40081/40083 and 40793-40799 are settings (read-write). 30997/30999
+-- "Lowest/Highest measured battery temperature" belong to the battery
+-- statistics block, so they are a record, not the cells now. None is read.
 
 local sn_read = false
 
@@ -177,12 +202,13 @@ function driver_poll()
         pv_gen_wh = decode_u64_be(pvgen_regs[1], pvgen_regs[2], pvgen_regs[3], pvgen_regs[4])
     end
 
-    -- Inverter heatsink temp: 30953-30954, I32 BE × 0.1 C
+    -- Inverter internal temperature: 30953-30954, S32, TEMP (× 0.1).
+    -- Left out when the read fails or answers NaN.
     local itemp_regs = probe_read(30953, 2, "input")
-    local inv_temp = 0
-    if itemp_regs then
+    local inv_temp = nil
+    if itemp_regs and itemp_regs[2] ~= nil then
         local v = host.decode_i32_be(itemp_regs[1], itemp_regs[2])
-        if i32_valid(v) then inv_temp = v * 0.1 end
+        if i32_valid(v) then inv_temp = temp_c_from_tenths(v) end
     end
 
     -- Rated power: 31085-31086, U32 BE, watts
@@ -207,7 +233,9 @@ function driver_poll()
     host.emit_metric("pv_mppt1_a",      mppt1_a)
     host.emit_metric("pv_mppt2_v",      mppt2_v)
     host.emit_metric("pv_mppt2_a",      mppt2_a)
-    host.emit_metric("inverter_temp_c", inv_temp)
+    if inv_temp ~= nil then
+        host.emit_metric("inverter_temp_c", inv_temp)
+    end
 
     ------------------------------------------------------------- Battery --
 
@@ -227,12 +255,13 @@ function driver_poll()
         if u32_valid(v) then bat_soc = v / 100 end
     end
 
-    -- Battery temperature: 30849-30850, I32 BE × 0.1 C
+    -- Battery temperature: 30849-30850, S32, TEMP (× 0.1). Left out when the
+    -- read fails or answers NaN: 0 °C looks like a cold battery.
     local btemp_regs = probe_read(30849, 2, "input")
-    local bat_temp = 0
-    if btemp_regs then
+    local bat_temp = nil
+    if btemp_regs and btemp_regs[2] ~= nil then
         local v = host.decode_i32_be(btemp_regs[1], btemp_regs[2])
-        if i32_valid(v) then bat_temp = v * 0.1 end
+        if i32_valid(v) then bat_temp = temp_c_from_tenths(v) end
     end
 
     -- Battery voltage: 30851-30852, U32 BE × 0.01 V
@@ -272,7 +301,9 @@ function driver_poll()
     })
     host.emit_metric("battery_dc_v",   bat_v)
     host.emit_metric("battery_dc_a",   bat_a)
-    host.emit_metric("battery_temp_c", bat_temp)
+    if bat_temp ~= nil then
+        host.emit_metric("battery_temp_c", bat_temp)
+    end
 
     --------------------------------------------------------------- Meter --
 
