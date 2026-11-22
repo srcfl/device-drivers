@@ -1,5 +1,5 @@
 name: "victron_mqtt"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -43,15 +43,15 @@ tested_devices:
     notes: "Requires Venus OS with MQTT enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 14650
+size_bytes: 14983
 dkb_id: ""
-sha256: "72f607fd9906f4cf0854a4741fecb1708bf278acd5b640e024772da81d801320"
+sha256: "91b142b90523a0e6bcbaece9d13d6af6e148c81b6e8f314697032a422046934a"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Report the BMS charge and discharge limits as available power, battery and cell temperatures. Leave out values the GX never sent, cleared, or that went quiet."
+changelog: "Pass battery power through with Victron's own sign, charge positive; it was negated before. Not yet measured on a real GX."
 
 upstream_docs:
   - url: "https://raw.githubusercontent.com/victronenergy/dbus-flashmq/master/README.md"

@@ -313,9 +313,14 @@ function driver_poll()
     end
 
     -- Emit Battery telemetry, only on a fresh battery power message.
-    -- Victron: positive power = discharging, negate for convention (positive = charging)
+    -- Victron's D-Bus docs give battery power as "positive when charged,
+    -- negative when discharged" (/Dc/0/Power on the battery service), and
+    -- dbus-systemcalc-py copies that value into system/0/Dc/Battery/Power.
+    -- That is the site convention already, so it passes through, as it does
+    -- in victron.lua (Modbus 842, the same value). Up to 1.1.0 this driver
+    -- negated it (srcfl/device-drivers#255).
     if fresh_battery then
-        local battery = { W = -bat_w }
+        local battery = { W = bat_w }
         if bat_v ~= nil then battery.V = bat_v end
         if bat_a ~= nil then battery.A = bat_a end
         if bat_soc ~= nil then battery.SoC_nom_fract = bat_soc / 100 end  -- percent to fraction
