@@ -92,6 +92,9 @@ end
 --   35184        battery 1 mode: 0 no battery or disconnected, 1 standby,
 --                2 discharging, 3 charging (Table 8-9)
 --   35191-35192  PV energy total, U32 x 0.1 kWh
+--   35019        ARM firmware version, U16, read once (device info block)
+-- 0xFFFFFFFF in a U32 power or energy means "no value" (evcc reads these
+-- as uint32 with that sentinel); it is left out, never added.
 -- Meter block, from the meter the inverter reads (36000 and up):
 --   36004        meter communication, 1 OK, 0 failed
 --   36014        meter frequency, U16 x 0.01 Hz
@@ -112,10 +115,11 @@ end
 -- own phase registers at 35121-35141.
 --
 -- Known limits, left for a field report:
---   * GoodWe's table says to read 36019-36041 when the ARM firmware is
---     above version 9, and the older 36005-36008 (S16) before that. The
---     driver reads the newer ones, as evcc does for every ET model, and
---     does not read the firmware version.
+--   * GoodWe's table says to read 36019-36041 when the ARM firmware
+--     (35019) is above version 9, and 36005-36008 (S16) before that. On
+--     older firmware 36019 and up would read 0, which looks like a site in
+--     balance. No source gives the sign of 36005-36008, so on ARM 9 or
+--     older, or while the version is unknown, no meter is sent.
 --   * 36052-36057 are listed in GoodWe's February 2024 table. The goodwe
 --     library reads them only on newer units, so on an older one the read
 --     may fail; it is given up after three tries and the rest of the meter
@@ -190,6 +194,12 @@ local function u32(hi, lo)
     return (hi % 0x10000) * 0x10000 + (lo % 0x10000)
 end
 
+-- A U32 power or energy, or nil for the 0xFFFFFFFF "no value" sentinel.
+local function u32_value(hi, lo)
+    if hi % 0x10000 == 0xFFFF and lo % 0x10000 == 0xFFFF then return nil end
+    return u32(hi, lo)
+end
+
 local function s32(hi, lo)
     hi = hi % 0x10000
     lo = lo % 0x10000
@@ -248,8 +258,14 @@ local function poll_pv()
     local regs = probe_read(35103, 21, "holding")
     if not regs or regs[21] == nil then return end
 
-    local pv_w = u32(regs[3], regs[4]) + u32(regs[7], regs[8])
-        + u32(regs[11], regs[12]) + u32(regs[15], regs[16])
+    -- PV1..PV4 power at 35105, 35109, 35113, 35117. An MPPT without a
+    -- value adds nothing; with no value at all there is no PV reading.
+    local pv_w = nil
+    for _, i in ipairs({3, 7, 11, 15}) do
+        local w = u32_value(regs[i], regs[i + 1])
+        if w ~= nil then pv_w = (pv_w or 0) + w end
+    end
+    if pv_w == nil then return end
     local mppt1_v, mppt1_a = regs[1] * 0.1, regs[2] * 0.1
     local mppt2_v, mppt2_a = regs[5] * 0.1, regs[6] * 0.1
     local hz = regs[21] * 0.01
@@ -257,7 +273,8 @@ local function poll_pv()
     local lifetime_wh = nil
     local energy = probe_read(35191, 2, "holding")
     if energy and energy[2] ~= nil then
-        lifetime_wh = u32(energy[1], energy[2]) * 100       -- 0.1 kWh
+        local tenths_kwh = u32_value(energy[1], energy[2])
+        if tenths_kwh ~= nil then lifetime_wh = tenths_kwh * 100 end
     end
 
     host.emit("pv", {
@@ -300,7 +317,9 @@ local function poll_battery()
     end
 
     if bms_regs then
-        battery.soc = bms_regs[8] / 100                       -- 37007
+        if bms_regs[8] <= 100 then                            -- 37007
+            battery.soc = bms_regs[8] / 100   -- 0xFFFF: no value
+        end
 
         local bat_temp = goodwe_temp(bms_regs[4])            -- 37003
         if bat_temp ~= nil then
@@ -337,7 +356,28 @@ local function poll_battery()
     host.emit_metric("battery_dc_a", amps)
 end
 
+-- ARM firmware version (35019), read once. nil until it answers.
+local arm_version = nil
+local old_firmware_logged = false
+
 local function poll_meter()
+    if arm_version == nil then
+        local fw = probe_read(35019, 1, "holding")
+        if fw and fw[1] ~= nil then arm_version = fw[1] end
+    end
+    -- Meter power sits at 36019-36026 only above ARM version 9 (see the
+    -- top of this file). Older or unknown firmware: no meter.
+    if arm_version == nil then return end
+    if arm_version <= 9 then
+        if not old_firmware_logged then
+            old_firmware_logged = true
+            host.log("info", string.format(
+                "GoodWe: ARM firmware %d keeps meter power at 36005-36008, " ..
+                "whose sign no source gives; no meter is sent", arm_version))
+        end
+        return
+    end
+
     -- 36004-36026 in one read. Without the meter (36004 not 1) the
     -- inverter has no grid reading to give, so no meter is sent.
     local regs = probe_read(36004, 23, "holding")

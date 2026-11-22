@@ -151,13 +151,19 @@ checked on hardware.
   does not hear its meter.
 - **Never fabricate.** A read that fails is left out, never sent as 0. The
   driver is clean in `invented-number-baseline.json` (was 23 fields).
-- **Not handled.** GoodWe's map points ARM firmware 9 and older at
-  36005-36008 for meter power. The driver reads the newer registers, as
-  evcc does, and does not read the firmware version.
+- **Old firmware.** GoodWe's map puts meter power at 36019-36041 only
+  above ARM firmware version 9 (35019, read once), and at 36005-36008
+  before that. No source gives the sign of the old registers, so on ARM 9
+  or older, or while the version is unknown, no meter is sent rather than
+  a 0 W one.
+- **No-value sentinels.** A PV power or PV energy of 0xFFFFFFFF (as evcc
+  reads them) is left out, and an MPPT without a value adds nothing to PV
+  power. A SoC above 100 % (0xFFFF) is left out.
 - **Tests.** `test_goodwe_map.py` encodes the map. The four Lua files under
   `drivers/tests/lua_harness/` for the `community-v1` and `gw8kn-et-hk3000`
   profiles are removed: no test ran them, and the driver lost those
-  profiles in #27.
+  profiles in #27. So is the `THIRD_PARTY_NOTICES.md` entry for the
+  `gw8kn-et-hk3000` profile, since no file derives from it any more.
 
 ### goodwe 2.2.0, solis 2.2.0, sofar 2.2.0, solax 1.2.0, saj 1.3.0, growatt 2.2.0, solinteg 1.2.0
 

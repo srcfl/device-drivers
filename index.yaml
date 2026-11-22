@@ -306,8 +306,8 @@ drivers:
     setup: [bridge]
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 16335
-    sha256: "ffe3786034938b0ccc6cac76b1bcd64f28f2f6466877a2e5d9496b737fa8b39e"
+    size_bytes: 18014
+    sha256: "2c38be160885144bf9baf1ab7f481de9f84bc38e22a5a9e9ba11991e4bdb1637"
   - name: "growatt"
     version: "2.2.2"
     tier: community

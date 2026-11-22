@@ -98,6 +98,7 @@ def site(over: dict[int, list[int]] | None = None) -> dict[int, list[int]]:
         35176: [455],
         35180: battery_block(),
         37000: bms_block(),
+        35019: [19],                        # ARM firmware version
         36004: meter_block(),
         36052: [2301, 2302, 2303, 51, 62, 73],
     }
@@ -105,7 +106,8 @@ def site(over: dict[int, list[int]] | None = None) -> dict[int, list[int]]:
     return regs
 
 
-def poll(regs: dict[int, list[int]], fail: tuple[int, ...] = ()) -> dict[str, str]:
+def poll(regs: dict[int, list[int]], fail: tuple[int, ...] = (),
+         polls: int = 1) -> dict[str, str]:
     setup = "\n".join(
         f"host._modbus_registers.holding[{addr}] = "
         "{" + ", ".join(str(v) for v in vals) + "}"
@@ -120,8 +122,17 @@ host.reset()
 {setup}
 dofile("{DRIVER}")
 driver_init({{}})
-local ok, err = pcall(driver_poll)
-if not ok then print("POLL_ERROR " .. tostring(err)) os.exit(1) end
+for i = 1, {polls} do
+    host._emitted = {{}}
+    host._metrics = {{}}
+    local ok, err = pcall(driver_poll)
+    if not ok then print("POLL_ERROR " .. tostring(err)) os.exit(1) end
+end
+local reads = {{}}
+for _, c in ipairs(host._calls) do
+    if c.func == "modbus_read" then reads[#reads + 1] = tostring(c.args[1]) end
+end
+print("READS " .. table.concat(reads, ","))
 for _, der in ipairs({{"pv", "battery", "meter"}}) do
     local list = host._emitted[der]
     print("EMITTED_" .. der .. " " .. tostring(list ~= nil and #list > 0))
@@ -178,6 +189,26 @@ def test_pv_lifetime_energy():
 def test_grid_frequency_comes_from_35123_not_pv3_power():
     out = poll(site({35103: pv_block(p3=4000, hz_raw=4998)}))
     close(out, "metric.grid_hz", 49.98)
+
+
+def test_pv_mppt_without_a_value_is_left_out_of_the_sum():
+    # 0xFFFFFFFF is "no value" (evcc reads these as uint32 with that
+    # sentinel). An unused PV3/PV4 must not add 4.3 GW.
+    out = poll(site({35103: pv_block(p1=2800, p2=2300,
+                                     p3=0xFFFFFFFF, p4=0xFFFFFFFF)}))
+    close(out, "pv.w", -5100)
+
+
+def test_no_pv_power_at_all_sends_no_pv():
+    nan = 0xFFFFFFFF
+    out = poll(site({35103: pv_block(p1=nan, p2=nan, p3=nan, p4=nan)}))
+    assert out["EMITTED_pv"] == "false"
+
+
+def test_pv_lifetime_energy_without_a_value_is_left_out():
+    out = poll(site({35191: [0xFFFF, 0xFFFF]}))
+    assert "pv.lifetime_wh" not in out
+    close(out, "pv.w", -5100)
 
 
 def test_failed_pv_read_sends_no_pv():
@@ -238,6 +269,13 @@ def test_soc_left_out_without_a_talking_bms():
     close(out, "battery.w", -2000)
 
 
+@pytest.mark.parametrize("raw", [0xFFFF, 101])
+def test_soc_without_a_value_is_left_out(raw):
+    out = poll(site({37000: bms_block(soc=raw)}))
+    assert "battery.soc" not in out
+    close(out, "battery.w", -2000)
+
+
 def test_failed_bms_read_leaves_soc_out():
     out = poll(site(), fail=(37000,))
     assert "battery.soc" not in out
@@ -283,6 +321,42 @@ def test_meter_phase_block_missing_keeps_the_rest():
     assert "meter.l1_v" not in out
     assert "meter.l1_a" not in out
     close(out, "meter.w", -1200)
+
+
+def test_arm_firmware_9_sends_no_meter():
+    """ARM 9 and older keep meter power at 36005-36008, not 36019-36041.
+
+    GoodWe's table says to use 36019-36041 only above ARM version 9 (35019).
+    On older firmware 36019+ would read 0 and look like a balanced site.
+    No source gives the sign of the old registers, so no meter is sent.
+    """
+    out = poll(site({35019: [9]}))
+    assert out["EMITTED_meter"] == "false"
+    assert "metric.meter_l1_w" not in out
+    assert "36004" not in out["READS"].split(",")
+    assert out["EMITTED_pv"] == "true"
+
+
+def test_arm_firmware_10_sends_the_meter():
+    out = poll(site({35019: [10]}))
+    close(out, "meter.w", -1200)
+
+
+def test_unknown_arm_firmware_sends_no_meter():
+    out = poll(site(), fail=(35019,))
+    assert out["EMITTED_meter"] == "false"
+    assert out["EMITTED_battery"] == "true"
+
+
+def test_arm_firmware_is_read_once():
+    out = poll(site(), polls=3)
+    assert out["READS"].split(",").count("35019") == 1
+    close(out, "meter.w", -1200)
+
+
+def test_arm_firmware_read_gives_up_after_three_tries():
+    out = poll(site(), fail=(35019,), polls=6)
+    assert out["READS"].split(",").count("35019") == 3
 
 
 def test_no_meter_sends_no_meter():
