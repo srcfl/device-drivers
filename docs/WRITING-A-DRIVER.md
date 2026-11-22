@@ -176,6 +176,34 @@ make refused-write-report ID=example
 `refused-write-baseline.json` recording what already shipped. `sungrow` is the
 worked example, and the only one clean when this was first measured.
 
+## A read-only driver that has to ask
+
+A read-only driver from the signed channel cannot write, in any phase. Two
+kinds of request only ask to read, and a driver may declare them:
+
+- A cloud driver that has to sign in before it can read names its sign-in
+  paths in its `DRIVER` table: `auth_post_path`, and `auth_post_paths` for a
+  login that posts more than one form. It may POST to those paths and no
+  others.
+- An MQTT driver whose device reports only while a client asks names its
+  read-request topics in its catalog manifest. Venus OS on a Victron GX
+  publishes only while it receives `R/<portal ID>/keepalive`:
+
+  ```yaml
+  mqtt_read_request_topics: ["R/+/keepalive"]
+  ```
+
+  A topic must start with `R/`, Venus's read-request namespace; `+` stands
+  for one whole level and `#` is refused. The driver may publish only to a
+  matching topic, with at most 1 KiB of payload, and FTW Core allows six such
+  requests a minute. Setup measurement mode and fingerprint probes hold them
+  as they hold writes. A read request
+  needs no write permission, so the signed channel grants none: an FTW Core
+  that does not know the field runs the driver read-only and refuses it. The generated
+  guard raises an error for any other publish; Core returns its refusal as a
+  string, so log it and try again later. Declare only a topic that asks the
+  device to report, never one that changes a setting.
+
 ## Sign convention
 
 **Positive watts flow into the site.** Every driver, every device, no
