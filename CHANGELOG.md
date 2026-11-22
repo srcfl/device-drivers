@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### growatt 2.2.2
+
+A failed read no longer becomes 0 (docs/WRITING-A-DRIVER.md, "Never
+fabricate"). Up to 2.2.1 every PV, battery and meter value started at 0, so a
+read that did not answer sent 0 W, 0 V or 0 % SoC. A 0 W meter looks like a
+site in balance, a 0 % SoC like an empty pack.
+
+- Each field comes only from a read that answered with every register asked
+  for; metrics likewise.
+- PV goes out only when its power (1-2) answers, and the meter only when its
+  power (1015-1016) answers.
+- The battery follows "A hybrid inverter may have no battery": each field
+  only from a read that answered, and the stream when what answered shows a
+  battery. Its power needs both 1009 and 1011, since either alone is not the
+  net.
+
+This is the never-fabricate half of srcfl/device-drivers#263. Which
+registers the meter should read is srcfl/device-drivers#271 and is not
+changed here. growatt leaves `drivers/tests/invented-number-baseline.json`.
+Not yet checked on hardware.
+
 ### victron 2.2.1, ferroamp_modbus 2.2.1
 
 A failed read no longer sends 0 on the meter and PV streams

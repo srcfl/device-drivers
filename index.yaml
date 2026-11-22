@@ -309,14 +309,14 @@ drivers:
     size_bytes: 14972
     sha256: "2bd0ddc5df2754bf8e807aea05529d59809ef65282f4a55a5823e481339be363"
   - name: "growatt"
-    version: "2.2.1"
+    version: "2.2.2"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 12137
-    sha256: "ce2cf6f114d832adc3708c825cf7224589b3c04f098ba5ac694018b3a3dc839b"
+    size_bytes: 11978
+    sha256: "6e9bee48e0d1e851922b3d9fc6b29dcd3649f5cf4da5f5a4050c05969a7c06e8"
   - name: "hardybarth"
     version: "1.1.1"
     tier: community

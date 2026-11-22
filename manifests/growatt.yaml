@@ -1,5 +1,5 @@
 name: "growatt"
-version: "2.2.1"
+version: "2.2.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -59,12 +59,12 @@ upstream_docs:
     kind: register_map
     url_stability: volatile
 min_host_version: "2.0.0"
-size_bytes: 12137
+size_bytes: 11978
 dkb_id: ""
-sha256: "ce2cf6f114d832adc3708c825cf7224589b3c04f098ba5ac694018b3a3dc839b"
+sha256: "6e9bee48e0d1e851922b3d9fc6b29dcd3649f5cf4da5f5a4050c05969a7c06e8"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Read discharge power at 1009 and charge power at 1011, as Growatt's protocol says, so a charging battery is positive."
+changelog: "Leave a failed read out instead of sending 0; send PV and meter only with their power."
