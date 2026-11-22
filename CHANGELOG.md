@@ -122,6 +122,43 @@ The driver is read-only, so no command went the wrong way. Not yet checked
 on hardware: on a Growatt, `battery.w` should be positive while the SoC
 rises.
 
+### goodwe 2.3.0
+
+The driver now reads PV, battery and meter values from the registers in
+GoodWe's own map, "Modbus Protocol Hybrid for Energy Storage Inverters"
+(2 February 2024). evcc's goodwe-hybrid template and the goodwe library read
+the same registers and give the signs (srcfl/device-drivers#264). Not yet
+checked on hardware.
+
+- **Battery.** Power is the S32 at 35182-35183, voltage 35180, current
+  35181, SoC 37007 from the BMS block. GoodWe counts discharge as positive,
+  so the driver turns power and current round. Earlier releases read power
+  from 35180 (the battery voltage), voltage and current from 35178/35179
+  (the BUS and NBUS voltages) and SoC from 35182. SoC is sent only while
+  the BMS talks to the inverter (37011), like the other BMS figures. When
+  35184 says there is no battery, no battery stream goes out.
+- **PV.** Power is the sum of the four MPPT powers (U32 W at 35105, 35109,
+  35113, 35117). Earlier releases read PV1 power alone and scaled it by 0.1.
+  PV2 voltage and current are 35107/35108, not 35109/35110. Grid frequency
+  is 35123, not 35113 (PV3 power).
+- **Meter.** The meter comes from the meter block: total power 36025, power
+  per phase 36019/36021/36023 (S32), frequency 36014, energy sold and bought
+  36015/36017 (float32 Wh), and voltage and current per phase 36052-36057.
+  GoodWe counts export as positive; the driver turns it round. Earlier
+  releases read the inverter's own phase registers at 35121-35141 and the
+  energy counters at 35195/35199, which are inverter counters at best and,
+  for 35199, a daily value. No meter is sent while 36004 says the inverter
+  does not hear its meter.
+- **Never fabricate.** A read that fails is left out, never sent as 0. The
+  driver is clean in `invented-number-baseline.json` (was 23 fields).
+- **Not handled.** GoodWe's map points ARM firmware 9 and older at
+  36005-36008 for meter power. The driver reads the newer registers, as
+  evcc does, and does not read the firmware version.
+- **Tests.** `test_goodwe_map.py` encodes the map. The four Lua files under
+  `drivers/tests/lua_harness/` for the `community-v1` and `gw8kn-et-hk3000`
+  profiles are removed: no test ran them, and the driver lost those
+  profiles in #27.
+
 ### goodwe 2.2.0, solis 2.2.0, sofar 2.2.0, solax 1.2.0, saj 1.3.0, growatt 2.2.0, solinteg 1.2.0
 
 These drivers report what the battery can do now, where the device says so

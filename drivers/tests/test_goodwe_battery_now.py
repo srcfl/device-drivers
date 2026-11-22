@@ -145,9 +145,14 @@ def test_goodwe_zero_limit_means_not_allowed_now():
 
 
 def test_goodwe_no_battery_mode_leaves_bms_figures_out():
-    """Mode 0 is "no battery": the BMS block is not read and nothing is sent."""
+    """Mode 0 is "no battery": the BMS block is not read and nothing is sent.
+
+    Since 2.3.0 no battery stream goes out either (docs/WRITING-A-DRIVER.md,
+    "A hybrid inverter may have no battery"); the goodwe library also treats
+    mode 0 as "no battery".
+    """
     out = poll(registers(mode=0))
-    assert out["BATTERY"] == "true"
+    assert out["BATTERY"] == "false"
     for field in FIELDS:
         assert out[f"F_{field}"] == "nil", field
     for metric in METRICS[:-1]:

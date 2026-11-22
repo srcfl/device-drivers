@@ -299,15 +299,15 @@ drivers:
     size_bytes: 17091
     sha256: "f289d0ba9fbb7a20e48ba26d0c93c44af541cb4cc3fb62576a6a4e1fb21fe002"
   - name: "goodwe"
-    version: "2.2.0"
+    version: "2.3.0"
     tier: community
     protocol: modbus
     connectivity: local
     setup: [bridge]
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 14972
-    sha256: "2bd0ddc5df2754bf8e807aea05529d59809ef65282f4a55a5823e481339be363"
+    size_bytes: 16335
+    sha256: "ffe3786034938b0ccc6cac76b1bcd64f28f2f6466877a2e5d9496b737fa8b39e"
   - name: "growatt"
     version: "2.2.2"
     tier: community
