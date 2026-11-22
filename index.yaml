@@ -234,14 +234,14 @@ drivers:
     size_bytes: 13358
     sha256: "997fc712c5ef0336620fd5d628175c4df831e26b7826b9fdc36f56b5ca3f69d7"
   - name: "ferroamp_modbus"
-    version: "2.1.3"
+    version: "2.2.0"
     tier: core
     protocol: modbus
     connectivity: local
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 11190
-    sha256: "bfa346c7532ab5071b08496c9c17828853834320648db71c325904e54318afcf"
+    size_bytes: 11757
+    sha256: "46fbad5465336d0b32d47afba1abd32a76181b4e0d57840388c03eadfdba7da9"
   - name: "foxess_h3_smart"
     version: "0.9.6"
     tier: community
@@ -797,23 +797,23 @@ drivers:
     size_bytes: 3453
     sha256: "198a19deb76ee9ebc3b693922240ceafe61f32b7ce467bbc142a0b0f7b7f9e77"
   - name: "victron"
-    version: "2.1.2"
+    version: "2.2.0"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 8021
-    sha256: "63c39e1d5a5ae7bf07ba35e9bb310c820e329e76663893bcd035e61db7c4116e"
+    size_bytes: 8877
+    sha256: "d2eb6bee7bb4c0fb1620264133721ec00cf6a1477ce75e7e51469b7b6a447022"
   - name: "victron_mqtt"
-    version: "1.0.3"
+    version: "1.1.0"
     tier: community
     protocol: mqtt
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 5779
-    sha256: "deb4dba9ef525a59c023939d95686f4b533ee5a9d39a34598e499323afb6535f"
+    size_bytes: 12154
+    sha256: "a316fc11f481373aa06c4eff48bf1bb3e4ace13d965b6d689ea4209f7dbc46ed"
   - name: "wallbox"
     version: "1.1.0"
     tier: community
@@ -824,14 +824,14 @@ drivers:
     size_bytes: 4047
     sha256: "239ac3e22c0b0ed528fe813a10aee58dacf192d350e1ee5b942f53896fd6727f"
   - name: "zap"
-    version: "3.1.3"
+    version: "3.2.0"
     tier: core
     protocol: http
     connectivity: local
     ders: [meter, pv, battery]
     control: false
-    size_bytes: 30379
-    sha256: "b11198e45d761599939b8201c0969514bbbbc6c2571dcf56d12959cf9ade2b5d"
+    size_bytes: 31972
+    sha256: "81cde7bbbf8188d32ee79ef4f2451308e05ae1b677651e23c9de087580890f5b"
   - name: "zaptec_cloud"
     version: "0.2.2"
     tier: community

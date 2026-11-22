@@ -23,7 +23,7 @@
     "ctek_hybrid": 9,
     "ctek_v2": 9,
     "deye": 28,
-    "ferroamp_modbus": 18,
+    "ferroamp_modbus": 15,
     "fronius": 11,
     "goodwe": 24,
     "growatt": 16,
@@ -45,6 +45,6 @@
     "solis_string": 21,
     "sungrow": 20,
     "varta": 5,
-    "victron": 10
+    "victron": 5
   }
 }
