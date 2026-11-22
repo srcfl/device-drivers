@@ -1773,7 +1773,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1784,7 +1784,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1795,33 +1795,33 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Single-phase hybrid inverter"
+        notes: "Single-phase hybrid inverter. From 1.7.0 the driver reports the BMS's max charge and discharge current (documented 5635/5636) as available power; whether these follow the BMS live is unconfirmed on hardware."
       - name: "SH-RT (Three-Phase Hybrid)"
         variants: [SH10RT, SH5.0RT, SH6.0RT, SH8.0RT]
         regions: [EU]
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Three-phase hybrid inverter, tested"
+        notes: "Three-phase hybrid inverter, tested. From 1.7.0 the driver reports the BMS's max charge and discharge current (documented 5635/5636) as available power; whether these follow the BMS live is unconfirmed on hardware."
       - name: "SH-T (Three-Phase Hybrid High-Power)"
         variants: [SH10RT, SH15T, SH20T, SH25T, SH8.0RT]
         regions: [EU]
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "High-power three-phase hybrid"
+        notes: "High-power three-phase hybrid. From 1.7.0 the driver reports the BMS's max charge and discharge current (documented 5635/5636) as available power; whether these follow the BMS live is unconfirmed on hardware."
   - name: "Tesla"
     model_families:
       - name: "Tesla Vehicle (BLE Proxy)"
