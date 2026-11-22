@@ -122,6 +122,16 @@ end
 -- often 0x434/0x436 refresh or what sign they carry; a negative value falls
 -- outside 0..100 kW and is left out. KOSTAL documents no cell temperatures
 -- and no grid import/export headroom.
+--
+-- Unverified on hardware: that register 5 gives the word order of every
+-- Float read here. KOSTAL says the setting matters for Float registers, but
+-- no site has confirmed it. A wrong order does not fail loudly. 21.5 °C in
+-- swapped words decodes as a tiny number near 0, which passes the range
+-- check, so a wrong order gives plausible but wrong values.
+--
+-- The word order and the battery type are learned once and held for the
+-- run. Changing the byte-order setting or fitting a battery on the inverter
+-- needs a driver restart before the driver sees it.
 ----------------------------------------------------------------------------
 
 local REG_BYTE_ORDER     = 5
@@ -172,7 +182,8 @@ end
 
 -- Learn the word order and whether a battery is fitted. Both are settings,
 -- so each is read until it answers once (bounded by probe_read) and kept
--- for the run; a restart reads them again.
+-- for the run; a change on the inverter takes effect after a driver
+-- restart, which reads them again.
 local function learn_battery_setup()
     if float_low_word_first == nil then
         local regs = probe_read(REG_BYTE_ORDER, 1, "holding")

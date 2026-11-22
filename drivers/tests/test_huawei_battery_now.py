@@ -5,7 +5,9 @@ table 3-2: 37022 battery temperature (I16, 0.1 °C), 37046/37048 maximum
 charge/discharge power (U32, W), and 32087 inverter temperature (I16, 0.1 °C).
 A read that fails, or a value outside -40..100 °C or 0..100 kW, is left out
 of the emit and of the metrics (docs/WRITING-A-DRIVER.md, "What a battery
-can do now").
+can do now"). The battery's own values are read only once 37007/37009 show
+a rated power above 0, since a SUN2000 with no LUNA2000 may answer the
+battery registers with 0.
 """
 
 import subprocess
@@ -21,8 +23,8 @@ DRIVER = ROOT / "drivers" / "lua" / "huawei.lua"
 pytestmark = pytest.mark.skipif(
     not LUA.exists(), reason="run make check to build ./lua55")
 
-# A battery that answers: 1500 W charging at 50 % SoC.
-BATTERY = {37001: [0, 1500], 37004: 500}
+# A battery that answers: 1500 W charging at 50 % SoC, rated 5000 W both ways.
+BATTERY = {37001: [0, 1500], 37004: 500, 37007: [0, 5000, 0, 5000]}
 
 
 def _poll(registers: dict, fail: tuple = ()) -> dict[str, str]:
@@ -110,6 +112,39 @@ def test_huawei_no_battery_answer_means_no_limit_read():
     out = _poll({37046: [0, 5000, 0, 4500]}, fail=(37001, 37004))
     assert "read.37046" not in out
     assert "battery.available_charge_W" not in out
+
+
+BATTERY_KEYS = ("battery.temp_c", "battery.available_charge_W",
+                "battery.available_discharge_W", "metric.battery_temp_c",
+                "metric.battery_available_charge_w",
+                "metric.battery_available_discharge_w")
+
+
+def test_huawei_without_luna2000_sends_no_battery_limit_or_temperature():
+    """A SUN2000 with no battery answers the battery registers with 0.
+
+    That must not become "the battery may not charge now" (0 W) or a 0 °C
+    battery: a zero rating means there is no unit, so nothing is read.
+    """
+    out = _poll({37001: [0, 0], 37004: 0, 37007: [0, 0, 0, 0],
+                 37022: 0, 37046: [0, 0, 0, 0]})
+    for key in BATTERY_KEYS:
+        assert key not in out, f"{key} was sent for a battery that is not there"
+    assert "read.37046" not in out and "read.37022" not in out
+
+
+def test_huawei_rating_that_does_not_answer_reads_no_battery_value():
+    out = _poll({37001: [0, 1500], 37004: 500, 37022: 235,
+                 37046: [0, 5000, 0, 4500]}, fail=(37007,))
+    for key in BATTERY_KEYS:
+        assert key not in out, f"{key} was sent without a rated unit"
+
+
+def test_huawei_one_rating_above_zero_is_enough():
+    out = _poll({37001: [0, 1500], 37004: 500, 37007: [0, 0, 0, 3000],
+                 37022: 235, 37046: [0, 2500, 0, 3000]})
+    assert float(out["battery.temp_c"]) == pytest.approx(23.5)
+    assert float(out["battery.available_charge_W"]) == 2500
 
 
 @pytest.mark.parametrize("raw, kept", [

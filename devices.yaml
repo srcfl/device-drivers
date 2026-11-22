@@ -682,7 +682,7 @@ manufacturers:
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
-        notes: "High-voltage lithium battery modules (5/10/15 kWh). From 2.2.0 the driver reports 37046/37048 (maximum charge/discharge power) as available power; whether these follow the BMS live is unconfirmed on hardware."
+        notes: "High-voltage lithium battery modules (5/10/15 kWh). From 2.2.0 the driver reports 37046/37048 (maximum charge/discharge power) as available power; they are not shown to be live on hardware. Battery temperature, power and SoC come from energy storage unit 1 only. Temperature and limits are read only once unit 1 reports a rated power above 0."
       - name: "SUN2000 (Single-Phase)"
         variants: [SUN2000-2KTL-L1, SUN2000-3KTL-L1, SUN2000-4KTL-L1, SUN2000-5KTL-L1, SUN2000-6KTL-L1]
         regions: [EU]

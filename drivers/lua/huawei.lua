@@ -48,6 +48,11 @@ PROTOCOL = "modbus"
 
 local sn_read = false
 
+-- True once energy storage unit 1 has reported a rated charge or discharge
+-- power above 0 (37007/37009). Kept for the run, since a rating does not
+-- change while the inverter runs; a restart reads it again.
+local esu1_rated = false
+
 ----------------------------------------------------------------------------
 -- Helpers
 ----------------------------------------------------------------------------
@@ -115,6 +120,11 @@ end
 local function plausible_power_w(v)
     if v == nil or v ~= v or v < 0 or v > 100000 then return nil end
     return v
+end
+
+local function positive_w(v)
+    local w = plausible_power_w(v)
+    return w ~= nil and w > 0
 end
 
 ----------------------------------------------------------------------------
@@ -215,17 +225,38 @@ function driver_poll()
         bat_a = host.decode_i16(ba_regs[1]) * 0.1
     end
 
+    -- Is a battery fitted? A SUN2000 with no LUNA2000 may still answer the
+    -- battery registers, with 0, so an answer alone proves nothing. Its
+    -- temperature would then read 0 °C and its limits 0 W, "may not charge
+    -- now". 37007-37008 "[Energy storage unit 1] Rated charge power" and
+    -- 37009-37010 "Rated discharge power" (U32 BE, W) say whether a unit is
+    -- there: a rating above 0 does. Until one is seen it is read on each poll
+    -- the battery answers, so a pack found late is picked up.
+    -- Only unit 1 is read, as for power and SoC above; a second unit
+    -- (37700-37755) is not.
+    if not esu1_rated and (bw_regs or bsoc_regs) then
+        local rated_regs = probe_read(37007, 4, "holding")
+        if rated_regs and rated_regs[4] ~= nil then
+            esu1_rated =
+                positive_w(host.decode_u32_be(rated_regs[1], rated_regs[2])) or
+                positive_w(host.decode_u32_be(rated_regs[3], rated_regs[4]))
+        end
+    end
+
     -- Battery temperature: 37022, I16 × 0.1 °C, "[Energy storage unit 1]
     -- battery temperature" -- the LUNA2000's own value, not the inverter's.
-    -- Left out when the read fails: 0 °C looks like a cold battery.
+    -- Left out when the read fails or no unit is fitted: 0 °C looks like a
+    -- cold battery.
     -- Per-pack maximum and minimum temperatures are documented too
     -- (38452-38463, I16 × 0.1 °C, two per pack for three packs on each of two
     -- ESUs), but Huawei does not say what a pack slot with no pack answers,
     -- so they are not read: a 0 there would pass for a real cell reading.
-    local btemp_regs = probe_read(37022, 1, "holding")
     local bat_temp = nil
-    if btemp_regs then
-        bat_temp = temp_c_from_tenths(host.decode_i16(btemp_regs[1]))
+    if esu1_rated then
+        local btemp_regs = probe_read(37022, 1, "holding")
+        if btemp_regs then
+            bat_temp = temp_c_from_tenths(host.decode_i16(btemp_regs[1]))
+        end
     end
 
     -- What the battery may charge and discharge at now:
@@ -233,13 +264,15 @@ function driver_poll()
     -- "Maximum discharge power", U32 BE, W, read-only. Huawei defines each as
     -- the smaller of the inverter's and the connected ESU's charge/discharge
     -- capability, and keeps the ESU's rated charge/discharge power apart at
-    -- 37007/37009. It does not say how often the value follows the BMS (for a
-    -- cold or full pack), so treat it as the device's own limit that has not
-    -- yet been seen to move on hardware.
-    -- Read only when the battery itself answered this poll, so a SUN2000 with
-    -- no LUNA2000 is not asked for a limit it has no battery for.
+    -- 37007/37009. It does not say whether the value follows the BMS (for a
+    -- cold or full pack), and no one has seen it move on hardware: it is the
+    -- device's own limit, not shown to be live. If a site shows it flat while
+    -- the battery is held back, it is a rating and does not belong in
+    -- available_*.
+    -- Read only when unit 1 is fitted (above), so a SUN2000 with no LUNA2000
+    -- never reports "may not charge now" for a battery it does not have.
     local avail_charge_w, avail_discharge_w = nil, nil
-    if bw_regs or bsoc_regs then
+    if esu1_rated then
         local lim_regs = probe_read(37046, 4, "holding")
         if lim_regs and lim_regs[2] ~= nil then
             avail_charge_w = plausible_power_w(
@@ -410,4 +443,5 @@ end
 
 function driver_cleanup()
     sn_read = false
+    esu1_rated = false
 end

@@ -10,8 +10,15 @@ and sends them as `available_charge_W` and `available_discharge_W`, with the
 history metrics `battery_available_charge_w` and
 `battery_available_discharge_w`. Huawei defines each as the smaller of the
 inverter's and the battery's capability and keeps the rated power apart
-(37007/37009), but does not say how fast it follows the BMS. It is read only
-when the battery answered that poll.
+(37007/37009). These values are not shown to be live on hardware: Huawei
+does not say they follow the BMS, and no one has seen them move. If a site
+shows them flat while the battery is held back, they are a rating.
+
+The battery's temperature and limits are read only once energy storage
+unit 1 reports a rated charge or discharge power above 0 (37007/37009). A
+SUN2000 with no LUNA2000 may answer the battery registers with 0, and 0 W
+would read as "may not charge now". Only unit 1 is read, as for power and
+SoC; a second unit is not.
 
 The battery temperature (37022) and the inverter temperature (32087) are
 left out when the read fails, or when the value is outside -40 to 100 °C.

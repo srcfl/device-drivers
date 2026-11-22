@@ -363,8 +363,8 @@ drivers:
     connectivity: local
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 16337
-    sha256: "6bd3b3a652f4da0a84307d9399ce5776cf4081b1f19b9c8236e36788eeccaf22"
+    size_bytes: 17879
+    sha256: "6fcf1e8f2d277ba579ae96dd2338ff6a912b06110058d9a6cd3eae8fc082f5b1"
   - name: "janitza"
     version: "1.0.5"
     tier: community
@@ -400,8 +400,8 @@ drivers:
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 17057
-    sha256: "cb8ba5cf8069f066dcf9a7642581257c48db9f368fdbd94525ec800410cdf8aa"
+    size_bytes: 17688
+    sha256: "a5ea16a0f5a3315487384589589e14a3c0ef0407339997a0251dc5b50039008e"
   - name: "kstar"
     version: "1.2.0"
     tier: community
