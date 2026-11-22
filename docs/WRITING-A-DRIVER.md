@@ -450,3 +450,44 @@ for power calculated from the inverter's own battery, PV or load readings.
 Use `power_origin="derived"` for such calculated meter values. Failed reads
 must set `control_power_available=false`; sensor identity alone cannot
 confirm a command.
+
+### What a battery can do now
+
+Core judges a battery against what it can do now, not only against the order.
+A battery that gives 4.3 kW of a 5 kW order because its BMS allows no more is
+limited, not out of control. Report these when the device has them, with the
+canonical names from `spec/host-api-profile.json`, and leave each one out when
+its read fails:
+
+- `temperature_C` on `battery` (the catalog's older `temp_c` means the same):
+  the battery's temperature in °C as its BMS reports it. Use the pack or
+  module value, never the inverter's heatsink.
+- `available_charge_W` and `available_discharge_W` on `battery`: the most the
+  battery will take or give now, in positive watts, as the BMS or inverter
+  reports it. 0 means the device does not allow it now, for example charging
+  below 0 °C. When the device reports amps, multiply by the battery voltage
+  read in the same poll; without a fresh voltage, leave the watts out.
+- `available_import_W` and `available_export_W` on the `inverter` stream: how
+  much more the inverter will take from or give to the grid now, when the
+  device reports that headroom.
+- `device_state` on `battery`: `"standby"` or `"starting"` while the device
+  reports that it is not running and so cannot follow an order. Leave it out
+  while it runs.
+
+Only a live value belongs in an `available_*` field: one that moves with
+temperature, charge level or the BMS's own state. A rating, a configured
+ceiling or a register the driver writes itself is not one. When the vendor's
+document does not say which a register is, say so in a comment and in the
+pull request.
+
+Drop a temperature outside -40 to 100 °C and a power outside 0 to 100 kW.
+A register that did not answer is left out, never sent as zero. Several
+drivers once sent a battery temperature of 0 when the read failed, and 0 °C
+looks like a cold battery.
+
+Emit the same numbers with `host.emit_metric` so they reach history:
+`battery_temp_c`, `battery_available_charge_w`, `battery_available_discharge_w`,
+and, when the device reports them, `battery_cell_temp_min_c`,
+`battery_cell_temp_max_c`, `battery_charge_limit_a` and
+`battery_discharge_limit_a`. The inverter's own temperature goes in
+`inverter_temp_c`.
