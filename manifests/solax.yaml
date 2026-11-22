@@ -1,5 +1,5 @@
 name: "solax"
-version: "1.1.2"
+version: "1.2.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -35,10 +35,19 @@ tested_devices:
     firmware_versions: ""
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
+upstream_docs:
+  - url: "https://community.symcon.de/uploads/short-url/oXEOAOO6ec7RmBAj2hmcFJpoXS8.pdf"
+    title: "SolaX Energy Storage Inverter Modbus TCP&RTU Communication protocols V3.28, public copy"
+    kind: register_map
+    url_stability: unknown
+  - url: "https://raw.githubusercontent.com/wills106/homeassistant-solax-modbus/main/custom_components/solax_modbus/plugin_solax.py"
+    title: "homeassistant-solax-modbus SolaX register map"
+    kind: register_map
+    url_stability: volatile
 min_host_version: "2.0.0"
-size_bytes: 5785
+size_bytes: 8984
 dkb_id: ""
-sha256: "f52388cbe300dc8af699baac59ce52ffe1c489b4303409926d4d694ee82198af"
+sha256: "8c315a9e152641c3da20f21236be368da436ac91054661f0d28c8443f2301676"
 signature: ""
 
 bytecode_sha256: ""

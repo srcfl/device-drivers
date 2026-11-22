@@ -54,6 +54,9 @@ BAT_TEMP_RAW = 254          # 0.1 °C → 25.4 °C
 PV_ENERGY_RAW = 123456      # 0.01 kWh
 BAT_CHARGE_RAW = 50000
 BAT_DISCHARGE_RAW = 40000
+BAT_DISCHG_LIMIT_RAW = 1000  # 0xA036, 0.1 A -> 100.0 A
+BAT_CHG_LIMIT_RAW = 500      # 0xA037, 0.1 A -> 50.0 A
+SINK_TEMP_RAW = 432          # 0x4010, 0.1 °C -> 43.2 °C
 
 
 def fixture_registers(*, pack: bool = True) -> str:
@@ -114,6 +117,9 @@ def fixture_registers(*, pack: bool = True) -> str:
         "host._modbus_registers.holding[16581] = " + _lua_list([pv_e_hi, pv_e_lo]),
         "host._modbus_registers.holding[16589] = " + _lua_list([chg_hi, chg_lo]),
         "host._modbus_registers.holding[16597] = " + _lua_list([dis_hi, dis_lo]),
+        "host._modbus_registers.holding[40998] = "
+        + _lua_list([BAT_DISCHG_LIMIT_RAW, BAT_CHG_LIMIT_RAW]),
+        "host._modbus_registers.holding[16400] = " + _lua_list([SINK_TEMP_RAW]),
     ])
 
 
@@ -153,6 +159,14 @@ if bat then
     print("BAT_TEMP " .. tostring(bat.temperature_C))
     print("BAT_CHG_WH " .. tostring(bat.total_charge_Wh))
     print("BAT_DIS_WH " .. tostring(bat.total_discharge_Wh))
+    print("BAT_AVAIL_CHG_W " .. tostring(bat.available_charge_W))
+    print("BAT_AVAIL_DIS_W " .. tostring(bat.available_discharge_W))
+end
+for _, k in ipairs({"battery_temp_c", "battery_charge_limit_a",
+                    "battery_discharge_limit_a", "battery_available_charge_w",
+                    "battery_available_discharge_w", "inverter_temp_c"}) do
+    local m = host._metrics[k]
+    print("M_" .. k .. " " .. tostring(m and m.value))
 end
 if met then
     print("MET_W " .. tostring(met.W))
@@ -296,3 +310,67 @@ print("BAT_EMITS " .. tostring(host._emitted["battery"] and #host._emitted["batt
     assert out["BMS_READS"] == "3"
     assert out["PV_EMITS"] == "1"
     assert out["BAT_EMITS"] == "0"
+
+
+# --- What the battery can do now (docs/WRITING-A-DRIVER.md) -----------------
+
+
+def test_bms_current_limits_become_watts_at_the_pack_voltage():
+    out = poll_once()
+    # 50.0 A charge and 100.0 A discharge at 51.2 V.
+    assert math.isclose(float(out["BAT_AVAIL_CHG_W"]), 2560, rel_tol=1e-5)
+    assert math.isclose(float(out["BAT_AVAIL_DIS_W"]), 5120, rel_tol=1e-5)
+    assert math.isclose(float(out["M_battery_charge_limit_a"]), 50.0, rel_tol=1e-5)
+    assert math.isclose(float(out["M_battery_discharge_limit_a"]), 100.0, rel_tol=1e-5)
+    assert math.isclose(float(out["M_battery_available_charge_w"]), 2560, rel_tol=1e-5)
+    assert math.isclose(float(out["M_battery_available_discharge_w"]), 5120,
+                        rel_tol=1e-5)
+
+
+def test_temperatures_reach_history():
+    out = poll_once()
+    assert math.isclose(float(out["M_battery_temp_c"]), 25.4, rel_tol=1e-5)
+    assert math.isclose(float(out["M_inverter_temp_c"]), 43.2, rel_tol=1e-5)
+
+
+def test_zero_charge_limit_means_not_allowed_now():
+    out = poll_once("host._modbus_registers.holding[40998][2] = 0")
+    assert float(out["BAT_AVAIL_CHG_W"]) == 0
+    assert math.isclose(float(out["BAT_AVAIL_DIS_W"]), 5120, rel_tol=1e-5)
+
+
+def test_failed_limit_and_sink_reads_leave_fields_out():
+    out = poll_once(
+        'host._modbus_read_fail_addresses[40998] = "Illegal Data Address"\n'
+        'host._modbus_read_fail_addresses[16400] = "Illegal Data Address"')
+    assert out["BAT_EMITS"] == "1"
+    assert out["BAT_AVAIL_CHG_W"] == "nil"
+    assert out["BAT_AVAIL_DIS_W"] == "nil"
+    assert out["M_battery_charge_limit_a"] == "nil"
+    assert out["M_battery_available_discharge_w"] == "nil"
+    assert out["M_inverter_temp_c"] == "nil"
+
+
+def test_sentinel_voltage_gives_no_watts():
+    out = poll_once("host._modbus_registers.holding[40960][15] = 0xFFFF")
+    assert out["BAT_AVAIL_CHG_W"] == "nil"
+    assert out["BAT_AVAIL_DIS_W"] == "nil"
+
+
+def test_no_limits_without_a_pack():
+    out = poll_once(pack=False)
+    assert out["M_battery_charge_limit_a"] == "nil"
+    assert out["M_battery_available_charge_w"] == "nil"
+    assert out["M_battery_temp_c"] == "nil"
+
+
+def test_out_of_range_limits_and_temperatures_are_dropped():
+    out = poll_once(
+        "host._modbus_registers.holding[40998] = {0xFFFF, 30000}\n"
+        "host._modbus_registers.holding[40960][17] = 1500\n"
+        "host._modbus_registers.holding[16400] = {0x10000 - 600}")
+    assert out["BAT_AVAIL_DIS_W"] == "nil"   # 0xFFFF: no value
+    assert out["BAT_AVAIL_CHG_W"] == "nil"   # 3000 A x 51.2 V = 153.6 kW
+    assert out["BAT_TEMP"] == "nil"          # 150.0 C
+    assert out["M_battery_temp_c"] == "nil"
+    assert out["M_inverter_temp_c"] == "nil"  # -60.0 C

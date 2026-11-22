@@ -21,7 +21,7 @@ DRIVER = {
   id           = "growatt",
   name         = "Growatt hybrid inverter",
   manufacturer = "Growatt",
-  version      = "2.1.3",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -71,6 +71,28 @@ local function probe_read(addr, count, kind)
             "until restart", addr, GIVE_UP_AFTER))
     end
     return nil
+end
+
+----------------------------------------------------------------------------
+-- What the battery can do now (docs/WRITING-A-DRIVER.md)
+--
+-- Growatt Modbus RTU Protocol II V1.39, input registers (the SPH addresses
+-- match homeassistant-solax-modbus and Growatt-Local-Modbus):
+--   93    Temp1, inverter temperature          0.1 C (all families)
+--   1040  battery temperature                  0.1 C (SPA/SPH)
+--   1114  uwMaxTemprCell_10T, max cell temp    0.1 C (SPA/SPH BMS block)
+--   1115  uwMinTemprCell_10T, min cell temp    0.1 C
+-- The BMS block has one BMS_MaxCurr (1090) for charge and discharge
+-- together, and the protocol gives it no unit, so this driver reports no
+-- available_* figures.
+----------------------------------------------------------------------------
+
+-- A temperature outside -40..100 C is a sentinel or a misread, so it is
+-- dropped, never clamped.
+local function plausible_temp(c)
+    if c == nil or c ~= c then return nil end
+    if c < -40 or c > 100 then return nil end
+    return c
 end
 
 ----------------------------------------------------------------------------
@@ -176,9 +198,9 @@ function driver_poll()
 
     -- Battery temperature: 1040, U16 × 0.1 °C
     local btemp_regs = probe_read(1040, 1, "input")
-    local bat_temp = 0
+    local bat_temp
     if btemp_regs then
-        bat_temp = btemp_regs[1] * 0.1
+        bat_temp = plausible_temp(btemp_regs[1] * 0.1)
     end
 
     -- A PV-only Growatt (no battery connected) still answers the battery
@@ -196,7 +218,31 @@ function driver_poll()
             temp_c = bat_temp,
         })
         host.emit_metric("battery_dc_v",   bat_v)
-        host.emit_metric("battery_temp_c", bat_temp)
+        if bat_temp ~= nil then
+            host.emit_metric("battery_temp_c", bat_temp)
+        end
+
+        -- Max / min cell temperature from the BMS: 1114-1115, U16 × 0.1 °C.
+        local cell_regs = probe_read(1114, 2, "input")
+        if cell_regs and cell_regs[2] ~= nil then
+            local cell_max = plausible_temp(cell_regs[1] * 0.1)
+            local cell_min = plausible_temp(cell_regs[2] * 0.1)
+            if cell_max ~= nil then
+                host.emit_metric("battery_cell_temp_max_c", cell_max)
+            end
+            if cell_min ~= nil then
+                host.emit_metric("battery_cell_temp_min_c", cell_min)
+            end
+        end
+    end
+
+    -- Inverter temperature: 93, U16 × 0.1 °C
+    local itemp_regs = probe_read(93, 1, "input")
+    if itemp_regs then
+        local inv_temp = plausible_temp(itemp_regs[1] * 0.1)
+        if inv_temp ~= nil then
+            host.emit_metric("inverter_temp_c", inv_temp)
+        end
     end
 
     -- ---- Meter ----

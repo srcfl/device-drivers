@@ -1,5 +1,5 @@
 name: "solis"
-version: "2.1.1"
+version: "2.2.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -42,10 +42,19 @@ tested_devices:
     firmware_versions: ""
     notes: "Commercial/industrial inverter"
     min_driver_version: "1.2.0"
+upstream_docs:
+  - url: "https://community.openenergymonitor.org/uploads/short-url/kbwIjN8pl8idrCP04UstaxtSmlC.pdf"
+    title: "Solis RS485_MODBUS RTU Hybrid Inverter Protocol (translated 15 Sep 2020), public copy"
+    kind: register_map
+    url_stability: unknown
+  - url: "https://raw.githubusercontent.com/hn/ginlong-solis/master/solis-modbus-esinv.yaml"
+    title: "hn/ginlong-solis ESINV hybrid register map"
+    kind: register_map
+    url_stability: volatile
 min_host_version: "2.0.0"
-size_bytes: 17463
+size_bytes: 20380
 dkb_id: "solis"
-sha256: "ed089b7b41a5d15bf6144aea9f625039f3a14b82e44b41a8db40d2795dc69eb8"
+sha256: "ae5fc28213469fec02880e79c78f464a422d0e925371e098471f372b2a14b506"
 signature: ""
 
 bytecode_sha256: ""

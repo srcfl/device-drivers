@@ -1,5 +1,5 @@
 name: "goodwe"
-version: "2.1.2"
+version: "2.2.0"
 tier: community
 author: "frekes81 and Sourceful contributors"
 protocol: modbus
@@ -8,13 +8,22 @@ setup: [bridge]
 ders: [pv, battery, meter]
 control: false
 tested_devices: []
+upstream_docs:
+  - url: "https://en.goodwe.com/Ftp/EN/Downloads/GW_Third-Party-EMS-Protocol_MODBUS-EN.pdf"
+    title: "GoodWe Modbus Protocol Hybrid for Energy Storage Inverters (2 Feb 2024)"
+    kind: register_map
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/marcelblijleven/goodwe/master/goodwe/et.py"
+    title: "goodwe library ET/EH register map"
+    kind: register_map
+    url_stability: volatile
 min_host_version: "1.10.0-beta.1"
-size_bytes: 9566
+size_bytes: 13939
 dkb_id: ""
-sha256: "148d36d25fa630dd11ab1f697c46dde60863dcd3a2a9944e78e322dba55bde49"
+sha256: "0a2a0b94c334194c493797337a1e6b68723fed0b6666d23e52a89dd1358bd005"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Add an explicit GW8KN-ET/HK3000 profile, batch reads, and fail-closed snapshots."
+changelog: "Report BMS pack temperature, charge and discharge limits and cell temperatures from GoodWe's 37000 block; drop the invented 0 C."

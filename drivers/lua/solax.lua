@@ -14,7 +14,7 @@ DRIVER = {
   id           = "solax",
   name         = "SolaX X1/X3 inverter",
   manufacturer = "SolaX",
-  version      = "1.1.2",
+  version      = "1.2.0",
   protocols    = { "modbus" },
   capabilities = { "pv", "battery", "meter" },
   read_only    = true,
@@ -47,6 +47,43 @@ local function probe_read(addr, count, kind)
             "until restart", addr, GIVE_UP_AFTER))
     end
     return nil
+end
+
+----------------------------------------------------------------------------
+-- What the battery can do now (docs/WRITING-A-DRIVER.md)
+--
+-- SolaX "Energy Storage Inverter Modbus TCP&RTU Communication protocols"
+-- V3.28 (X1/X3 Hybrid G4), input registers:
+--   0x0008  Temperature (radiator)   int16, 1 C
+--   0x0014  BatVoltage_Charge1       int16, 0.1 V
+--   0x0018  TemperatureBat           int16, 1 C
+--   0x0024  BMS ChargeMaxCurrent     uint16, 0.1 A, "(real time)"
+--   0x0025  BMS DischargeMaxCurrent  uint16, 0.1 A
+-- The two currents are what the BMS allows now, a live limit.
+-- homeassistant-solax-modbus uses the same addresses and scales for Gen3 to
+-- Gen6, except that some Gen5/Gen6 X3 units report 0x0008 in tenths; this
+-- driver follows the G4 map its manifest lists.
+----------------------------------------------------------------------------
+
+-- A temperature outside -40..100 C or a power outside 0..100 kW is a
+-- sentinel or a misread, so it is dropped, never clamped.
+local function plausible_temp(c)
+    if c == nil or c ~= c then return nil end
+    if c < -40 or c > 100 then return nil end
+    return c
+end
+
+local function plausible_power(w)
+    if w == nil or w ~= w then return nil end
+    if w < 0 or w > 100000 then return nil end
+    return w
+end
+
+-- Watts the BMS allows now: its current limit times the battery voltage of
+-- this poll. Without a fresh voltage there is no figure.
+local function limit_w(amps, volts)
+    if amps == nil or volts == nil or volts <= 0 then return nil end
+    return plausible_power(amps * volts)
 end
 
 function driver_init(config)
@@ -123,11 +160,18 @@ function driver_poll()
         bat_w = host.decode_i16(bw_regs[1])
     end
 
-    -- Battery temperature: 24, I16 × 0.1C
+    -- A battery voltage read in this poll. The temperature and the limits
+    -- need it: a hybrid without a pack answers zeros, and 0 C or 0 W
+    -- would read as a cold battery that may not charge.
+    local fresh_v
+    if bv_regs and bat_v > 0 then fresh_v = bat_v end
+
+    -- Battery temperature: 24 (0x0018), I16, whole degrees C. Earlier
+    -- releases scaled it by 0.1, so 25 C showed as 2.5 C.
     local btemp_regs = probe_read(24, 1, "input")
-    local bat_temp = 0
-    if btemp_regs then
-        bat_temp = host.decode_i16(btemp_regs[1]) * 0.1
+    local bat_temp
+    if btemp_regs and fresh_v then
+        bat_temp = plausible_temp(host.decode_i16(btemp_regs[1]))
     end
 
     -- Battery SoC: 28, U16, %
@@ -137,6 +181,16 @@ function driver_poll()
         bat_soc = bsoc_regs[1] / 100  -- percent to fraction
     end
 
+    -- BMS charge / discharge max current: 36-37 (0x0024-0x0025), U16 × 0.1 A.
+    local charge_a, discharge_a, charge_w, discharge_w
+    local blim_regs = probe_read(36, 2, "input")
+    if blim_regs and blim_regs[2] ~= nil then
+        charge_a = blim_regs[1] * 0.1
+        discharge_a = blim_regs[2] * 0.1
+        charge_w = limit_w(charge_a, fresh_v)
+        discharge_w = limit_w(discharge_a, fresh_v)
+    end
+
     -- Emit Battery telemetry
     host.emit("battery", {
         W      = bat_w,
@@ -144,7 +198,29 @@ function driver_poll()
         A      = bat_a,
         SoC_nom_fract    = bat_soc,
         temperature_C = bat_temp,
+        available_charge_W    = charge_w,
+        available_discharge_W = discharge_w,
     })
+    if bat_temp ~= nil then
+        host.emit_metric("battery_temp_c", bat_temp)
+    end
+    if charge_w ~= nil then
+        host.emit_metric("battery_charge_limit_a", charge_a)
+        host.emit_metric("battery_available_charge_w", charge_w)
+    end
+    if discharge_w ~= nil then
+        host.emit_metric("battery_discharge_limit_a", discharge_a)
+        host.emit_metric("battery_available_discharge_w", discharge_w)
+    end
+
+    -- Inverter (radiator) temperature: 8, I16, whole degrees C.
+    local itemp_regs = probe_read(8, 1, "input")
+    if itemp_regs then
+        local inv_temp = plausible_temp(host.decode_i16(itemp_regs[1]))
+        if inv_temp ~= nil then
+            host.emit_metric("inverter_temp_c", inv_temp)
+        end
+    end
 
     -- ---- Meter ----
 

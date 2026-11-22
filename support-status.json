@@ -674,7 +674,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.2",
+      "catalog_version": "2.2.0",
       "driver_id": "goodwe",
       "targets": {
         "blixt-l1": {
@@ -695,7 +695,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.3",
+      "catalog_version": "2.2.0",
       "driver_id": "growatt",
       "targets": {
         "blixt-l1": {
@@ -1220,7 +1220,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.0",
+      "catalog_version": "1.3.0",
       "driver_id": "saj",
       "targets": {
         "blixt-l1": {
@@ -1430,7 +1430,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.2",
+      "catalog_version": "2.2.0",
       "driver_id": "sofar",
       "targets": {
         "blixt-l1": {
@@ -1514,7 +1514,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.2",
+      "catalog_version": "1.2.0",
       "driver_id": "solax",
       "targets": {
         "blixt-l1": {
@@ -1535,7 +1535,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.2.0",
       "driver_id": "solinteg",
       "targets": {
         "blixt-l1": {
@@ -1556,7 +1556,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.1.1",
+      "catalog_version": "2.2.0",
       "driver_id": "solis",
       "targets": {
         "blixt-l1": {
