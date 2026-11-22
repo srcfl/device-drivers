@@ -68,8 +68,8 @@ Catalog source is not proof that a target can install or run a driver.
 | goe | 1.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | goe_http | 1.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | goe_http | 1.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| goodwe | 2.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| goodwe | 2.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| goodwe | 2.3.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| goodwe | 2.3.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | growatt | 2.2.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | growatt | 2.2.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | hardybarth | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |

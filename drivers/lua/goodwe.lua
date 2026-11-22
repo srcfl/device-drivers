@@ -4,7 +4,9 @@
 --
 -- Register type: HOLDING (FC 0x03)
 -- Byte/word order: Big-Endian for multi-register values
--- Tested: ET-Plus, EH series (GoodWe v2 LAN+WiFi dongle required)
+-- Written for: ET-Plus, EH (GoodWe's ET platform, the 35000 register map).
+-- Not checked on hardware yet. ES, EM and BP inverters speak another
+-- protocol and are not covered.
 -- READ-ONLY: control not implemented.
 
 DRIVER = {
@@ -13,7 +15,7 @@ DRIVER = {
   id           = "goodwe",
   name         = "GoodWe hybrid inverter",
   manufacturer = "GoodWe",
-  version      = "2.2.0",
+  version      = "2.3.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -66,40 +68,87 @@ local function probe_read(addr, count, kind)
 end
 
 ----------------------------------------------------------------------------
--- What the battery can do now (docs/WRITING-A-DRIVER.md)
+-- Register map
 --
--- From GoodWe's own map, "GoodWe Modbus Protocol Hybrid for Energy Storage
--- Inverters" (2 February 2024), which the goodwe library also follows:
---   35176        heat sink temperature           S16 x 0.1 C
---   35180        battery 1 voltage               U16 x 0.1 V (the BMS's
---                                                value when it talks)
---   35184        battery 1 mode                  0 = no battery, or
---                                                disconnected
+-- Addresses, types and scales from GoodWe's own map, "GoodWe Modbus
+-- Protocol Hybrid for Energy Storage Inverters" (2 February 2024, in the
+-- manifest's upstream_docs). evcc's goodwe-hybrid template and the goodwe
+-- library (et.py) read the same registers. Neither document states a sign
+-- in words; both integrations treat battery discharge and meter export as
+-- positive (evcc scales meter power by -1 and passes battery power through
+-- as "positive = discharging"; the goodwe library's house consumption adds
+-- battery power and subtracts meter power). The driver turns both round at
+-- the boundary.
+--
+-- Inverter block, read as the goodwe library does from 35100:
+--   35103-35118  PV1..PV4: voltage U16 x 0.1 V, current U16 x 0.1 A,
+--                power U32 W (35105, 35109, 35113, 35117)
+--   35123        R phase frequency, U16 x 0.01 Hz
+--   35176        heat sink temperature, S16 x 0.1 C
+--   35180        battery 1 voltage, U16 x 0.1 V (the BMS's value when it
+--                talks to the inverter)
+--   35181        battery 1 current, S16 x 0.1 A
+--   35182-35183  battery 1 power, S32 W
+--   35184        battery 1 mode: 0 no battery or disconnected, 1 standby,
+--                2 discharging, 3 charging (Table 8-9)
+--   35191-35192  PV energy total, U32 x 0.1 kWh
+--   35019        ARM firmware version, U16, read once (device info block)
+-- 0xFFFFFFFF in a U32 power or energy means "no value" (evcc reads these
+-- as uint32 with that sentinel); it is left out, never added.
+-- Meter block, from the meter the inverter reads (36000 and up):
+--   36004        meter communication, 1 OK, 0 failed
+--   36014        meter frequency, U16 x 0.01 Hz
+--   36015-36016  total energy sold to the grid, float32 Wh
+--   36017-36018  total energy bought from the grid, float32 Wh
+--   36019-36024  meter power per phase, S32 W
+--   36025-36026  meter total power, S32 W
+--   36052-36057  meter voltage per phase U16 x 0.1 V, then current per
+--                phase U16 x 0.1 A
+-- The float32 energy unit is not in GoodWe's table; evcc and the goodwe
+-- library both divide by 1000 for kWh, so the raw value is Wh.
+--
+-- Earlier releases read most of these from the wrong place
+-- (srcfl/device-drivers#264): battery power from 35180 (the voltage),
+-- battery voltage and current from 35178/35179 (the BUS and NBUS voltages),
+-- SoC from 35182, total PV from 35105 alone scaled by 0.1, PV2 from 35109,
+-- grid frequency from 35113 (PV3 power), and the meter from the inverter's
+-- own phase registers at 35121-35141.
+--
+-- Known limits, left for a field report:
+--   * GoodWe's table says to read 36019-36041 when the ARM firmware
+--     (35019) is above version 9, and 36005-36008 (S16) before that. On
+--     older firmware 36019 and up would read 0, which looks like a site in
+--     balance. No source gives the sign of 36005-36008, so on ARM 9 or
+--     older, or while the version is unknown, no meter is sent.
+--   * 36052-36057 are listed in GoodWe's February 2024 table. The goodwe
+--     library reads them only on newer units, so on an older one the read
+--     may fail; it is given up after three tries and the rest of the meter
+--     still reports.
+--   * evcc notes that 36017 reads 0 on some newer models (ETA-G20).
+--
+-- What the battery can do now (docs/WRITING-A-DRIVER.md):
 --   37000-37023  "BMS Operation Data", read as one block like the
 --                goodwe library does
+--     37003      BMS pack temperature            x 0.1 C
+--     37004      max BMS charge current          A
+--     37005      max BMS discharge current       A
+--     37007      SoC of battery 1                %
 --     37011      battery protocol, the codes of GoodWe's Table 8-33:
 --                0x101 Pylontech, 0x102/0x105/0x106 BYD, 0x104 LG,
 --                0x11E Dyness and others, 0x122 GoodWe. 0x11F, "EMS
 --                Battery", means the inverter has no direct link to the
 --                battery, and 0 means no protocol at all.
---     37003      BMS pack temperature            x 0.1 C
---     37004      max BMS charge current          A
---     37005      max BMS discharge current       A
 --     37020      max cell temperature            x 0.1 C
 --     37021      min cell temperature            x 0.1 C
 -- The charge and discharge currents come from the BMS, so they move with
 -- temperature and charge level: a live limit, not a rating.
 --
 -- A battery mode other than 0 says a battery is there, not that a BMS
--- talks to the inverter. Without one the block answers zeros, and 0 C and
--- 0 W would read as a cold battery that may not charge. So the block's
--- figures count only while 37011 names a BMS protocol (not 0, 0x11F or
--- 0xFFFF). A 0 A limit from a BMS that does talk is sent as 0 W.
---
--- GoodWe's map puts the BUS voltage at 35178 and battery power at
--- 35182-35183, where the battery reads in driver_poll still look. Those
--- reads are left as they were (srcfl/device-drivers#264); this block reads
--- its own voltage at 35180.
+-- talks to the inverter. Without one the block answers zeros, and 0 C,
+-- 0 W and 0 % would read as a cold, empty battery that may not charge. So
+-- the block's figures, SoC included, count only while 37011 names a BMS
+-- protocol (not 0, 0x11F or 0xFFFF). A 0 A limit from a BMS that does talk
+-- is sent as 0 W.
 ----------------------------------------------------------------------------
 
 -- A temperature outside -40..100 C or a power outside 0..100 kW is a
@@ -138,6 +187,56 @@ local function bms_talks(protocol)
         and protocol ~= GOODWE_NO_DIRECT_BMS
 end
 
+-- Unsigned and signed 32-bit values from two registers, high word first.
+-- Both work on the 16-bit halves, so the sign survives a Lua build with
+-- 32-bit integers (docs/WRITING-A-DRIVER.md, "Numbers").
+local function u32(hi, lo)
+    return (hi % 0x10000) * 0x10000 + (lo % 0x10000)
+end
+
+-- A U32 power or energy, or nil for the 0xFFFFFFFF "no value" sentinel.
+local function u32_value(hi, lo)
+    if hi % 0x10000 == 0xFFFF and lo % 0x10000 == 0xFFFF then return nil end
+    return u32(hi, lo)
+end
+
+local function s32(hi, lo)
+    hi = hi % 0x10000
+    lo = lo % 0x10000
+    if hi >= 0x8000 then
+        return (hi - 0x10000) * 0x10000 + lo
+    end
+    return hi * 0x10000 + lo
+end
+
+-- IEEE 754 float32, high word first, on the 16-bit halves. NaN and
+-- infinity mean "no value" and give nil.
+local function f32(hi, lo)
+    hi = hi % 0x10000
+    lo = lo % 0x10000
+    local sign = 1
+    if hi >= 0x8000 then sign = -1; hi = hi - 0x8000 end
+    local exponent = math.floor(hi / 128)
+    local mantissa = (hi % 128) * 65536 + lo
+    if exponent == 0xFF then return nil end
+    if exponent == 0 then return sign * mantissa * 2 ^ -149 end
+    return sign * (1 + mantissa / 0x800000) * 2 ^ (exponent - 127)
+end
+
+-- A lifetime energy counter in Wh, or nil when it is not a count.
+local function energy_wh(hi, lo)
+    local wh = f32(hi, lo)
+    if wh == nil or wh < 0 then return nil end
+    return wh
+end
+
+-- 0xFFFF in a meter voltage or current means "no value" (evcc decodes
+-- these registers as uint16 with that sentinel).
+local function tenths(raw)
+    if raw == nil or raw == 0xFFFF then return nil end
+    return raw * 0.1
+end
+
 ----------------------------------------------------------------------------
 -- Initialization
 ----------------------------------------------------------------------------
@@ -148,48 +247,34 @@ end
 
 ----------------------------------------------------------------------------
 -- Telemetry polling
+--
+-- A stream goes out only when its defining read answered, and each field
+-- only from a register that answered (docs/WRITING-A-DRIVER.md, "Never
+-- fabricate").
 ----------------------------------------------------------------------------
 
-function driver_poll()
-    ------------------------------------------------------------------------
-    -- PV
-    ------------------------------------------------------------------------
+local function poll_pv()
+    -- 35103-35123 in one read: four MPPTs, PV mode, then the R phase.
+    local regs = probe_read(35103, 21, "holding")
+    if not regs or regs[21] == nil then return end
 
-    -- PV total power: 35105-35106, U32 BE × 0.1 W
-    local pvw_regs = probe_read(35105, 2, "holding")
-    local pv_w = 0
-    if pvw_regs then
-        pv_w = host.decode_u32_be(pvw_regs[1], pvw_regs[2]) * 0.1
+    -- PV1..PV4 power at 35105, 35109, 35113, 35117. An MPPT without a
+    -- value adds nothing; with no value at all there is no PV reading.
+    local pv_w = nil
+    for _, i in ipairs({3, 7, 11, 15}) do
+        local w = u32_value(regs[i], regs[i + 1])
+        if w ~= nil then pv_w = (pv_w or 0) + w end
     end
+    if pv_w == nil then return end
+    local mppt1_v, mppt1_a = regs[1] * 0.1, regs[2] * 0.1
+    local mppt2_v, mppt2_a = regs[5] * 0.1, regs[6] * 0.1
+    local hz = regs[21] * 0.01
 
-    -- PV1: voltage @ 35103 (U16 × 0.1 V), current @ 35104 (U16 × 0.1 A)
-    local m1_regs = probe_read(35103, 2, "holding")
-    local mppt1_v, mppt1_a = 0, 0
-    if m1_regs then
-        mppt1_v = m1_regs[1] * 0.1
-        mppt1_a = m1_regs[2] * 0.1
-    end
-
-    -- PV2: voltage @ 35109 (U16 × 0.1 V), current @ 35110 (U16 × 0.1 A)
-    local m2_regs = probe_read(35109, 2, "holding")
-    local mppt2_v, mppt2_a = 0, 0
-    if m2_regs then
-        mppt2_v = m2_regs[1] * 0.1
-        mppt2_a = m2_regs[2] * 0.1
-    end
-
-    -- Grid frequency: 35113, U16 × 0.01 Hz
-    local hz_regs = probe_read(35113, 1, "holding")
-    local hz = 0
-    if hz_regs then
-        hz = hz_regs[1] * 0.01
-    end
-
-    -- PV lifetime generation: 35191-35192, U32 BE × 0.1 kWh
-    local pvgen_regs = probe_read(35191, 2, "holding")
-    local pv_gen_wh = 0
-    if pvgen_regs then
-        pv_gen_wh = host.decode_u32_be(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
+    local lifetime_wh = nil
+    local energy = probe_read(35191, 2, "holding")
+    if energy and energy[2] ~= nil then
+        local tenths_kwh = u32_value(energy[1], energy[2])
+        if tenths_kwh ~= nil then lifetime_wh = tenths_kwh * 100 end
     end
 
     host.emit("pv", {
@@ -198,88 +283,58 @@ function driver_poll()
         mppt1_a     = mppt1_a,
         mppt2_v     = mppt2_v,
         mppt2_a     = mppt2_a,
-        lifetime_wh = pv_gen_wh,
+        lifetime_wh = lifetime_wh,
     })
-    -- Diagnostics: long-format TS DB
     host.emit_metric("pv_mppt1_v", mppt1_v)
     host.emit_metric("pv_mppt1_a", mppt1_a)
     host.emit_metric("pv_mppt2_v", mppt2_v)
     host.emit_metric("pv_mppt2_a", mppt2_a)
     host.emit_metric("grid_hz",    hz)
+end
 
-    ------------------------------------------------------------------------
-    -- Battery
-    ------------------------------------------------------------------------
+local function poll_battery()
+    -- 35180-35184: voltage, current, power (two words), mode.
+    local regs = probe_read(35180, 5, "holding")
+    if not regs or regs[5] == nil then return end
+    local mode = regs[5]
+    if mode == 0 then return end      -- no battery, or disconnected
 
-    -- Battery voltage: 35178, U16 × 0.1 V
-    local bv_regs = probe_read(35178, 1, "holding")
-    local bat_v = 0
-    if bv_regs then
-        bat_v = bv_regs[1] * 0.1
-    end
-
-    -- Battery current: 35179, I16 × 0.1 A
-    local ba_regs = probe_read(35179, 1, "holding")
-    local bat_a = 0
-    if ba_regs then
-        bat_a = host.decode_i16(ba_regs[1]) * 0.1
-    end
-
-    -- Battery power: 35180, I16, W (positive=charge, negative=discharge — matches site convention)
-    local bw_regs = probe_read(35180, 1, "holding")
-    local bat_w = 0
-    if bw_regs then
-        bat_w = host.decode_i16(bw_regs[1])
-    end
-
-    -- Battery SoC: 35182, U16, percent
-    local bsoc_regs = probe_read(35182, 1, "holding")
-    local bat_soc = 0
-    if bsoc_regs then
-        bat_soc = bsoc_regs[1] / 100  -- percent → 0-1 fraction
-    end
-
+    local volts = regs[1] * 0.1
+    -- GoodWe counts discharge as positive; the site counts charge as
+    -- positive. The current carries the same sign as the power, since the
+    -- voltage is never negative.
+    local amps = -host.decode_i16(regs[2]) * 0.1
     local battery = {
-        w   = bat_w,
-        v   = bat_v,
-        a   = bat_a,
-        soc = bat_soc,
+        w = -s32(regs[3], regs[4]),
+        v = volts,
+        a = amps,
     }
 
-    -- Battery 1 voltage and mode: 35180-35184. The BMS block is read only
-    -- while the mode says a battery is connected, and its figures count
-    -- only while 37011 says a BMS talks (see the top of this file).
-    local b1_regs = probe_read(35180, 5, "holding")
-    local b1_v, b1_mode
-    if b1_regs and b1_regs[5] ~= nil then
-        b1_v = b1_regs[1] * 0.1
-        b1_mode = b1_regs[5]
-    end
-
-    local bms_regs
-    if b1_mode ~= nil and b1_mode ~= 0 then
-        bms_regs = probe_read(37000, 24, "holding")
-        if bms_regs and bms_regs[24] == nil then bms_regs = nil end
-        if bms_regs and not bms_talks(bms_regs[12]) then      -- 37011
-            bms_regs = nil
-        end
+    local bms_regs = probe_read(37000, 24, "holding")
+    if bms_regs and bms_regs[24] == nil then bms_regs = nil end
+    if bms_regs and not bms_talks(bms_regs[12]) then          -- 37011
+        bms_regs = nil
     end
 
     if bms_regs then
+        if bms_regs[8] <= 100 then                            -- 37007
+            battery.soc = bms_regs[8] / 100   -- 0xFFFF: no value
+        end
+
         local bat_temp = goodwe_temp(bms_regs[4])            -- 37003
         if bat_temp ~= nil then
             battery.temp_c = bat_temp
             host.emit_metric("battery_temp_c", bat_temp)
         end
 
-        local charge_w = limit_w(bms_regs[5], b1_v)          -- 37004
+        local charge_w = limit_w(bms_regs[5], volts)          -- 37004
         if charge_w ~= nil then
             battery.available_charge_W = charge_w
             host.emit_metric("battery_charge_limit_a", bms_regs[5])
             host.emit_metric("battery_available_charge_w", charge_w)
         end
 
-        local discharge_w = limit_w(bms_regs[6], b1_v)       -- 37005
+        local discharge_w = limit_w(bms_regs[6], volts)       -- 37005
         if discharge_w ~= nil then
             battery.available_discharge_W = discharge_w
             host.emit_metric("battery_discharge_limit_a", bms_regs[6])
@@ -297,10 +352,72 @@ function driver_poll()
     end
 
     host.emit("battery", battery)
-    host.emit_metric("battery_dc_v",  bat_v)
-    host.emit_metric("battery_dc_a",  bat_a)
+    host.emit_metric("battery_dc_v", volts)
+    host.emit_metric("battery_dc_a", amps)
+end
 
-    -- Inverter heat sink temperature: 35176, S16 × 0.1 C.
+-- ARM firmware version (35019), read once. nil until it answers.
+local arm_version = nil
+local old_firmware_logged = false
+
+local function poll_meter()
+    if arm_version == nil then
+        local fw = probe_read(35019, 1, "holding")
+        if fw and fw[1] ~= nil then arm_version = fw[1] end
+    end
+    -- Meter power sits at 36019-36026 only above ARM version 9 (see the
+    -- top of this file). Older or unknown firmware: no meter.
+    if arm_version == nil then return end
+    if arm_version <= 9 then
+        if not old_firmware_logged then
+            old_firmware_logged = true
+            host.log("info", string.format(
+                "GoodWe: ARM firmware %d keeps meter power at 36005-36008, " ..
+                "whose sign no source gives; no meter is sent", arm_version))
+        end
+        return
+    end
+
+    -- 36004-36026 in one read. Without the meter (36004 not 1) the
+    -- inverter has no grid reading to give, so no meter is sent.
+    local regs = probe_read(36004, 23, "holding")
+    if not regs or regs[23] == nil then return end
+    if regs[1] ~= 1 then return end
+
+    -- GoodWe counts export as positive; the site counts import as positive.
+    local l1_w = -s32(regs[16], regs[17])                     -- 36019
+    local l2_w = -s32(regs[18], regs[19])                     -- 36021
+    local l3_w = -s32(regs[20], regs[21])                     -- 36023
+    local meter = {
+        w         = -s32(regs[22], regs[23]),                 -- 36025
+        l1_w      = l1_w,
+        l2_w      = l2_w,
+        l3_w      = l3_w,
+        hz        = regs[11] * 0.01,                          -- 36014
+        export_wh = energy_wh(regs[12], regs[13]),            -- 36015
+        import_wh = energy_wh(regs[14], regs[15]),            -- 36017
+    }
+    host.emit_metric("meter_l1_w", l1_w)
+    host.emit_metric("meter_l2_w", l2_w)
+    host.emit_metric("meter_l3_w", l3_w)
+
+    local va = probe_read(36052, 6, "holding")
+    if va and va[6] ~= nil then
+        meter.l1_v, meter.l2_v, meter.l3_v = tenths(va[1]), tenths(va[2]), tenths(va[3])
+        meter.l1_a, meter.l2_a, meter.l3_a = tenths(va[4]), tenths(va[5]), tenths(va[6])
+        for _, key in ipairs({"l1_v", "l2_v", "l3_v", "l1_a", "l2_a", "l3_a"}) do
+            if meter[key] ~= nil then host.emit_metric("meter_" .. key, meter[key]) end
+        end
+    end
+
+    host.emit("meter", meter)
+end
+
+function driver_poll()
+    poll_pv()
+    poll_battery()
+
+    -- Inverter heat sink temperature: 35176, S16 x 0.1 C.
     local itemp_regs = probe_read(35176, 1, "holding")
     if itemp_regs then
         local inv_temp = goodwe_temp(itemp_regs[1])
@@ -309,82 +426,7 @@ function driver_poll()
         end
     end
 
-    ------------------------------------------------------------------------
-    -- Meter (grid connection point)
-    ------------------------------------------------------------------------
-
-    -- GoodWe reports grid meter power with the OPPOSITE sign from site
-    -- convention (positive = export). Negate at the boundary so everything
-    -- above the driver layer sees positive = import.
-
-    -- Total: 35140-35141, I32 BE, W
-    local mw_regs = probe_read(35140, 2, "holding")
-    local meter_w = 0
-    if mw_regs then
-        meter_w = -host.decode_i32_be(mw_regs[1], mw_regs[2])
-    end
-
-    -- Per-phase V/A interleaved at 35121-35126: L1_V, L1_A, L2_V, L2_A, L3_V, L3_A
-    -- (U16, voltage × 0.1 V, current × 0.1 A). One read, six registers.
-    local va_regs = probe_read(35121, 6, "holding")
-    local l1_v, l1_a, l2_v, l2_a, l3_v, l3_a = 0, 0, 0, 0, 0, 0
-    if va_regs then
-        l1_v = va_regs[1] * 0.1
-        l1_a = va_regs[2] * 0.1
-        l2_v = va_regs[3] * 0.1
-        l2_a = va_regs[4] * 0.1
-        l3_v = va_regs[5] * 0.1
-        l3_a = va_regs[6] * 0.1
-    end
-
-    -- Per-phase power at 35132-35137: L1, L2, L3 (I32 BE each pair). One read.
-    local lw_regs = probe_read(35132, 6, "holding")
-    local l1_w, l2_w, l3_w = 0, 0, 0
-    if lw_regs then
-        l1_w = -host.decode_i32_be(lw_regs[1], lw_regs[2])
-        l2_w = -host.decode_i32_be(lw_regs[3], lw_regs[4])
-        l3_w = -host.decode_i32_be(lw_regs[5], lw_regs[6])
-    end
-
-    -- Total import energy: 35195-35196, U32 BE × 0.1 kWh
-    local imp_regs = probe_read(35195, 2, "holding")
-    local import_wh = 0
-    if imp_regs then
-        import_wh = host.decode_u32_be(imp_regs[1], imp_regs[2]) * 0.1 * 1000
-    end
-
-    -- Total export energy: 35199-35200, U32 BE × 0.1 kWh
-    local exp_regs = probe_read(35199, 2, "holding")
-    local export_wh = 0
-    if exp_regs then
-        export_wh = host.decode_u32_be(exp_regs[1], exp_regs[2]) * 0.1 * 1000
-    end
-
-    host.emit("meter", {
-        w         = meter_w,
-        l1_w      = l1_w,
-        l2_w      = l2_w,
-        l3_w      = l3_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = l1_a,
-        l2_a      = l2_a,
-        l3_a      = l3_a,
-        hz        = hz,
-        import_wh = import_wh,
-        export_wh = export_wh,
-    })
-    host.emit_metric("meter_l1_w", l1_w)
-    host.emit_metric("meter_l2_w", l2_w)
-    host.emit_metric("meter_l3_w", l3_w)
-    host.emit_metric("meter_l1_v", l1_v)
-    host.emit_metric("meter_l2_v", l2_v)
-    host.emit_metric("meter_l3_v", l3_v)
-    host.emit_metric("meter_l1_a", l1_a)
-    host.emit_metric("meter_l2_a", l2_a)
-    host.emit_metric("meter_l3_a", l3_a)
-
+    poll_meter()
     return 5000
 end
 

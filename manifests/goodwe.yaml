@@ -1,5 +1,5 @@
 name: "goodwe"
-version: "2.2.0"
+version: "2.3.0"
 tier: community
 author: "frekes81 and Sourceful contributors"
 protocol: modbus
@@ -17,13 +17,17 @@ upstream_docs:
     title: "goodwe library ET/EH register map"
     kind: register_map
     url_stability: volatile
+  - url: "https://raw.githubusercontent.com/evcc-io/evcc/master/templates/definition/meter/goodwe-hybrid.yaml"
+    title: "evcc goodwe-hybrid template (ET/EH/BH/BT register use and signs)"
+    kind: register_map
+    url_stability: volatile
 min_host_version: "1.10.0-beta.1"
-size_bytes: 14972
+size_bytes: 18014
 dkb_id: ""
-sha256: "2bd0ddc5df2754bf8e807aea05529d59809ef65282f4a55a5823e481339be363"
+sha256: "2c38be160885144bf9baf1ab7f481de9f84bc38e22a5a9e9ba11991e4bdb1637"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Report BMS pack temperature, charge and discharge limits and cell temperatures from GoodWe's 37000 block; drop the invented 0 C."
+changelog: "Read PV, battery and meter from the registers in GoodWe's own map (srcfl/device-drivers#264); send no battery when 35184 says none and no meter when the inverter does not hear one."
