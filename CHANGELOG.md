@@ -2,6 +2,46 @@
 
 ## [Unreleased]
 
+### fronius 2.3.0
+
+Battery power, voltage and SoC now come from the registers Fronius's GEN24
+and Verto storage maps give them (register map bundle 1.2.7-2, float maps).
+Not yet checked on hardware (srcfl/device-drivers#260).
+
+- **Where the battery is.** Earlier releases read model 124 at fixed
+  addresses that assume a model 160 with two inputs. With storage, Fronius's
+  model 160 has two more, for the battery, so those reads landed inside
+  model 160's battery blocks. The driver now reads model 160's header,
+  learns its length, and finds model 124 directly after it.
+- **Battery power** is the charge input's DC power minus the discharge
+  input's (the last two blocks of model 160, "StCha" and "StDisCha"),
+  positive when charging. Earlier releases took it from OutWRte and InWRte
+  times WChaMax, which are rate setpoints and a rating, not a measurement.
+- **Voltage** is the larger of the two inputs' DC voltage (before firmware
+  1.31 only the active input carries it), and is left out when both read 0.
+  **SoC** is model 124's ChaState with its scale factor.
+- **No storage, no battery.** Model 124 exists only with storage. Without it
+  the driver sends no battery, where earlier releases sent 0 W, 0 V and 0 %.
+- **Floats.** The float decoder works on the 16-bit halves. It joined the
+  words into one 32-bit number first, so on 32-bit Lua every float came out
+  negative (FTW and Blixt L1 use 64-bit integers and were not affected). NaN
+  and infinity are now left out instead of sent as 0.
+- **Failed reads are left out.** PV is sent only when DC power answered, and
+  each other PV field and metric only when its own read did. The MPPT values
+  come from one read of model 160, with the scale factors that go with them.
+  `fronius` leaves `invented-number-baseline.json` (10 to 0).
+- **PV power with storage** is the sum of the MPPT blocks before the
+  battery blocks, as evcc's GEN24 template reads it. Fronius's map does not
+  say whether model 113's DC power includes the battery input, so a 3 kW
+  discharge could have shown as 3 kW of sun. Model 113's DC power is used
+  only where there is no battery input.
+- **A battery fitted later is found.** While no storage model is known the
+  driver looks for it again every five minutes, and at once when model
+  160's length changes.
+- **Not changed.** In the int+SF setting model 160 starts at 40254; the
+  driver reads only the float maps, so it now sends no DC input or battery
+  values there rather than wrong ones.
+
 ### ferroamp_modbus 2.2.2
 
 A float that answers NaN or infinity is now left out instead of sent as 0

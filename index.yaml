@@ -252,14 +252,14 @@ drivers:
     size_bytes: 43733
     sha256: "c7b3ce58731031340a76c21f15fb87cddb4b6a2cb6ac4320b39f748cf7eae9e9"
   - name: "fronius"
-    version: "2.2.0"
+    version: "2.3.0"
     tier: core
     protocol: modbus
     connectivity: local
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 15342
-    sha256: "c277eee7c0e829b6f385648109ae0fe1dd4dd0d7d0cd1015e4df07b12e84f58f"
+    size_bytes: 21704
+    sha256: "63472dda17a0ed32c167dadb4ecf02f032bf4fb2e648df046a56de818124d16c"
   - name: "fronius_api"
     version: "1.0.2"
     tier: community
