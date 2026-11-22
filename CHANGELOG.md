@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### victron_mqtt 1.1.1
+
+Battery power had the wrong sign: a charging battery showed as discharging
+and the reverse. Victron's D-Bus documentation gives battery power as
+"positive when charged, negative when discharged", and dbus-systemcalc-py
+copies that value into `system/0/Dc/Battery/Power`, the topic this driver
+reads. That is already the site convention, but the driver negated it. It
+now passes it through, as `victron` does with the same value at Modbus
+register 842. Battery current was already passed through unchanged. The
+driver is read-only, so no command went the wrong way.
+
+Not yet measured on a real GX. An owner can check it: while the battery
+charges and its SoC rises, the battery `W` in FTW should be positive; while
+it discharges, negative.
+
 ### growatt 2.2.1
 
 `battery.w` had the wrong sign: a charging battery showed as discharging and

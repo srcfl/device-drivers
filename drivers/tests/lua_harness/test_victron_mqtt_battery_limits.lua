@@ -253,7 +253,7 @@ elseif scenario == "link_gap_forgets" or scenario == "link_gap_after_idle_poll" 
         if host._emitted.battery then error(scenario .. ": an idle poll emitted") end
     end
     local b = poll({ battery_power(-300) })
-    want("battery.W", b.W, 300)
+    want("battery.W", b.W, -300)
     for key, value in pairs(b) do
         if key ~= "W" and key ~= "w" then
             error(scenario .. ": kept " .. key .. " = " .. tostring(value) .. " across the gap")
@@ -276,7 +276,7 @@ elseif scenario == "nothing_invented" then
     -- Only battery power arrived. Nothing else may be made up: no 0 % SoC,
     -- no 0 V, no 0 °C, no limit.
     local b = poll({ battery_power(-800) })
-    want("battery.W", b.W, 800)
+    want("battery.W", b.W, -800)
     for key, value in pairs(b) do
         if key ~= "W" and key ~= "w" then
             error(scenario .. ": invented " .. key .. " = " .. tostring(value))
