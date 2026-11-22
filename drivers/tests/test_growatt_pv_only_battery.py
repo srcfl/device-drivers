@@ -75,8 +75,8 @@ def test_pv_only_install_emits_no_battery_node():
 def test_hybrid_install_with_battery_emits_battery():
     """A real battery (voltage + SoC + charge power) must still be reported."""
     out = _poll({
-        1009: 0, 1010: 100,   # charge power 10 W
-        1011: 0, 1012: 0,     # discharge power 0 W
+        1009: 0, 1010: 0,     # Pdischarge1, discharge power 0 W
+        1011: 0, 1012: 100,   # Pcharge1, charge power 10 W
         1013: 480,            # terminal voltage 48.0 V
         1014: 50,             # SoC 50 %
     })

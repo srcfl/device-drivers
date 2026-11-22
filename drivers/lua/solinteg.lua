@@ -44,6 +44,25 @@ local function probe_read(addr, count, kind)
     return nil
 end
 
+-- What the battery can do now (docs/WRITING-A-DRIVER.md)
+--
+-- The 33000 block is the BMS's. M-TEC's Energy Butler RTU protocol (a
+-- rebadged Solinteg) gives 33003 battery temperature, 0.1 C; croedel/MTECmqtt and
+-- homeassistant-solax-modbus add 33009 max and 33011 min cell temperature,
+-- U16, 0.1 C. 11032 is the inverter's first temperature sensor, I16, 0.1 C.
+-- homeassistant-solax-modbus also lists charge and discharge limits at
+-- 33021/33023, with a note that they may be at 32005/32006 instead. That is
+-- too unsure to report as a live limit, so this driver sends no available_*
+-- figures until Solinteg's own table confirms one address.
+--
+-- A temperature outside -40..100 C is a sentinel or a misread, so it is
+-- dropped, never clamped.
+local function plausible_temp(c)
+    if c == nil or c ~= c then return nil end
+    if c < -40 or c > 100 then return nil end
+    return c
+end
+
 -- Convert signed int16 to uint16 for modbus write
 local function to_u16(val)
     val = math.floor(val)
@@ -81,9 +100,9 @@ function driver_poll()
 
     -- Module temperature: 11032, I16, C, gain 10
     local temp_regs = probe_read(11032, 1, "holding")
-    local inv_temp = 0
+    local inv_temp
     if temp_regs then
-        inv_temp = host.decode_i16(temp_regs[1]) * 0.1
+        inv_temp = plausible_temp(host.decode_i16(temp_regs[1]) * 0.1)
     end
 
     -- Total PV Generation: 31112-31113, U32, kWh, gain 10
@@ -102,6 +121,9 @@ function driver_poll()
         total_generation_Wh = pv_gen_wh,
         temperature_C      = inv_temp,
     })
+    if inv_temp ~= nil then
+        host.emit_metric("inverter_temp_c", inv_temp)
+    end
 
     -- =====================
     -- Battery Telemetry
@@ -134,11 +156,14 @@ function driver_poll()
         bat_soc = soc_regs[1] / 10000  -- percent to fraction
     end
 
-    -- BMS Pack Temperature: 33003, I16, C, gain 10
+    -- BMS Pack Temperature: 33003, I16, C, gain 10. Only with a battery
+    -- voltage in this poll: a hybrid without a pack answers 0, and 0 C
+    -- reads as a cold battery.
+    local has_voltage = bat_regs ~= nil and bat_v > 0
     local btemp_regs = probe_read(33003, 1, "holding")
-    local bat_temp = 0
-    if btemp_regs then
-        bat_temp = host.decode_i16(btemp_regs[1]) * 0.1
+    local bat_temp
+    if btemp_regs and has_voltage then
+        bat_temp = plausible_temp(host.decode_i16(btemp_regs[1]) * 0.1)
     end
 
     -- Battery charge energy: 31108-31109, U32, kWh, gain 10
@@ -164,6 +189,24 @@ function driver_poll()
         total_charge_Wh    = bat_charge_wh,
         total_discharge_Wh = bat_discharge_wh,
     })
+    if bat_temp ~= nil then
+        host.emit_metric("battery_temp_c", bat_temp)
+    end
+
+    -- Max / min cell temperature: 33009 and 33011, U16, C, gain 10.
+    if has_voltage then
+        local cell_regs = probe_read(33009, 3, "holding")
+        if cell_regs and cell_regs[3] ~= nil then
+            local cell_max = plausible_temp(cell_regs[1] * 0.1)
+            local cell_min = plausible_temp(cell_regs[3] * 0.1)
+            if cell_max ~= nil then
+                host.emit_metric("battery_cell_temp_max_c", cell_max)
+            end
+            if cell_min ~= nil then
+                host.emit_metric("battery_cell_temp_min_c", cell_min)
+            end
+        end
+    end
 
     -- =====================
     -- Meter Telemetry
