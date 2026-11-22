@@ -45,9 +45,9 @@ upstream_docs:
     kind: register_map
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 28508
+size_bytes: 29597
 dkb_id: "deye"
-sha256: "f8c3004a42d4fe5c783afe03dec77ad0ec3bc265a7a7bb0782a0e55e21eb5ab3"
+sha256: "13bfc38dcd636ea5fda9ce0453f92e614d24e2efbd0f5d0fe3d56ebb499880ff"
 signature: ""
 
 bytecode_sha256: ""

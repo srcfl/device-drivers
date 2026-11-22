@@ -8,7 +8,9 @@ read in the same poll, and the BMS temperature (217).
 
 The open Deye maps document those registers for the three-phase hybrids
 only, and the limits mean something only while register 111 says the battery
-runs on its BMS. Elsewhere the driver does not read them. A read that fails
+runs on its BMS. Elsewhere the driver does not read them. Register 111 is
+asked again every 60 polls after three misses, so timeouts at start-up do
+not turn the limits off until restart. A read that fails
 is left out, never sent as zero: a battery at 0 °C looks cold, and a limit of
 0 W tells Core the battery may not charge.
 
@@ -60,7 +62,8 @@ for k, n in pairs(reads) do print(k .. " " .. n) end
 
 
 def run(registers: dict[int, int], fail: tuple[int, ...] = (),
-        polls: int = 1) -> dict[str, str]:
+        polls: int = 1, then: str = "", more_polls: int = 0) -> dict[str, str]:
+    """Poll `polls` times, run the Lua in `then`, poll `more_polls` more."""
     setup = "\n".join(
         f"host._modbus_registers.holding[{addr}] = {value}"
         for addr, value in registers.items())
@@ -74,10 +77,15 @@ def run(registers: dict[int, int], fail: tuple[int, ...] = (),
         f"{setup}\n"
         f'dofile("{DRIVER}")\n'
         'driver_init({host = "127.0.0.1", port = 502, unit_id = 1})\n'
-        f"for i = 1, {polls} do\n"
-        "  local ok, err = pcall(driver_poll)\n"
-        '  if not ok then print("POLL_ERROR " .. tostring(err)) os.exit(1) end\n'
+        "local function poll(n)\n"
+        "  for i = 1, n do\n"
+        "    local ok, err = pcall(driver_poll)\n"
+        '    if not ok then print("POLL_ERROR " .. tostring(err)) os.exit(1) end\n'
+        "  end\n"
         "end\n"
+        f"poll({polls})\n"
+        f"{then}\n"
+        f"poll({more_polls})\n"
         + REPORT)
     result = subprocess.run([str(LUA), "-e", script],
                             capture_output=True, text=True, cwd=ROOT)
@@ -200,10 +208,10 @@ def test_deye_out_of_range_values_are_dropped():
 
 
 def test_deye_absent_battery_mode_register_settles():
-    # A three-phase unit that never answers 111 is asked three times, then
-    # left alone; the limit block is never read.
+    # A three-phase unit that never answers 111 is asked on three polls in a
+    # row, then left alone for 60 polls; the limit block is never read.
     out = run(lv_site(), fail=(111,), polls=60)
-    assert int(out["reads.111"]) <= 3
+    assert int(out["reads.111"]) == 3
     assert "reads.212" not in out
 
 
@@ -211,3 +219,23 @@ def test_deye_battery_mode_is_read_once_a_minute():
     out = run(lv_site(), polls=24)
     assert int(out["reads.111"]) == 2
     assert int(out["reads.212"]) == 24
+
+
+def test_deye_battery_mode_that_answers_late_turns_the_limits_on():
+    # Three timeouts at start-up must not turn the limits off until restart.
+    # After three misses register 111 is asked again 60 polls later.
+    answer = 'host._modbus_read_fail_addresses[111] = nil'
+    early = run(lv_site(), fail=(111,), polls=3, then=answer, more_polls=59)
+    assert "battery.available_charge_W" not in early
+    assert int(early["reads.111"]) == 3
+    late = run(lv_site(), fail=(111,), polls=3, then=answer, more_polls=60)
+    assert int(late["reads.111"]) == 4
+    assert num(late, "battery.available_charge_W") == pytest.approx(5200, rel=1e-4)
+    assert num(late, "metric.battery_charge_limit_a") == 100
+
+
+def test_deye_battery_mode_retries_stay_rare_on_a_unit_without_it():
+    out = run(lv_site(), fail=(111,), polls=123)
+    # Polls 1-3, then 63 and 123.
+    assert int(out["reads.111"]) == 5
+    assert "reads.212" not in out

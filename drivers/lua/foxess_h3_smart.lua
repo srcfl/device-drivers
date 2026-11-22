@@ -200,12 +200,17 @@ local BAT_TEMP_ADDR = 37611
 -- Highest and lowest cell temperature, i16 x 0.1 C, battery 1
 -- (foxess_modbus _bms_entities, H3_PRO_SET | H3_SMART). Not yet seen
 -- answering on the 1K5, and an unknown address here costs a timeout, so
--- they are read once every CELL_TEMP_EVERY_POLLS polls and `read` stops
--- asking after three misses.
-local CELL_TEMP_HIGH_ADDR = 37617
-local CELL_TEMP_LOW_ADDR  = 37618
+-- each is read on every sixth poll (CELL_TEMP_EVERY_POLLS). They have
+-- their own retry rather than `read`'s give-up, which lasts until restart:
+-- one comms outage would turn them off for good. After three misses in a
+-- row an address is asked again on every CELL_TEMP_RETRY_POLLS-th poll
+-- until it answers, one timeout per retry on a unit without them.
 local CELL_TEMP_EVERY_POLLS = 6
-local polls_until_cell_temps = 0
+local CELL_TEMP_RETRY_POLLS = 60
+local CELL_TEMPS = {
+  { addr = 37617, metric = "battery_cell_temp_max_c", misses = 0, wait = 0 },
+  { addr = 37618, metric = "battery_cell_temp_min_c", misses = 0, wait = 0 },
+}
 
 -- What the battery can do now (docs/WRITING-A-DRIVER.md).
 local TEMP_MIN_C, TEMP_MAX_C = -40, 100
@@ -668,9 +673,13 @@ function driver_poll()
     end
     -- How much the battery takes now. foxess_modbus reads 46018 as the
     -- most the battery accepts, BMS limits included, and this unit has
-    -- shown it moving with the BMS (see the CHARGE header). But a pack
-    -- that has sat idle reads 0 here and still charges when asked, so a
-    -- 0 is not proof that charging is refused: it is left out. No
+    -- shown it moving with the BMS (see the CHARGE header). The contract
+    -- says 0 means "not allowed now", but here a 0 is left out, on
+    -- purpose. A pack that has sat idle reads 0 and still charges when
+    -- asked; sending that 0 would excuse a battery that could have
+    -- followed. The cost: a cold or full pack that truly refuses charge
+    -- also reads 0, the field is absent, and Core sees "unknown" rather
+    -- than "limited" (compare srcfl/ftw#1993, the refusal near full). No
     -- discharge counterpart is documented for this map.
     if bms_limit ~= nil and bms_limit > 0 then
       bat_out.available_charge_W = bms_limit
@@ -692,20 +701,24 @@ function driver_poll()
   end
 
   -- Cell temperature range, for history only.
-  if polls_until_cell_temps <= 0 then
-    polls_until_cell_temps = CELL_TEMP_EVERY_POLLS
-    local high = read(CELL_TEMP_HIGH_ADDR, 1)
-    if high then
-      local c = plausible_temp(host.decode_i16(high[1]) * 0.1)
-      if c ~= nil then host.emit_metric("battery_cell_temp_max_c", c) end
+  for _, t in ipairs(CELL_TEMPS) do
+    if t.wait <= 0 then
+      local ok, regs = pcall(host.modbus_read, t.addr, 1, "holding")
+      if ok and regs and regs[1] ~= nil then
+        t.misses = 0
+        local c = plausible_temp(host.decode_i16(regs[1]) * 0.1)
+        if c ~= nil then host.emit_metric(t.metric, c) end
+      else
+        t.misses = t.misses + 1
+      end
+      if t.misses >= GIVE_UP_AFTER then
+        t.wait = CELL_TEMP_RETRY_POLLS
+      else
+        t.wait = CELL_TEMP_EVERY_POLLS
+      end
     end
-    local low = read(CELL_TEMP_LOW_ADDR, 1)
-    if low then
-      local c = plausible_temp(host.decode_i16(low[1]) * 0.1)
-      if c ~= nil then host.emit_metric("battery_cell_temp_min_c", c) end
-    end
+    t.wait = t.wait - 1
   end
-  polls_until_cell_temps = polls_until_cell_temps - 1
 
   -- ---- Meter ----
   -- Vendor sign: positive = export. Site convention: positive = import.

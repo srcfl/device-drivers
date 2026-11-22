@@ -107,9 +107,22 @@ local BATTERY_BY_BMS        = 1
 local REG_BMS_LIMIT_A       = 212   -- 212 charge, 213 discharge
 -- Register 111 is a setting, so a read a minute is enough.
 local BATTERY_MODE_EVERY_POLLS = 12
+-- Register 111 has its own retry instead of probe_read's: three misses
+-- there last until restart, so a few timeouts at start-up would turn the
+-- limits off for good. After three misses in a row it is asked again every
+-- BATTERY_MODE_RETRY_POLLS polls (five minutes at the 5 s poll), which
+-- costs one failed read per retry on a unit that never answers.
+local BATTERY_MODE_RETRY_POLLS = 60
 -- true / false once register 111 has answered; nil before.
 local battery_uses_bms = nil
 local polls_until_mode_read = 0
+local battery_mode_misses = 0
+
+local function read_battery_mode()
+    local ok, regs = pcall(host.modbus_read, REG_BATTERY_OPERATION, 1, "holding")
+    if ok and regs and regs[1] ~= nil then return regs[1] end
+    return nil
+end
 
 local TEMP_MIN_C, TEMP_MAX_C = -40, 100
 local POWER_MAX_W = 100000
@@ -348,14 +361,24 @@ function driver_poll()
     end
 
     -- Battery operation mode, three-phase hybrids only. A failed read keeps
-    -- the last answer: it is a setting, not a measurement.
+    -- the last answer: it is a setting, not a measurement. A miss is tried
+    -- again on the next poll; after three in a row, every
+    -- BATTERY_MODE_RETRY_POLLS polls until it answers.
     if three_phase_hybrid() then
         if polls_until_mode_read <= 0 then
-            local op_regs = probe_read(REG_BATTERY_OPERATION, 1, "holding")
-            if op_regs then
-                battery_uses_bms = (op_regs[1] == BATTERY_BY_BMS)
+            local mode = read_battery_mode()
+            if mode ~= nil then
+                battery_uses_bms = (mode == BATTERY_BY_BMS)
+                battery_mode_misses = 0
+                polls_until_mode_read = BATTERY_MODE_EVERY_POLLS
+            else
+                battery_mode_misses = battery_mode_misses + 1
+                if battery_mode_misses < GIVE_UP_AFTER then
+                    polls_until_mode_read = 1
+                else
+                    polls_until_mode_read = BATTERY_MODE_RETRY_POLLS
+                end
             end
-            polls_until_mode_read = BATTERY_MODE_EVERY_POLLS
         end
         polls_until_mode_read = polls_until_mode_read - 1
     end
@@ -764,6 +787,7 @@ function driver_cleanup()
     device_type = nil
     battery_uses_bms = nil
     polls_until_mode_read = 0
+    battery_mode_misses = 0
     sn_read = false
     control_initialized = false
     rated_power_w = 0

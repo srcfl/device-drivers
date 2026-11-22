@@ -81,8 +81,8 @@ drivers:
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 5938
-    sha256: "892efdd8eb645d1f50b48333ed9d1ec53a7e3e0c68715dc291075dbcddad170a"
+    size_bytes: 6394
+    sha256: "f1bf71b8f0a1e1e76c416f84e8f1bd7b08cb84f31fbb249a7c85921a7159a74d"
   - name: "ambibox"
     version: "1.2.0"
     tier: core
@@ -183,8 +183,8 @@ drivers:
     connectivity: local
     ders: [battery, meter, pv]
     control: true
-    size_bytes: 28508
-    sha256: "f8c3004a42d4fe5c783afe03dec77ad0ec3bc265a7a7bb0782a0e55e21eb5ab3"
+    size_bytes: 29597
+    sha256: "13bfc38dcd636ea5fda9ce0453f92e614d24e2efbd0f5d0fe3d56ebb499880ff"
   - name: "easee_cloud"
     version: "1.4.1"
     tier: core
@@ -249,8 +249,8 @@ drivers:
     connectivity: local
     ders: [pv, battery, meter]
     control: true
-    size_bytes: 43087
-    sha256: "317f85f0cd3ac32b381f504be0b1dfb82cb73fd91b1d7ddbb180c90ea8ef82f7"
+    size_bytes: 43733
+    sha256: "c7b3ce58731031340a76c21f15fb87cddb4b6a2cb6ac4320b39f748cf7eae9e9"
   - name: "fronius"
     version: "2.1.2"
     tier: core

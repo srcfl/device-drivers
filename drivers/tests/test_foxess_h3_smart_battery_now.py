@@ -10,7 +10,9 @@ keeps every reading, zeros included, as before.
 The battery temperature (37611) and the cell temperature range (37617/37618)
 are left out when a read fails or the value is outside -40..100 °C. The cell
 temperatures are read on every sixth poll: this device answers an unknown
-address with a timeout, not an exception.
+address with a timeout, not an exception. After three misses in a row each
+is asked again every 60 polls, so an outage does not turn them off until
+restart.
 """
 
 from __future__ import annotations
@@ -79,7 +81,8 @@ def site(charge_limit_w: int = 4500, **singles: int) -> dict[int, int]:
 
 
 def run(registers: dict[int, int], fail: tuple[int, ...] = (),
-        polls: int = 1) -> dict[str, str]:
+        polls: int = 1, then: str = "", more_polls: int = 0) -> dict[str, str]:
+    """Poll `polls` times, run the Lua in `then`, poll `more_polls` more."""
     setup = "\n".join(
         f"host._modbus_registers.holding[{addr}] = {value}"
         for addr, value in registers.items())
@@ -93,10 +96,15 @@ def run(registers: dict[int, int], fail: tuple[int, ...] = (),
         f"{setup}\n"
         f'dofile("{DRIVER}")\n'
         "driver_init({})\n"
-        f"for i = 1, {polls} do\n"
-        "  local ok, err = pcall(driver_poll)\n"
-        '  if not ok then print("POLL_ERROR " .. tostring(err)) os.exit(1) end\n'
+        "local function poll(n)\n"
+        "  for i = 1, n do\n"
+        "    local ok, err = pcall(driver_poll)\n"
+        '    if not ok then print("POLL_ERROR " .. tostring(err)) os.exit(1) end\n'
+        "  end\n"
         "end\n"
+        f"poll({polls})\n"
+        f"{then}\n"
+        f"poll({more_polls})\n"
         + REPORT)
     result = subprocess.run([str(LUA), "-e", script],
                             capture_output=True, text=True, cwd=ROOT)
@@ -171,6 +179,23 @@ def test_foxess_h3_smart_cell_temperatures_read_every_sixth_poll():
 
 
 def test_foxess_h3_smart_absent_cell_temperatures_settle():
-    out = run(site(), fail=(37617, 37618), polls=60)
-    assert int(out["reads.37617"]) <= 3
-    assert int(out["reads.37618"]) <= 3
+    # Polls 1, 7 and 13, then one retry every 60 polls (73, 133).
+    out = run(site(), fail=(37617, 37618), polls=140)
+    assert int(out["reads.37617"]) == 5
+    assert int(out["reads.37618"]) == 5
+
+
+def test_foxess_h3_smart_cell_temperatures_return_after_an_outage():
+    # Three misses (polls 1, 7 and 13) must not turn the cell temperatures
+    # off until restart: the address is asked again 60 polls later.
+    answer = ("host._modbus_read_fail_addresses[37617] = nil\n"
+              "host._modbus_read_fail_addresses[37618] = nil")
+    early = run(site(), fail=(37617, 37618), polls=13, then=answer,
+                more_polls=59)
+    assert "metric.battery_cell_temp_max_c" not in early
+    assert int(early["reads.37617"]) == 3
+    late = run(site(), fail=(37617, 37618), polls=13, then=answer,
+               more_polls=60)
+    assert int(late["reads.37617"]) == 4
+    assert num(late, "metric.battery_cell_temp_max_c") == pytest.approx(31.2, abs=1e-3)
+    assert num(late, "metric.battery_cell_temp_min_c") == pytest.approx(-5.0, abs=1e-3)

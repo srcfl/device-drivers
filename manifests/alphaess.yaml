@@ -31,9 +31,9 @@ upstream_docs:
     kind: register_map
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 5938
+size_bytes: 6394
 dkb_id: ""
-sha256: "892efdd8eb645d1f50b48333ed9d1ec53a7e3e0c68715dc291075dbcddad170a"
+sha256: "f1bf71b8f0a1e1e76c416f84e8f1bd7b08cb84f31fbb249a7c85921a7159a74d"
 signature: ""
 
 bytecode_sha256: ""
