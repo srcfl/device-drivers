@@ -4,12 +4,12 @@ Catalog source is not proof that a target can install or run a driver.
 
 | Driver | Catalog | Target | Conformance | Signed beta | HIL | Legacy parity |
 | --- | --- | --- | --- | --- | --- | --- |
-| 50-125k-svk-ac-slew | 0.2.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| 50-125k-svk-ac-slew | 0.2.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| 50-125k-svk-slew | 0.1.14 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| 50-125k-svk-slew | 0.1.14 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| 50-125k-svk | 0.2.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| 50-125k-svk | 0.2.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk-ac-slew | 0.3.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk-ac-slew | 0.3.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk-slew | 0.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk-slew | 0.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk | 0.3.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk | 0.3.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | abb_meter | 1.0.6 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | abb_meter | 1.0.6 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | abb_terra | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
@@ -86,8 +86,8 @@ Catalog source is not proof that a target can install or run a driver.
 | janitza | 1.0.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | keba | 1.1.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | keba | 1.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| konja-261-svk | 0.3.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| konja-261-svk | 0.3.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| konja-261-svk | 0.4.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| konja-261-svk | 0.4.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | kostal | 2.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | kostal | 2.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | kstar | 1.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |

@@ -851,7 +851,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "konja-261-svk"
-            version: "0.3.2"
+            version: "0.4.0"
             ders: [battery, meter]
             control: true
         firmware_versions: ""
@@ -1715,17 +1715,17 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "50-125k-svk-ac-slew"
-            version: "0.2.5"
+            version: "0.3.0"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk-slew"
-            version: "0.1.14"
+            version: "0.2.0"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk"
-            version: "0.2.5"
+            version: "0.3.0"
             ders: [battery]
             control: true
         firmware_versions: ""

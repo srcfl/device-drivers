@@ -1,5 +1,5 @@
 name: "50-125k-svk-slew"
-version: "0.1.14"
+version: "0.2.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -15,9 +15,9 @@ tested_devices:
     notes: "Solis 10 kW / 50 kWh BESS test site — FFR + FCR-D validated under Blixt L1."
     min_driver_version: "0.1.11"
 min_host_version: "2.0.0"
-size_bytes: 34831
+size_bytes: 40049
 dkb_id: "50-125k-svk-slew"
-sha256: "c47df9cb249a16fb56d3cd4ebf5bbbe08e9f3ebe7cd36a6cf4a9c64cdefd78dc"
+sha256: "f59e4a7b002d1541d78c630a23284a89709aae575f9a58ff9adac38c775e6aeb"
 signature: ""
 
 bytecode_sha256: ""
