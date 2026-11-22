@@ -15,7 +15,7 @@ DRIVER = {
   id           = "fronius",
   name         = "Fronius GEN24",
   manufacturer = "Fronius",
-  version      = "2.1.2",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "pv", "battery" },
   read_only    = true,
@@ -75,6 +75,33 @@ local function decode_f32_be(hi, lo)
     if exp == 0xFF then return 0 end
     if exp == 0 then return sign * frac * 2 ^ -149 end
     return sign * (1 + frac / 0x800000) * 2 ^ (exp - 127)
+end
+
+-- A temperature from two float32 registers (high word first), or nil.
+-- decode_f32_be above turns NaN into 0, and Fronius answers NaN
+-- (0x7FC00000) for a point it does not support, so a temperature read
+-- through it would pass for 0 °C. It also joins the words into one 32-bit
+-- number first, which flips the sign on a Lua build with 32-bit integers
+-- (docs/WRITING-A-DRIVER.md, "Numbers"). This one works on the 16-bit
+-- halves, refuses NaN and infinity, and drops anything outside -40..100 °C
+-- ("What a battery can do now").
+local function decode_temp_f32_be(hi, lo)
+    if hi == nil or lo == nil then return nil end
+    hi = hi % 0x10000
+    lo = lo % 0x10000
+    local sign = 1
+    if hi >= 0x8000 then sign = -1; hi = hi - 0x8000 end
+    local exponent = math.floor(hi / 128)
+    local mantissa = (hi % 128) * 65536 + lo
+    if exponent == 0xFF then return nil end
+    local v
+    if exponent == 0 then
+        v = sign * mantissa * 2 ^ -149
+    else
+        v = sign * (1 + mantissa / 0x800000) * 2 ^ (exponent - 127)
+    end
+    if v < -40 or v > 100 then return nil end
+    return v
 end
 
 -- Turn a Lua array of u16s into an ASCII string, trimming NULs and spaces.
@@ -197,9 +224,15 @@ function driver_poll()
     local dcw_regs = probe_read(40107, 2, "holding")
     if dcw_regs then dc_w = decode_f32_be(dcw_regs[1], dcw_regs[2]) end
 
-    local heatsink_c = 0
-    local temp_regs = probe_read(40111, 2, "holding")
-    if temp_regs then heatsink_c = decode_f32_be(temp_regs[1], temp_regs[2]) end
+    -- Inverter temperature: TmpCab "Cabinet Temperature", float32 °C, model
+    -- 113 registers 40110-40111 in Fronius's 1-based numbering, so address
+    -- 40109 on the wire. Earlier versions read 40111, which is TmpSnk; the
+    -- GEN24, Tauro and Verto maps mark TmpSnk "not supported", so it answered
+    -- NaN and the driver sent 0 °C. Left out when the read fails or the
+    -- device has no value.
+    local cabinet_c = nil
+    local temp_regs = probe_read(40109, 2, "holding")
+    if temp_regs then cabinet_c = decode_temp_f32_be(temp_regs[1], temp_regs[2]) end
 
     -- Rated W: 40134, U16 raw × 10^rated_w_sf
     local rated_w = 0
@@ -248,7 +281,7 @@ function driver_poll()
         mppt2_v     = mppt2_v,
         mppt2_a     = mppt2_a,
         lifetime_wh = lifetime_wh,
-        temp_c      = heatsink_c,
+        temp_c      = cabinet_c,
         rated_w     = rated_w,
     })
     -- Diagnostics: long-format TS DB
@@ -256,10 +289,29 @@ function driver_poll()
     host.emit_metric("pv_mppt1_a",      mppt1_a)
     host.emit_metric("pv_mppt2_v",      mppt2_v)
     host.emit_metric("pv_mppt2_a",      mppt2_a)
-    host.emit_metric("inverter_temp_c", heatsink_c)
+    if cabinet_c ~= nil then
+        host.emit_metric("inverter_temp_c", cabinet_c)
+    end
     host.emit_metric("grid_hz",         hz)
 
     -- ----------------------------------------------------------- Battery
+    --
+    -- Fronius's GEN24 Modbus maps carry no battery temperature and no live
+    -- charge or discharge limit. Model 124 has no temperature point, and the
+    -- per-module Tmp in model 160 is "not supported". WChaMax is "Setpoint
+    -- for maximum charge", which the GEN24 manual defines as
+    -- max(MaxChaRte, MaxDisChaRte), the nameplate rates of model 120; it does
+    -- not move with the BMS, so it is not sent as available_charge_W. Nor is
+    -- there a grid import/export headroom point (model 122 WAval is "not
+    -- supported").
+    --
+    -- NOTE, not changed here: the fixed model-124 addresses below assume a
+    -- two-module model 160. Fronius's own GEN24 storage maps (register map
+    -- bundle 1.2.7-2) add two storage modules to model 160 and put WChaMax
+    -- at register 40356 (float) or 40346 (int+SF), and the manual says to
+    -- find each model by walking the chain rather than by fixed address.
+    -- InBatV is "not supported" there, and OutWRte/InWRte are setpoints, not
+    -- measured rates.
 
     -- Max charge power: 40315, U16 raw × 10^max_charge_sf
     local max_charge_w = 0

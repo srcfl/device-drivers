@@ -419,7 +419,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -430,7 +430,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -441,7 +441,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -452,7 +452,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -463,7 +463,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -496,7 +496,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -678,18 +678,18 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
-        notes: "High-voltage lithium battery modules (5/10/15 kWh)"
+        notes: "High-voltage lithium battery modules (5/10/15 kWh). From 2.2.0 the driver reports 37046/37048 (maximum charge/discharge power) as available power; whether these follow the BMS live is unconfirmed on hardware."
       - name: "SUN2000 (Single-Phase)"
         variants: [SUN2000-2KTL-L1, SUN2000-3KTL-L1, SUN2000-4KTL-L1, SUN2000-5KTL-L1, SUN2000-6KTL-L1]
         regions: [EU]
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -700,7 +700,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -711,7 +711,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -722,7 +722,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -864,7 +864,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kostal"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -875,7 +875,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kostal"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -886,22 +886,22 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kostal"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
-        notes: "SunSpec compliant, port 1502"
+        notes: "SunSpec compliant, port 1502. From 2.2.0 the driver reports the battery's own maximum charge/discharge power limit (0x434/0x436) as available power; how often it refreshes is unconfirmed on hardware."
       - name: "Plenticore Plus"
         variants: [Plenticore Plus 10.0, Plenticore Plus 3.0, Plenticore Plus 4.2, Plenticore Plus 5.5, Plenticore Plus 7.0, Plenticore Plus 8.5]
         regions: []
         protocols:
           - protocol: modbus
             driver: "kostal"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
-        notes: "SunSpec compliant, port 1502"
+        notes: "SunSpec compliant, port 1502. From 2.2.0 the driver reports the battery's own maximum charge/discharge power limit (0x434/0x436) as available power; how often it refreshes is unconfirmed on hardware."
   - name: "Landis+Gyr"
     model_families:
       - name: "E350"
@@ -1117,7 +1117,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1139,7 +1139,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1150,7 +1150,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1161,7 +1161,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1172,7 +1172,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1183,7 +1183,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1194,7 +1194,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1417,44 +1417,44 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sigenergy"
-            version: "1.1.3"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Single-phase hybrid inverter"
+        notes: "Single-phase hybrid inverter. From 1.2.0 the driver reports plant registers 30047/30049 (ESS available max charging/discharging power) as available power; how they follow the BMS is unconfirmed on hardware."
       - name: "Sigen Hybrid Three-Phase (5-30kW)"
         variants: [Sigen-Hybrid-10.0-TP, Sigen-Hybrid-12.0-TP, Sigen-Hybrid-15.0-TP, Sigen-Hybrid-17.0-TP, Sigen-Hybrid-20.0-TP, Sigen-Hybrid-25.0-TP, Sigen-Hybrid-30.0-TP, Sigen-Hybrid-5.0-TP, Sigen-Hybrid-6.0-TP, Sigen-Hybrid-8.0-TP]
         regions: [EU, INT]
         protocols:
           - protocol: modbus
             driver: "sigenergy"
-            version: "1.1.3"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Three-phase hybrid inverter"
+        notes: "Three-phase hybrid inverter. From 1.2.0 the driver reports plant registers 30047/30049 (ESS available max charging/discharging power) as available power; how they follow the BMS is unconfirmed on hardware."
       - name: "SigenStor EC Single-Phase (3-12kW)"
         variants: [SigenStor-EC-10.0-SP, SigenStor-EC-12.0-SP, SigenStor-EC-3.0-SP, SigenStor-EC-3.6-SP, SigenStor-EC-4.0-SP, SigenStor-EC-4.6-SP, SigenStor-EC-5.0-SP, SigenStor-EC-6.0-SP, SigenStor-EC-8.0-SP]
         regions: [EU, INT]
         protocols:
           - protocol: modbus
             driver: "sigenergy"
-            version: "1.1.3"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Single-phase hybrid inverter with ESS"
+        notes: "Single-phase hybrid inverter with ESS. From 1.2.0 the driver reports plant registers 30047/30049 (ESS available max charging/discharging power) as available power; how they follow the BMS is unconfirmed on hardware."
       - name: "SigenStor EC Three-Phase (5-30kW)"
         variants: [SigenStor-EC-10.0-TP, SigenStor-EC-12.0-TP, SigenStor-EC-15.0-TP, SigenStor-EC-17.0-TP, SigenStor-EC-20.0-TP, SigenStor-EC-25.0-TP, SigenStor-EC-30.0-TP, SigenStor-EC-5.0-TP, SigenStor-EC-6.0-TP, SigenStor-EC-8.0-TP]
         regions: [EU, INT]
         protocols:
           - protocol: modbus
             driver: "sigenergy"
-            version: "1.1.3"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Three-phase hybrid inverter with ESS, includes TPLV series"
+        notes: "Three-phase hybrid inverter with ESS, includes TPLV series. From 1.2.0 the driver reports plant registers 30047/30049 (ESS available max charging/discharging power) as available power; how they follow the BMS is unconfirmed on hardware."
   - name: "Socomec"
     model_families:
       - name: "Diris / countis"

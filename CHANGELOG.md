@@ -2,6 +2,79 @@
 
 ## [Unreleased]
 
+### huawei 2.2.0
+
+The battery says what it may charge and discharge at now. The driver reads
+37046 and 37048, "[Energy storage] Maximum charge/discharge power" (U32, W),
+and sends them as `available_charge_W` and `available_discharge_W`, with the
+history metrics `battery_available_charge_w` and
+`battery_available_discharge_w`. Huawei defines each as the smaller of the
+inverter's and the battery's capability and keeps the rated power apart
+(37007/37009), but does not say how fast it follows the BMS. It is read only
+when the battery answered that poll.
+
+The battery temperature (37022) and the inverter temperature (32087) are
+left out when the read fails, or when the value is outside -40 to 100 °C.
+Earlier releases sent 0 °C, which looks like a cold battery. Per-pack
+temperatures (38452 to 38463) are documented but not read, since Huawei does
+not say what an empty pack slot answers. Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### sma 2.2.0
+
+The battery temperature (30849) and the inverter temperature (30953) are
+left out when the read fails, when SMA answers NaN, or when the value is
+outside -40 to 100 °C. Earlier releases sent 0 °C. SMA documents no live
+charge or discharge limit for these devices: 40189/40191 sit with the
+device's ratings, so nothing is sent as `available_*`. Not yet checked on
+hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### fronius 2.2.0
+
+The inverter temperature comes from TmpCab, the cabinet temperature at
+address 40109. Earlier releases read 40111, which is TmpSnk; Fronius marks
+it "not supported" on GEN24, Tauro and Verto, so it answered NaN and the
+driver sent 0 °C. A failed read, NaN or a value outside -40 to 100 °C is now
+left out of `temp_c` and `inverter_temp_c`. Fronius documents no battery
+temperature and no live charge or discharge limit over Modbus, so none is
+sent. Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### kostal 2.2.0
+
+The battery reports its temperature and what it may charge and discharge at
+now, from KOSTAL's own registers: `temperature_C` from 0xD6 (214), and
+`available_charge_W` / `available_discharge_W` from 0x434/0x436
+(1076/1078), "Maximum charge/discharge power limit (read-out from battery)".
+Each is a Float in the word order KOSTAL's byte-order register (0x05)
+reports. The values are read only once that register has answered and the
+battery type (0x24C) shows a battery, and each also goes to history
+(`battery_temp_c`, `battery_available_charge_w`,
+`battery_available_discharge_w`). The inverter temperature is left out when
+its value or scale factor does not answer, instead of being sent as 0 °C.
+Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### sigenergy 1.2.0
+
+The battery reports what the plant may charge and discharge at now, from
+30047 and 30049, "[ESS] Available max charging/discharging power" (Sigenergy
+Modbus Protocol V2.9), and its average cell temperature from 30286, as
+`available_charge_W`, `available_discharge_W` and `temperature_C`, with the
+matching history metrics. They are read only when the ESS answered that
+poll, so a PV-only plant is not asked. 30286 is new in V2.9; older firmware
+that does not answer it is left alone after three tries. Not yet checked on
+hardware.
+
 ### 50-125k-svk 0.2.5, 50-125k-svk-slew 0.1.14
 
 With control on, a failed battery-power read (34755) made the self-heal
