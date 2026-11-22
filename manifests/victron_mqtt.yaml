@@ -1,5 +1,5 @@
 name: "victron_mqtt"
-version: "1.0.3"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -12,7 +12,7 @@ tested_devices:
     variants: [Cerbo GX, Venus GX, Ekrano GX]
     regions: []
     firmware_versions: ""
-    notes: "Requires Venus OS with MQTT enabled on GX device"
+    notes: "Requires Venus OS with MQTT enabled on GX device. Battery limits come from the BMS the GX names in ActiveBmsInstance. With several battery services and that topic not yet received, no limits are sent. The driver sends no keep-alive, so another client must keep the GX publishing."
     min_driver_version: "1.0.0"
   - manufacturer: "Victron Energy"
     model_family: "MultiPlus-II"
@@ -43,12 +43,26 @@ tested_devices:
     notes: "Requires Venus OS with MQTT enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 5779
+size_bytes: 14650
 dkb_id: ""
-sha256: "deb4dba9ef525a59c023939d95686f4b533ee5a9d39a34598e499323afb6535f"
+sha256: "72f607fd9906f4cf0854a4741fecb1708bf278acd5b640e024772da81d801320"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Emit each stream only after a fresh power message for that stream."
+changelog: "Report the BMS charge and discharge limits as available power, battery and cell temperatures. Leave out values the GX never sent, cleared, or that went quiet."
+
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/victronenergy/dbus-flashmq/master/README.md"
+    title: "Venus OS MQTT (dbus-flashmq): topic format, null and empty payloads, keep-alive"
+    kind: api_docs
+    url_stability: stable
+  - url: "https://github.com/victronenergy/venus/wiki/dbus"
+    title: "Venus OS D-Bus paths (battery /Info/MaxChargeCurrent, /Info/MaxDischargeCurrent, /System/MinCellTemperature)"
+    kind: api_docs
+    url_stability: stable
+  - url: "https://www.victronenergy.com/media/pg/CCGX/en/dvcc---distributed-voltage-and-current-control.html"
+    title: "Victron GX manual: DVCC, the BMS's charge and discharge current limits"
+    kind: manual
+    url_stability: unknown

@@ -23,7 +23,7 @@ DRIVER = {
   id           = "ferroamp_modbus",
   name         = "Ferroamp EnergyHub (Modbus)",
   manufacturer = "Ferroamp",
-  version      = "2.1.3",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -48,18 +48,22 @@ PROTOCOL = "modbus"
 -- Decode IEEE 754 single-precision float from two u16 registers,
 -- big-endian word order: hi = first register, lo = second.
 -- Returns 0 for NaN / ±Inf (treated as "not implemented" sentinels).
+--
+-- Works on the 16-bit halves (docs/WRITING-A-DRIVER.md, "Numbers"). The
+-- earlier version built the 32-bit word and compared it with 0x80000000,
+-- which is negative where Lua integers are 32 bits, so every float decoded
+-- wrong there. FTW and Blixt L1 use wider numbers and were not affected.
 local function decode_f32_be(hi, lo)
     hi = hi % 0x10000
     lo = lo % 0x10000
-    local bits = hi * 0x10000 + lo
-    if bits == 0 then return 0 end
     local sign = 1
-    if bits >= 0x80000000 then
+    if hi >= 0x8000 then
         sign = -1
-        bits = bits - 0x80000000
+        hi = hi - 0x8000
     end
-    local exp = math.floor(bits / 0x800000)
-    local frac = bits % 0x800000
+    local exp = math.floor(hi / 0x80)
+    local frac = (hi % 0x80) * 0x10000 + lo
+    if exp == 0 and frac == 0 then return 0 end
     if exp == 0xFF then return 0 end   -- NaN / Inf → not present
     if exp == 0 then
         return sign * frac / 0x800000 * (2 ^ -126)
@@ -222,37 +226,40 @@ function driver_poll()
     -- Battery
     --------------------------------------------------------------------------
 
+    -- Each field comes only from a register that answered. A failed read is
+    -- left out, never sent as 0: 0 W looks like an idle pack, 0 % SoC like an
+    -- empty one, and a 0 Wh counter like a reset.
+    --
+    -- Ferroamp's Modbus map (Modbus TCP Revision D, 2024-06-03) has no
+    -- battery temperature, no live charge or discharge limit and no inverter
+    -- temperature, so this driver reports none. Its import and export
+    -- thresholds (8002, 8012) are settings someone wrote, not limits the
+    -- device sets.
+    local bat_data = {}
+
     -- Battery power: input 6100, float32, kW.
     -- Ferroamp: positive = discharging. Site convention: positive = charging.
     -- Negate and convert kW → W (matches drivers/ferroamp.lua's sign handling).
     local bw_regs = probe_read(6100, 2, "input")
-    local bat_w = 0
-    if bw_regs then bat_w = -decode_f32_ws_at(bw_regs, 1) * 1000 end
+    if bw_regs then bat_data.w = -decode_f32_ws_at(bw_regs, 1) * 1000 end
 
     -- Battery SoC: input 6016, float32, percent → 0-1 fraction
     local soc_regs = probe_read(6016, 2, "input")
-    local bat_soc = nil
-    if soc_regs then bat_soc = decode_f32_ws_at(soc_regs, 1) / 100 end
+    if soc_regs then bat_data.soc = decode_f32_ws_at(soc_regs, 1) / 100 end
 
     -- Battery energy: discharge at 6064, charge at 6068, float32, kWh (8 regs).
     -- Read as input registers; driver_command writes holding 6064 for the power
     -- setpoint, which is a different function code and a separate path.
     local be_regs = probe_read(6064, 8, "input")
-    local bat_discharge_wh, bat_charge_wh = 0, 0
     if be_regs then
-        bat_discharge_wh = decode_f32_ws_at(be_regs, 1) * 1000   -- 6064-6065
-        bat_charge_wh    = decode_f32_ws_at(be_regs, 5) * 1000   -- 6068-6069
+        bat_data.discharge_wh = decode_f32_ws_at(be_regs, 1) * 1000   -- 6064-6065
+        bat_data.charge_wh    = decode_f32_ws_at(be_regs, 5) * 1000   -- 6068-6069
     end
 
-    -- Omit soc from the emit table when the read failed — emitting 0
-    -- would cause the control loop to think the battery is empty.
-    local bat_data = {
-        w            = bat_w,
-        charge_wh    = bat_charge_wh,
-        discharge_wh = bat_discharge_wh,
-    }
-    if bat_soc ~= nil then bat_data.soc = bat_soc end
-    host.emit("battery", bat_data)
+    -- Send whatever answered (docs/WRITING-A-DRIVER.md, "A hybrid inverter
+    -- may have no battery"): a failed power read must not also drop a good
+    -- SoC or energy count. With nothing answered there is no battery reading.
+    if next(bat_data) ~= nil then host.emit("battery", bat_data) end
 
     return 5000
 end
