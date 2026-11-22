@@ -806,7 +806,7 @@ drivers:
     size_bytes: 9392
     sha256: "246369f9a66d9b667ea423cdc6c972d6a93e57828b1e8518e1a118ecb4b7c10a"
   - name: "victron_mqtt"
-    version: "1.2.0"
+    version: "1.2.1"
     tier: community
     protocol: mqtt
     connectivity: local

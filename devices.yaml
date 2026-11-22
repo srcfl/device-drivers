@@ -2011,7 +2011,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -2027,7 +2027,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -2043,7 +2043,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -2059,7 +2059,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -2075,7 +2075,7 @@ manufacturers:
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.2.0"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
