@@ -5,8 +5,8 @@ Venus OS publishes only while some client sends R/<portal ID>/keepalive
 (victronenergy/dbus-flashmq README, "Keep-alive"). The driver learns the
 portal ID from the retained N/<portal ID>/system/0/Serial, sends a
 keep-alive every 30 s, asks for a full republish every 120 s and when the GX
-speaks again after a silent link, and keeps working when the host refuses to
-publish.
+speaks again after a silent link, follows a changed portal ID, and keeps
+working when the host refuses to publish.
 """
 
 from pathlib import Path
@@ -35,6 +35,8 @@ pytestmark = pytest.mark.skipif(
         "refused_keeps_values",
         "republish_drops_gone_value",
         "republish_keeps_resent_value",
+        "slow_poll_republish",
+        "portal_changes",
         "idle_poll_emits_nothing",
     ],
 )

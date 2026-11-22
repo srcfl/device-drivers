@@ -208,6 +208,45 @@ elseif scenario == "republish_keeps_resent_value" then
         if b.temperature_C ~= 21 then fail("dropped a temperature the republish resent") end
     end
 
+elseif scenario == "slow_poll_republish" then
+    -- A host that polls every 5 s and runs half a second late. The full
+    -- republish straddles a poll: SoC and temperature come in one poll,
+    -- full_publish_completed in the next, 5.5 s later. They were resent.
+    poll({ serial(), battery_power(), msg("system/0/Dc/Battery/Soc", 64),
+           msg("system/0/Dc/Battery/Temperature", 17.5), completed() }, 5500)
+    local b
+    for _ = 1, 20 do b = poll({ battery_power() }, 5500) end
+    poll({ battery_power(), msg("system/0/Dc/Battery/Soc", 64),
+           msg("system/0/Dc/Battery/Temperature", 17.5) }, 5500)
+    b = poll({ battery_power(), completed() }, 5500)
+    if b.SoC_nom_fract ~= 0.64 then fail("dropped a SoC resent one poll before the completion") end
+    if b.temperature_C ~= 17.5 then fail("dropped a temperature resent one poll before the completion") end
+    -- The bound still holds at this pace: the next republish leaves the
+    -- temperature out, and it goes.
+    for _ = 1, 20 do b = poll({ battery_power() }, 5500) end
+    poll({ battery_power(), msg("system/0/Dc/Battery/Soc", 64) }, 5500)
+    b = poll({ battery_power(), completed() }, 5500)
+    if b.SoC_nom_fract ~= 0.64 then fail("dropped the resent SoC") end
+    if b.temperature_C ~= nil then fail("kept a temperature the republish left out") end
+
+elseif scenario == "portal_changes" then
+    -- The broker now carries another GX: follow it, forget the old one's
+    -- values and ask the new one for everything at once.
+    poll({ serial(), battery_power(), msg("system/0/Dc/Battery/Soc", 64) })
+    expect_keepalive(1, "", 1000)
+    local b = poll({
+        { topic = "N/beef/system/0/Serial", payload = '{"value": "beef"}' },
+        { topic = "N/beef/system/0/Dc/Battery/Power", payload = '{"value": 300}' },
+    })
+    expect_published(2)
+    if published[2].topic ~= "R/beef/keepalive" then fail("keep-alive went to " .. published[2].topic) end
+    if published[2].payload ~= "" then fail("first keep-alive to the new GX is not a full republish") end
+    if b.SoC_nom_fract ~= nil then fail("kept the old GX's SoC") end
+    if count_logs("portal ID changed from c0ffee to beef") ~= 1 then fail("change not logged") end
+    -- Later keep-alives go to the new GX.
+    for _ = 1, 30 do poll({}) end
+    if published[#published].topic ~= "R/beef/keepalive" then fail("went back to the old GX") end
+
 elseif scenario == "idle_poll_emits_nothing" then
     -- A keep-alive is not telemetry.
     poll({ serial(), battery_power() })

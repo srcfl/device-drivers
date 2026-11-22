@@ -34,8 +34,8 @@ local bat_soc = nil
 local bat_v = nil
 local bat_a = nil
 local bat_temp = nil
--- host.millis() of the last valid message for each of the values above.
-local bat_soc_ms, bat_v_ms, bat_a_ms, bat_temp_ms = nil, nil, nil, nil
+-- When each value above last arrived: the poll's stamp (see "Keep-alive").
+local bat_soc_at, bat_v_at, bat_a_at, bat_temp_at = nil, nil, nil, nil
 
 -- What the battery's BMS says it allows now, per battery service.
 --
@@ -79,10 +79,10 @@ local bat_soc_ms, bat_v_ms, bat_a_ms, bat_temp_ms = nil, nil, nil, nil
 --   * The system's SoC, voltage, current and temperature count until a
 --     full republish leaves them out. A full republish resends every value
 --     the GX has and ends with N/<portal ID>/full_publish_completed, so a
---     value older than that last message was not in it: the GX no longer
---     has it. Until a full republish has completed, for example when the
---     host refuses to send the keep-alive, they stay until a null, an empty
---     payload or a silent link clears them.
+--     value that arrived well before that last message was not in it: the
+--     GX no longer has it. Until a full republish has completed, for
+--     example when the host refuses to send the keep-alive, they stay until
+--     a null, an empty payload or a silent link clears them.
 local BMS_MAX_AGE_MS = 60000
 local LINK_SILENT_MS = 60000
 local last_message_ms = nil   -- host.millis() of the latest message batch
@@ -104,7 +104,18 @@ local last_message_ms = nil   -- host.millis() of the latest message batch
 -- The portal ID is the second part of every N/ topic. dbus-flashmq
 -- publishes N/<portal ID>/system/0/Serial retained (Item::should_be_retained
 -- in its source), so a client that subscribes to it learns the ID at once,
--- before any keep-alive.
+-- before any keep-alive. When that topic names another portal ID, the GX on
+-- the broker has changed: the driver follows it, forgets what the old one
+-- said and asks the new one for every value.
+--
+-- Which values a full republish resent. The host hands over the messages
+-- that arrived since the last poll, so a republish usually lands in one
+-- poll, and at most straddles one boundary. Each poll gets a stamp, its
+-- clock and its number, and every value keeps the stamp of the poll that
+-- brought it. A value was resent if it arrived within REPUBLISH_POLLS polls
+-- before the completion, or within REPUBLISH_SLACK_MS of it. Counting polls
+-- holds on a host that polls every 5 s or slower; the time bound holds on
+-- one that polls faster than this driver asks.
 --
 -- host.mqtt_publish returns nothing on FTW when it sends and an error text
 -- when it refuses, for example for a driver FTW runs read-only. Then the GX
@@ -112,7 +123,7 @@ local last_message_ms = nil   -- host.millis() of the latest message batch
 -- the driver tries again on the next keep-alive.
 local KEEPALIVE_MS = 30000
 local REPUBLISH_MS = 120000
--- A full republish can span a few polls before its last message arrives.
+local REPUBLISH_POLLS = 2
 local REPUBLISH_SLACK_MS = 5000
 local SUPPRESS_REPUBLISH = '{"keepalive-options": ["suppress-republish"]}'
 local portal_id = nil
@@ -120,7 +131,8 @@ local last_keepalive_ms = nil     -- last keep-alive the driver tried
 local last_republish_ms = nil     -- last full republish the host sent
 local republish_due = true        -- ask for every value on the next one
 local keepalive_refused = false   -- host refused the last keep-alive
-local last_full_publish_ms = nil  -- latest full_publish_completed seen
+local full_publish_at = nil       -- stamp of the latest full_publish_completed
+local poll_seq = 0                -- number of the current poll
 local BMS_TOPIC = "^N/[^/]+/battery/(%d+)/(.+)$"
 local BMS_PATHS = {
     ["Info/MaxChargeCurrent"]      = "charge_a",
@@ -209,12 +221,12 @@ local function selected_bms(now)
 end
 
 -- A system battery value, or nil once a full republish has left it out.
-local function current(value, at_ms)
-    if value == nil or last_full_publish_ms == nil then return value end
-    if at_ms == nil or at_ms < last_full_publish_ms - REPUBLISH_SLACK_MS then
-        return nil
-    end
-    return value
+local function current(value, at)
+    if value == nil or full_publish_at == nil then return value end
+    if at == nil then return nil end
+    if full_publish_at.seq - at.seq <= REPUBLISH_POLLS then return value end
+    if full_publish_at.ms - at.ms <= REPUBLISH_SLACK_MS then return value end
+    return nil
 end
 
 local function forget_battery_values()
@@ -222,10 +234,10 @@ local function forget_battery_values()
     bat_v = nil
     bat_a = nil
     bat_temp = nil
-    bat_soc_ms, bat_v_ms, bat_a_ms, bat_temp_ms = nil, nil, nil, nil
+    bat_soc_at, bat_v_at, bat_a_at, bat_temp_at = nil, nil, nil, nil
     bms = {}
     active_bms = nil
-    last_full_publish_ms = nil
+    full_publish_at = nil
 end
 
 -- FTW returns nothing when it sends and an error text when it refuses; a
@@ -310,6 +322,8 @@ end
 function driver_poll()
     local now = host.millis()
     local messages = host.mqtt_messages()
+    poll_seq = poll_seq + 1
+    local stamp = { ms = now, seq = poll_seq }
 
     -- A silent link: what was cached may have changed or gone unheard.
     if last_message_ms ~= nil and now - last_message_ms > LINK_SILENT_MS then
@@ -337,12 +351,21 @@ function driver_poll()
         local val = parse_value(msg.payload)
         local instance, path = string.match(topic, BMS_TOPIC)
 
-        if portal_id == nil then
+        local serial_portal = string.match(topic, "^N/([^/]+)/system/0/Serial$")
+        if serial_portal and serial_portal ~= portal_id then
+            if portal_id ~= nil then
+                host.log("info", "Victron MQTT: portal ID changed from " ..
+                    portal_id .. " to " .. serial_portal)
+                forget_battery_values()
+            end
+            portal_id = serial_portal
+            republish_due = true
+        elseif portal_id == nil then
             portal_id = string.match(topic, "^N/([^/]+)/")
         end
 
         if topic_ends_with(topic, "/full_publish_completed") then
-            last_full_publish_ms = now
+            full_publish_at = stamp
         elseif instance then
             local field = BMS_PATHS[path]
             if field then
@@ -361,15 +384,15 @@ function driver_poll()
         -- Battery values that ride along with battery power. A null or an
         -- empty payload clears them.
         elseif topic_ends_with(topic, "Dc/Battery/Soc") then
-            bat_soc, bat_soc_ms = val, now
+            bat_soc, bat_soc_at = val, stamp
         elseif topic_ends_with(topic, "Dc/Battery/Voltage") then
-            bat_v, bat_v_ms = val, now
+            bat_v, bat_v_at = val, stamp
         elseif topic_ends_with(topic, "Dc/Battery/Current") then
-            bat_a, bat_a_ms = val, now
+            bat_a, bat_a_at = val, stamp
         elseif topic_ends_with(topic, "Dc/Battery/Temperature") then
             -- The system's battery temperature: the battery monitor's or
             -- BMS's sensor, not an inverter heatsink.
-            bat_temp, bat_temp_ms = val, now
+            bat_temp, bat_temp_at = val, stamp
 
         elseif val then
             -- Grid power
@@ -429,14 +452,14 @@ function driver_poll()
     -- negated it (srcfl/device-drivers#255).
     if fresh_battery then
         local battery = { W = bat_w }
-        local v = current(bat_v, bat_v_ms)
-        local a = current(bat_a, bat_a_ms)
-        local soc = current(bat_soc, bat_soc_ms)
+        local v = current(bat_v, bat_v_at)
+        local a = current(bat_a, bat_a_at)
+        local soc = current(bat_soc, bat_soc_at)
         if v ~= nil then battery.V = v end
         if a ~= nil then battery.A = a end
         if soc ~= nil then battery.SoC_nom_fract = soc / 100 end  -- percent to fraction
 
-        local temp_c = temperature(current(bat_temp, bat_temp_ms))
+        local temp_c = temperature(current(bat_temp, bat_temp_at))
         if temp_c ~= nil then battery.temperature_C = temp_c end
 
         local b = selected_bms(now)
@@ -491,6 +514,7 @@ function driver_cleanup()
     forget_battery_values()
     last_message_ms = nil
     portal_id = nil
+    poll_seq = 0
     last_keepalive_ms = nil
     last_republish_ms = nil
     republish_due = true

@@ -43,9 +43,9 @@ tested_devices:
     notes: "Requires Venus OS with MQTT enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 20228
+size_bytes: 21628
 dkb_id: ""
-sha256: "ef076bca6d9e6d60b29e8b7bb47167acd0d7fd4be85a68a84d57a891cadeda81"
+sha256: "b8fdaf360454ce04307d38b2587358c30680a482ec1f438f4ac5e48da3fb9cc4"
 signature: ""
 
 bytecode_sha256: ""

@@ -812,8 +812,8 @@ drivers:
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 20228
-    sha256: "ef076bca6d9e6d60b29e8b7bb47167acd0d7fd4be85a68a84d57a891cadeda81"
+    size_bytes: 21628
+    sha256: "b8fdaf360454ce04307d38b2587358c30680a482ec1f438f4ac5e48da3fb9cc4"
   - name: "wallbox"
     version: "1.1.0"
     tier: community
