@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### 50-125k-svk 0.2.5, 50-125k-svk-slew 0.1.14
+
+With control on, a failed battery-power read (34755) made the self-heal
+check raise: `math.abs(nil)` in 50-125k-svk and `nil - committed` in the
+slew driver. The whole poll failed, so one missed read cost all telemetry
+for that poll. The check now skips a poll with no battery reading and
+starts its count of disagreeing polls again. With a reading, the self-heal
+works as before. 50-125k-svk-ac-slew already checked its AC reading and is
+unchanged. Not yet checked on hardware.
+
 ### deye 2.2.0, foxess_h3_smart 0.10.0, alphaess 1.2.0, kstar 1.2.0
 
 These drivers now report what the battery can do now, so Core can tell a

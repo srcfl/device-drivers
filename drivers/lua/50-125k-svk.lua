@@ -64,7 +64,7 @@ DRIVER = {
     id = "50-125k-svk",
     name = "Solis S6 50-125 kW C&I hybrid (SvK)",
     manufacturer = "Solis",
-    version = "0.2.4",
+    version = "0.2.5",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -398,8 +398,12 @@ function driver_poll()
     -- Latch / timeout-race self-heal: commanded 0 but battery active
     -- for ≥2 polls → re-arm + re-zero. (Kept from base — cheap, uses
     -- only the bat_w we already read.)
+    -- No battery reading this poll (34755 failed) is no evidence either
+    -- way: skip the check and restart the count, rather than raise on
+    -- math.abs(nil) and fail the whole poll.
     if control_initialized then
-        if last_commanded_w == 0 and math.abs(bat_w) > SELF_HEAL_FLOOR_W then
+        if bat_w ~= nil and last_commanded_w == 0
+           and math.abs(bat_w) > SELF_HEAL_FLOOR_W then
             self_heal_disagree_polls = self_heal_disagree_polls + 1
             if self_heal_disagree_polls >= SELF_HEAL_RUN_REQUIRED then
                 host.log(string.format(

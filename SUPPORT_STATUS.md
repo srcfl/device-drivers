@@ -6,10 +6,10 @@ Catalog source is not proof that a target can install or run a driver.
 | --- | --- | --- | --- | --- | --- | --- |
 | 50-125k-svk-ac-slew | 0.2.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | 50-125k-svk-ac-slew | 0.2.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| 50-125k-svk-slew | 0.1.13 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| 50-125k-svk-slew | 0.1.13 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| 50-125k-svk | 0.2.4 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| 50-125k-svk | 0.2.4 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk-slew | 0.1.14 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk-slew | 0.1.14 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk | 0.2.5 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| 50-125k-svk | 0.2.5 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | abb_meter | 1.0.6 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | abb_meter | 1.0.6 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | abb_terra | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |

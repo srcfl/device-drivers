@@ -1720,12 +1720,12 @@ manufacturers:
             control: true
           - protocol: modbus
             driver: "50-125k-svk-slew"
-            version: "0.1.13"
+            version: "0.1.14"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk"
-            version: "0.2.4"
+            version: "0.2.5"
             ders: [battery]
             control: true
         firmware_versions: ""

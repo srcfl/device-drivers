@@ -75,7 +75,7 @@ DRIVER = {
     id = "50-125k-svk-slew",
     name = "Solis S6 50-125 kW C&I hybrid (SvK, slew-limited)",
     manufacturer = "Solis",
-    version = "0.1.13",
+    version = "0.1.14",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -559,11 +559,14 @@ function driver_poll()
     -- Mode and rewrites the setpoint. Guarded on committed being
     -- unchanged between polls so an in-flight slew/ramp (where
     -- disagreement is expected) never trips it.
+    -- No battery reading this poll (34755 failed) is no evidence either
+    -- way: skip the check and restart the count, rather than raise on
+    -- nil arithmetic and fail the whole poll.
     if control_initialized then
-        local err_w = math.abs(bat_w - slew_committed_w)
+        local err_w = bat_w and math.abs(bat_w - slew_committed_w)
         local tol_w = math.max(SELF_HEAL_FLOOR_W,
                                math.abs(slew_committed_w) * 0.15)
-        if err_w > tol_w
+        if err_w and err_w > tol_w
            and slew_committed_w == self_heal_prev_committed_w
            and slew_committed_w == slew_target_w then
             self_heal_disagree_polls = self_heal_disagree_polls + 1
