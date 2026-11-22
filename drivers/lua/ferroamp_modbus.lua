@@ -23,7 +23,7 @@ DRIVER = {
   id           = "ferroamp_modbus",
   name         = "Ferroamp EnergyHub (Modbus)",
   manufacturer = "Ferroamp",
-  version      = "2.2.1",
+  version      = "2.2.2",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -47,7 +47,9 @@ PROTOCOL = "modbus"
 
 -- Decode IEEE 754 single-precision float from two u16 registers,
 -- big-endian word order: hi = first register, lo = second.
--- Returns 0 for NaN / ±Inf (treated as "not implemented" sentinels).
+-- Returns nil for NaN / ±Inf, which the EnergyHub uses for "not present":
+-- the field is left out, never sent as 0 (docs/WRITING-A-DRIVER.md,
+-- "Never fabricate"). Up to 2.2.1 they decoded as 0.
 --
 -- Works on the 16-bit halves (docs/WRITING-A-DRIVER.md, "Numbers"). The
 -- earlier version built the 32-bit word and compared it with 0x80000000,
@@ -64,7 +66,7 @@ local function decode_f32_be(hi, lo)
     local exp = math.floor(hi / 0x80)
     local frac = (hi % 0x80) * 0x10000 + lo
     if exp == 0 and frac == 0 then return 0 end
-    if exp == 0xFF then return 0 end   -- NaN / Inf → not present
+    if exp == 0xFF then return nil end   -- NaN / Inf → not present
     if exp == 0 then
         return sign * frac / 0x800000 * (2 ^ -126)
     end
@@ -76,11 +78,23 @@ end
 -- (hi, lo), so we swap here. `regs` is the 1-indexed table returned by
 -- host.modbus_read, `idx` is the position of the LOW word.
 local function decode_f32_ws_at(regs, idx)
-    if not regs then return 0 end
+    if not regs then return nil end
     local lo = regs[idx]
     local hi = regs[idx + 1]
-    if lo == nil or hi == nil then return 0 end
+    if lo == nil or hi == nil then return nil end
     return decode_f32_be(hi, lo)
+end
+
+-- The float at idx times scale, or nil when a word is missing or the value
+-- is NaN or infinite. Checked again after scaling: float32's largest value
+-- times 1000 is infinite where Lua numbers are 32-bit floats
+-- (docs/WRITING-A-DRIVER.md, "Numbers").
+local function f32_at(regs, idx, scale)
+    local v = decode_f32_ws_at(regs, idx)
+    if v == nil then return nil end
+    v = v * scale
+    if v ~= v or v == math.huge or v == -math.huge then return nil end
+    return v
 end
 
 ----------------------------------------------------------------------------
@@ -117,8 +131,7 @@ local function probe_read(addr, count, kind)
     return nil
 end
 
--- A reply shorter than the read did not deliver every register asked for,
--- and decode_f32_ws_at would turn the missing word into 0.
+-- A reply shorter than the read did not deliver every register asked for.
 local function complete(regs, count)
     return regs ~= nil and regs[count] ~= nil
 end
@@ -149,44 +162,43 @@ function driver_poll()
     -- Grid frequency: input 2016, float32, Hz (2 regs, word-swapped)
     local hz_regs = probe_read(2016, 2, "input")
     if complete(hz_regs, 2) then
-        meter.hz = decode_f32_ws_at(hz_regs, 1)
-        host.emit_metric("grid_hz", meter.hz)
+        meter.hz = f32_at(hz_regs, 1, 1)
+        if meter.hz ~= nil then host.emit_metric("grid_hz", meter.hz) end
     end
 
     -- Grid voltage L1/L2/L3: input 2032/2036/2040, float32, Vrms.
     -- Each value occupies 4 regs (2 f32 + 2 unused), so read 10 regs for 3 values.
     local v_regs = probe_read(2032, 10, "input")
     if complete(v_regs, 10) then
-        meter.l1_v = decode_f32_ws_at(v_regs, 1)   -- 2032-2033
-        meter.l2_v = decode_f32_ws_at(v_regs, 5)   -- 2036-2037
-        meter.l3_v = decode_f32_ws_at(v_regs, 9)   -- 2040-2041
+        meter.l1_v = f32_at(v_regs, 1, 1)   -- 2032-2033
+        meter.l2_v = f32_at(v_regs, 5, 1)   -- 2036-2037
+        meter.l3_v = f32_at(v_regs, 9, 1)   -- 2040-2041
     end
 
     -- Grid active power (total): input 3100, float32, kW
     local gw_regs = probe_read(3100, 2, "input")
-    if complete(gw_regs, 2) then meter.w = decode_f32_ws_at(gw_regs, 1) * 1000 end
+    if complete(gw_regs, 2) then meter.w = f32_at(gw_regs, 1, 1000) end
 
     -- Grid active current L1/L2/L3: input 3112/3116/3120, float32, Arms
     local ga_regs = probe_read(3112, 10, "input")
     if complete(ga_regs, 10) then
-        meter.l1_a = decode_f32_ws_at(ga_regs, 1)   -- 3112-3113
-        meter.l2_a = decode_f32_ws_at(ga_regs, 5)   -- 3116-3117
-        meter.l3_a = decode_f32_ws_at(ga_regs, 9)   -- 3120-3121
+        meter.l1_a = f32_at(ga_regs, 1, 1)   -- 3112-3113
+        meter.l2_a = f32_at(ga_regs, 5, 1)   -- 3116-3117
+        meter.l3_a = f32_at(ga_regs, 9, 1)   -- 3120-3121
     end
 
     -- Per-phase power: V * I_active (no per-phase power registers available),
     -- only when both answered.
-    if meter.l1_v and meter.l1_a then
-        meter.l1_w = meter.l1_v * meter.l1_a
-        meter.l2_w = meter.l2_v * meter.l2_a
-        meter.l3_w = meter.l3_v * meter.l3_a
+    for _, phase in ipairs({ "l1", "l2", "l3" }) do
+        local v, a = meter[phase .. "_v"], meter[phase .. "_a"]
+        if v ~= nil and a ~= nil then meter[phase .. "_w"] = v * a end
     end
 
     -- Grid energy: export at 3064, import at 3068, float32, kWh (8 regs, two values)
     local ge_regs = probe_read(3064, 8, "input")
     if complete(ge_regs, 8) then
-        meter.export_wh = decode_f32_ws_at(ge_regs, 1) * 1000   -- 3064-3065
-        meter.import_wh = decode_f32_ws_at(ge_regs, 5) * 1000   -- 3068-3069
+        meter.export_wh = f32_at(ge_regs, 1, 1000)   -- 3064-3065
+        meter.import_wh = f32_at(ge_regs, 5, 1000)   -- 3068-3069
     end
 
     if meter.w ~= nil then host.emit("meter", meter) end
@@ -206,13 +218,14 @@ function driver_poll()
     -- Solar power: input 5100, float32, kW (always positive from Ferroamp).
     -- Without it there is no PV reading.
     local pv_regs = probe_read(5100, 2, "input")
-    if complete(pv_regs, 2) then
+    local pv_w = complete(pv_regs, 2) and f32_at(pv_regs, 1, 1000) or nil
+    if pv_w ~= nil then
         local pv = {}
-        pv.w = -decode_f32_ws_at(pv_regs, 1) * 1000   -- negative = generation
+        pv.w = -pv_w   -- negative = generation
 
         -- Solar energy produced: input 5064, float32, kWh
         local pe_regs = probe_read(5064, 2, "input")
-        if complete(pe_regs, 2) then pv.lifetime_wh = decode_f32_ws_at(pe_regs, 1) * 1000 end
+        if complete(pe_regs, 2) then pv.lifetime_wh = f32_at(pe_regs, 1, 1000) end
 
         host.emit("pv", pv)
     end
@@ -236,20 +249,20 @@ function driver_poll()
     -- Ferroamp: positive = discharging. Site convention: positive = charging.
     -- Negate and convert kW → W (matches drivers/ferroamp.lua's sign handling).
     local bw_regs = probe_read(6100, 2, "input")
-    if bw_regs then bat_data.w = -decode_f32_ws_at(bw_regs, 1) * 1000 end
+    local bat_w = f32_at(bw_regs, 1, 1000)
+    if bat_w ~= nil then bat_data.w = -bat_w end
 
     -- Battery SoC: input 6016, float32, percent → 0-1 fraction
     local soc_regs = probe_read(6016, 2, "input")
-    if soc_regs then bat_data.soc = decode_f32_ws_at(soc_regs, 1) / 100 end
+    local soc_pct = f32_at(soc_regs, 1, 1)
+    if soc_pct ~= nil then bat_data.soc = soc_pct / 100 end
 
     -- Battery energy: discharge at 6064, charge at 6068, float32, kWh (8 regs).
     -- Read as input registers; driver_command writes holding 6064 for the power
     -- setpoint, which is a different function code and a separate path.
     local be_regs = probe_read(6064, 8, "input")
-    if be_regs then
-        bat_data.discharge_wh = decode_f32_ws_at(be_regs, 1) * 1000   -- 6064-6065
-        bat_data.charge_wh    = decode_f32_ws_at(be_regs, 5) * 1000   -- 6068-6069
-    end
+    bat_data.discharge_wh = f32_at(be_regs, 1, 1000)   -- 6064-6065
+    bat_data.charge_wh    = f32_at(be_regs, 5, 1000)   -- 6068-6069
 
     -- Send whatever answered (docs/WRITING-A-DRIVER.md, "A hybrid inverter
     -- may have no battery"): a failed power read must not also drop a good
