@@ -456,8 +456,8 @@ confirm a command.
 Core judges a battery against what it can do now, not only against the order.
 A battery that gives 4.3 kW of a 5 kW order because its BMS allows no more is
 limited, not out of control. Report these when the device has them, with the
-canonical names from `spec/host-api-profile.json`, and leave each one out when
-its read fails:
+canonical names from `spec/host-api-profile.json` where one exists, and leave
+each one out when its read fails:
 
 - `temperature_C` on `battery` (the catalog's older `temp_c` means the same):
   the battery's temperature in °C as its BMS reports it. Use the pack or
@@ -472,7 +472,9 @@ its read fails:
   device reports that headroom.
 - `device_state` on `battery`: `"standby"` or `"starting"` while the device
   reports that it is not running and so cannot follow an order. Leave it out
-  while it runs.
+  while it runs. This key is FTW's own; @srcful/data-models has none yet, so
+  it is allowed in `drivers/tests/test_emit_fields.py` rather than listed as
+  canonical in the profile. Core uses it to say why a battery gives nothing.
 
 Only a live value belongs in an `available_*` field: one that moves with
 temperature, charge level or the BMS's own state. A rating, a configured
@@ -481,9 +483,10 @@ document does not say which a register is, say so in a comment and in the
 pull request.
 
 Drop a temperature outside -40 to 100 °C and a power outside 0 to 100 kW.
-A register that did not answer is left out, never sent as zero. Several
-drivers once sent a battery temperature of 0 when the read failed, and 0 °C
-looks like a cold battery.
+A register that did not answer is left out, never sent as zero. A
+battery temperature of 0 from a failed read looks like a cold battery. In
+November 2026, `huawei`, `goodwe`, `solis`, `sofar` and `victron` started their
+battery temperature at 0 and emitted it whether or not the read answered.
 
 Emit the same numbers with `host.emit_metric` so they reach history:
 `battery_temp_c`, `battery_available_charge_w`, `battery_available_discharge_w`,
