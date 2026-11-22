@@ -695,7 +695,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.2.1",
+      "catalog_version": "2.2.2",
       "driver_id": "growatt",
       "targets": {
         "blixt-l1": {
