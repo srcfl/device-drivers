@@ -10,7 +10,7 @@ DRIVER = {
   id           = "deye",
   name         = "Deye hybrid inverter",
   manufacturer = "Deye",
-  version      = "2.1.1",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   description  = "Deye SUN-SG series hybrid inverters via Modbus. Auto-detects LV vs HV battery at init.",
@@ -27,17 +27,22 @@ DRIVER = {
 --
 -- Register conventions (all holding, FC 0x03/0x06):
 --   0        : device type code. High byte == 6 → HV battery variant.
+--              0x0005/0x0500 = LV three-phase hybrid, 0x0006 = HV
+--              three-phase hybrid (ha-solarman deye_p3.yaml).
 --   3-7      : serial number, packed 2 bytes/register, big-endian within each word.
 --   20-21    : rated power, U32 LE × 0.1 kW
 --   141      : energy management mode (0=Selling First, 1=Zero Export To Load,
 --              2=Zero Export To CT, 3=External EMS / forced)
 --   143      : grid-charge enable (bit 0)
 --   144      : power limit for forced charge/discharge (W)
---   217      : battery temperature, U16, actual C = (val - 1000) / 10
+--   111      : battery operation mode: 0 = by voltage, 1 = by capacity
+--              (lithium with a BMS link), 2 = no battery
+--   212-213  : BMS charge / discharge current limit, U16, A
+--   217      : BMS battery temperature, U16, actual C = (val - 1000) / 10
 --   516-519  : battery charge/discharge energy counters, U32 LE × 0.1 kWh
 --   522-525  : grid import/export energy, U32 LE × 0.1 kWh
 --   534-535  : total PV generation, U32 LE × 0.1 kWh
---   541      : heatsink temperature, U16 × 0.1 C
+--   541      : heatsink temperature, U16, actual C = (val - 1000) / 10
 --   587-591  : battery V/SoC/power/current
 --   598-612  : per-phase V/current, grid frequency
 --   619, 622 : total + per-phase meter power (I16, W)
@@ -52,6 +57,8 @@ PROTOCOL = "modbus"
 
 -- Cached across polls
 local is_hv = false
+-- Register 0 as read at init; nil when that read failed.
+local device_type = nil
 local sn_read = false
 local control_initialized = false
 local rated_power_w = 0
@@ -77,6 +84,63 @@ local soc_min = 20
 -- restart re-probes, so firmware that gains the register is picked up.
 local GIVE_UP_AFTER = 3
 local read_failures = {}
+
+----------------------------------------------------------------------------
+-- What the battery can do now (docs/WRITING-A-DRIVER.md)
+----------------------------------------------------------------------------
+--
+-- Sources, read for addresses and scales only: kellerza/sunsynk
+-- definitions/three_phase_common.py and davidrapan/ha-solarman
+-- inverter_definitions/deye_p3.yaml, which cites Deye's MODBUS RTU
+-- V105.1 and V104.3 documents. Both cover the three-phase hybrids only, so
+-- the BMS reads below are made only for those device type codes.
+--
+-- 212 and 213 are the BMS charge and discharge current limits in whole
+-- amps, for LV and HV alike. Both sources name them a BMS limit; neither
+-- says how often the BMS changes them, and the Deye documents themselves
+-- were not checked. The limits are reported only while register 111 says
+-- the battery runs on its BMS: with a lead-acid bank or no battery there is
+-- no BMS behind them. 218 and 219 ("BMS max charge/discharge current") are
+-- not read: no source says they are live.
+local REG_BATTERY_OPERATION = 111
+local BATTERY_BY_BMS        = 1
+local REG_BMS_LIMIT_A       = 212   -- 212 charge, 213 discharge
+-- Register 111 is a setting, so a read a minute is enough.
+local BATTERY_MODE_EVERY_POLLS = 12
+-- true / false once register 111 has answered; nil before.
+local battery_uses_bms = nil
+local polls_until_mode_read = 0
+
+local TEMP_MIN_C, TEMP_MAX_C = -40, 100
+local POWER_MAX_W = 100000
+-- No home battery's BMS allows more than this. A larger value is a
+-- sentinel or a misread, not a current.
+local LIMIT_MAX_A = 1000
+
+local function three_phase_hybrid()
+    return device_type == 0x0005 or device_type == 0x0500
+        or device_type == 0x0006
+end
+
+-- Deye stores temperatures as (C * 10) + 1000.
+local function offset_temp(raw)
+    local c = (raw - 1000) / 10
+    if c < TEMP_MIN_C or c > TEMP_MAX_C then return nil end
+    return c
+end
+
+local function limit_amps(raw)
+    if raw == nil or raw > LIMIT_MAX_A then return nil end
+    return raw
+end
+
+-- Amps to watts at the battery voltage read in the same poll.
+local function limit_watts(amps, volts)
+    if amps == nil or volts == nil or volts <= 0 then return nil end
+    local w = amps * volts
+    if w < 0 or w > POWER_MAX_W then return nil end
+    return w
+end
 
 local function probe_read(addr, count, kind)
     if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
@@ -109,6 +173,7 @@ function driver_init(config)
     local mode_regs = probe_read(0, 1, "holding")
     if mode_regs then
         local val = mode_regs[1]
+        device_type = val
         is_hv = (val == 6)
         host.log("info", string.format("Deye: device type 0x%04x (%s battery)",
             val, is_hv and "HV" or "LV"))
@@ -224,11 +289,13 @@ function driver_poll()
         rated_w = host.decode_u32_le(rated_regs[1], rated_regs[2]) * 0.1 * 1000
     end
 
-    -- Heatsink temperature: 541, U16 × 0.1 C
+    -- Heatsink temperature: 541, U16 offset-encoded like 217. Releases
+    -- before 2.2.0 read it as val * 0.1, which is 100 C too high; both open
+    -- maps above apply the offset. Left out when the read fails.
     local temp_regs = probe_read(541, 1, "holding")
-    local heatsink_c = 0
+    local heatsink_c = nil
     if temp_regs then
-        heatsink_c = temp_regs[1] * 0.1
+        heatsink_c = offset_temp(temp_regs[1])
     end
 
     host.emit("pv", {
@@ -245,7 +312,9 @@ function driver_poll()
     host.emit_metric("pv_mppt1_a",      mppt1_a)
     host.emit_metric("pv_mppt2_v",      mppt2_v)
     host.emit_metric("pv_mppt2_a",      mppt2_a)
-    host.emit_metric("inverter_temp_c", heatsink_c)
+    if heatsink_c ~= nil then
+        host.emit_metric("inverter_temp_c", heatsink_c)
+    end
 
     -- ---- Battery ----
 
@@ -278,12 +347,43 @@ function driver_poll()
         bat_a = host.decode_i16(ba_regs[1]) * 0.01
     end
 
-    -- Battery temperature: 217, U16 offset-encoded (actual = (val-1000)/10)
-    local btemp_regs = probe_read(217, 1, "holding")
-    local bat_temp = 0
-    if btemp_regs then
-        bat_temp = (btemp_regs[1] - 1000) / 10
+    -- Battery operation mode, three-phase hybrids only. A failed read keeps
+    -- the last answer: it is a setting, not a measurement.
+    if three_phase_hybrid() then
+        if polls_until_mode_read <= 0 then
+            local op_regs = probe_read(REG_BATTERY_OPERATION, 1, "holding")
+            if op_regs then
+                battery_uses_bms = (op_regs[1] == BATTERY_BY_BMS)
+            end
+            polls_until_mode_read = BATTERY_MODE_EVERY_POLLS
+        end
+        polls_until_mode_read = polls_until_mode_read - 1
     end
+
+    -- BMS temperature: 217, U16 offset-encoded (actual = (val-1000)/10).
+    -- Left out when the read fails or the value is out of range, and not
+    -- read when register 111 says there is no BMS.
+    local bat_temp = nil
+    if battery_uses_bms ~= false then
+        local btemp_regs = probe_read(217, 1, "holding")
+        if btemp_regs then
+            bat_temp = offset_temp(btemp_regs[1])
+        end
+    end
+
+    -- BMS charge / discharge current limits: 212-213, U16, A. Watts use the
+    -- battery voltage from 587 above, read in this same poll.
+    local charge_limit_a, discharge_limit_a = nil, nil
+    if three_phase_hybrid() and battery_uses_bms == true then
+        local lim_regs = probe_read(REG_BMS_LIMIT_A, 2, "holding")
+        if lim_regs then
+            charge_limit_a    = limit_amps(lim_regs[1])
+            discharge_limit_a = limit_amps(lim_regs[2])
+        end
+    end
+    local fresh_v = bv_regs and bat_v or nil
+    local avail_charge_w    = limit_watts(charge_limit_a, fresh_v)
+    local avail_discharge_w = limit_watts(discharge_limit_a, fresh_v)
 
     -- Battery charge energy: 516-517, U32 LE × 0.1 kWh
     local bchg_regs = probe_read(516, 2, "holding")
@@ -308,10 +408,26 @@ function driver_poll()
         temp_c       = bat_temp,
         charge_wh    = bat_charge_wh,
         discharge_wh = bat_discharge_wh,
+        available_charge_W    = avail_charge_w,
+        available_discharge_W = avail_discharge_w,
     })
     host.emit_metric("battery_dc_v",   bat_v)
     host.emit_metric("battery_dc_a",   bat_a)
-    host.emit_metric("battery_temp_c", bat_temp)
+    if bat_temp ~= nil then
+        host.emit_metric("battery_temp_c", bat_temp)
+    end
+    if charge_limit_a ~= nil then
+        host.emit_metric("battery_charge_limit_a", charge_limit_a)
+    end
+    if discharge_limit_a ~= nil then
+        host.emit_metric("battery_discharge_limit_a", discharge_limit_a)
+    end
+    if avail_charge_w ~= nil then
+        host.emit_metric("battery_available_charge_w", avail_charge_w)
+    end
+    if avail_discharge_w ~= nil then
+        host.emit_metric("battery_available_discharge_w", avail_discharge_w)
+    end
 
     -- ---- Meter ----
 
@@ -645,6 +761,9 @@ end
 function driver_cleanup()
     pcall(set_self_consumption)
     is_hv = false
+    device_type = nil
+    battery_uses_bms = nil
+    polls_until_mode_read = 0
     sn_read = false
     control_initialized = false
     rated_power_w = 0

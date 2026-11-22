@@ -13,7 +13,7 @@ DRIVER = {
   id           = "kstar",
   name         = "KSTAR inverter",
   manufacturer = "KSTAR",
-  version      = "1.1.2",
+  version      = "1.2.0",
   protocols    = { "modbus" },
   capabilities = { "pv", "battery", "meter" },
   read_only    = true,
@@ -100,11 +100,37 @@ function driver_poll()
         bat_soc = bsoc_regs[1] / 100  -- percent to fraction
     end
 
+    -- Temperatures: INPUT registers 3055..3067 in one read. 3055 is the
+    -- inverter radiator, 3067 the battery; both I16 x 0.1 C. Source, for
+    -- addresses and scales only: davidrapan/ha-solarman
+    -- inverter_definitions/kstar_hybrid.yaml, written from KSTAR's Hybrid
+    -- Inverter Modbus V2.9.1 (2024-07-21). That map puts every reading in
+    -- input registers 3000 and up, not in the holding registers read above;
+    -- those need their own check against hardware. 3056 is the battery
+    -- converter's heatsink, not the battery, and is not used. The map has
+    -- no live BMS charge or discharge limit: 3078/3079 are percent
+    -- settings.
+    local temp_regs = probe_read(3055, 13, "input")
+    local bat_temp_c, inverter_c = nil, nil
+    if temp_regs then
+        local c = host.decode_i16(temp_regs[13]) * 0.1
+        if c >= -40 and c <= 100 then bat_temp_c = c end
+        c = host.decode_i16(temp_regs[1]) * 0.1
+        if c >= -40 and c <= 100 then inverter_c = c end
+    end
+
     -- Emit Battery telemetry
     host.emit("battery", {
         W   = bat_w,
         SoC_nom_fract = bat_soc,
+        temperature_C = bat_temp_c,
     })
+    if bat_temp_c ~= nil then
+        host.emit_metric("battery_temp_c", bat_temp_c)
+    end
+    if inverter_c ~= nil then
+        host.emit_metric("inverter_temp_c", inverter_c)
+    end
 
     -- ---- Meter ----
 
