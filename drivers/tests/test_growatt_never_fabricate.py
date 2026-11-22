@@ -64,7 +64,10 @@ def _lua_list(values) -> str:
     return "{" + ", ".join(str(v) for v in values) + "}"
 
 
-def poll(fail: tuple[int, ...] = (), regs: dict | None = None) -> dict[str, str]:
+def poll(fail: tuple[int, ...] = (), regs: dict | None = None,
+         short: dict[int, int] | None = None) -> dict[str, str]:
+    """Poll once. `fail` addresses raise; `short` maps an address to how
+    many registers its reply carries."""
     regs = REGISTERS if regs is None else regs
     setup = "\n".join(
         f"host._modbus_registers.input[{addr}] = {_lua_list(vals)}"
@@ -72,6 +75,9 @@ def poll(fail: tuple[int, ...] = (), regs: dict | None = None) -> dict[str, str]
     setup += "\n" + "\n".join(
         f'host._modbus_read_fail_addresses[{addr}] = "Illegal Data Address"'
         for addr in fail)
+    setup += "\n" + "\n".join(
+        f"host._modbus_read_short_counts[{addr}] = {count}"
+        for addr, count in (short or {}).items())
     body = ""
     for stream, fields in STREAMS.items():
         body += "do\n" + (
@@ -188,6 +194,27 @@ def test_growatt_battery_power_needs_both_registers():
     assert out["battery.w"] == "nil"
     out = poll(fail=(1011,))
     assert out["battery.w"] == "nil"
+
+
+def test_growatt_battery_without_power_reads():
+    # Neither 1009 nor 1011 answered, but voltage and SoC did: the battery
+    # goes out without w ("A hybrid inverter may have no battery").
+    out = poll(fail=(1009, 1011))
+    assert out["battery"] == "true"
+    assert out["battery.w"] == "nil"
+    assert num(out, "battery.v") == pytest.approx(52.0)
+    assert num(out, "battery.soc") == pytest.approx(0.64)
+
+
+def test_growatt_short_reply_is_left_out():
+    # One word back for a two-word read: the missing word must not decode
+    # as part of a number.
+    out = poll(short={1: 1, 1015: 1, 91: 1, 1011: 1})
+    assert out["pv"] == "false"
+    assert out["meter"] == "false"
+    assert out["battery"] == "true"
+    assert out["battery.w"] == "nil"
+    assert num(out, "battery.soc") == pytest.approx(0.64)
 
 
 def test_growatt_nothing_answers_sends_nothing():

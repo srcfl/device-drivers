@@ -12,7 +12,9 @@ site in balance, a 0 % SoC like an empty pack.
 - Each field comes only from a read that answered with every register asked
   for; metrics likewise.
 - PV goes out only when its power (1-2) answers, and the meter only when its
-  power (1015-1016) answers.
+  power (1015-1016) answers. So a failed power read also drops that
+  stream's energy counter and its MPPT or phase values for that poll; the
+  phase values still reach history as metrics.
 - The battery follows "A hybrid inverter may have no battery": each field
   only from a read that answered, and the stream when what answered shows a
   battery. Its power needs both 1009 and 1011, since either alone is not the
