@@ -1,5 +1,5 @@
 name: "fronius"
-version: "2.2.0"
+version: "2.3.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -59,12 +59,12 @@ upstream_docs:
     kind: register_map
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 15342
+size_bytes: 19443
 dkb_id: "fronius_symo_gen24"
-sha256: "c277eee7c0e829b6f385648109ae0fe1dd4dd0d7d0cd1015e4df07b12e84f58f"
+sha256: "fb0beed13d3b51675ed90437979f5d0e78775c6c1696341e70a9790711972d70"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "Read battery power, voltage and SoC where the GEN24 and Verto storage maps put them, send no battery without storage, and decode floats correctly on 32-bit Lua."

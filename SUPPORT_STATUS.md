@@ -58,8 +58,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ferroamp_modbus | 2.2.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | foxess_h3_smart | 0.10.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | foxess_h3_smart | 0.10.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| fronius | 2.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| fronius | 2.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| fronius | 2.3.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| fronius | 2.3.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | fronius_api | 1.0.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | fronius_api | 1.0.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | fronius_smart_meter | 2.1.3 | ftw-core | not_assessed | — | not_recorded | not_assessed |
