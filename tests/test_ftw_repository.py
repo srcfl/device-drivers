@@ -1379,7 +1379,10 @@ def test_publishing_is_declared_or_it_does_not_happen(
             exempt.append(driver["id"])
         else:
             assert "mqtt_read_request_topics" not in driver["metadata"], driver["id"]
-    assert exempt == [], f"unexpected drivers allowed to publish: {exempt}"
+    assert exempt == ["victron_mqtt"], f"unexpected drivers allowed to publish: {exempt}"
+    victron = next(d for d in manifest["drivers"] if d["id"] == "victron_mqtt")
+    assert victron["metadata"]["mqtt_read_request_topics"] == ["R/+/keepalive"]
+    assert victron["permissions"] == ["mqtt.subscribe"]
 
 
 def test_manifest_check_holds_read_request_topics_to_the_rule(tmp_path: Path) -> None:

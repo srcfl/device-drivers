@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### victron_mqtt 1.2.1
+
+The manifest declares `R/+/keepalive` in `mqtt_read_request_topics`, so the
+keep-alive 1.2.0 sends can reach a GX from the signed channel. Before, the
+channel's guard and FTW refused every publish from this read-only driver,
+and the GX went quiet 60 s after the last keep-alive from anyone.
+
+The channel's guard now lets the driver publish to that topic alone, with at
+most 1 KiB of payload, and an FTW Core with srcfl/ftw#2071 allows six such
+requests a minute. Every other publish is still refused. A read request is
+not a write, so the driver still holds only `mqtt.subscribe`. The Lua source
+is unchanged.
+
+A Core without srcfl/ftw#2071 runs this version as it runs 1.2.0: it refuses
+the keep-alive, the driver logs one warning and keeps reading, and the GX
+publishes only while another client keeps it awake. Not yet checked on a
+real GX.
+
 ### alphaess 1.3.0, kstar 1.3.0
 
 Both drivers read the registers their vendor's own Modbus map gives

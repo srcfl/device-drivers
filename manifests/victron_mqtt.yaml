@@ -1,11 +1,12 @@
 name: "victron_mqtt"
-version: "1.2.0"
+version: "1.2.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
 connectivity: local
 ders: [pv, battery, meter]
 control: false
+mqtt_read_request_topics: ["R/+/keepalive"]
 tested_devices:
   - manufacturer: "Victron Energy"
     model_family: "GX Devices"
@@ -51,7 +52,7 @@ signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Send the Venus keep-alive every 30 s and ask for a full republish every 120 s; drop a system battery value a full republish leaves out."
+changelog: "Declare the Venus keep-alive topic R/+/keepalive as a read request, so FTW lets the driver send it from the signed channel."
 
 upstream_docs:
   - url: "https://raw.githubusercontent.com/victronenergy/dbus-flashmq/master/README.md"
