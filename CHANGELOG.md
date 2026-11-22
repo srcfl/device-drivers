@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### deye 2.2.0, foxess_h3_smart 0.10.0, alphaess 1.2.0, kstar 1.2.0
+
+These drivers now report what the battery can do now, so Core can tell a
+battery held back by its BMS from one that is out of control. See "What a
+battery can do now" in `docs/WRITING-A-DRIVER.md` (#250). A value that fails to
+read, or falls outside -40 to 100 °C or 0 to 100 kW, is left out. None of
+this is checked on hardware yet.
+
+- **deye**: on three-phase hybrids (device type 0x0005, 0x0500 or 0x0006)
+  whose battery runs on its BMS (register 111 = 1), the BMS charge and
+  discharge current limits (212, 213) go out as `available_charge_W` and
+  `available_discharge_W`, at the battery voltage read in the same poll.
+  The heatsink temperature (541) now takes off Deye's offset of 1000;
+  earlier releases reported it 100 °C too high. A failed battery or
+  heatsink temperature read is left out; earlier releases sent 0 °C.
+- **foxess_h3_smart**: register 46018 goes out as `available_charge_W` when
+  it reads above 0. A 0 is left out, since this unit reads 0 while an idle
+  pack still charges when asked. No discharge limit is documented for this
+  map. The cell temperature range (37617, 37618) goes to history every
+  sixth poll.
+- **alphaess**: the lowest and highest cell temperature (0x010D, 0x0110) go
+  to history. Two open maps place the battery and grid meter elsewhere than
+  the driver's other reads assume; that needs its own check.
+- **kstar**: the battery temperature (input 3067) goes out as
+  `temperature_C`, and the inverter radiator temperature (input 3055) to
+  history. As for alphaess, KSTAR's own map does not match the driver's
+  other reads.
+
 ### sungrow 1.7.0
 
 The battery now says what it can do now, so FTW Core can tell a device

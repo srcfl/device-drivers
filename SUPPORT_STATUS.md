@@ -20,8 +20,8 @@ Catalog source is not proof that a target can install or run a driver.
 | acuvim | 0.4.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | alfen | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | alfen | 1.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| alphaess | 1.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| alphaess | 1.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| alphaess | 1.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| alphaess | 1.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ambibox | 1.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | ambibox | 1.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ambibox_v2x | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
@@ -42,8 +42,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ctek_v2 | 0.3.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | deye-svk | 0.2.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | deye-svk | 0.2.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| deye | 2.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| deye | 2.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| deye | 2.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| deye | 2.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | easee_cloud | 1.4.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | easee_cloud | 1.4.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | esphome_dsmr | 1.0.7 | ftw-core | not_assessed | — | not_recorded | not_assessed |
@@ -56,8 +56,8 @@ Catalog source is not proof that a target can install or run a driver.
 | ferroamp_dc2_v2x | 2.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ferroamp_modbus | 2.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | ferroamp_modbus | 2.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| foxess_h3_smart | 0.9.6 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| foxess_h3_smart | 0.9.6 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| foxess_h3_smart | 0.10.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| foxess_h3_smart | 0.10.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | fronius | 2.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | fronius | 2.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | fronius_api | 1.0.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
@@ -90,8 +90,8 @@ Catalog source is not proof that a target can install or run a driver.
 | konja-261-svk | 0.3.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | kostal | 2.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | kostal | 2.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| kstar | 1.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| kstar | 1.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| kstar | 1.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| kstar | 1.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | mennekes | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | mennekes | 1.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | myuplink | 1.2.4 | ftw-core | not_assessed | — | not_recorded | not_assessed |

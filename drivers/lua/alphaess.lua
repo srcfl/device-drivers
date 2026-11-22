@@ -15,7 +15,7 @@ DRIVER = {
   id           = "alphaess",
   name         = "AlphaESS inverter",
   manufacturer = "AlphaESS",
-  version      = "1.1.2",
+  version      = "1.2.0",
   protocols    = { "modbus" },
   capabilities = { "pv", "battery", "meter" },
   read_only    = true,
@@ -117,6 +117,35 @@ function driver_poll()
         V   = bat_v,
         SoC_nom_fract = bat_soc,
     })
+
+    -- Cell temperature range, for history: 0x010D=269 lowest cell, 0x0110=272
+    -- highest cell, I16 x 0.1 C, in the battery block that starts at 0x0100.
+    -- Sources, for addresses and scales only: dxoverdy/Alpha2MQTT
+    -- Definitions.h and senalse/ha-alphaess-modbus docs/register_map.md.
+    -- Alpha2MQTT reads them as signed (Short); senalse lists uint16 x 0.1.
+    -- The driver decodes i16, which gives the same value for every
+    -- temperature at or above 0 C. A sub-zero cell read as uint16 would come
+    -- out near 6500 C and be dropped by the range check.
+    -- Both place battery power at 0x0126 and the grid meter at 0x0010..0x0021,
+    -- which is not what the reads above assume; that map needs its own
+    -- check against hardware. The block holds no pack temperature, so
+    -- `temperature_C` is left out. 0x0111/0x0112 (BMS max charge and
+    -- discharge current) are not read: Alpha2MQTT's author saw the charge
+    -- value stay at 0 and the discharge value at twice the pack's rating,
+    -- so they are not trusted as live limits. senalse describes 0x0111 as
+    -- the BMS's present maximum charge current (x 0.1 A); the two sources
+    -- disagree, and hardware has to settle it before Core relies on it.
+    local cell_regs = probe_read(269, 4, "holding")
+    if cell_regs then
+        local low_c  = host.decode_i16(cell_regs[1]) * 0.1
+        local high_c = host.decode_i16(cell_regs[4]) * 0.1
+        if low_c >= -40 and low_c <= 100 then
+            host.emit_metric("battery_cell_temp_min_c", low_c)
+        end
+        if high_c >= -40 and high_c <= 100 then
+            host.emit_metric("battery_cell_temp_max_c", high_c)
+        end
+    end
 
     -- ---- Meter ----
 

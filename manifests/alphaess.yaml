@@ -1,5 +1,5 @@
 name: "alphaess"
-version: "1.1.2"
+version: "1.2.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -21,10 +21,19 @@ tested_devices:
     firmware_versions: ""
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/dxoverdy/Alpha2MQTT/master/Alpha2MQTT/Definitions.h"
+    title: "dxoverdy/Alpha2MQTT AlphaESS register definitions (battery block 0x0100-0x0130)"
+    kind: register_map
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/senalse/ha-alphaess-modbus/main/docs/register_map.md"
+    title: "senalse/ha-alphaess-modbus AlphaESS register map"
+    kind: register_map
+    url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 4704
+size_bytes: 6394
 dkb_id: ""
-sha256: "a7721ee771ad5d818df1e870e3556d34b553405d122693d731aea7685647a1aa"
+sha256: "f1bf71b8f0a1e1e76c416f84e8f1bd7b08cb84f31fbb249a7c85921a7159a74d"
 signature: ""
 
 bytecode_sha256: ""

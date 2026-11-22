@@ -1,5 +1,5 @@
 name: "kstar"
-version: "1.1.2"
+version: "1.2.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -21,10 +21,15 @@ tested_devices:
     firmware_versions: ""
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/davidrapan/ha-solarman/main/custom_components/solarman/inverter_definitions/kstar_hybrid.yaml"
+    title: "davidrapan/ha-solarman KSTAR hybrid inverter register definitions (from KSTAR Hybrid Inverter Modbus V2.9.1)"
+    kind: register_map
+    url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 4278
+size_bytes: 5508
 dkb_id: ""
-sha256: "77442a239ebdc41832c86cc39f5186cd5f74d782a7c9c455743a2c7f6c0f59f1"
+sha256: "1855663dd2c8f2a1c08eda1cd6af06f9f3391df0900b29a654c89229216d635f"
 signature: ""
 
 bytecode_sha256: ""
