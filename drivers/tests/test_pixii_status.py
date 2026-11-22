@@ -114,13 +114,14 @@ assert(battery.control_power_w == nil and battery.control_power_available == fal
 ''')
 
 
-def test_pixii_reports_service_calibration_without_legacy_fault() -> None:
-    run_lua('''
+@pytest.mark.parametrize(("charge_status", "service"), [(0xffff, 116), (7, 0xffff)])
+def test_pixii_reports_calibration_without_legacy_fault(charge_status: int, service: int) -> None:
+    run_lua(f'''
 local calibrating
 host.set_calibrating = function(active) calibrating = active end
-host._modbus_registers.holding[40108] = 116
-poll(0xffff)
-assert(calibrating == true, "Pixii service 116 did not block dispatch")
+host._modbus_registers.holding[40108] = {service}
+poll({charge_status})
+assert(calibrating == true, "Pixii calibration did not block dispatch")
 assert(not host._faulted, "calibration was also reported as a device fault")
 host._modbus_registers.holding[40108] = 0xffff
 poll(0xffff)
@@ -129,4 +130,19 @@ host._modbus_registers.holding[40108] = 119
 poll(0xffff)
 assert(calibrating == false, "normal Pixii service did not clear calibration")
 assert(#host._emitted.meter == 3, "calibration stopped meter telemetry")
+''')
+
+
+def test_pixii_service_calibration_uses_legacy_fault() -> None:
+    run_lua('''
+host.set_calibrating = nil
+host._modbus_registers.holding[40108] = 116
+poll(0xffff)
+assert(host._faulted, "Pixii service 116 did not set the legacy device fault")
+host._modbus_registers.holding[40108] = 0xffff
+poll(0xffff)
+assert(host._faulted, "inconclusive reads cleared the legacy device fault")
+host._modbus_registers.holding[40108] = 119
+poll(0xffff)
+assert(not host._faulted, "normal Pixii service did not clear the legacy device fault")
 ''')
