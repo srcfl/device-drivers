@@ -2,6 +2,60 @@
 
 ## [Unreleased]
 
+### goodwe 2.2.0, solis 2.2.0, sofar 2.2.0, solax 1.2.0, saj 1.3.0, growatt 2.2.0, solinteg 1.2.0
+
+These drivers report what the battery can do now, where the device says so
+(docs/WRITING-A-DRIVER.md, "What a battery can do now"). A limit in amps
+becomes `available_charge_W` or `available_discharge_W` only with a battery
+voltage from the same poll. A temperature outside -40 to 100 °C or a power
+outside 0 to 100 kW is dropped. A read that fails is left out, never sent as
+0. Temperatures and limits also go to history as metrics. Written from the
+sources in each manifest's `upstream_docs`. Not yet checked on hardware.
+
+- **goodwe 2.2.0** reads GoodWe's BMS block (37000-37023) while 35184 says a
+  battery is connected, and uses it only while 37011 names a BMS protocol
+  (not 0 or 0x11F, "no direct communication"): pack temperature (37003), the
+  BMS's charge and discharge current limits (37004, 37005) and the cell
+  temperature extremes.
+  The limits are multiplied by the battery 1 voltage at 35180. The heat sink
+  temperature (35176) goes to `inverter_temp_c`. Earlier releases sent
+  register 35183 as the battery temperature, and 0 °C when it failed; in
+  GoodWe's map 35183 is the low word of battery power. GoodWe's map also
+  disagrees with the driver's other battery, PV and meter reads (35178 is the
+  BUS voltage, for example; srcfl/device-drivers#264). This release leaves
+  those reads as they were.
+- **solis 2.2.0** reports the BMS charge and discharge current limits (33143,
+  33144, "From BMS" in Solis's map) times the battery voltage at 33133, only
+  while the battery model (33160) names a battery maker, not "no battery",
+  "User define", lead-acid or a generic battery. 33096 is Solis's lead-acid
+  battery probe, not a BMS value, and reads 200.2 °C when no probe is
+  fitted; that value is now dropped. The battery and inverter temperatures
+  are no longer sent as 0 when their reads fail.
+- **sofar 2.2.0** sends the battery temperature (0x0607) only when it
+  answered and the pack reports a voltage, and the heat sink temperature
+  (0x041A) as `inverter_temp_c`. Sofar's map has no live BMS limit, so the
+  driver sends no `available_*` figures.
+- **solax 1.2.0** reports the BMS charge and discharge max current (0x0024,
+  0x0025, "real time" in SolaX's V3.28 map) times the battery voltage at
+  0x0014, and the radiator temperature (0x0008) as `inverter_temp_c`. The
+  battery temperature (0x0018) is whole degrees: earlier releases scaled it
+  by 0.1, so 25 °C showed as 2.5 °C.
+- **saj 1.3.0** reports the current limits at 0xA036 (discharge) and 0xA037
+  (charge) in the BMS block, times the battery 1 voltage. The community map
+  names them but does not say they are live; that is unconfirmed. The heat
+  sink temperature (0x4010) goes to `inverter_temp_c`.
+- **growatt 2.2.0** reports the BMS's max and min cell temperature (1114,
+  1115) and the inverter temperature (93). Growatt's one BMS current figure
+  (1090) covers both directions and has no documented unit, so the driver
+  sends no `available_*` figures. Growatt's protocol puts discharge power at
+  1009 and charge power at 1011, the other way round from this driver, so
+  `battery.w` has the wrong sign. This release does not change that.
+- **solinteg 1.2.0** reports the max and min cell temperature (33009, 33011)
+  and sends the inverter temperature (11032) as `inverter_temp_c`. The pack
+  temperature needs a pack voltage in the same poll. No source settles where
+  a live charge or discharge limit is, so the driver sends no `available_*`
+  figures.
+
 ### huawei 2.2.0
 
 The battery says what it may charge and discharge at now. The driver reads

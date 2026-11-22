@@ -13,7 +13,7 @@ DRIVER = {
   id           = "goodwe",
   name         = "GoodWe hybrid inverter",
   manufacturer = "GoodWe",
-  version      = "2.1.2",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -63,6 +63,79 @@ local function probe_read(addr, count, kind)
             "until restart", addr, GIVE_UP_AFTER))
     end
     return nil
+end
+
+----------------------------------------------------------------------------
+-- What the battery can do now (docs/WRITING-A-DRIVER.md)
+--
+-- From GoodWe's own map, "GoodWe Modbus Protocol Hybrid for Energy Storage
+-- Inverters" (2 February 2024), which the goodwe library also follows:
+--   35176        heat sink temperature           S16 x 0.1 C
+--   35180        battery 1 voltage               U16 x 0.1 V (the BMS's
+--                                                value when it talks)
+--   35184        battery 1 mode                  0 = no battery, or
+--                                                disconnected
+--   37000-37023  "BMS Operation Data", read as one block like the
+--                goodwe library does
+--     37011      battery protocol, the codes of GoodWe's Table 8-33:
+--                0x101 Pylontech, 0x102/0x105/0x106 BYD, 0x104 LG,
+--                0x11E Dyness and others, 0x122 GoodWe. 0x11F, "EMS
+--                Battery", means the inverter has no direct link to the
+--                battery, and 0 means no protocol at all.
+--     37003      BMS pack temperature            x 0.1 C
+--     37004      max BMS charge current          A
+--     37005      max BMS discharge current       A
+--     37020      max cell temperature            x 0.1 C
+--     37021      min cell temperature            x 0.1 C
+-- The charge and discharge currents come from the BMS, so they move with
+-- temperature and charge level: a live limit, not a rating.
+--
+-- A battery mode other than 0 says a battery is there, not that a BMS
+-- talks to the inverter. Without one the block answers zeros, and 0 C and
+-- 0 W would read as a cold battery that may not charge. So the block's
+-- figures count only while 37011 names a BMS protocol (not 0, 0x11F or
+-- 0xFFFF). A 0 A limit from a BMS that does talk is sent as 0 W.
+--
+-- GoodWe's map puts the BUS voltage at 35178 and battery power at
+-- 35182-35183, where the battery reads in driver_poll still look. Those
+-- reads are left as they were (srcfl/device-drivers#264); this block reads
+-- its own voltage at 35180.
+----------------------------------------------------------------------------
+
+-- A temperature outside -40..100 C or a power outside 0..100 kW is a
+-- sentinel or a misread, so it is dropped, never clamped.
+local function plausible_temp(c)
+    if c == nil or c ~= c then return nil end
+    if c < -40 or c > 100 then return nil end
+    return c
+end
+
+local function plausible_power(w)
+    if w == nil or w ~= w then return nil end
+    if w < 0 or w > 100000 then return nil end
+    return w
+end
+
+-- GoodWe temperatures are tenths of a degree. 0xFFFF and 0x7FFF mean "no
+-- value" (the goodwe library drops both), and 0xFFFF would otherwise pass
+-- as -0.1 C.
+local function goodwe_temp(raw)
+    if raw == nil or raw == 0xFFFF or raw == 0x7FFF then return nil end
+    return plausible_temp(host.decode_i16(raw) * 0.1)
+end
+
+-- Watts the BMS allows now: its current limit times the battery voltage of
+-- this poll. Without a fresh voltage there is no figure.
+local function limit_w(amps, volts)
+    if amps == nil or volts == nil or volts <= 0 then return nil end
+    return plausible_power(amps * volts)
+end
+
+-- True when 37011 names a BMS the inverter talks to (Table 8-33).
+local GOODWE_NO_DIRECT_BMS = 0x11F
+local function bms_talks(protocol)
+    return protocol ~= nil and protocol ~= 0 and protocol ~= 0xFFFF
+        and protocol ~= GOODWE_NO_DIRECT_BMS
 end
 
 ----------------------------------------------------------------------------
@@ -166,23 +239,75 @@ function driver_poll()
         bat_soc = bsoc_regs[1] / 100  -- percent → 0-1 fraction
     end
 
-    -- Battery temperature: 35183, I16 × 0.1 C
-    local btemp_regs = probe_read(35183, 1, "holding")
-    local bat_temp = 0
-    if btemp_regs then
-        bat_temp = host.decode_i16(btemp_regs[1]) * 0.1
+    local battery = {
+        w   = bat_w,
+        v   = bat_v,
+        a   = bat_a,
+        soc = bat_soc,
+    }
+
+    -- Battery 1 voltage and mode: 35180-35184. The BMS block is read only
+    -- while the mode says a battery is connected, and its figures count
+    -- only while 37011 says a BMS talks (see the top of this file).
+    local b1_regs = probe_read(35180, 5, "holding")
+    local b1_v, b1_mode
+    if b1_regs and b1_regs[5] ~= nil then
+        b1_v = b1_regs[1] * 0.1
+        b1_mode = b1_regs[5]
     end
 
-    host.emit("battery", {
-        w      = bat_w,
-        v      = bat_v,
-        a      = bat_a,
-        soc    = bat_soc,
-        temp_c = bat_temp,
-    })
+    local bms_regs
+    if b1_mode ~= nil and b1_mode ~= 0 then
+        bms_regs = probe_read(37000, 24, "holding")
+        if bms_regs and bms_regs[24] == nil then bms_regs = nil end
+        if bms_regs and not bms_talks(bms_regs[12]) then      -- 37011
+            bms_regs = nil
+        end
+    end
+
+    if bms_regs then
+        local bat_temp = goodwe_temp(bms_regs[4])            -- 37003
+        if bat_temp ~= nil then
+            battery.temp_c = bat_temp
+            host.emit_metric("battery_temp_c", bat_temp)
+        end
+
+        local charge_w = limit_w(bms_regs[5], b1_v)          -- 37004
+        if charge_w ~= nil then
+            battery.available_charge_W = charge_w
+            host.emit_metric("battery_charge_limit_a", bms_regs[5])
+            host.emit_metric("battery_available_charge_w", charge_w)
+        end
+
+        local discharge_w = limit_w(bms_regs[6], b1_v)       -- 37005
+        if discharge_w ~= nil then
+            battery.available_discharge_W = discharge_w
+            host.emit_metric("battery_discharge_limit_a", bms_regs[6])
+            host.emit_metric("battery_available_discharge_w", discharge_w)
+        end
+
+        local cell_max = goodwe_temp(bms_regs[21])           -- 37020
+        if cell_max ~= nil then
+            host.emit_metric("battery_cell_temp_max_c", cell_max)
+        end
+        local cell_min = goodwe_temp(bms_regs[22])           -- 37021
+        if cell_min ~= nil then
+            host.emit_metric("battery_cell_temp_min_c", cell_min)
+        end
+    end
+
+    host.emit("battery", battery)
     host.emit_metric("battery_dc_v",  bat_v)
     host.emit_metric("battery_dc_a",  bat_a)
-    host.emit_metric("battery_temp_c", bat_temp)
+
+    -- Inverter heat sink temperature: 35176, S16 × 0.1 C.
+    local itemp_regs = probe_read(35176, 1, "holding")
+    if itemp_regs then
+        local inv_temp = goodwe_temp(itemp_regs[1])
+        if inv_temp ~= nil then
+            host.emit_metric("inverter_temp_c", inv_temp)
+        end
+    end
 
     ------------------------------------------------------------------------
     -- Meter (grid connection point)
