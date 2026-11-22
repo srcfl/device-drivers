@@ -4,8 +4,9 @@ The battery block that starts at 0x0100 holds the lowest (0x010D) and the
 highest (0x0110) cell temperature, I16 x 0.1 °C. They go to history as
 battery_cell_temp_min_c and battery_cell_temp_max_c. The block has no pack
 temperature, so `temperature_C` stays out of the battery stream, and the BMS
-current registers 0x0111/0x0112 are not read: one integration's author saw
-them stay at values that cannot be live limits.
+current registers 0x0111/0x0112 are not used: one integration's author saw
+them stay at values that cannot be live limits. The driver reads the block
+0x0100-0x0126 in one go, so a failed read leaves all of it out.
 """
 
 from __future__ import annotations
@@ -86,14 +87,15 @@ def test_alphaess_reports_cell_temperature_range():
     assert "battery.temperature_C" not in out
     assert "battery.temp_c" not in out
     assert "battery.available_charge_W" not in out
-    assert "reads.holding:273" not in out
-    assert "reads.holding:274" not in out
+    assert "battery.available_discharge_W" not in out
+    assert "metric.battery_charge_limit_a" not in out
 
 
 def test_alphaess_failed_cell_temperature_read_is_left_out():
-    out = run({269: i16(-50), 272: 312}, fail=(269,))
+    out = run({269: i16(-50), 272: 312}, fail=(0x0100,))
     assert "metric.battery_cell_temp_min_c" not in out
     assert "metric.battery_cell_temp_max_c" not in out
+    assert not any(k.startswith("battery.") for k in out)
 
 
 def test_alphaess_out_of_range_cell_temperature_is_dropped():

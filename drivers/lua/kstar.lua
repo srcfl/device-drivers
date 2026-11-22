@@ -1,8 +1,18 @@
 -- KSTAR KSE Series Inverter Driver
 -- Emits: PV, Battery, Meter
--- Register type: HOLDING (FC 0x03)
+-- Register type: INPUT (FC 0x04)
 -- Port: 502
 -- Community tier (untested)
+--
+-- Register map: KSTAR "Hybrid Inverter MODBUS RS485 Communication Protocol"
+-- V2.9.1 (2024-07-21, document SFT-KSE-001), table 3.1 "Inverter basic
+-- information", read-only input registers from 3000. Its model table
+-- (3.1.5) covers the KSE single-phase models, the BluE-S 3680D/5000D/6000D
+-- (and M1) and the E8KT/E10KT/E12KT three-phase models. Signs, which the
+-- vendor does not state, are taken from davidrapan/ha-solarman
+-- kstar_hybrid.yaml; addresses and scales agree with it and with
+-- StephanJoubert/home_assistant_solarman kstar_hybrid.yaml (written from
+-- V2.5). No code was copied.
 
 -- No control code has been written for this inverter yet: driver_command
 -- only refuses. It says read_only so FTW and the catalog tell the owner
@@ -13,7 +23,7 @@ DRIVER = {
   id           = "kstar",
   name         = "KSTAR inverter",
   manufacturer = "KSTAR",
-  version      = "1.2.0",
+  version      = "1.3.0",
   protocols    = { "modbus" },
   capabilities = { "pv", "battery", "meter" },
   read_only    = true,
@@ -28,13 +38,21 @@ PROTOCOL = "modbus"
 -- nothing at all, which is worse than reporting one field less. So stop asking
 -- once a register has proved it is not there. Three tries, because one failure
 -- proves nothing -- the link may just have been slow.
+--
+-- A short reply counts as a failure: every register asked for must be there,
+-- or a decode further down would do arithmetic on nil.
 local GIVE_UP_AFTER = 3
 local read_failures = {}
 
 local function probe_read(addr, count, kind)
     if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
     local ok, regs = pcall(host.modbus_read, addr, count, kind)
-    if ok and regs and regs[1] ~= nil then
+    if ok and regs then
+        for i = 1, count do
+            if regs[i] == nil then ok = false break end
+        end
+    end
+    if ok and regs then
         read_failures[addr] = nil
         return regs
     end
@@ -48,120 +66,130 @@ local function probe_read(addr, count, kind)
     return nil
 end
 
+local function plausible_temp(c)
+    if c < -40 or c > 100 then return nil end
+    return c
+end
+
+-- Inverter model, input 3045, KSTAR table 3.1.5: 0x00-0x1F are the
+-- single-phase KSE and BluE-S models, 0x20-0x2F the three-phase ones. The
+-- S and T phase meter registers (3101-3108) are "only for three phase
+-- model". The model does not change, so it is read until it answers once.
+-- nil until known; "single", "three", or "unknown" for a code outside the
+-- table.
+local phases = nil
+
+local function detect_phases()
+    if phases ~= nil then return phases end
+    local regs = probe_read(3045, 1, "input")
+    if not regs then return nil end
+    local code = regs[1]
+    if code <= 0x1F then
+        phases = "single"
+    elseif code <= 0x2F then
+        phases = "three"
+    else
+        phases = "unknown"
+        host.log("warn", string.format(
+            "KSTAR: inverter model code 0x%02X is not in KSTAR's model table; " ..
+            "grid meter left out", code))
+    end
+    return phases
+end
+
 function driver_init(config)
     host.set_make("KSTAR")
 end
 
 function driver_poll()
     -- ---- PV ----
-
-    -- PV1 voltage: 28, U16 × 0.1V; PV1 current: 29, U16 × 0.1A
-    local pv1_regs = probe_read(28, 2, "holding")
-    local mppt1_v, mppt1_a = 0, 0
-    if pv1_regs then
-        mppt1_v = pv1_regs[1] * 0.1
-        mppt1_a = pv1_regs[2] * 0.1
+    --
+    -- 3000-3025 in one read:
+    --   3000 PV1 input voltage   U16 x 0.1 V
+    --   3012 PV1 input current   S16 x 0.01 A
+    --   3024 PV1 input power     S16, 1 W
+    --   3025 PV2 input power     S16, 1 W
+    local pv_regs = probe_read(3000, 26, "input")
+    if pv_regs then
+        local pv_w = host.decode_i16(pv_regs[25]) + host.decode_i16(pv_regs[26])
+        host.emit("pv", {
+            W       = -pv_w,  -- generation is negative (site convention)
+            mppt1_v = pv_regs[1] * 0.1,
+            mppt1_a = host.decode_i16(pv_regs[13]) * 0.01,
+        })
     end
-
-    -- PV power: 30, U16, W
-    local pvw_regs = probe_read(30, 1, "holding")
-    local pv_w = 0
-    if pvw_regs then
-        pv_w = pvw_regs[1]
-    end
-
-    -- Grid frequency: 18, U16 × 0.01Hz
-    local hz_regs = probe_read(18, 1, "holding")
-    local hz = 0
-    if hz_regs then
-        hz = hz_regs[1] * 0.01
-    end
-
-    -- Emit PV telemetry (W always negative for generation)
-    host.emit("pv", {
-        W       = -pv_w,
-        mppt1_v = mppt1_v,
-        mppt1_a = mppt1_a,
-    })
 
     -- ---- Battery ----
-
-    -- Battery power: 50, I16, W (positive=charge, negative=discharge)
-    local bw_regs = probe_read(50, 1, "holding")
-    local bat_w = 0
-    if bw_regs then
-        bat_w = host.decode_i16(bw_regs[1])
-    end
-
-    -- Battery SoC: 54, U16, %
-    local bsoc_regs = probe_read(54, 1, "holding")
-    local bat_soc = 0
-    if bsoc_regs then
-        bat_soc = bsoc_regs[1] / 100  -- percent to fraction
-    end
-
-    -- Temperatures: INPUT registers 3055..3067 in one read. 3055 is the
-    -- inverter radiator, 3067 the battery; both I16 x 0.1 C. Source, for
-    -- addresses and scales only: davidrapan/ha-solarman
-    -- inverter_definitions/kstar_hybrid.yaml, written from KSTAR's Hybrid
-    -- Inverter Modbus V2.9.1 (2024-07-21). That map puts every reading in
-    -- input registers 3000 and up, not in the holding registers read above;
-    -- those need their own check against hardware. 3056 is the battery
-    -- converter's heatsink, not the battery, and is not used. The map has
-    -- no live BMS charge or discharge limit: 3078/3079 are percent
-    -- settings.
-    local temp_regs = probe_read(3055, 13, "input")
-    local bat_temp_c, inverter_c = nil, nil
-    if temp_regs then
-        local c = host.decode_i16(temp_regs[13]) * 0.1
-        if c >= -40 and c <= 100 then bat_temp_c = c end
-        c = host.decode_i16(temp_regs[1]) * 0.1
-        if c >= -40 and c <= 100 then inverter_c = c end
-    end
-
-    -- Emit Battery telemetry
-    host.emit("battery", {
-        W   = bat_w,
-        SoC_nom_fract = bat_soc,
-        temperature_C = bat_temp_c,
-    })
-    if bat_temp_c ~= nil then
-        host.emit_metric("battery_temp_c", bat_temp_c)
-    end
-    if inverter_c ~= nil then
-        host.emit_metric("inverter_temp_c", inverter_c)
+    --
+    -- 3055-3067 in one read:
+    --   3055 inverter radiator temperature   S16 x 0.1 C
+    --   3063 battery voltage                 U16 x 0.01 V
+    --   3065 battery charge/discharge power  S16, 1 W
+    --   3066 battery SOC                     U16 x 0.1 %
+    --   3067 battery temperature             S16 x 0.1 C
+    -- 3056 is the battery converter's heatsink, not the battery, and is not
+    -- used. KSTAR does not give the sign of 3065. ha-solarman's KSTAR
+    -- profile counts it as power into the DC bus (its "Power losses" sensor
+    -- is PV + battery - inverter output), so positive is discharging, and
+    -- the driver negates it (site convention: charging is positive).
+    --
+    -- 3070/3071 BAT_CHG_LIMIT_CURR / BAT_DISCHG_LIMIT_CURR (1 A) are not
+    -- sent as available power: the map does not say whether they come from
+    -- the BMS or move with it. 3078/3079 are percent settings.
+    local bat_regs = probe_read(3055, 13, "input")
+    if bat_regs then
+        local battery = {
+            W = -host.decode_i16(bat_regs[11]),   -- 3065
+            V = bat_regs[9] * 0.01,               -- 3063
+        }
+        local soc_raw = bat_regs[12]              -- 3066
+        if soc_raw <= 1000 then
+            battery.SoC_nom_fract = soc_raw / 1000
+        end
+        local bat_temp_c = plausible_temp(host.decode_i16(bat_regs[13]) * 0.1)  -- 3067
+        battery.temperature_C = bat_temp_c
+        host.emit("battery", battery)
+        if bat_temp_c ~= nil then
+            host.emit_metric("battery_temp_c", bat_temp_c)
+        end
+        local inverter_c = plausible_temp(host.decode_i16(bat_regs[1]) * 0.1)  -- 3055
+        if inverter_c ~= nil then
+            host.emit_metric("inverter_temp_c", inverter_c)
+        end
     end
 
     -- ---- Meter ----
-
-    -- Grid power: 22, I16, W (positive=import)
-    local mw_regs = probe_read(22, 1, "holding")
-    local meter_w = 0
-    if mw_regs then
-        meter_w = host.decode_i16(mw_regs[1])
+    --
+    -- 3097-3108, four registers per phase (R, S, T):
+    --   3097 grid voltage    U16 x 0.1 V
+    --   3098 grid frequency  U16 x 0.01 Hz
+    --   3099 meter current   S16 x 0.001 A
+    --   3100 meter power     S16, 1 W
+    -- KSTAR does not give the sign of the meter power. ha-solarman negates
+    -- it "to match standard behavior of the other inverters" (import
+    -- positive), and an owner there reported the raw value negative while
+    -- importing. So the raw value is positive when exporting, and the
+    -- driver negates it. The current is sent as read; its sign is not
+    -- documented.
+    local p = detect_phases()
+    local m_regs = nil
+    if p == "single" then
+        m_regs = probe_read(3097, 4, "input")
+    elseif p == "three" then
+        m_regs = probe_read(3097, 12, "input")
     end
-
-    -- Phase voltage: 10, U16 × 0.1V
-    local lv_regs = probe_read(10, 1, "holding")
-    local l1_v = 0
-    if lv_regs then
-        l1_v = lv_regs[1] * 0.1
+    if m_regs then
+        local w = host.decode_i16(m_regs[4])
+        if p == "three" then
+            w = w + host.decode_i16(m_regs[8]) + host.decode_i16(m_regs[12])
+        end
+        host.emit("meter", {
+            W    = -w,
+            L1_V = m_regs[1] * 0.1,
+            L1_A = host.decode_i16(m_regs[3]) * 0.001,
+            Hz   = m_regs[2] * 0.01,
+        })
     end
-
-    -- Phase current: 11, U16 × 0.1A
-    local la_regs = probe_read(11, 1, "holding")
-    local l1_a = 0
-    if la_regs then
-        l1_a = la_regs[1] * 0.1
-    end
-
-    -- Emit Meter telemetry
-    host.emit("meter", {
-        W    = meter_w,
-        L1_V = l1_v,
-        L1_A = l1_a,
-        Hz   = hz,
-    })
 
     return 5000
 end

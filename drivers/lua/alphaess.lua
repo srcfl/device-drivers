@@ -3,8 +3,21 @@
 -- Register type: HOLDING (FC 0x03)
 -- Port: 502
 -- Community tier (untested)
--- Register map from AlphaESS Modbus protocol v1.30
--- Hex addresses converted to decimal
+--
+-- Register map: AlphaESS "Modbus_RTU/TCP Protocol" and its "Parameter
+-- address table" (protocol history up to V1.39, 2024-11-29), as published
+-- in ramonvanraaij/ha-alphaess-modbus docs/. The vendor's "Household
+-- Register Map" table gives the same meter (0x0010-0x0036), battery
+-- (0x0100-0x0148) and inverter (0x0400-0x0452) blocks for SMILE-SP,
+-- SMILE-G3 (S3.6, S5, B5, S6, S8, T4-T20), SMILE-S6-HV, SMILE-T10-HV and
+-- B3/B3PLUS. evcc's alpha-ess-smile template, dxoverdy/Alpha2MQTT and
+-- senalse/ha-alphaess-modbus read the same addresses; they were used for
+-- addresses, types and signs only.
+--
+-- Older firmware: protocol V1.17 (2020) put the grid meter at
+-- 0x0000-0x0019 (total power at 0x0006) and the inverter temperature at
+-- 0x0429, where V1.39 has PV4. V1.19 (2020-10-20) changed the meter table.
+-- This driver follows the current map only.
 
 -- No control code has been written for this inverter yet: driver_command
 -- only refuses. It says read_only so FTW and the catalog tell the owner
@@ -15,7 +28,7 @@ DRIVER = {
   id           = "alphaess",
   name         = "AlphaESS inverter",
   manufacturer = "AlphaESS",
-  version      = "1.2.0",
+  version      = "1.3.0",
   protocols    = { "modbus" },
   capabilities = { "pv", "battery", "meter" },
   read_only    = true,
@@ -31,13 +44,21 @@ PROTOCOL = "modbus"
 -- marked offline. Give a register three chances, then leave it alone until
 -- restart. Three rather than one: a single failure is not proof, the link may
 -- just have been slow.
+--
+-- A short reply counts as a failure: every register asked for must be there,
+-- or a decode further down would do arithmetic on nil.
 local GIVE_UP_AFTER = 3
 local read_failures = {}
 
 local function probe_read(addr, count, kind)
     if (read_failures[addr] or 0) >= GIVE_UP_AFTER then return nil end
     local ok, regs = pcall(host.modbus_read, addr, count, kind)
-    if ok and regs and regs[1] ~= nil then
+    if ok and regs then
+        for i = 1, count do
+            if regs[i] == nil then ok = false break end
+        end
+    end
+    if ok and regs then
         read_failures[addr] = nil
         return regs
     end
@@ -51,132 +72,101 @@ local function probe_read(addr, count, kind)
     return nil
 end
 
+-- A cell temperature outside -40..100 C is a sentinel or a misread.
+local function plausible_temp(c)
+    if c < -40 or c > 100 then return nil end
+    return c
+end
+
 function driver_init(config)
     host.set_make("AlphaESS")
 end
 
 function driver_poll()
     -- ---- PV ----
-
-    -- PV1 voltage: 0x0010=16, U16 × 0.1V
-    -- PV1 current: 0x0011=17, U16 × 0.1A
-    local pv1_regs = probe_read(16, 2, "holding")
-    local mppt1_v, mppt1_a = 0, 0
-    if pv1_regs then
-        mppt1_v = pv1_regs[1] * 0.1
-        mppt1_a = pv1_regs[2] * 0.1
+    --
+    -- 0x041D-0x0434 in one read: per string voltage (U16 x 0.1 V), current
+    -- (U16 x 0.1 A) and power (U32, 1 W), strings 1 to 6, four registers
+    -- apart. PV power is their sum. 0x0453 "Pv total power" is newer than
+    -- the 0x0400-0x0452 block the vendor lists for every model, so it is not
+    -- used. A PV meter for an AC-coupled inverter (0x00A1) is not added:
+    -- that inverter may have its own driver.
+    local pv_regs = probe_read(0x041D, 24, "holding")
+    if pv_regs then
+        local pv_w = 0
+        for i = 3, 23, 4 do
+            pv_w = pv_w + host.decode_u32_be(pv_regs[i], pv_regs[i + 1])
+        end
+        host.emit("pv", {
+            W       = -pv_w,  -- generation is negative (site convention)
+            mppt1_v = pv_regs[1] * 0.1,
+            mppt1_a = pv_regs[2] * 0.1,
+        })
     end
-
-    -- PV total power: 0x0012=18, U16, W
-    local pvw_regs = probe_read(18, 1, "holding")
-    local pv_w = 0
-    if pvw_regs then
-        pv_w = pvw_regs[1]
-    end
-
-    -- Grid frequency: 0x0022=34, U16 × 0.01Hz
-    local hz_regs = probe_read(34, 1, "holding")
-    local hz = 0
-    if hz_regs then
-        hz = hz_regs[1] * 0.01
-    end
-
-    -- Emit PV telemetry (W always negative for generation)
-    host.emit("pv", {
-        W       = -pv_w,
-        mppt1_v = mppt1_v,
-        mppt1_a = mppt1_a,
-    })
 
     -- ---- Battery ----
+    --
+    -- 0x0100-0x0126 in one read (the "Household Battery" block):
+    --   0x0100 battery voltage        U16 x 0.1 V
+    --   0x0102 battery SOC            U16 x 0.1 %
+    --   0x010D min cell temperature   S16 x 0.1 C
+    --   0x0110 max cell temperature   S16 x 0.1 C
+    --   0x0126 battery power          S16, 1 W, "-: Charge, +: Discharge"
+    -- AlphaESS counts discharge as positive, so the power is negated here
+    -- (site convention: charging is positive). evcc reads it the same way.
+    -- senalse's map describes it as positive when charging; the vendor's
+    -- table, evcc and Alpha2MQTT all say the opposite.
+    --
+    -- The block has no pack temperature, so temperature_C is left out.
+    -- 0x0111/0x0112 "Battery max charge/discharge current" (U16 x 0.1 A)
+    -- are not used as live limits: the vendor does not say they move with
+    -- the BMS, and Alpha2MQTT's author saw the charge value stay at 0 and
+    -- the discharge value at 100 A on a 50 A pack. A 0 would tell Core the
+    -- battery may not charge.
+    local bat_regs = probe_read(0x0100, 39, "holding")
+    if bat_regs then
+        local battery = {
+            W = -host.decode_i16(bat_regs[39]),       -- 0x0126
+            V = bat_regs[1] * 0.1,                     -- 0x0100
+        }
+        local soc_raw = bat_regs[3]                    -- 0x0102
+        if soc_raw <= 1000 then
+            battery.SoC_nom_fract = soc_raw / 1000     -- 0.1 % per bit
+        end
+        host.emit("battery", battery)
 
-    -- Battery power: 0x0020=32, I16, W (positive=charge, negative=discharge)
-    local bw_regs = probe_read(32, 1, "holding")
-    local bat_w = 0
-    if bw_regs then
-        bat_w = host.decode_i16(bw_regs[1])
-    end
-
-    -- Battery voltage: 0x0021=33, U16 × 0.1V
-    local bv_regs = probe_read(33, 1, "holding")
-    local bat_v = 0
-    if bv_regs then
-        bat_v = bv_regs[1] * 0.1
-    end
-
-    -- Battery SoC: 0x0024=36, U16, %
-    local bsoc_regs = probe_read(36, 1, "holding")
-    local bat_soc = 0
-    if bsoc_regs then
-        bat_soc = bsoc_regs[1] / 100  -- percent to fraction
-    end
-
-    -- Emit Battery telemetry
-    host.emit("battery", {
-        W   = bat_w,
-        V   = bat_v,
-        SoC_nom_fract = bat_soc,
-    })
-
-    -- Cell temperature range, for history: 0x010D=269 lowest cell, 0x0110=272
-    -- highest cell, I16 x 0.1 C, in the battery block that starts at 0x0100.
-    -- Sources, for addresses and scales only: dxoverdy/Alpha2MQTT
-    -- Definitions.h and senalse/ha-alphaess-modbus docs/register_map.md.
-    -- Alpha2MQTT reads them as signed (Short); senalse lists uint16 x 0.1.
-    -- The driver decodes i16, which gives the same value for every
-    -- temperature at or above 0 C. A sub-zero cell read as uint16 would come
-    -- out near 6500 C and be dropped by the range check.
-    -- Both place battery power at 0x0126 and the grid meter at 0x0010..0x0021,
-    -- which is not what the reads above assume; that map needs its own
-    -- check against hardware. The block holds no pack temperature, so
-    -- `temperature_C` is left out. 0x0111/0x0112 (BMS max charge and
-    -- discharge current) are not read: Alpha2MQTT's author saw the charge
-    -- value stay at 0 and the discharge value at twice the pack's rating,
-    -- so they are not trusted as live limits. senalse describes 0x0111 as
-    -- the BMS's present maximum charge current (x 0.1 A); the two sources
-    -- disagree, and hardware has to settle it before Core relies on it.
-    local cell_regs = probe_read(269, 4, "holding")
-    if cell_regs then
-        local low_c  = host.decode_i16(cell_regs[1]) * 0.1
-        local high_c = host.decode_i16(cell_regs[4]) * 0.1
-        if low_c >= -40 and low_c <= 100 then
+        local low_c  = plausible_temp(host.decode_i16(bat_regs[14]) * 0.1)  -- 0x010D
+        local high_c = plausible_temp(host.decode_i16(bat_regs[17]) * 0.1)  -- 0x0110
+        if low_c ~= nil then
             host.emit_metric("battery_cell_temp_min_c", low_c)
         end
-        if high_c >= -40 and high_c <= 100 then
+        if high_c ~= nil then
             host.emit_metric("battery_cell_temp_max_c", high_c)
         end
     end
 
     -- ---- Meter ----
-
-    -- Phase voltage: 0x0026=38, U16 × 0.1V
-    local lv_regs = probe_read(38, 1, "holding")
-    local l1_v = 0
-    if lv_regs then
-        l1_v = lv_regs[1] * 0.1
+    --
+    -- 0x0017-0x0022 in one read (the grid meter's running data):
+    --   0x0017 current of A phase     S16 x 0.1 A
+    --   0x001A grid frequency         U16 x 0.01 Hz
+    --   0x0021 total active power     S32, 1 W
+    -- Total power is positive when drawing from the grid and negative when
+    -- feeding it (Alpha2MQTT: "Minus = feeding, Positive = drawing"; evcc
+    -- and senalse read it the same way), which is the site convention, so it
+    -- is passed through. The vendor's table gives no sign.
+    --
+    -- Phase voltage (0x0014) is left out: the vendor says 1 V per bit,
+    -- Alpha2MQTT's author read 2421 for 242.1 V, and the sources do not
+    -- agree on the scale.
+    local m_regs = probe_read(0x0017, 12, "holding")
+    if m_regs then
+        host.emit("meter", {
+            W    = host.decode_i32_be(m_regs[11], m_regs[12]),  -- 0x0021
+            L1_A = host.decode_i16(m_regs[1]) * 0.1,             -- 0x0017
+            Hz   = m_regs[4] * 0.01,                             -- 0x001A
+        })
     end
-
-    -- Phase current: 0x0027=39, U16 × 0.1A
-    local la_regs = probe_read(39, 1, "holding")
-    local l1_a = 0
-    if la_regs then
-        l1_a = la_regs[1] * 0.1
-    end
-
-    -- Grid power: 0x0028=40, I16, W (positive=import)
-    local mw_regs = probe_read(40, 1, "holding")
-    local meter_w = 0
-    if mw_regs then
-        meter_w = host.decode_i16(mw_regs[1])
-    end
-
-    -- Emit Meter telemetry
-    host.emit("meter", {
-        W    = meter_w,
-        L1_V = l1_v,
-        L1_A = l1_a,
-        Hz   = hz,
-    })
 
     return 5000
 end

@@ -2,9 +2,11 @@
 
 KSTAR's hybrid Modbus map (V2.9.1, as read by ha-solarman) holds the inverter
 radiator temperature in input register 3055 and the battery temperature in
-3067, both I16 x 0.1 °C. The driver reads 3055..3067 in one go. A failed read
-or a value outside -40..100 °C is left out, never sent as zero. The map has
-no live BMS limit, so no `available_*` field is sent.
+3067, both I16 x 0.1 °C. The driver reads 3055..3067 in one go, together
+with the battery's voltage, power and SoC. A failed read or a value outside
+-40..100 °C is left out, never sent as zero. The map does not say that its
+charge and discharge current limits come from the BMS, so no `available_*`
+field is sent.
 """
 
 from __future__ import annotations
@@ -93,8 +95,8 @@ def test_kstar_failed_temperature_read_is_left_out():
     assert "battery.temp_c" not in out
     assert "metric.battery_temp_c" not in out
     assert "metric.inverter_temp_c" not in out
-    # The battery stream itself still goes out.
-    assert "battery.W" in out
+    # The whole block failed, so nothing from it goes out.
+    assert not any(k.startswith("battery.") for k in out)
 
 
 def test_kstar_out_of_range_temperature_is_dropped():

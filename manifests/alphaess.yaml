@@ -1,5 +1,5 @@
 name: "alphaess"
-version: "1.2.0"
+version: "1.3.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -22,6 +22,22 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 upstream_docs:
+  - url: "https://raw.githubusercontent.com/ramonvanraaij/ha-alphaess-modbus/main/docs/alphaess_modbus_register_parameter_list.pdf"
+    title: "AlphaESS Modbus parameter address table (household meter, battery and inverter blocks), copy in ramonvanraaij/ha-alphaess-modbus"
+    kind: register_map
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/ramonvanraaij/ha-alphaess-modbus/main/docs/alphaess_modbus_register_map_table.pdf"
+    title: "AlphaESS Household Register Map: register blocks per model, copy in ramonvanraaij/ha-alphaess-modbus"
+    kind: register_map
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/ramonvanraaij/ha-alphaess-modbus/main/docs/alphaess_modbus_protocol.pdf"
+    title: "AlphaESS Modbus_RTU/TCP Protocol, version history to V1.39, copy in ramonvanraaij/ha-alphaess-modbus"
+    kind: changelog
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/evcc-io/evcc/master/templates/definition/meter/alpha-ess-smile.yaml"
+    title: "evcc alpha-ess-smile template (grid, PV and battery registers and signs)"
+    kind: other
+    url_stability: stable
   - url: "https://raw.githubusercontent.com/dxoverdy/Alpha2MQTT/master/Alpha2MQTT/Definitions.h"
     title: "dxoverdy/Alpha2MQTT AlphaESS register definitions (battery block 0x0100-0x0130)"
     kind: register_map
@@ -31,12 +47,12 @@ upstream_docs:
     kind: register_map
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 6394
+size_bytes: 7450
 dkb_id: ""
-sha256: "f1bf71b8f0a1e1e76c416f84e8f1bd7b08cb84f31fbb249a7c85921a7159a74d"
+sha256: "49cd62736e64e798f9b23fa634c9a0d3cb8768d3429aa08727f7021ee2b5fc91"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "Read the grid meter, battery and PV from the registers in AlphaESS's current Modbus map, with site signs; send nothing for a read that failed."
