@@ -1,5 +1,5 @@
 name: "kstar"
-version: "1.2.0"
+version: "1.3.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -22,17 +22,21 @@ tested_devices:
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
 upstream_docs:
+  - url: "https://github.com/user-attachments/files/17555061/KSTAR.Hybrid.Inverter.Modbus.V2.9.1_2024.07.21.pdf"
+    title: "KSTAR Hybrid Inverter MODBUS RS485 Communication Protocol V2.9.1 (2024-07-21), from KSTAR support, attached to davidrapan/ha-solarman"
+    kind: register_map
+    url_stability: unknown
   - url: "https://raw.githubusercontent.com/davidrapan/ha-solarman/main/custom_components/solarman/inverter_definitions/kstar_hybrid.yaml"
     title: "davidrapan/ha-solarman KSTAR hybrid inverter register definitions (from KSTAR Hybrid Inverter Modbus V2.9.1)"
     kind: register_map
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 5508
+size_bytes: 9159
 dkb_id: ""
-sha256: "1855663dd2c8f2a1c08eda1cd6af06f9f3391df0900b29a654c89229216d635f"
+sha256: "b13d4a0e1d8a7a41e0f3fd175c60159b1324273c066167cf7903fc0a73c521d0"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: ""
+changelog: "Read PV, battery and grid meter from KSTAR's input registers from 3000, with site signs; send nothing for a read that failed."

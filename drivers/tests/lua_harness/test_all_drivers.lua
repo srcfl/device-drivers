@@ -147,6 +147,9 @@ local function setup_modbus_data(driver_name)
     -- the driver reads the full hybrid map. String models report another code.
     input[4999]   = 0x0E0E
     holding[4999] = 0x0E0E
+    -- KSTAR inverter model, input 3045: 0x00 is the single-phase KSE-2K,
+    -- so the driver knows which meter phases the device has.
+    input[3045] = 0x00
     -- Sungrow status reg 13000 = 0 (not discharging)
     input[13000] = 0
     holding[13000] = 0
@@ -186,6 +189,8 @@ local function setup_modbus_data(driver_name)
         -- *0.1/100 pattern
         13022,  -- Sungrow
         37004,  -- Huawei
+        3066,   -- KSTAR (input)
+        258,    -- AlphaESS (0x0102)
     }
     for _, a in ipairs(soc_50_addrs) do
         holding[a] = 50
@@ -296,8 +301,6 @@ local function setup_modbus_data(driver_name)
         28,     -- SolaX
         33139,  -- Solis
         11038,  -- FoxESS
-        54,     -- KSTAR
-        36,     -- AlphaESS
         4248,   -- unused by current SAJ map; harmless
         1014,   -- Growatt
     }

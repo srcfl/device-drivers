@@ -20,8 +20,8 @@ Catalog source is not proof that a target can install or run a driver.
 | acuvim | 0.4.3 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | alfen | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | alfen | 1.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| alphaess | 1.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| alphaess | 1.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| alphaess | 1.3.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| alphaess | 1.3.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ambibox | 1.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | ambibox | 1.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | ambibox_v2x | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
@@ -90,8 +90,8 @@ Catalog source is not proof that a target can install or run a driver.
 | konja-261-svk | 0.4.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | kostal | 2.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | kostal | 2.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| kstar | 1.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| kstar | 1.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| kstar | 1.3.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| kstar | 1.3.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | mennekes | 1.1.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | mennekes | 1.1.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | myuplink | 1.2.4 | ftw-core | not_assessed | — | not_recorded | not_assessed |
