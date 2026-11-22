@@ -15,9 +15,9 @@ tested_devices:
     notes: "AC-stage variant (44284/85) of 50-125k-svk-slew; PV shares the AC stage."
     min_driver_version: "0.2.3"
 min_host_version: "2.0.0"
-size_bytes: 40824
+size_bytes: 42743
 dkb_id: "50-125k-svk-ac-slew"
-sha256: "95484aed64944c0826d3f691cf035137c4e6585da90c748ba9549774f31fc477"
+sha256: "acc1b774ea9397ae2e274f2fcf2bcca3784b5aa7b8858b33cd4f9e09038688fa"
 signature: ""
 
 bytecode_sha256: ""

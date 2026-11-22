@@ -15,9 +15,9 @@ tested_devices:
     notes: "Base SvK driver; slew variants derive from it."
     min_driver_version: "0.2.2"
 min_host_version: "2.0.0"
-size_bytes: 26325
+size_bytes: 28384
 dkb_id: "50-125k-svk"
-sha256: "1b3f7879a1198794638d3a1cb7f0428766bfcf99619a8e0ad6a4ebd1c99fa643"
+sha256: "3a43ff8afa2bd02b8ba476137871d0eca97de72c1fe4622b8a267aeae3ddfad1"
 signature: ""
 
 bytecode_sha256: ""

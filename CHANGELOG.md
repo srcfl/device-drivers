@@ -163,17 +163,23 @@ to history, so Core can tell a device limit from lost control.
   values again for as long as the block stayed silent.
 - A power above 1000 kW, such as the 0xFFFFFFFF not-present value, is left
   out. 0 W is kept: it means the device does not allow that direction now.
-- Metrics `battery_available_charge_w` and `battery_available_discharge_w`
-  on each read.
+- `temperature_C` on `battery`: the middle of the lowest and highest cell
+  temperature (34350/34351, 0.1 °C), read on the same poll as the limits.
+  That is two small reads a minute more on the bus.
+- Metrics `battery_available_charge_w`, `battery_available_discharge_w`,
+  `battery_temp_c`, `battery_cell_temp_min_c`, `battery_cell_temp_max_c`
+  and `inverter_temp_c` (33093) on each read.
+- A temperature outside -40 to 100 °C (inverter: -40 to 150 °C) is left
+  out, and so is a failed temperature read.
 - A SoC that did not answer is left out instead of sent as 0 %, and so is
   the energy headroom without a SoC or a configured capacity.
 
 This unit's own registers exist and would match `battery.W` more closely,
-but switching to them is a decision for the Solis site owners. The cell and
-inverter temperature registers are not read yet: that waits for hardware
-evidence about the extra bus traffic. The vendor's notes do not say
-outright that 25004-25019 are live limits. Control, slew and writes are
-unchanged. Not yet checked on hardware.
+but switching to them is a decision for the Solis site owners. The
+temperature addresses come from the full Blixt Solis driver, which cites
+Solis documents we could not read. The vendor's notes do not say outright
+that 25004-25019 are live limits. Control, slew and writes are unchanged.
+Not yet checked on hardware.
 
 ### konja-261-svk 0.4.0
 

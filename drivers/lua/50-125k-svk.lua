@@ -27,8 +27,10 @@
 --
 -- Two small FC04 reads per poll (2 regs + 1 reg) → well under 100 ms at
 -- 9600 baud, vs ~388 ms for the full driver. PV/MPPT (33049×36, 34753),
--- AC/inverter (33xxx), cell V/T, energy counters, and the 25xxx status
--- bundle are all DROPPED — not needed for FFR/FCR scoring.
+-- AC/inverter (33xxx), cell voltages, energy counters, and the 25003
+-- status word are all DROPPED — not needed for FFR/FCR scoring. Cell
+-- temperature (34350-51) and inverter temperature (33093) ride on the
+-- slow 25004 read; see "What the battery can do now" below.
 --
 -- driver_init keeps full identification (make/model/sn/rated_w via the
 -- 33xxx reads) — those run ONCE at init, so they don't affect cadence.
@@ -187,17 +189,25 @@ local SLOW_STATUS_EVERY_POLLS = 12 -- driver_poll returns 5s ⇒ ~60s
 -- "Modbus Register usage scheme of Application Scenarios" (Ver
 -- 20260304/20260310). Neither is public, so neither is in upstream_docs.
 --
--- NOT READ: the same documents give min/max cell temperature
--- (34350/34351, S16, 0.1 °C) and inverter module temperature (33093,
--- S16, 0.1 °C). Reading them adds bus traffic on a 9600-baud link tuned
--- for FFR, so they wait for hardware evidence. Until then this driver
--- sends no temperature_C.
+-- TEMPERATURES, read with the block above, on the same poll:
+--   34350-34351  min / max cell temperature   S16, 0.1 °C (one 2-reg read)
+--   33093        inverter module temperature  S16, 0.1 °C (one 1-reg read)
+-- That is two small reads a minute more on the 9600-baud link. These
+-- addresses come from the full solis_50_125k driver (Blixt gateway,
+-- commit d95e07f), which cites the Solis documents named above. We
+-- could not read those documents, and the addresses are not yet
+-- verified on hardware. temperature_C is the middle of the coldest and
+-- hottest cell, sent only when both answer and lie in -40..100 °C; the
+-- inverter module gets -40..150 °C, since power electronics derate
+-- above 100 °C. Held until the next read; a failed read leaves them out.
+-- The two reads go through bundle_read, so a register this unit does
+-- not have stops costing a failed read every minute.
 --
 -- 1000 kW bound: well above a 125 kW unit and its battery. A larger U32
 -- is a not-present sentinel (0xFFFFFFFF) or a bad read, not a limit.
 local MAX_LIMIT_W = 1000000
 local limits_logged = false
-local lim = {}   -- charge_w, discharge_w, import_w, export_w
+local lim = {}   -- charge_w, discharge_w, import_w, export_w, temp_c
 
 -- ---------------------------------------------------------------------
 -- Helpers
@@ -222,11 +232,41 @@ local function within(v, lo, hi)
     return v
 end
 
--- Read 25004-25019 into `lim`. Every value comes from this read or is
--- nil: a read that failed, or a value out of range, leaves it out.
--- Metrics go to history on the poll the block was read.
+-- Read 25004-25019 and the temperatures into `lim`. Every value comes
+-- from this read or is nil: a read that failed, or a value out of range,
+-- leaves it out. Metrics go to history on the poll the block was read.
+local function s16(u)
+    if u == nil then return nil end
+    if u >= 0x8000 then return u - 0x10000 end
+    return u
+end
+
+-- Cell and inverter temperatures into `lim` (see TEMPERATURES above).
+local function read_temperatures()
+    local ok_ct, ct = bundle_read(34350, 2, "input", "cell-temperature")
+    local ok_it, it = bundle_read(33093, 1, "input", "inverter-temperature")
+    local cell_min_c, cell_max_c, inverter_c = nil, nil, nil
+    if ok_ct then
+        local tmin, tmax = s16(ct[1]), s16(ct[2])
+        cell_min_c = within(tmin and tmin / 10, -40, 100)
+        cell_max_c = within(tmax and tmax / 10, -40, 100)
+        if cell_min_c and cell_max_c and cell_min_c <= cell_max_c then
+            lim.temp_c = (cell_min_c + cell_max_c) / 2
+        end
+    end
+    if ok_it then
+        local t = s16(it[1])
+        inverter_c = within(t and t / 10, -40, 150)
+    end
+    if lim.temp_c then host.emit_metric("battery_temp_c", lim.temp_c, "°C") end
+    if cell_min_c then host.emit_metric("battery_cell_temp_min_c", cell_min_c, "°C") end
+    if cell_max_c then host.emit_metric("battery_cell_temp_max_c", cell_max_c, "°C") end
+    if inverter_c then host.emit_metric("inverter_temp_c", inverter_c, "°C") end
+end
+
 local function read_battery_limits()
     lim = {}
+    read_temperatures()
     local ok_av, av = pcall(host.modbus_read, 25004, 16, "input")
     if not (ok_av and av) then
         host.log("WARN: 25004-25019 available-power block unreadable")
@@ -511,6 +551,7 @@ function driver_poll()
         available_discharge_Wh = dis_eh_wh,
         available_charge_W     = lim.charge_w,
         available_discharge_W  = lim.discharge_w,
+        temperature_C          = lim.temp_c,
     })
     -- AC grid-port power as the inverter role (separate measurement from
     -- the DC battery). Only when the read produced a value.

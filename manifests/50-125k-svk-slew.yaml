@@ -15,9 +15,9 @@ tested_devices:
     notes: "Solis 10 kW / 50 kWh BESS test site — FFR + FCR-D validated under Blixt L1."
     min_driver_version: "0.1.11"
 min_host_version: "2.0.0"
-size_bytes: 38130
+size_bytes: 40049
 dkb_id: "50-125k-svk-slew"
-sha256: "27e02160fb6bc91be94e82667b9ce118c3d563b0b16d36940cab3f9d15271540"
+sha256: "f59e4a7b002d1541d78c630a23284a89709aae575f9a58ff9adac38c775e6aeb"
 signature: ""
 
 bytecode_sha256: ""
