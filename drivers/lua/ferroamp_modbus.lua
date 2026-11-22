@@ -23,7 +23,7 @@ DRIVER = {
   id           = "ferroamp_modbus",
   name         = "Ferroamp EnergyHub (Modbus)",
   manufacturer = "Ferroamp",
-  version      = "2.2.0",
+  version      = "2.2.1",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -117,6 +117,12 @@ local function probe_read(addr, count, kind)
     return nil
 end
 
+-- A reply shorter than the read did not deliver every register asked for,
+-- and decode_f32_ws_at would turn the missing word into 0.
+local function complete(regs, count)
+    return regs ~= nil and regs[count] ~= nil
+end
+
 ----------------------------------------------------------------------------
 -- Driver interface
 ----------------------------------------------------------------------------
@@ -134,93 +140,82 @@ function driver_poll()
     -- Meter (grid connection point)
     --------------------------------------------------------------------------
 
+    -- Each field comes only from a register that answered, and the meter
+    -- reading only with the grid power (docs/WRITING-A-DRIVER.md, "Never
+    -- fabricate"). A failed read used to send 0: a 0 W meter looks like a
+    -- site in balance. What did answer still goes to history as a metric.
+    local meter = {}
+
     -- Grid frequency: input 2016, float32, Hz (2 regs, word-swapped)
     local hz_regs = probe_read(2016, 2, "input")
-    local hz = 0
-    if hz_regs then hz = decode_f32_ws_at(hz_regs, 1) end
+    if complete(hz_regs, 2) then
+        meter.hz = decode_f32_ws_at(hz_regs, 1)
+        host.emit_metric("grid_hz", meter.hz)
+    end
 
     -- Grid voltage L1/L2/L3: input 2032/2036/2040, float32, Vrms.
     -- Each value occupies 4 regs (2 f32 + 2 unused), so read 10 regs for 3 values.
     local v_regs = probe_read(2032, 10, "input")
-    local l1_v, l2_v, l3_v = 0, 0, 0
-    if v_regs then
-        l1_v = decode_f32_ws_at(v_regs, 1)   -- 2032-2033
-        l2_v = decode_f32_ws_at(v_regs, 5)   -- 2036-2037
-        l3_v = decode_f32_ws_at(v_regs, 9)   -- 2040-2041
+    if complete(v_regs, 10) then
+        meter.l1_v = decode_f32_ws_at(v_regs, 1)   -- 2032-2033
+        meter.l2_v = decode_f32_ws_at(v_regs, 5)   -- 2036-2037
+        meter.l3_v = decode_f32_ws_at(v_regs, 9)   -- 2040-2041
     end
 
     -- Grid active power (total): input 3100, float32, kW
     local gw_regs = probe_read(3100, 2, "input")
-    local grid_w = 0
-    if gw_regs then grid_w = decode_f32_ws_at(gw_regs, 1) * 1000 end
+    if complete(gw_regs, 2) then meter.w = decode_f32_ws_at(gw_regs, 1) * 1000 end
 
     -- Grid active current L1/L2/L3: input 3112/3116/3120, float32, Arms
     local ga_regs = probe_read(3112, 10, "input")
-    local l1_a, l2_a, l3_a = 0, 0, 0
-    if ga_regs then
-        l1_a = decode_f32_ws_at(ga_regs, 1)   -- 3112-3113
-        l2_a = decode_f32_ws_at(ga_regs, 5)   -- 3116-3117
-        l3_a = decode_f32_ws_at(ga_regs, 9)   -- 3120-3121
+    if complete(ga_regs, 10) then
+        meter.l1_a = decode_f32_ws_at(ga_regs, 1)   -- 3112-3113
+        meter.l2_a = decode_f32_ws_at(ga_regs, 5)   -- 3116-3117
+        meter.l3_a = decode_f32_ws_at(ga_regs, 9)   -- 3120-3121
     end
 
-    -- Per-phase power: V * I_active (no per-phase power registers available)
-    local l1_w = l1_v * l1_a
-    local l2_w = l2_v * l2_a
-    local l3_w = l3_v * l3_a
+    -- Per-phase power: V * I_active (no per-phase power registers available),
+    -- only when both answered.
+    if meter.l1_v and meter.l1_a then
+        meter.l1_w = meter.l1_v * meter.l1_a
+        meter.l2_w = meter.l2_v * meter.l2_a
+        meter.l3_w = meter.l3_v * meter.l3_a
+    end
 
     -- Grid energy: export at 3064, import at 3068, float32, kWh (8 regs, two values)
     local ge_regs = probe_read(3064, 8, "input")
-    local export_wh, import_wh = 0, 0
-    if ge_regs then
-        export_wh = decode_f32_ws_at(ge_regs, 1) * 1000   -- 3064-3065
-        import_wh = decode_f32_ws_at(ge_regs, 5) * 1000   -- 3068-3069
+    if complete(ge_regs, 8) then
+        meter.export_wh = decode_f32_ws_at(ge_regs, 1) * 1000   -- 3064-3065
+        meter.import_wh = decode_f32_ws_at(ge_regs, 5) * 1000   -- 3068-3069
     end
 
-    host.emit("meter", {
-        w         = grid_w,
-        hz        = hz,
-        l1_w      = l1_w,
-        l2_w      = l2_w,
-        l3_w      = l3_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = l1_a,
-        l2_a      = l2_a,
-        l3_a      = l3_a,
-        import_wh = import_wh,
-        export_wh = export_wh,
-    })
+    if meter.w ~= nil then host.emit("meter", meter) end
+
     -- Diagnostics: long-format TS DB
-    host.emit_metric("meter_l1_w", l1_w)
-    host.emit_metric("meter_l2_w", l2_w)
-    host.emit_metric("meter_l3_w", l3_w)
-    host.emit_metric("meter_l1_v", l1_v)
-    host.emit_metric("meter_l2_v", l2_v)
-    host.emit_metric("meter_l3_v", l3_v)
-    host.emit_metric("meter_l1_a", l1_a)
-    host.emit_metric("meter_l2_a", l2_a)
-    host.emit_metric("meter_l3_a", l3_a)
-    host.emit_metric("grid_hz",    hz)
+    for _, phase in ipairs({ "l1", "l2", "l3" }) do
+        for _, unit in ipairs({ "w", "v", "a" }) do
+            local value = meter[phase .. "_" .. unit]
+            if value ~= nil then host.emit_metric("meter_" .. phase .. "_" .. unit, value) end
+        end
+    end
 
     --------------------------------------------------------------------------
     -- PV (solar generation)
     --------------------------------------------------------------------------
 
-    -- Solar power: input 5100, float32, kW (always positive from Ferroamp)
+    -- Solar power: input 5100, float32, kW (always positive from Ferroamp).
+    -- Without it there is no PV reading.
     local pv_regs = probe_read(5100, 2, "input")
-    local pv_w = 0
-    if pv_regs then pv_w = decode_f32_ws_at(pv_regs, 1) * 1000 end
+    if complete(pv_regs, 2) then
+        local pv = {}
+        pv.w = -decode_f32_ws_at(pv_regs, 1) * 1000   -- negative = generation
 
-    -- Solar energy produced: input 5064, float32, kWh
-    local pe_regs = probe_read(5064, 2, "input")
-    local pv_lifetime_wh = 0
-    if pe_regs then pv_lifetime_wh = decode_f32_ws_at(pe_regs, 1) * 1000 end
+        -- Solar energy produced: input 5064, float32, kWh
+        local pe_regs = probe_read(5064, 2, "input")
+        if complete(pe_regs, 2) then pv.lifetime_wh = decode_f32_ws_at(pe_regs, 1) * 1000 end
 
-    host.emit("pv", {
-        w           = -pv_w,   -- negative = generation (site convention)
-        lifetime_wh = pv_lifetime_wh,
-    })
+        host.emit("pv", pv)
+    end
 
     --------------------------------------------------------------------------
     -- Battery

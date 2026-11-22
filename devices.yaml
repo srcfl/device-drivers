@@ -382,7 +382,7 @@ manufacturers:
             control: true
           - protocol: modbus
             driver: "ferroamp_modbus"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -2006,7 +2006,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
@@ -2022,7 +2022,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
@@ -2038,7 +2038,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
@@ -2054,7 +2054,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
@@ -2070,7 +2070,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt

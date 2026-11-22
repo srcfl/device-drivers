@@ -8,7 +8,7 @@ DRIVER = {
   id           = "victron",
   name         = "Victron Energy GX",
   manufacturer = "Victron Energy",
-  version      = "2.2.0",
+  version      = "2.2.1",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -103,28 +103,34 @@ function driver_poll()
     -- PV (solar generation)
     ------------------------------------------------------------------
 
+    -- A read that failed is left out, never sent as 0 (docs/WRITING-A-DRIVER.md,
+    -- "Never fabricate"). PV is the sum of the parts that answered: a GX with
+    -- no DC-coupled MPPT does not answer 850, and one with no AC-coupled PV
+    -- inverter does not answer 808. With neither, there is no PV reading.
+
     -- PV AC-coupled output power: registers 808/809/810 (U16, W per phase L1/L2/L3).
     -- Sum all three phases for total AC-coupled PV.
     local pvac_regs = probe_read(808, 3, "holding")
-    local pv_ac_w = 0
-    if pvac_regs then
-        pv_ac_w = (pvac_regs[1] or 0) + (pvac_regs[2] or 0) + (pvac_regs[3] or 0)
+    local pv_ac_w
+    if pvac_regs and pvac_regs[3] ~= nil then   -- all three phases answered
+        pv_ac_w = pvac_regs[1] + pvac_regs[2] + pvac_regs[3]
     end
 
     -- PV DC-coupled MPPT output power: register 850 (U16, W)
     local pvdc_regs = probe_read(850, 1, "holding")
-    local pv_dc_w = 0
+    local pv_dc_w
     if pvdc_regs then
         pv_dc_w = pvdc_regs[1]
     end
 
-    local pv_total = pv_ac_w + pv_dc_w
-
-    -- Site convention: PV generation is negative (power flowing out of the
-    -- array into the site).
-    host.emit("pv", {
-        w = -pv_total,
-    })
+    if pv_ac_w ~= nil or pv_dc_w ~= nil then
+        local pv_total = (pv_ac_w or 0) + (pv_dc_w or 0)
+        -- Site convention: PV generation is negative (power flowing out of the
+        -- array into the site).
+        host.emit("pv", {
+            w = -pv_total,
+        })
+    end
 
     ------------------------------------------------------------------
     -- Meter (grid connection point)
@@ -133,27 +139,25 @@ function driver_poll()
     -- Grid per-phase power: 820/821/822 (I16, W), import positive (matches site).
     -- NOTE: 823-825 are genset power (not voltage), 826 is active-input source
     -- (not current). Only 820-822 are grid power registers on Venus OS unit 100.
+    -- A failed read sends no meter reading: 0 W looks like a site in balance.
     local grid_regs = probe_read(820, 3, "holding")
-    local l1_w, l2_w, l3_w = 0, 0, 0
-    if grid_regs then
-        l1_w = host.decode_i16(grid_regs[1])
-        l2_w = host.decode_i16(grid_regs[2])
-        l3_w = host.decode_i16(grid_regs[3])
+    if grid_regs and grid_regs[3] ~= nil then
+        local l1_w = host.decode_i16(grid_regs[1])
+        local l2_w = host.decode_i16(grid_regs[2])
+        local l3_w = host.decode_i16(grid_regs[3])
+
+        host.emit("meter", {
+            w    = l1_w + l2_w + l3_w,
+            l1_w = l1_w,
+            l2_w = l2_w,
+            l3_w = l3_w,
+        })
+
+        -- Diagnostics: long-format TS DB
+        host.emit_metric("meter_l1_w", l1_w)
+        host.emit_metric("meter_l2_w", l2_w)
+        host.emit_metric("meter_l3_w", l3_w)
     end
-
-    local grid_total_w = l1_w + l2_w + l3_w
-
-    host.emit("meter", {
-        w    = grid_total_w,
-        l1_w = l1_w,
-        l2_w = l2_w,
-        l3_w = l3_w,
-    })
-
-    -- Diagnostics: long-format TS DB
-    host.emit_metric("meter_l1_w", l1_w)
-    host.emit_metric("meter_l2_w", l2_w)
-    host.emit_metric("meter_l3_w", l3_w)
 
     ------------------------------------------------------------------
     -- Battery
