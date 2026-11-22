@@ -234,14 +234,14 @@ drivers:
     size_bytes: 13358
     sha256: "997fc712c5ef0336620fd5d628175c4df831e26b7826b9fdc36f56b5ca3f69d7"
   - name: "ferroamp_modbus"
-    version: "2.2.0"
+    version: "2.2.1"
     tier: core
     protocol: modbus
     connectivity: local
     ders: [battery, meter, pv]
     control: false
-    size_bytes: 11874
-    sha256: "3e3351c71255b5d1400c28b122311ece46acaaec95521d0737d3809e8f1528a4"
+    size_bytes: 12099
+    sha256: "b37f6356e8010a80f7c9477e70a582b7f16eba359858bb9fd43f6c3530a0f306"
   - name: "foxess_h3_smart"
     version: "0.10.0"
     tier: community
@@ -797,14 +797,14 @@ drivers:
     size_bytes: 3453
     sha256: "198a19deb76ee9ebc3b693922240ceafe61f32b7ce467bbc142a0b0f7b7f9e77"
   - name: "victron"
-    version: "2.2.0"
+    version: "2.2.1"
     tier: community
     protocol: modbus
     connectivity: local
     ders: [pv, battery, meter]
     control: false
-    size_bytes: 8877
-    sha256: "d2eb6bee7bb4c0fb1620264133721ec00cf6a1477ce75e7e51469b7b6a447022"
+    size_bytes: 9392
+    sha256: "246369f9a66d9b667ea423cdc6c972d6a93e57828b1e8518e1a118ecb4b7c10a"
   - name: "victron_mqtt"
     version: "1.2.0"
     tier: community

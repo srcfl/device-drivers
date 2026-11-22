@@ -527,7 +527,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.2.0",
+      "catalog_version": "2.2.1",
       "driver_id": "ferroamp_modbus",
       "targets": {
         "blixt-l1": {
@@ -1787,7 +1787,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.2.0",
+      "catalog_version": "2.2.1",
       "driver_id": "victron",
       "targets": {
         "blixt-l1": {

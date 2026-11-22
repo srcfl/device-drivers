@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### victron 2.2.1, ferroamp_modbus 2.2.1
+
+A failed read no longer sends 0 on the meter and PV streams
+(docs/WRITING-A-DRIVER.md, "Never fabricate"). A 0 W meter reading looks
+like a site in balance. Each field now comes only from a register that
+answered, and each stream only from its power read. 2.2.0 did the same for
+the battery.
+
+- **victron 2.2.1** sends the meter reading only when the grid power read
+  (820-822) answers. PV is the sum of the AC-coupled (808-810) and
+  DC-coupled (850) parts that answered; with neither, there is no PV
+  reading.
+- **ferroamp_modbus 2.2.1** sends the meter reading only when the grid
+  power (3100) answers, and the PV reading only when the solar power (5100)
+  answers. Frequency, voltages, currents and energy counters are left out
+  when their read fails; per-phase watts need both voltage and current. A
+  reply with fewer registers than asked for counts as failed, since the
+  missing word decoded as 0. Fields that did answer still go to history as
+  metrics.
+
+Both drivers leave `drivers/tests/invented-number-baseline.json`. Not yet
+checked on hardware.
+
 ### victron_mqtt 1.2.0
 
 Venus OS publishes MQTT values only while some client sends a keep-alive to
