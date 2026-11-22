@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### growatt 2.2.1
+
+`battery.w` had the wrong sign: a charging battery showed as discharging and
+the reverse. Growatt's Modbus RTU Protocol II V1.39 puts discharge power
+(Pdischarge1) at 1009-1010 and charge power (Pcharge1) at 1011-1012, and
+Growatt-Local-Modbus maps them the same way. The driver read them the other
+way round. It now reads them as the protocol says, so charge is positive.
+The driver is read-only, so no command went the wrong way. Not yet checked
+on hardware: on a Growatt, `battery.w` should be positive while the SoC
+rises.
+
 ### goodwe 2.2.0, solis 2.2.0, sofar 2.2.0, solax 1.2.0, saj 1.3.0, growatt 2.2.0, solinteg 1.2.0
 
 These drivers report what the battery can do now, where the device says so

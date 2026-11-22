@@ -522,7 +522,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -533,7 +533,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -544,7 +544,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -555,7 +555,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -566,7 +566,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -577,7 +577,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.2.0"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
