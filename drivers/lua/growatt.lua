@@ -21,7 +21,7 @@ DRIVER = {
   id           = "growatt",
   name         = "Growatt hybrid inverter",
   manufacturer = "Growatt",
-  version      = "2.2.0",
+  version      = "2.2.1",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -165,18 +165,22 @@ function driver_poll()
 
     -- ---- Battery ----
 
-    -- Battery charge power: 1009-1010, U32 BE × 0.1 W
-    local bchgw_regs = probe_read(1009, 2, "input")
-    local bat_charge_w = 0
-    if bchgw_regs then
-        bat_charge_w = host.decode_u32_be(bchgw_regs[1], bchgw_regs[2]) * 0.1
-    end
-
-    -- Battery discharge power: 1011-1012, U32 BE × 0.1 W
-    local bdisw_regs = probe_read(1011, 2, "input")
+    -- Growatt Modbus RTU Protocol II V1.39 puts discharge first:
+    --   1009-1010  Pdischarge1  discharge power, U32 BE × 0.1 W
+    --   1011-1012  Pcharge1     charge power,    U32 BE × 0.1 W
+    -- Growatt-Local-Modbus maps them the same way. Up to 2.2.0 this driver
+    -- read them the other way round and showed charging as discharging
+    -- (srcfl/device-drivers#263).
+    local bdisw_regs = probe_read(1009, 2, "input")
     local bat_discharge_w = 0
     if bdisw_regs then
         bat_discharge_w = host.decode_u32_be(bdisw_regs[1], bdisw_regs[2]) * 0.1
+    end
+
+    local bchgw_regs = probe_read(1011, 2, "input")
+    local bat_charge_w = 0
+    if bchgw_regs then
+        bat_charge_w = host.decode_u32_be(bchgw_regs[1], bchgw_regs[2]) * 0.1
     end
 
     -- Net battery power: positive = charging, negative = discharging (site convention).
