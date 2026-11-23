@@ -1063,13 +1063,14 @@ function driver_poll()
                     problem = nil
                 end
             end
-            if not problem then
-                for id in pairs(OBS_WANTED) do
-                    if id ~= OBS_OP_MODE and id ~= OBS_TOTAL_POWER and
-                       (values[id] ~= nil or stamps[id] ~= nil) then
-                        apply(id)
-                    end
+            -- Apply independent readings even if this poll cannot confirm power.
+            for id in pairs(OBS_WANTED) do
+                if id ~= OBS_OP_MODE and id ~= OBS_TOTAL_POWER and
+                   (values[id] ~= nil or stamps[id] ~= nil) then
+                    apply(id)
                 end
+            end
+            if not problem then
                 if streaming and not stream_owed then stream_failures = 0 end
                 heard_ms, rest_read = now, true
             end

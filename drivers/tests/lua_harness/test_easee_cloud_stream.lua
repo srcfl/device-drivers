@@ -318,6 +318,27 @@ end
 assert(waited == 4, "a missed change stopped the stream after " .. waited .. " polls, not 10 s")
 assert(logged("missed a change REST saw"), "the missed change was not logged")
 
+-- An invalid REST power stamp still lets a newer energy reading reach
+-- the stream reconciliation logic, without reporting the rejected power.
+setup(true)
+connect()
+push(update(121, "12.5", "2026-10-24T10:00:01Z"))
+tick()
+host._http_responses["/observations?ids="] = host.json_encode({
+    {id=109, value=3, timestamp="2026-10-24T09:00:00Z"},
+    {id=120, value=0, timestamp="invalid"},
+    {id=121, value=13, timestamp="2026-10-24T10:00:40Z"},
+})
+local reads_before_partial = rest_reads()
+local before_partial
+repeat
+    before_partial = select(2, samples())
+    tick()
+until rest_reads() > reads_before_partial
+assert(select(2, samples()) == before_partial, "invalid REST power emitted a sample")
+for _ = 1, 5 do tick() end
+assert(logged("missed a change REST saw"), "invalid REST power hid a newer energy reading")
+
 -- 12. A pushed reading Core cannot read is skipped and owed; a pushed
 -- op_mode 0 stops reports and says why.
 setup(true)
