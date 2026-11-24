@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.4.2
+
+REST and SignalR compare TotalPower source times on the same UTC timeline.
+Older readings and conflicting values at one instant cannot replace newer
+power. A disconnect clears the power watermark. If the source clock moves
+back, advancing readings on the lower timeline can restore telemetry after
+30 seconds.
+
 ### victron_mqtt 1.2.1
 
 The manifest declares `R/+/keepalive` in `mqtt_read_request_topics`, so the
