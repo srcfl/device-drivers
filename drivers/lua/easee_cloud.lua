@@ -29,7 +29,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.4.5",
+  version      = "1.5.0",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -352,6 +352,13 @@ local function source_time_key(stamp)
     if days < 0 then return nil end
     return string.format("%07d%05d", days, seconds % 86400) .. "." .. fraction
 end
+-- source_key_unix_ms turns a source_time_key back into Unix milliseconds,
+-- whole seconds only: the key is seven digits of days, five of seconds.
+local function source_key_unix_ms(key)
+    -- Floats: the host's integers may be 32-bit.
+    return (tonumber(key:sub(1, 7)) * 86400.0 + tonumber(key:sub(8, 12))) * 1000.0
+end
+
 local POWER_CLOCK_RECOVERY_MS = 30000
 local power_key, power_value, power_stamp
 local recovery_key, recovery_since
@@ -364,6 +371,8 @@ local function reset_power_order()
     stream_power_problem, last_power_observed_at = nil, nil
     latest[OBS_TOTAL_POWER], latest_at[OBS_TOTAL_POWER], latest_pushed[OBS_TOTAL_POWER] = nil, nil, nil
 end
+
+local observation_confirmed_ms, observation_confirmed_wall_ms = {}, {}
 
 -- A repeated cached reading cannot move the clock back. Require a
 -- strictly advancing source instant after 30 s on the lower timeline.
@@ -411,6 +420,8 @@ local function note_observation(id, value, at, pushed, now)
     end
     latest[id], latest_at[id], latest_pushed[id] = value, at, pushed
     if id == OBS_OP_MODE and value == 1 then reset_power_order() end
+    observation_confirmed_ms[id] = host.millis()
+    observation_confirmed_wall_ms[id] = host.unix_ms and host.unix_ms() or nil
     return not pushed and newer and changed
 end
 
@@ -1292,10 +1303,18 @@ function driver_poll()
     if dyn_current ~= order_seen_a then order_seen_a, order_seen_ms = dyn_current, now end
     local order_at = source_time_key(timestamps[OBS_DYN_CURRENT])
     local order_settled = now - order_seen_ms >= ORDER_SETTLE_MS
-    local function answering(id)
+    local function confirmed_current(id)
         local value, value_at = obs[id], source_time_key(timestamps[id])
-        if type(value) ~= "number" then return nil end
-        if order_settled or (value_at and order_at and value_at >= order_at) then return value end
+        if type(value) ~= "number" or value ~= value or value < 0 or value > 80 or not value_at then return nil end
+        local confirmed = observation_confirmed_ms[id]
+        if not confirmed or now - confirmed > REST_FRESH_MS then return nil end
+        local wall = host.unix_ms and host.unix_ms() or nil
+        if wall and source_key_unix_ms(value_at) > wall then return nil end
+        return value, value_at
+    end
+    local function answering(id)
+        local value, value_at = confirmed_current(id)
+        if value ~= nil and (order_settled or (value_at and order_at and value_at >= order_at)) then return value end
         return nil
     end
     -- The charger must hold FTW's last order: while it reads back an older
@@ -1343,6 +1362,7 @@ function driver_poll()
         if held_a then current_limit_a, current_limited_by = held_a, "load_balancer" end
     end
 
+    local raw_pilot = confirmed_current(OBS_OUTPUT_CURRENT)
     local limit_age_s = device_limit_read_ms and (host.millis() - device_limit_read_ms) / 1000
     host.emit("ev", {
         w                       = power_w,
@@ -1379,6 +1399,10 @@ function driver_poll()
         device_limit_age_s      = limit_age_s,
         current_limit_a         = current_limit_a,             -- A signalled to the car, below the order
         current_limited_by      = current_limited_by,          -- "load_balancer" or nil
+        pilot_a                 = raw_pilot,
+        pilot_observed_at       = raw_pilot ~= nil and timestamps[OBS_OUTPUT_CURRENT] or nil,
+        pilot_confirmed_at_ms   = raw_pilot ~= nil and observation_confirmed_wall_ms[OBS_OUTPUT_CURRENT] or 0,
+        dynamic_limit_a         = dyn_current,
         max_a                   = dyn_current,                 -- last-set dynamic limit (echoes our write, may lag)
         actual_amps_per_phase   = actual_amps_per_phase,       -- live per-phase A derived from totalPower
         phases                  = phases,                      -- our committed phase count (1 or 3)
