@@ -38,9 +38,9 @@ local function count_cmd(path)
 end
 
 local observation_sequence = 0
-local function poll(mode, kw)
+local function poll(mode, kw, stamp)
     observation_sequence = observation_sequence + 1
-    local stamp = string.format("2026-01-01T08:00:00.%06dZ", observation_sequence)
+    stamp = stamp or string.format("2026-01-01T08:00:00.%06dZ", observation_sequence)
     host._http_responses["/observations?ids="] = host.json_encode({
         {id=109,value=mode}, {id=120,value=kw or 0,timestamp=stamp}, {id=121,value=1}, {id=124,value=100},
     })
@@ -242,5 +242,28 @@ assert(last_amps() == 7)
 later(5000)
 poll(2)
 assert(last_amps() == 0, "re-assert after default mode wrote the cleared boost's 7 A")
+
+-- 18. A rejected power timestamp cannot establish a stopped charger after
+-- reload, or falsely report charging and end a boost. Fresh data recovers.
+boot()
+poll(2, 0, "invalid")
+assert(order(4140)); assert(last_amps() == 6, "invalid first observation enabled boost")
+poll(2)
+assert(order(4140)); assert(last_amps() == 7)
+local rows = #(host._emitted.ev or {})
+poll(3, 4.8, "2025-12-31T10:00:01Z")
+assert(#(host._emitted.ev or {}) == rows, "stale power emitted during boost")
+assert(last_amps() == 7, "stale charging observation ended boost")
+poll(3, 4.8)
+assert(last_amps() == 6, "fresh charging observation did not end boost")
+
+-- 19. Rejecting old data must not prevent the bounded boost timing out.
+boot()
+poll(2)
+assert(order(4140)); assert(last_amps() == 7)
+later(91000)
+poll(2, 0, "2025-12-31T10:00:00Z")
+assert(last_amps() == 6, "rejected observation extended boost past timeout")
+assert(order(4140)); assert(last_amps() == 6, "boost restarted after rejection and timeout")
 
 print("easee_cloud start boost: ok")

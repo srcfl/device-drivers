@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.4.4
+
+Report the current Easee signals below FTW's order (observation 114, the
+pilot), and attribute the limit to load balancing when the circuit
+allocation (observations 70-72) supports it. Require a usable allocation on
+all three phases when the active phase of a one-phase car is unknown.
+ReasonForNoCurrent labels now follow Easee's enumeration table
+(developer.easee.com/docs/enumerations). Power ordering is the one from
+1.4.2 (#183).
+
 ### easee_cloud 1.4.3
 
 The driver re-sends its current limit as a charger command. Easee puts the

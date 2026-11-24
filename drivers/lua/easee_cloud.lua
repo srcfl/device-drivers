@@ -29,7 +29,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.4.3",
+  version      = "1.4.4",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -294,9 +294,11 @@ end
 
 -- Observation IDs (from developer.easee.com/docs/charger-observation-ids)
 local OBS_DYN_CURRENT     = 48
+local OBS_ALLOCATED_L1    = 70   -- circuit total allocated current L1; L2 71, L3 72
 local OBS_REASON_NO_CUR   = 96
 local OBS_CABLE_LOCKED    = 103
 local OBS_OP_MODE         = 109
+local OBS_OUTPUT_CURRENT  = 114  -- current signalled to the car with the pilot
 local OBS_TOTAL_POWER     = 120
 local OBS_SESSION_ENERGY  = 121
 local OBS_LIFETIME_ENERGY = 124
@@ -304,7 +306,7 @@ local OBS_CURRENT         = 183
 local OBS_VOLTAGE         = 194
 local OBS_SESSION_START   = 223
 
-local OBS_IDS = "48,96,103,109,120,121,124,183,194,223"
+local OBS_IDS = "48,70,71,72,96,103,109,114,120,121,124,183,194,223"
 local OBS_WANTED = {}
 for id in OBS_IDS:gmatch("%d+") do OBS_WANTED[tonumber(id)] = true end
 
@@ -682,7 +684,7 @@ local function owe(id, key, value, now, why)
 end
 
 -- stream_update records a pushed sample. One Core could not read, with a
--- time that is not RFC 3339 UTC, is skipped, and so is a state, power or
+-- time that is not RFC 3339, is skipped, and so is a state, power or
 -- energy reading that is not a number; the stream then owes that reading.
 -- Before the subscription completes the stream replays its current state,
 -- which can be older than a REST read just before it; the newer one stays.
@@ -815,18 +817,18 @@ local REASON_LABELS = {
     [3]   = "offline fallback circuit current too low",
     [4]   = "circuit fuse too low",
     [5]   = "waiting in queue",
-    [6]   = "waiting (other cars fully charged)",
+    [6]   = "waiting in fully charged queue",
     [7]   = "illegal grid type",
-    [8]   = "no current request from primary",
-    [9]   = "max dynamic charger current too low",
-    [10]  = "phase imbalance",
-    [11]  = "equalizer communication lost",
-    [25]  = "equalizer dynamic limit too low",
-    [26]  = "equalizer static limit too low",
-    [27]  = "offline fallback equalizer too low",
-    [28]  = "fuse limit reached",
-    [29]  = "current limited by equalizer",
-    [30]  = "current limited by offline equalizer",
+    [8]   = "no current request from car",
+    [9]   = "master communication lost",
+    [10]  = "equalizer current too low",
+    [11]  = "phase not connected",
+    [25]  = "current limited by circuit fuse",
+    [26]  = "current limited by circuit max current",
+    [27]  = "current limited by dynamic circuit current",
+    [28]  = "current limited by equalizer",
+    [29]  = "current limited by circuit load balancing",
+    [30]  = "current limited by offline settings",
     [50]  = "secondary unit not requesting current",
     [51]  = "max charger current too low",
     [52]  = "max dynamic charger current too low",
@@ -837,7 +839,7 @@ local REASON_LABELS = {
     [57]  = "erratic EV",
     [75]  = "limited by cable rating",
     [76]  = "limited by schedule",
-    [77]  = "limited by charger current",
+    [77]  = "limited by charger max current",
     [78]  = "limited by dynamic charger current",
     [79]  = "car not drawing current",
     [80]  = "current ramping",
@@ -850,6 +852,23 @@ local REASON_LABELS = {
     -- problem when the wallbox is fine.
     [100] = "EV not accepting current",
 }
+
+-- Easee's own load balancing can hold the car below FTW's order. In a field
+-- trace (srcfl/ftw#1763, 23 Oct 2026) FTW ordered 15 A and the charger read
+-- back 15 A (observation 48), while the circuit's allocated current (70-72)
+-- and the current signalled to the car (114) fell to 12, 14 and 13 A; the
+-- car took 8.2-8.9 kW instead of 10.4 kW. Easee records a value when it
+-- changes, so a value answers the order when it was recorded at or after
+-- the order, or when the order has stood ORDER_SETTLE_MS since the driver
+-- saw it and the value has not moved.
+local ORDER_SETTLE_MS = 30000
+local order_seen_a, order_seen_ms = nil, 0
+-- When Easee lets the car take the order again, the car needs a few seconds
+-- to draw it and the cloud to report that. Until then the reading still
+-- shows the old limit's draw, so the old limit is kept for up to
+-- LIMIT_RELEASE_HOLD_MS while the car charges below the order.
+local LIMIT_RELEASE_HOLD_MS = 20000
+local last_limit_a, last_limited_by, last_limit_ms = nil, nil, nil
 
 local email, password, configured_max_a
 local device_limit_a, device_limit_read_ms
@@ -1220,6 +1239,54 @@ function driver_poll()
         request_active = false
     end
 
+    -- current_limit_a is the current signalled to the car while it is below
+    -- the order the charger holds and answers it. current_limited_by names
+    -- the load balancer only when the circuit's allocation is below the order
+    -- too and no higher than that current, so the allocation explains it.
+    -- ReasonForNoCurrent is not used here: an older reason is not proof.
+    if dyn_current ~= order_seen_a then order_seen_a, order_seen_ms = dyn_current, now end
+    local order_at = source_time_key(timestamps[OBS_DYN_CURRENT])
+    local order_settled = now - order_seen_ms >= ORDER_SETTLE_MS
+    local function answering(id)
+        local value, value_at = obs[id], source_time_key(timestamps[id])
+        if type(value) ~= "number" then return nil end
+        if order_settled or (value_at and order_at and value_at >= order_at) then return value end
+        return nil
+    end
+    -- The charger must hold FTW's last order: while it reads back an older
+    -- one, the pilot may be following the new order. The charger's own
+    -- static limit is device_limit_a, not its load balancing.
+    local current_limit_a, current_limited_by = nil, nil
+    local pilot_a = answering(OBS_OUTPUT_CURRENT)
+    if charging and type(dyn_current) == "number" and last_amps_set ~= nil and
+       math.abs(last_amps_set - dyn_current) <= 0.5 and
+       pilot_a and pilot_a > 0 and pilot_a < dyn_current - 0.5 then
+        current_limit_a = pilot_a
+        local low, high, n = nil, nil, 0
+        for id = OBS_ALLOCATED_L1, OBS_ALLOCATED_L1 + 2 do
+            local a = answering(id)
+            if a then
+                n, high = n + 1, math.max(high or a, a)
+                if a > 0 then low = math.min(low or a, a) end
+            end
+        end
+        -- A three-phase car gets the lowest share of the phases it uses; a
+        -- phase with none is not one of them. For a one-phase car the
+        -- active phase is unknown, so use the highest of all three.
+        local allocated_a = n == 3 and ((phases == 1) and high or low) or nil
+        local own_limit = device_limit_a ~= nil and pilot_a >= device_limit_a - 0.5
+        if allocated_a and allocated_a > 0 and allocated_a < dyn_current - 0.5 and allocated_a <= pilot_a + 0.5 and
+           not own_limit then
+            current_limited_by = "load_balancer"
+        end
+    end
+    if current_limit_a then
+        last_limit_a, last_limited_by, last_limit_ms = current_limit_a, current_limited_by, now
+    elseif last_limit_ms and now - last_limit_ms < LIMIT_RELEASE_HOLD_MS and charging and
+           type(dyn_current) == "number" and actual_amps_per_phase and actual_amps_per_phase < dyn_current - 1 then
+        current_limit_a, current_limited_by = last_limit_a, last_limited_by
+    end
+
     local limit_age_s = device_limit_read_ms and (host.millis() - device_limit_read_ms) / 1000
     host.emit("ev", {
         w                       = power_w,
@@ -1254,6 +1321,8 @@ function driver_poll()
         cable_locked            = cable_locked,
         device_limit_a          = device_limit_a,
         device_limit_age_s      = limit_age_s,
+        current_limit_a         = current_limit_a,             -- A signalled to the car, below the order
+        current_limited_by      = current_limited_by,          -- "load_balancer" or nil
         max_a                   = dyn_current,                 -- last-set dynamic limit (echoes our write, may lag)
         actual_amps_per_phase   = actual_amps_per_phase,       -- live per-phase A derived from totalPower
         phases                  = phases,                      -- our committed phase count (1 or 3)
