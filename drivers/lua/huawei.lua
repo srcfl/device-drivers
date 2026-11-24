@@ -7,6 +7,11 @@
 --
 -- Reference: Huawei SUN2000 Modbus Interface Definition
 -- (inverter + LUNA2000 battery module via SDongle / embedded Modbus TCP).
+-- The battery and limit registers below were checked against Huawei's
+-- "Solar Inverter Modbus Interface Definitions", issue 02 (2021-08-12) and
+-- issue 05 (2023-02-16), table 3-2 "Battery Equipment Register". Huawei does
+-- not publish that document at a public URL of its own; the copies found
+-- were forum uploads, so it is named here instead of in upstream_docs.
 --
 -- Sign convention (site convention — positive W = INTO the site):
 --   pv.w:       always negative (generation)
@@ -23,7 +28,7 @@ DRIVER = {
   id           = "huawei",
   name         = "Huawei SUN2000 Hybrid Inverter",
   manufacturer = "Huawei",
-  version      = "2.1.3",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -42,6 +47,11 @@ DRIVER = {
 PROTOCOL = "modbus"
 
 local sn_read = false
+
+-- True once energy storage unit 1 has reported a rated charge or discharge
+-- power above 0 (37007/37009). Kept for the run, since a rating does not
+-- change while the inverter runs; a restart reads it again.
+local esu1_rated = false
 
 ----------------------------------------------------------------------------
 -- Helpers
@@ -96,6 +106,27 @@ local function probe_read(addr, count, kind)
     return nil
 end
 
+-- What the battery can do now (docs/WRITING-A-DRIVER.md). A value outside
+-- these bounds is a sentinel or a decoding slip, not a reading, so it is
+-- left out rather than sent.
+--
+-- A temperature in tenths of a degree, as the register holds it. Compared
+-- in tenths so -40.0 and 100.0 stay in on any float width.
+local function temp_c_from_tenths(tenths)
+    if tenths < -400 or tenths > 1000 then return nil end
+    return tenths * 0.1
+end
+
+local function plausible_power_w(v)
+    if v == nil or v ~= v or v < 0 or v > 100000 then return nil end
+    return v
+end
+
+local function positive_w(v)
+    local w = plausible_power_w(v)
+    return w ~= nil and w > 0
+end
+
 ----------------------------------------------------------------------------
 -- Initialization
 ----------------------------------------------------------------------------
@@ -148,11 +179,12 @@ function driver_poll()
         pv_w = host.decode_i32_be(pvw_regs[1], pvw_regs[2]) * 0.001 * 1000
     end
 
-    -- Inverter temperature: 32087, I16 × 0.1 °C
+    -- Inverter internal temperature: 32087, I16 × 0.1 °C. Left out when the
+    -- read fails: 0 °C is a reading, not a placeholder.
     local itemp_regs = probe_read(32087, 1, "holding")
-    local inv_temp = 0
+    local inv_temp = nil
     if itemp_regs then
-        inv_temp = host.decode_i16(itemp_regs[1]) * 0.1
+        inv_temp = temp_c_from_tenths(host.decode_i16(itemp_regs[1]))
     end
 
     -- PV lifetime yield: 32106-32107, U32 BE × 0.01 kWh → × 1000 for Wh
@@ -193,11 +225,63 @@ function driver_poll()
         bat_a = host.decode_i16(ba_regs[1]) * 0.1
     end
 
-    -- Battery temperature: 37022, I16 × 0.1 °C
-    local btemp_regs = probe_read(37022, 1, "holding")
-    local bat_temp = 0
-    if btemp_regs then
-        bat_temp = host.decode_i16(btemp_regs[1]) * 0.1
+    -- Is a battery fitted? A SUN2000 with no LUNA2000 may still answer the
+    -- battery registers, with 0, so an answer alone proves nothing. Its
+    -- temperature would then read 0 °C and its limits 0 W, "may not charge
+    -- now". 37007-37008 "[Energy storage unit 1] Rated charge power" and
+    -- 37009-37010 "Rated discharge power" (U32 BE, W) say whether a unit is
+    -- there: a rating above 0 does. Until one is seen it is read on each poll
+    -- the battery answers, so a pack found late is picked up.
+    -- Only unit 1 is read, as for power and SoC above; a second unit
+    -- (37700-37755) is not.
+    if not esu1_rated and (bw_regs or bsoc_regs) then
+        local rated_regs = probe_read(37007, 4, "holding")
+        if rated_regs and rated_regs[4] ~= nil then
+            esu1_rated =
+                positive_w(host.decode_u32_be(rated_regs[1], rated_regs[2])) or
+                positive_w(host.decode_u32_be(rated_regs[3], rated_regs[4]))
+        end
+    end
+
+    -- Battery temperature: 37022, I16 × 0.1 °C, "[Energy storage unit 1]
+    -- battery temperature" -- the LUNA2000's own value, not the inverter's.
+    -- Left out when the read fails or no unit is fitted: 0 °C looks like a
+    -- cold battery.
+    -- Per-pack maximum and minimum temperatures are documented too
+    -- (38452-38463, I16 × 0.1 °C, two per pack for three packs on each of two
+    -- ESUs), but Huawei does not say what a pack slot with no pack answers,
+    -- so they are not read: a 0 there would pass for a real cell reading.
+    local bat_temp = nil
+    if esu1_rated then
+        local btemp_regs = probe_read(37022, 1, "holding")
+        if btemp_regs then
+            bat_temp = temp_c_from_tenths(host.decode_i16(btemp_regs[1]))
+        end
+    end
+
+    -- What the battery may charge and discharge at now:
+    -- 37046-37047 "[Energy storage] Maximum charge power" and 37048-37049
+    -- "Maximum discharge power", U32 BE, W, read-only. Huawei defines each as
+    -- the smaller of the inverter's and the connected ESU's charge/discharge
+    -- capability, and keeps the ESU's rated charge/discharge power apart at
+    -- 37007/37009. It does not say whether the value follows the BMS (for a
+    -- cold or full pack), and no one has seen it move on hardware: it is the
+    -- device's own limit, not shown to be live. If a site shows it flat while
+    -- the battery is held back, it is a rating and does not belong in
+    -- available_*.
+    -- Read only when unit 1 is fitted (above), so a SUN2000 with no LUNA2000
+    -- never reports "may not charge now" for a battery it does not have.
+    local avail_charge_w, avail_discharge_w = nil, nil
+    if esu1_rated then
+        local lim_regs = probe_read(37046, 4, "holding")
+        if lim_regs and lim_regs[2] ~= nil then
+            avail_charge_w = plausible_power_w(
+                host.decode_u32_be(lim_regs[1], lim_regs[2]))
+        end
+        if lim_regs and lim_regs[4] ~= nil then
+            avail_discharge_w = plausible_power_w(
+                host.decode_u32_be(lim_regs[3], lim_regs[4]))
+        end
     end
 
     -- Battery charge/discharge lifetime energy: 37066-37069, U32 BE × 0.01 kWh pairs.
@@ -280,21 +364,33 @@ function driver_poll()
     host.emit_metric("pv_mppt1_a",      pv1_a)
     host.emit_metric("pv_mppt2_v",      pv2_v)
     host.emit_metric("pv_mppt2_a",      pv2_a)
-    host.emit_metric("inverter_temp_c", inv_temp)
+    if inv_temp ~= nil then
+        host.emit_metric("inverter_temp_c", inv_temp)
+    end
 
-    -- Battery telemetry.
+    -- Battery telemetry. A field set to nil is left out of the table.
     host.emit("battery", {
-        w            = bat_w,
-        v            = bat_v,
-        a            = bat_a,
-        soc          = bat_soc,
-        temp_c       = bat_temp,
-        charge_wh    = bat_charge_wh,
-        discharge_wh = bat_discharge_wh,
+        w                     = bat_w,
+        v                     = bat_v,
+        a                     = bat_a,
+        soc                   = bat_soc,
+        temp_c                = bat_temp,
+        charge_wh             = bat_charge_wh,
+        discharge_wh          = bat_discharge_wh,
+        available_charge_W    = avail_charge_w,
+        available_discharge_W = avail_discharge_w,
     })
     host.emit_metric("battery_dc_v",    bat_v)
     host.emit_metric("battery_dc_a",    bat_a)
-    host.emit_metric("battery_temp_c",  bat_temp)
+    if bat_temp ~= nil then
+        host.emit_metric("battery_temp_c", bat_temp)
+    end
+    if avail_charge_w ~= nil then
+        host.emit_metric("battery_available_charge_w", avail_charge_w)
+    end
+    if avail_discharge_w ~= nil then
+        host.emit_metric("battery_available_discharge_w", avail_discharge_w)
+    end
 
     -- Negate meter power + per-phase power + per-phase current to site convention
     -- (positive = import from grid).
@@ -347,4 +443,5 @@ end
 
 function driver_cleanup()
     sn_read = false
+    esu1_rated = false
 end

@@ -148,7 +148,7 @@ DRIVER = {
     id = "konja-261-svk",
     name = "Konja MG 261 kWh / 125 kW C&I BESS (SvK)",
     manufacturer = "Konja Power",
-    version = "0.3.2",
+    version = "0.4.0",
     protocols = { "modbus" },
     capabilities = { "battery", "meter" },
     read_only = false,
@@ -295,7 +295,36 @@ local last_ems_status_word = nil
 local last_bms_status_word = nil
 local last_pcs_status_word = nil
 
-local avail_charge_w, avail_discharge_w = nil, nil
+-- ── What the battery can do now ──────────────────────────────────────
+-- docs/WRITING-A-DRIVER.md, "What a battery can do now". Everything comes
+-- from the BMS and PCS bundles driver_poll already reads on every poll,
+-- so this adds no Modbus traffic:
+--
+--   2750       BMS average temperature  int16, 0.1 °C  → temperature_C
+--   2758-2759  BMS max charge power     uint32, 0.1 kW → available_charge_W
+--   2760-2761  BMS max discharge power  uint32, 0.1 kW → available_discharge_W
+--   2755       BMS forbid flag  0x55 charge / 0xCC discharge / 0xAA both
+--              forbidden → that direction's available power is 0
+--   8059       PCS IGBT temperature     int16, 0.1 °C  → inverter_temp_c
+--
+-- LIVE OR NOT: 2758-2761 are read-only (FC04) values in the BMS block,
+-- and the forbid flag beside them is plainly live. The workbook rows as
+-- quoted in this driver do not say outright that the powers follow
+-- temperature and SoC, so treating them as live is unconfirmed. They are
+-- not PCS 8255/8256 or EMS 304/306: those are settings (driver_init).
+--
+-- No grid headroom (available_import_W / available_export_W): no row this
+-- driver decodes gives one.
+--
+-- Bounds: -40..100 °C for the battery, -40..150 °C for the IGBT (power
+-- electronics run hotter than cells and derate above 100 °C), 0..1000 kW
+-- for power (a 125 kW cabinet; more is a bad read or a not-present
+-- sentinel). Out of range is left out, never sent as 0.
+local LIMITS = {
+    MAX_W      = 1000000,
+    EVERY_MS   = 10000,   -- history metrics: one row per 10 s, not 20 Hz
+    metrics_ms = 0,
+}
 
 -- ---------------------------------------------------------------------
 -- Sign convention — the ONLY place the flip happens.
@@ -504,6 +533,62 @@ local function now_ms()
         if ok and type(v) == "number" then return v end
     end
     return 0
+end
+
+-- A number inside [lo, hi], else nil. Also drops NaN and infinities.
+local function within(v, lo, hi)
+    if type(v) ~= "number" or v ~= v or v < lo or v > hi then return nil end
+    return v
+end
+
+-- Battery temperature and the BMS's live power limits from one BMS
+-- bundle. A forbidden direction is 0 W: the BMS says no, now.
+local function battery_limits(bms)
+    local t_raw = s16(bms[B.AVG_TEMP])
+    local temp_c = within(t_raw and t_raw / 10.0, -40, 100)
+    local chg_p = u32_be(bms[B.MAX_CHG_P], bms[B.MAX_CHG_P + 1])
+    local dis_p = u32_be(bms[B.MAX_DIS_P], bms[B.MAX_DIS_P + 1])
+    -- Bound the raw 0.1 kW count before scaling, so a 32-bit Lua build
+    -- cannot wrap a huge value back into range.
+    local chg_w = within(chg_p, 0, LIMITS.MAX_W / 100)
+    local dis_w = within(dis_p, 0, LIMITS.MAX_W / 100)
+    if chg_w then chg_w = chg_w * 100 end   -- 0.1 kW → W
+    if dis_w then dis_w = dis_w * 100 end
+
+    -- BMS charge/discharge FORBID gate (2755). Without this the
+    -- arbitrator keeps dispatching into a direction the BMS has
+    -- vetoed, the self-heal probe reports a permanent delivery
+    -- shortfall, and nothing says why. Zeroing the matching
+    -- availability makes the veto visible to the arbitrator.
+    local forbid = bms[B.FORBIDDEN]
+    if forbid == 0x55 then           -- charge forbidden
+        chg_w = 0
+    elseif forbid == 0xCC then       -- discharge forbidden
+        dis_w = 0
+    elseif forbid == 0xAA then       -- both forbidden
+        chg_w, dis_w = 0, 0
+    end
+    return temp_c, chg_w, dis_w
+end
+
+-- History for the values above, read this poll. At most once per
+-- LIMITS.EVERY_MS: at the 20 Hz poll, every poll would be 80 rows a
+-- second. Without a host clock, on the slow-path polls instead.
+local function emit_limit_metrics(temp_c, chg_w, dis_w, inverter_c)
+    local now = now_ms()
+    if now > 0 then
+        if LIMITS.metrics_ms > 0 and now >= LIMITS.metrics_ms
+           and now - LIMITS.metrics_ms < LIMITS.EVERY_MS then
+            return
+        end
+        LIMITS.metrics_ms = now
+    elseif not (poll_count == 1 or (poll_count % SLOW_STATUS_EVERY_POLLS) == 0) then
+        return
+    end
+    if temp_c then host.emit_metric("battery_temp_c", temp_c, "°C") end
+    if chg_w then host.emit_metric("battery_available_charge_w", chg_w, "W") end
+    if dis_w then host.emit_metric("battery_available_discharge_w", dis_w, "W") end
+    if inverter_c then host.emit_metric("inverter_temp_c", inverter_c, "°C") end
 end
 
 -- ---------------------------------------------------------------------
@@ -1043,7 +1128,7 @@ function driver_poll()
         local a_raw = s16(pcs[P.BAT_A])
         if a_raw then bat_a = k2s(a_raw) / 10.0 end        -- 0.1 A, +discharge
         local t_raw = s16(pcs[P.IGBT_C])
-        if t_raw then igbt_c = t_raw / 10.0 end
+        igbt_c = within(t_raw and t_raw / 10.0, -40, 150)
 
         -- PCS derating + grid state, logged on change. Thermal derate
         -- during a 15-minute FCR-D endurance run silently caps output;
@@ -1081,11 +1166,14 @@ function driver_poll()
         -- safe on both runtimes.
         dc_w = math.floor(bat_v * bat_a + 0.5)
     end
+    -- What was measured, for the emit: nil when the PCS did not answer.
+    -- The control path below keeps its 0 fallback.
+    local bat_w = dc_w
     dc_w = dc_w or 0
 
     -- ── BMS block ──────────────────────────────────────────────────
     local soc_pct = nil
-    local bms_temp_c = nil
+    local bms_temp_c, avail_charge_w, avail_discharge_w = nil, nil, nil
     if ok_b and bms then
         local soc_raw = bms[B.SOC]
         -- Workbook precision is 0.001 → raw 1000 = 100 %. Guard the
@@ -1098,27 +1186,10 @@ function driver_poll()
                 host.log("WARN: SoC raw " .. soc_raw .. " > 1000 — assuming 0.0001 scaling; verify with Konja")
             end
         end
-        local t_raw = s16(bms[B.AVG_TEMP])
-        if t_raw then bms_temp_c = t_raw / 10.0 end
-
-        local chg_p = u32_be(bms[B.MAX_CHG_P], bms[B.MAX_CHG_P + 1])
-        local dis_p = u32_be(bms[B.MAX_DIS_P], bms[B.MAX_DIS_P + 1])
-        if chg_p then avail_charge_w    = chg_p * 100 end   -- 0.1 kW → W
-        if dis_p then avail_discharge_w = dis_p * 100 end
-
-        -- BMS charge/discharge FORBID gate (2755). Without this the
-        -- arbitrator keeps dispatching into a direction the BMS has
-        -- vetoed, the self-heal probe reports a permanent delivery
-        -- shortfall, and nothing says why. Zeroing the matching
-        -- availability makes the veto visible to the arbitrator.
+        -- This poll's values only: a BMS block that did not answer
+        -- leaves them out rather than replaying the last ones.
+        bms_temp_c, avail_charge_w, avail_discharge_w = battery_limits(bms)
         local forbid = bms[B.FORBIDDEN]
-        if forbid == 0x55 then           -- charge forbidden
-            avail_charge_w = 0
-        elseif forbid == 0xCC then       -- discharge forbidden
-            avail_discharge_w = 0
-        elseif forbid == 0xAA then       -- both forbidden
-            avail_charge_w, avail_discharge_w = 0, 0
-        end
 
         -- Log the BMS state words on change only (cheap, and it is the
         -- first thing to look at when the cabinet will not move).
@@ -1147,7 +1218,8 @@ function driver_poll()
                 soc_invalid_polls, soc_pct))
         end
     end
-    local bat_soc = soc_pct and (soc_pct / 100.0) or 0
+    -- nil, not 0 %, before the first good reading: 0 % reads as empty.
+    local bat_soc = soc_pct and (soc_pct / 100.0)
 
     -- ── Slew step ──────────────────────────────────────────────────
     if control_initialized and slew_committed_w ~= slew_target_w then
@@ -1357,7 +1429,9 @@ function driver_poll()
     -- Deliberately not the BMS's own chargeable/dischargeable energy
     -- (2721/2722): those report to the BMS's protection limits, not to
     -- the operating band the arbitrator is asked to respect.
-    local chg_eh_wh, dis_eh_wh = 0, 0
+    -- Left out without a SoC reading or a configured capacity: 0 Wh would
+    -- say the battery is full (or empty) when the driver does not know.
+    local chg_eh_wh, dis_eh_wh = nil, nil
     if battery_capacity_wh > 0 and soc_pct then
         local span = soc_max_pct - soc_min_pct
         if span > 0 then
@@ -1376,8 +1450,9 @@ function driver_poll()
         return 50
     end
 
+    emit_limit_metrics(bms_temp_c, avail_charge_w, avail_discharge_w, igbt_c)
     host.emit("battery", {
-        W                      = dc_w,
+        W                      = bat_w,
         SoC_nom_fract          = bat_soc,
         V                      = bat_v,
         A                      = bat_a,

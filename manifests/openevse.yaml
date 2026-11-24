@@ -1,23 +1,37 @@
 name: "openevse"
-version: "1.0.1"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
 connectivity: local
-ders: [v2x_charger]
-control: false
+setup: [none]
+ders: [ev]
+control: true
 tested_devices:
   - manufacturer: "OpenEVSE"
-    model_family: "OpenEVSE"
-    variants: []
+    model_family: "OpenEVSE WiFi"
+    variants: [OpenEVSE WiFi]
     regions: []
-    firmware_versions: ""
-    notes: "Community driver, untested"
-    min_driver_version: "1.0.0"
+    firmware_versions: "WiFi 4.1.9 and later"
+    notes: "Control written from OpenEVSE's WiFi firmware API description (api.yml); not yet confirmed on hardware. Claims the current at the API priority with POST /claims; a claim below the minimum becomes disabled. Optional username and password for an admin password."
+    min_driver_version: "1.1.0"
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/OpenEVSE/openevse_esp32_firmware/master/api.yml"
+    title: "OpenEVSE WiFi firmware HTTP API"
+    kind: api_docs
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/OpenEVSE/openevse_esp32_firmware/master/models/Status.yaml"
+    title: "OpenEVSE status model"
+    kind: api_docs
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/OpenEVSE/openevse_esp32_firmware/master/models/Properties.yaml"
+    title: "OpenEVSE claim properties"
+    kind: api_docs
+    url_stability: stable
 min_host_version: "2.1.0"
-size_bytes: 2446
+size_bytes: 18625
 dkb_id: ""
-sha256: "1ca0bd1577f5dedd93ea6b613ad85193ba9a3e43b917f56c7f639f355b95f095"
+sha256: "5b16e08734910604df4ee3b8a1907b1e213aa23a7bbbe4191f3355765f690300"
 signature: ""
 
 bytecode_sha256: ""

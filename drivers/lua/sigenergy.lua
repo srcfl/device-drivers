@@ -3,7 +3,8 @@
 -- Protocol: Modbus TCP/RTU
 -- Reads plant-level data via slave address 247 (FC 0x04 input registers)
 -- Control via holding registers (FC 0x06/0x10)
--- Reference: Sigenergy Modbus Protocol V2.5
+-- Reference: Sigenergy Modbus Protocol V2.5; the battery limits and cell
+-- temperature come from V2.9 (2026-05-13)
 
 PROTOCOL = "modbus"
 
@@ -32,6 +33,21 @@ local function probe_read(addr, count, kind)
             "until restart", addr, GIVE_UP_AFTER))
     end
     return nil
+end
+
+-- What the battery can do now (docs/WRITING-A-DRIVER.md). A value outside
+-- these bounds is a sentinel or a decoding slip, not a reading, so it is
+-- left out rather than sent.
+-- A temperature in tenths of a degree, as the register holds it. Compared
+-- in tenths so -40.0 and 100.0 stay in on any float width.
+local function temp_c_from_tenths(tenths)
+    if tenths < -400 or tenths > 1000 then return nil end
+    return tenths * 0.1
+end
+
+local function plausible_power_w(v)
+    if v == nil or v ~= v or v < 0 or v > 100000 then return nil end
+    return v
 end
 
 local function write_u32(addr, val)
@@ -97,7 +113,52 @@ function driver_poll()
     end
 
     if bat_regs or soc_regs then
+        -- What the battery can do now, read only once the ESS has answered
+        -- above, so a PV-only plant is not asked for limits it has no
+        -- battery for. Plant registers from "Sigenergy Modbus Protocol"
+        -- V2.9 (2026-05-13), table 5-1, slave 247, FC04:
+        --   30047-30048 [ESS] Available max charging power, U32, gain 1000, kW
+        --   30049-30050 [ESS] Available max discharging power, same
+        --   30286       [ESS] Average cell temperature, S16, gain 10, °C
+        -- Gain 1000 on kW makes the raw value watts. Both power registers
+        -- say "Count only the running inverters", and Sigenergy keeps the
+        -- rated values apart at 30068/30070, so these follow the plant's
+        -- state; the document does not say how they follow the BMS (charge
+        -- level, temperature). 30286 is new in V2.9, so older firmware may
+        -- not answer it; probe_read stops asking after three misses.
+        -- Battery cluster max/min temperature (30620/30621) and the
+        -- inverter's own temperature (31003) exist only at an inverter's
+        -- slave address (1-246), which this plant-address driver does not
+        -- read. Plant 30039/30041 are the AC range the running inverters can
+        -- feed or absorb, not headroom against the grid, so they are not sent
+        -- as available_export_W/available_import_W.
+        local lim_regs = probe_read(30047, 4, "input")
+        if lim_regs and lim_regs[2] ~= nil then
+            battery.available_charge_W = plausible_power_w(
+                host.decode_u32_be(lim_regs[1], lim_regs[2]))
+        end
+        if lim_regs and lim_regs[4] ~= nil then
+            battery.available_discharge_W = plausible_power_w(
+                host.decode_u32_be(lim_regs[3], lim_regs[4]))
+        end
+        local temp_regs = probe_read(30286, 1, "input")
+        if temp_regs then
+            battery.temperature_C = temp_c_from_tenths(
+                host.decode_i16(temp_regs[1]))
+        end
+
         host.emit("battery", battery)
+        if battery.temperature_C ~= nil then
+            host.emit_metric("battery_temp_c", battery.temperature_C)
+        end
+        if battery.available_charge_W ~= nil then
+            host.emit_metric("battery_available_charge_w",
+                battery.available_charge_W)
+        end
+        if battery.available_discharge_W ~= nil then
+            host.emit_metric("battery_available_discharge_w",
+                battery.available_discharge_W)
+        end
     end
 
     -- =====================

@@ -178,3 +178,41 @@ def _parse_device_field(device: dict, field_str: str) -> None:
         key = m.group(1)
         val = m.group(2).strip().strip('"').strip("'")
         device[key] = val
+
+
+# A read request asks a device to report and changes nothing on it. Victron's
+# Venus OS publishes its MQTT values only while a client sends one to
+# R/<portal ID>/keepalive. A read-only MQTT driver may declare such topics in
+# `mqtt_read_request_topics`, and FTW Core then lets it publish to them and to
+# nothing else. Core applies this same rule (go/internal/drivers/
+# mqtt_read_request.go in srcfl/ftw); change the two together.
+MQTT_READ_REQUEST_NAMESPACE = "R"
+MQTT_READ_REQUEST_TOPIC_MAX_BYTES = 256
+MQTT_READ_REQUEST_PAYLOAD_MAX_BYTES = 1024
+_MQTT_TOPIC_LEVEL_RE = re.compile(r"[!-~]+")
+
+
+def mqtt_read_request_topic_error(topic: object) -> str:
+    """Why `topic` cannot be a declared read request, or "" when it can.
+
+    The first level must be exactly "R", Venus's read-request namespace. A
+    literal first level alone is not enough: W/+/settings/... is a valid
+    pattern and a Venus write. "+" stands for one whole level and "#" is
+    refused. A level is printable ASCII without spaces.
+    """
+    if not isinstance(topic, str) or not topic:
+        return f"MQTT read-request topic {topic!r} must be a non-empty string"
+    if len(topic.encode("utf-8")) > MQTT_READ_REQUEST_TOPIC_MAX_BYTES:
+        return (f"MQTT read-request topic {topic!r} is longer than "
+                f"{MQTT_READ_REQUEST_TOPIC_MAX_BYTES} bytes")
+    levels = topic.split("/")
+    if levels[0] != MQTT_READ_REQUEST_NAMESPACE or len(levels) < 2:
+        return (f"MQTT read-request topic {topic!r} must start with "
+                f"{MQTT_READ_REQUEST_NAMESPACE}/, Venus's read-request namespace")
+    for level in levels[1:]:
+        if level == "+":
+            continue
+        if not _MQTT_TOPIC_LEVEL_RE.fullmatch(level) or "+" in level or "#" in level:
+            return (f"MQTT read-request topic {topic!r} has level {level!r}; a level is "
+                    "printable ASCII without spaces, and a wildcard is a whole '+' level")
+    return ""

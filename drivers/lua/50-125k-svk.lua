@@ -27,8 +27,10 @@
 --
 -- Two small FC04 reads per poll (2 regs + 1 reg) → well under 100 ms at
 -- 9600 baud, vs ~388 ms for the full driver. PV/MPPT (33049×36, 34753),
--- AC/inverter (33xxx), cell V/T, energy counters, and the 25xxx status
--- bundle are all DROPPED — not needed for FFR/FCR scoring.
+-- AC/inverter (33xxx), cell voltages, energy counters, and the 25003
+-- status word are all DROPPED — not needed for FFR/FCR scoring. Cell
+-- temperature (34350-51) and inverter temperature (33093) ride on the
+-- slow 25004 read; see "What the battery can do now" below.
 --
 -- driver_init keeps full identification (make/model/sn/rated_w via the
 -- 33xxx reads) — those run ONCE at init, so they don't affect cadence.
@@ -64,7 +66,7 @@ DRIVER = {
     id = "50-125k-svk",
     name = "Solis S6 50-125 kW C&I hybrid (SvK)",
     manufacturer = "Solis",
-    version = "0.2.4",
+    version = "0.3.0",
     protocols = { "modbus" },
     capabilities = { "battery" },
     read_only = false,
@@ -159,10 +161,53 @@ local function bundle_read(addr, count, kind, label)
     return false, nil
 end
 local SLOW_STATUS_EVERY_POLLS = 12 -- driver_poll returns 5s ⇒ ~60s
-local avail_charge_w, avail_discharge_w = nil, nil
-local avail_import_w, avail_export_w = nil, nil
-local par_avail_charge_w, par_avail_discharge_w = nil, nil
-local par_avail_import_w, par_avail_export_w = nil, nil
+
+-- ── What the battery can do now ──────────────────────────────────────
+-- docs/WRITING-A-DRIVER.md, "What a battery can do now". 25004-25019
+-- are read on the slow status poll, one 16-register read about every
+-- 60 s, as before. A value is held until the next read, and a read
+-- that fails clears it: it is never sent again after a failed read.
+--
+--   25004-25011  this unit: available charge / discharge / AC import /
+--                AC export power, U32, 1 W
+--   25012-25019  the same four for a parallel system
+--
+-- WHICH FIGURE: the parallel-system value first, then this unit's, as
+-- in earlier versions. Blixt L1 feeds inverter available_import_W /
+-- available_export_W into its arbitrator clamp. battery.W (34755) is
+-- this unit's battery, so this unit's 25004-25011 would match it more
+-- closely, but switching is a decision for the Solis site owners, not
+-- part of a telemetry change. Both sets are logged at the first read.
+--
+-- LIVE OR NOT: the notes on hand do not say outright that these follow
+-- the BMS. They are read-only (FC04) registers in the Remote Control
+-- block, next to 25003, whose BIT01..09 flag a BMS, inverter or grid
+-- limit. That reads as the inverter's own live figure, not a setting,
+-- but it is unconfirmed. Source: the vendor documents the full
+-- solis_50_125k driver cited, Solis RS485_MODBUS ESINV-33000ID Hybrid
+-- (2021-12-28, under NDA) and the "50~125K FCR Application" sheet of
+-- "Modbus Register usage scheme of Application Scenarios" (Ver
+-- 20260304/20260310). Neither is public, so neither is in upstream_docs.
+--
+-- TEMPERATURES, read with the block above, on the same poll:
+--   34350-34351  min / max cell temperature   S16, 0.1 °C (one 2-reg read)
+--   33093        inverter module temperature  S16, 0.1 °C (one 1-reg read)
+-- That is two small reads a minute more on the 9600-baud link. These
+-- addresses come from the full solis_50_125k driver (Blixt gateway,
+-- commit d95e07f), which cites the Solis documents named above. We
+-- could not read those documents, and the addresses are not yet
+-- verified on hardware. temperature_C is the middle of the coldest and
+-- hottest cell, sent only when both answer and lie in -40..100 °C; the
+-- inverter module gets -40..150 °C, since power electronics derate
+-- above 100 °C. Held until the next read; a failed read leaves them out.
+-- The two reads go through bundle_read, so a register this unit does
+-- not have stops costing a failed read every minute.
+--
+-- 1000 kW bound: well above a 125 kW unit and its battery. A larger U32
+-- is a not-present sentinel (0xFFFFFFFF) or a bad read, not a limit.
+local MAX_LIMIT_W = 1000000
+local limits_logged = false
+local lim = {}   -- charge_w, discharge_w, import_w, export_w, temp_c
 
 -- ---------------------------------------------------------------------
 -- Helpers
@@ -179,6 +224,77 @@ end
 local function u32_be(hi, lo)
     if hi == nil or lo == nil then return nil end
     return hi * 65536 + lo
+end
+
+-- A number inside [lo, hi], else nil. Also drops NaN and infinities.
+local function within(v, lo, hi)
+    if type(v) ~= "number" or v ~= v or v < lo or v > hi then return nil end
+    return v
+end
+
+-- Read 25004-25019 and the temperatures into `lim`. Every value comes
+-- from this read or is nil: a read that failed, or a value out of range,
+-- leaves it out. Metrics go to history on the poll the block was read.
+local function s16(u)
+    if u == nil then return nil end
+    if u >= 0x8000 then return u - 0x10000 end
+    return u
+end
+
+-- Cell and inverter temperatures into `lim` (see TEMPERATURES above).
+local function read_temperatures()
+    local ok_ct, ct = bundle_read(34350, 2, "input", "cell-temperature")
+    local ok_it, it = bundle_read(33093, 1, "input", "inverter-temperature")
+    local cell_min_c, cell_max_c, inverter_c = nil, nil, nil
+    if ok_ct then
+        local tmin, tmax = s16(ct[1]), s16(ct[2])
+        cell_min_c = within(tmin and tmin / 10, -40, 100)
+        cell_max_c = within(tmax and tmax / 10, -40, 100)
+        if cell_min_c and cell_max_c and cell_min_c <= cell_max_c then
+            lim.temp_c = (cell_min_c + cell_max_c) / 2
+        end
+    end
+    if ok_it then
+        local t = s16(it[1])
+        inverter_c = within(t and t / 10, -40, 150)
+    end
+    if lim.temp_c then host.emit_metric("battery_temp_c", lim.temp_c, "°C") end
+    if cell_min_c then host.emit_metric("battery_cell_temp_min_c", cell_min_c, "°C") end
+    if cell_max_c then host.emit_metric("battery_cell_temp_max_c", cell_max_c, "°C") end
+    if inverter_c then host.emit_metric("inverter_temp_c", inverter_c, "°C") end
+end
+
+local function read_battery_limits()
+    lim = {}
+    read_temperatures()
+    local ok_av, av = pcall(host.modbus_read, 25004, 16, "input")
+    if not (ok_av and av) then
+        host.log("WARN: 25004-25019 available-power block unreadable")
+        return
+    end
+    local function w(i) return within(u32_be(av[i], av[i + 1]), 0, MAX_LIMIT_W) end
+    -- Parallel system first, then this unit (see WHICH FIGURE above).
+    lim.charge_w    = w(9)  or w(1)
+    lim.discharge_w = w(11) or w(3)
+    lim.import_w    = w(13) or w(5)
+    lim.export_w    = w(15) or w(7)
+    if not limits_logged then
+        limits_logged = true
+        host.log(string.format(
+            "available power (25004-25019), this unit: charge=%s discharge=%s " ..
+            "import=%s export=%s W; parallel system: charge=%s discharge=%s " ..
+            "import=%s export=%s W",
+            tostring(u32_be(av[1], av[2])), tostring(u32_be(av[3], av[4])),
+            tostring(u32_be(av[5], av[6])), tostring(u32_be(av[7], av[8])),
+            tostring(u32_be(av[9], av[10])), tostring(u32_be(av[11], av[12])),
+            tostring(u32_be(av[13], av[14])), tostring(u32_be(av[15], av[16]))))
+    end
+    if lim.charge_w then
+        host.emit_metric("battery_available_charge_w", lim.charge_w, "W")
+    end
+    if lim.discharge_w then
+        host.emit_metric("battery_available_discharge_w", lim.discharge_w, "W")
+    end
 end
 
 local function write_seq(label, writes)
@@ -374,32 +490,25 @@ function driver_poll()
     -- SOC: Batt1 33139, valid 1..100 %.
     local soc1 = ok_s and s1 and s1[1] or nil
     local soc_pct = (soc1 ~= nil and soc1 >= 1 and soc1 <= 100) and soc1 or nil
-    local bat_soc = soc_pct and (soc_pct / 100) or 0
+    -- nil, not 0 %, when it did not answer: 0 % reads as an empty battery.
+    local bat_soc = soc_pct and (soc_pct / 100)
 
     if poll_count == 1 or (poll_count % SLOW_STATUS_EVERY_POLLS) == 0 then
         -- 25004-25019 are contiguous in the 50-125K FCR map:
         -- single battery/grid available powers + parallel mirrors. One
         -- sparse 16-reg read is cheaper than 8 separate pair reads.
-        local ok_av, av = pcall(host.modbus_read, 25004, 16, "input")
-        if ok_av and av then
-            avail_charge_w      = u32_be(av[1],  av[2])
-            avail_discharge_w   = u32_be(av[3],  av[4])
-            avail_import_w      = u32_be(av[5],  av[6])
-            avail_export_w      = u32_be(av[7],  av[8])
-            par_avail_charge_w    = u32_be(av[9],  av[10])
-            par_avail_discharge_w = u32_be(av[11], av[12])
-            par_avail_import_w    = u32_be(av[13], av[14])
-            par_avail_export_w    = u32_be(av[15], av[16])
-        else
-            host.log("WARN: 25004-25019 available-power block unreadable")
-        end
+        read_battery_limits()
     end
 
     -- Latch / timeout-race self-heal: commanded 0 but battery active
     -- for ≥2 polls → re-arm + re-zero. (Kept from base — cheap, uses
     -- only the bat_w we already read.)
+    -- No battery reading this poll (34755 failed) is no evidence either
+    -- way: skip the check and restart the count, rather than raise on
+    -- math.abs(nil) and fail the whole poll.
     if control_initialized then
-        if last_commanded_w == 0 and math.abs(bat_w) > SELF_HEAL_FLOOR_W then
+        if bat_w ~= nil and last_commanded_w == 0
+           and math.abs(bat_w) > SELF_HEAL_FLOOR_W then
             self_heal_disagree_polls = self_heal_disagree_polls + 1
             if self_heal_disagree_polls >= SELF_HEAL_RUN_REQUIRED then
                 host.log(string.format(
@@ -416,7 +525,9 @@ function driver_poll()
     end
 
     -- Energy headroom (Wh) — operator SoC band + capacity, dispatchable.
-    local chg_eh_wh, dis_eh_wh = 0, 0
+    -- Left out without a SoC reading or a configured capacity: 0 Wh would
+    -- say the battery is full (or empty) when the driver does not know.
+    local chg_eh_wh, dis_eh_wh = nil, nil
     if battery_capacity_wh > 0 and soc_pct then
         local span = soc_max_pct - soc_min_pct
         if span > 0 then
@@ -438,16 +549,17 @@ function driver_poll()
         SoC_nom_fract          = bat_soc,
         available_charge_Wh    = chg_eh_wh,
         available_discharge_Wh = dis_eh_wh,
-        available_charge_W     = par_avail_charge_w or avail_charge_w,
-        available_discharge_W  = par_avail_discharge_w or avail_discharge_w,
+        available_charge_W     = lim.charge_w,
+        available_discharge_W  = lim.discharge_w,
+        temperature_C          = lim.temp_c,
     })
     -- AC grid-port power as the inverter role (separate measurement from
     -- the DC battery). Only when the read produced a value.
     if ac_w ~= nil then
         host.emit("inverter", {
             W = ac_w,
-            available_import_W = par_avail_import_w or avail_import_w,
-            available_export_W = par_avail_export_w or avail_export_w,
+            available_import_W = lim.import_w,
+            available_export_W = lim.export_w,
         })
     end
 

@@ -21,7 +21,7 @@ DRIVER = {
   id           = "growatt",
   name         = "Growatt hybrid inverter",
   manufacturer = "Growatt",
-  version      = "2.1.3",
+  version      = "2.2.2",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -74,6 +74,36 @@ local function probe_read(addr, count, kind)
 end
 
 ----------------------------------------------------------------------------
+-- What the battery can do now (docs/WRITING-A-DRIVER.md)
+--
+-- Growatt Modbus RTU Protocol II V1.39, input registers (the SPH addresses
+-- match homeassistant-solax-modbus and Growatt-Local-Modbus):
+--   93    Temp1, inverter temperature          0.1 C (all families)
+--   1040  battery temperature                  0.1 C (SPA/SPH)
+--   1114  uwMaxTemprCell_10T, max cell temp    0.1 C (SPA/SPH BMS block)
+--   1115  uwMinTemprCell_10T, min cell temp    0.1 C
+-- The BMS block has one BMS_MaxCurr (1090) for charge and discharge
+-- together, and the protocol gives it no unit, so this driver reports no
+-- available_* figures.
+----------------------------------------------------------------------------
+
+-- A temperature outside -40..100 C is a sentinel or a misread, so it is
+-- dropped, never clamped.
+local function plausible_temp(c)
+    if c == nil or c ~= c then return nil end
+    if c < -40 or c > 100 then return nil end
+    return c
+end
+
+-- A read that answered with every register asked for, or nil. A shorter
+-- reply would leave a missing word for the decoders to misread.
+local function read_input(addr, count)
+    local regs = probe_read(addr, count, "input")
+    if regs and regs[count] ~= nil then return regs end
+    return nil
+end
+
+----------------------------------------------------------------------------
 -- Initialization
 ----------------------------------------------------------------------------
 
@@ -87,98 +117,89 @@ end
 ----------------------------------------------------------------------------
 
 function driver_poll()
+    -- A read that failed is left out, never sent as 0 (docs/WRITING-A-DRIVER.md,
+    -- "Never fabricate"): 0 W looks like a site in balance, 0 % SoC like an
+    -- empty pack. Each field comes only from a read that answered with every
+    -- register asked for, and PV and meter go out only with their power.
+
     -- ---- PV ----
 
+    local pv = {}
+
     -- PV total power: 1-2, U32 BE × 0.1 W
-    local pvw_regs = probe_read(1, 2, "input")
-    local pv_w = 0
+    local pvw_regs = read_input(1, 2)
     if pvw_regs then
-        pv_w = host.decode_u32_be(pvw_regs[1], pvw_regs[2]) * 0.1
+        pv.w = -host.decode_u32_be(pvw_regs[1], pvw_regs[2]) * 0.1   -- generation is negative
     end
 
     -- PV1 V/A: 3-4, U16 × 0.1 V, U16 × 0.1 A
-    local m1_regs = probe_read(3, 2, "input")
-    local mppt1_v, mppt1_a = 0, 0
+    local m1_regs = read_input(3, 2)
     if m1_regs then
-        mppt1_v = m1_regs[1] * 0.1
-        mppt1_a = m1_regs[2] * 0.1
+        pv.mppt1_v = m1_regs[1] * 0.1
+        pv.mppt1_a = m1_regs[2] * 0.1
     end
 
     -- PV2 V/A: 7-8, U16 × 0.1 V, U16 × 0.1 A
-    local m2_regs = probe_read(7, 2, "input")
-    local mppt2_v, mppt2_a = 0, 0
+    local m2_regs = read_input(7, 2)
     if m2_regs then
-        mppt2_v = m2_regs[1] * 0.1
-        mppt2_a = m2_regs[2] * 0.1
+        pv.mppt2_v = m2_regs[1] * 0.1
+        pv.mppt2_a = m2_regs[2] * 0.1
     end
 
     -- Grid frequency: 37, U16 × 0.01 Hz
-    local hz_regs = probe_read(37, 1, "input")
-    local hz = 0
+    local hz_regs = read_input(37, 1)
+    local hz
     if hz_regs then
         hz = hz_regs[1] * 0.01
+        host.emit_metric("grid_hz", hz)
     end
 
     -- Total PV lifetime energy: 91-92, U32 BE × 0.1 kWh → × 1000 for Wh
-    local pvgen_regs = probe_read(91, 2, "input")
-    local pv_gen_wh = 0
+    local pvgen_regs = read_input(91, 2)
     if pvgen_regs then
-        pv_gen_wh = host.decode_u32_be(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
+        pv.lifetime_wh = host.decode_u32_be(pvgen_regs[1], pvgen_regs[2]) * 0.1 * 1000
     end
 
-    -- Emit PV telemetry (site convention: generation is negative).
-    host.emit("pv", {
-        w           = -pv_w,
-        mppt1_v     = mppt1_v,
-        mppt1_a     = mppt1_a,
-        mppt2_v     = mppt2_v,
-        mppt2_a     = mppt2_a,
-        lifetime_wh = pv_gen_wh,
-    })
-    host.emit_metric("pv_mppt1_v", mppt1_v)
-    host.emit_metric("pv_mppt1_a", mppt1_a)
-    host.emit_metric("pv_mppt2_v", mppt2_v)
-    host.emit_metric("pv_mppt2_a", mppt2_a)
-    host.emit_metric("grid_hz",    hz)
+    if pv.w ~= nil then host.emit("pv", pv) end
+    for _, name in ipairs({ "mppt1_v", "mppt1_a", "mppt2_v", "mppt2_a" }) do
+        if pv[name] ~= nil then host.emit_metric("pv_" .. name, pv[name]) end
+    end
 
     -- ---- Battery ----
 
-    -- Battery charge power: 1009-1010, U32 BE × 0.1 W
-    local bchgw_regs = probe_read(1009, 2, "input")
-    local bat_charge_w = 0
-    if bchgw_regs then
-        bat_charge_w = host.decode_u32_be(bchgw_regs[1], bchgw_regs[2]) * 0.1
-    end
-
-    -- Battery discharge power: 1011-1012, U32 BE × 0.1 W
-    local bdisw_regs = probe_read(1011, 2, "input")
-    local bat_discharge_w = 0
+    -- Growatt Modbus RTU Protocol II V1.39 puts discharge first:
+    --   1009-1010  Pdischarge1  discharge power, U32 BE × 0.1 W
+    --   1011-1012  Pcharge1     charge power,    U32 BE × 0.1 W
+    -- Growatt-Local-Modbus maps them the same way. Up to 2.2.0 this driver
+    -- read them the other way round and showed charging as discharging
+    -- (srcfl/device-drivers#263).
+    local bdisw_regs = read_input(1009, 2)
+    local bat_discharge_w
     if bdisw_regs then
         bat_discharge_w = host.decode_u32_be(bdisw_regs[1], bdisw_regs[2]) * 0.1
     end
 
-    -- Net battery power: positive = charging, negative = discharging (site convention).
-    local bat_w = bat_charge_w - bat_discharge_w
+    local bchgw_regs = read_input(1011, 2)
+    local bat_charge_w
+    if bchgw_regs then
+        bat_charge_w = host.decode_u32_be(bchgw_regs[1], bchgw_regs[2]) * 0.1
+    end
 
     -- Battery voltage: 1013, U16 × 0.1 V
-    local bv_regs = probe_read(1013, 1, "input")
-    local bat_v = 0
-    if bv_regs then
-        bat_v = bv_regs[1] * 0.1
-    end
+    local bv_regs = read_input(1013, 1)
+    local bat_v
+    if bv_regs then bat_v = bv_regs[1] * 0.1 end
 
     -- Battery SoC: 1014, U16, percent → 0-1 fraction
-    local bsoc_regs = probe_read(1014, 1, "input")
-    local bat_soc = 0
-    if bsoc_regs then
-        bat_soc = bsoc_regs[1] / 100
-    end
+    local bsoc_regs = read_input(1014, 1)
+    local bat_soc
+    if bsoc_regs then bat_soc = bsoc_regs[1] / 100 end
 
     -- Battery temperature: 1040, U16 × 0.1 °C
-    local btemp_regs = probe_read(1040, 1, "input")
-    local bat_temp = 0
+    local btemp_regs = read_input(1040, 1)
+    local bat_temp
     if btemp_regs then
-        bat_temp = btemp_regs[1] * 0.1
+        bat_temp = plausible_temp(btemp_regs[1] * 0.1)
     end
 
     -- A PV-only Growatt (no battery connected) still answers the battery
@@ -187,98 +208,90 @@ function driver_poll()
     -- terminal voltage and/or SoC above 0 even at rest, so treat all-zero
     -- battery readings as "no battery present" and skip the emit.
     --   see srcfl/ftw#1669
-    local has_battery = bat_v > 0 or bat_soc > 0 or bat_charge_w > 0 or bat_discharge_w > 0
+    -- Only a read that answered can show a battery (docs/WRITING-A-DRIVER.md,
+    -- "A hybrid inverter may have no battery").
+    local function above_zero(v) return v ~= nil and v > 0 end
+    local has_battery = above_zero(bat_v) or above_zero(bat_soc)
+        or above_zero(bat_charge_w) or above_zero(bat_discharge_w)
     if has_battery then
-        host.emit("battery", {
-            w      = bat_w,
-            v      = bat_v,
-            soc    = bat_soc,
-            temp_c = bat_temp,
-        })
-        host.emit_metric("battery_dc_v",   bat_v)
-        host.emit_metric("battery_temp_c", bat_temp)
+        local battery = { v = bat_v, soc = bat_soc, temp_c = bat_temp }
+        -- Net power needs both registers: either alone is not the net.
+        -- Positive = charging, negative = discharging (site convention).
+        if bat_charge_w ~= nil and bat_discharge_w ~= nil then
+            battery.w = bat_charge_w - bat_discharge_w
+        end
+        host.emit("battery", battery)
+        if bat_v ~= nil then
+            host.emit_metric("battery_dc_v", bat_v)
+        end
+        if bat_temp ~= nil then
+            host.emit_metric("battery_temp_c", bat_temp)
+        end
+
+        -- Max / min cell temperature from the BMS: 1114-1115, U16 × 0.1 °C.
+        local cell_regs = read_input(1114, 2)
+        if cell_regs then
+            local cell_max = plausible_temp(cell_regs[1] * 0.1)
+            local cell_min = plausible_temp(cell_regs[2] * 0.1)
+            if cell_max ~= nil then
+                host.emit_metric("battery_cell_temp_max_c", cell_max)
+            end
+            if cell_min ~= nil then
+                host.emit_metric("battery_cell_temp_min_c", cell_min)
+            end
+        end
+    end
+
+    -- Inverter temperature: 93, U16 × 0.1 °C
+    local itemp_regs = read_input(93, 1)
+    if itemp_regs then
+        local inv_temp = plausible_temp(itemp_regs[1] * 0.1)
+        if inv_temp ~= nil then
+            host.emit_metric("inverter_temp_c", inv_temp)
+        end
     end
 
     -- ---- Meter ----
+    -- Which registers these should be is srcfl/device-drivers#271; this
+    -- release only stops a failed read from becoming 0.
+
+    local meter = { hz = hz }
 
     -- Meter total power: 1015-1016, I32 BE × 0.1 W
     -- Growatt sign: positive = import (matches site convention).
-    local mw_regs = probe_read(1015, 2, "input")
-    local meter_w = 0
+    local mw_regs = read_input(1015, 2)
     if mw_regs then
-        meter_w = host.decode_i32_be(mw_regs[1], mw_regs[2]) * 0.1
+        meter.w = host.decode_i32_be(mw_regs[1], mw_regs[2]) * 0.1
     end
 
     -- Per-phase voltages: L1=38, L2=42, L3=46, U16 × 0.1 V
-    local lv1_regs = probe_read(38, 1, "input")
-    local l1_v = 0
-    if lv1_regs then
-        l1_v = lv1_regs[1] * 0.1
-    end
-
-    local lv2_regs = probe_read(42, 1, "input")
-    local l2_v = 0
-    if lv2_regs then
-        l2_v = lv2_regs[1] * 0.1
-    end
-
-    local lv3_regs = probe_read(46, 1, "input")
-    local l3_v = 0
-    if lv3_regs then
-        l3_v = lv3_regs[1] * 0.1
-    end
-
     -- Per-phase currents: L1=39, L2=43, L3=47, U16 × 0.1 A
-    local la1_regs = probe_read(39, 1, "input")
-    local l1_a = 0
-    if la1_regs then
-        l1_a = la1_regs[1] * 0.1
-    end
-
-    local la2_regs = probe_read(43, 1, "input")
-    local l2_a = 0
-    if la2_regs then
-        l2_a = la2_regs[1] * 0.1
-    end
-
-    local la3_regs = probe_read(47, 1, "input")
-    local l3_a = 0
-    if la3_regs then
-        l3_a = la3_regs[1] * 0.1
+    for phase, addr in ipairs({ 38, 42, 46 }) do
+        local v_regs = read_input(addr, 1)
+        if v_regs then meter["l" .. phase .. "_v"] = v_regs[1] * 0.1 end
+        local a_regs = read_input(addr + 1, 1)
+        if a_regs then meter["l" .. phase .. "_a"] = a_regs[1] * 0.1 end
     end
 
     -- Total import energy: 1021-1022, U32 BE × 0.1 kWh → × 1000 for Wh
-    local imp_regs = probe_read(1021, 2, "input")
-    local import_wh = 0
+    local imp_regs = read_input(1021, 2)
     if imp_regs then
-        import_wh = host.decode_u32_be(imp_regs[1], imp_regs[2]) * 0.1 * 1000
+        meter.import_wh = host.decode_u32_be(imp_regs[1], imp_regs[2]) * 0.1 * 1000
     end
 
     -- Total export energy: 1029-1030, U32 BE × 0.1 kWh → × 1000 for Wh
-    local exp_regs = probe_read(1029, 2, "input")
-    local export_wh = 0
+    local exp_regs = read_input(1029, 2)
     if exp_regs then
-        export_wh = host.decode_u32_be(exp_regs[1], exp_regs[2]) * 0.1 * 1000
+        meter.export_wh = host.decode_u32_be(exp_regs[1], exp_regs[2]) * 0.1 * 1000
     end
 
-    host.emit("meter", {
-        w         = meter_w,
-        l1_v      = l1_v,
-        l2_v      = l2_v,
-        l3_v      = l3_v,
-        l1_a      = l1_a,
-        l2_a      = l2_a,
-        l3_a      = l3_a,
-        hz        = hz,
-        import_wh = import_wh,
-        export_wh = export_wh,
-    })
-    host.emit_metric("meter_l1_v", l1_v)
-    host.emit_metric("meter_l2_v", l2_v)
-    host.emit_metric("meter_l3_v", l3_v)
-    host.emit_metric("meter_l1_a", l1_a)
-    host.emit_metric("meter_l2_a", l2_a)
-    host.emit_metric("meter_l3_a", l3_a)
+    if meter.w ~= nil then host.emit("meter", meter) end
+    for phase = 1, 3 do
+        for _, unit in ipairs({ "v", "a" }) do
+            local name = "l" .. phase .. "_" .. unit
+            if meter[name] ~= nil then host.emit_metric("meter_" .. name, meter[name]) end
+        end
+    end
 
     return 5000
 end

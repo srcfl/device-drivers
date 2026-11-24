@@ -5,7 +5,7 @@ author: "Sourceful Labs AB and community contributors"
 protocol: modbus
 connectivity: local
 ders: [battery, meter]
-control: false
+control: true
 tested_devices:
   - manufacturer: "Pixii"
     model_family: "PowerShaper"

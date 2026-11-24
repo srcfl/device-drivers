@@ -1,11 +1,11 @@
 name: "deye"
-version: "2.1.1"
+version: "2.2.0"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
 ders: [battery, meter, pv]
-control: false
+control: true
 tested_devices:
   - manufacturer: "Deye"
     model_family: "SUN Single-Phase Hybrid (LV)"
@@ -35,10 +35,19 @@ tested_devices:
     firmware_versions: ""
     notes: "Three-phase grid-tie string inverter (PV + meter only)"
     min_driver_version: "1.2.0"
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/kellerza/sunsynk/main/src/sunsynk/definitions/three_phase_common.py"
+    title: "kellerza/sunsynk Deye three-phase register definitions (BMS block 210-220, battery operation mode 111, temperatures)"
+    kind: register_map
+    url_stability: stable
+  - url: "https://raw.githubusercontent.com/davidrapan/ha-solarman/main/custom_components/solarman/inverter_definitions/deye_p3.yaml"
+    title: "davidrapan/ha-solarman Deye SG04LP3/SG01HP3 register definitions (device type codes, BMS block, temperature offsets)"
+    kind: register_map
+    url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 23467
+size_bytes: 29597
 dkb_id: "deye"
-sha256: "5fdc1acd72f881ff02696e765df0528a68f300fa9ca557a4fba068874f0129df"
+sha256: "13bfc38dcd636ea5fda9ce0453f92e614d24e2efbd0f5d0fe3d56ebb499880ff"
 signature: ""
 
 bytecode_sha256: ""
