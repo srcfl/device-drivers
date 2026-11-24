@@ -1,5 +1,5 @@
 name: "victron"
-version: "2.1.2"
+version: "2.2.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -43,12 +43,18 @@ tested_devices:
     notes: "Requires Venus OS with Modbus TCP enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 8021
+size_bytes: 9392
 dkb_id: ""
-sha256: "63c39e1d5a5ae7bf07ba35e9bb310c820e329e76663893bcd035e61db7c4116e"
+sha256: "246369f9a66d9b667ea423cdc6c972d6a93e57828b1e8518e1a118ecb4b7c10a"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
 changelog: ""
+
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/victronenergy/dbus_modbustcp/master/attributes.csv"
+    title: "Victron GX Modbus-TCP register list (dbus_modbustcp attributes.csv, source of CCGX-Modbus-TCP-register-list.xlsx)"
+    kind: register_map
+    url_stability: stable

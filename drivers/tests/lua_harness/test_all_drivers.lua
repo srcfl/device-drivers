@@ -65,13 +65,12 @@ local DRIVER_SPECS = {
     chint            = { protocol = "modbus", ders = {"meter"} },
 
     -- Modbus EV chargers
-    alfen            = { protocol = "modbus", ders = {"v2x_charger"} },
-    abb_terra        = { protocol = "modbus", ders = {"v2x_charger"} },
+    alfen            = { protocol = "modbus", ders = {"ev"} },
+    abb_terra        = { protocol = "modbus", ders = {"ev"} },
     goe              = { protocol = "modbus", ders = {"v2x_charger"} },
     keba             = { protocol = "modbus", ders = {"v2x_charger"} },
     wallbox          = { protocol = "modbus", ders = {"v2x_charger"} },
-    easee            = { protocol = "modbus", ders = {"v2x_charger"} },
-    mennekes         = { protocol = "modbus", ders = {"v2x_charger"} },
+    mennekes         = { protocol = "modbus", ders = {"ev"} },
     schrack_ev       = { protocol = "modbus", ders = {"v2x_charger"} },
     etrel            = { protocol = "modbus", ders = {"v2x_charger"} },
 
@@ -84,7 +83,6 @@ local DRIVER_SPECS = {
     -- HTTP EV chargers
     goe_http         = { protocol = "http", ders = {"v2x_charger"}, port = 8080 },
     openevse         = { protocol = "http", ders = {"v2x_charger"} },
-    zaptec           = { protocol = "http", ders = {"v2x_charger"} },
     hardybarth       = { protocol = "http", ders = {"v2x_charger"} },
 
     -- MQTT drivers
@@ -137,9 +135,9 @@ local function setup_modbus_data(driver_name)
     -- and applies a specific formula. We set these to produce values in 0-1.
     ---------------------------------------------------------------------------
 
-    -- GoodWe: reg 35182, formula = val / 100 -> set to 50 => 0.50
-    holding[35182] = 50
-    input[35182]   = 50
+    -- GoodWe: reg 37007, formula = val / 100 -> set to 50 => 0.50
+    holding[37007] = 50
+    input[37007]   = 50
 
     -- Sungrow: reg 13022 (4th of 13019+4), formula = val * 0.1 / 100
     -- bat_regs[4] * 0.1 / 100 -> set to 500 => 0.50
@@ -149,6 +147,9 @@ local function setup_modbus_data(driver_name)
     -- the driver reads the full hybrid map. String models report another code.
     input[4999]   = 0x0E0E
     holding[4999] = 0x0E0E
+    -- KSTAR inverter model, input 3045: 0x00 is the single-phase KSE-2K,
+    -- so the driver knows which meter phases the device has.
+    input[3045] = 0x00
     -- Sungrow status reg 13000 = 0 (not discharging)
     input[13000] = 0
     holding[13000] = 0
@@ -178,7 +179,7 @@ local function setup_modbus_data(driver_name)
     -- or 500 (=> 0.50 with *0.1/100)
     local soc_50_addrs = {
         -- Direct /100 pattern
-        35182,  -- GoodWe
+        37007,  -- GoodWe
         843,    -- Victron
         588,    -- Deye
         1068,   -- VARTA
@@ -188,6 +189,8 @@ local function setup_modbus_data(driver_name)
         -- *0.1/100 pattern
         13022,  -- Sungrow
         37004,  -- Huawei
+        3066,   -- KSTAR (input)
+        258,    -- AlphaESS (0x0102)
     }
     for _, a in ipairs(soc_50_addrs) do
         holding[a] = 50
@@ -252,18 +255,7 @@ local function setup_modbus_data(driver_name)
     ---------------------------------------------------------------------------
     -- Per-driver Modbus overrides for special cases
     ---------------------------------------------------------------------------
-    if driver_name == "easee" then
-        -- Easee uses F32 at low addresses (0-9) and U16 at 10
-        hi, lo = host.encode_f32(16.0)
-        holding[0] = hi; holding[1] = lo
-        hi, lo = host.encode_f32(15.0)
-        holding[2] = hi; holding[3] = lo
-        hi, lo = host.encode_f32(3500.0)
-        holding[4] = hi; holding[5] = lo
-        hi, lo = host.encode_f32(5000.0)
-        holding[8] = hi; holding[9] = lo
-        holding[10] = 3  -- charging state
-    elseif driver_name == "goe" then
+    if driver_name == "goe" then
         -- go-e Modbus: U16 values at low addresses
         holding[0] = 2    -- state: charging
         holding[3] = 160  -- max current 0.1A -> 16A
@@ -284,6 +276,11 @@ local function setup_modbus_data(driver_name)
         input[40960] = 1
         input[40971] = 1
         input[40972] = 5000
+    elseif driver_name == "goodwe" then
+        -- The inverter hears its meter (36004 = 1) and the BMS talks
+        -- (37011 = 0x101 Pylontech). SoC 37007 is set with the others below.
+        holding[36004] = 1
+        holding[37011] = 0x101
     end
 
     ---------------------------------------------------------------------------
@@ -293,7 +290,7 @@ local function setup_modbus_data(driver_name)
 
     -- Pattern: val / 100 => set to 50
     local soc_div100 = {
-        35182,  -- GoodWe
+        37007,  -- GoodWe
         843,    -- Victron modbus
         588,    -- Deye
         1068,   -- VARTA
@@ -304,8 +301,6 @@ local function setup_modbus_data(driver_name)
         28,     -- SolaX
         33139,  -- Solis
         11038,  -- FoxESS
-        54,     -- KSTAR
-        36,     -- AlphaESS
         4248,   -- unused by current SAJ map; harmless
         1014,   -- Growatt
     }
@@ -372,9 +367,6 @@ local function setup_http_data(driver_name, port)
     elseif driver_name == "goe_http" then
         host._http_responses[base .. "/api/status"] =
             '{"nrg":[230,229,231,0,5.2,4.8,5.0,1196,1099,1155,0,3450,0.98,0.97,0.99,0],"wh":5000,"car":2,"amp":16}'
-    elseif driver_name == "zaptec" then
-        host._http_responses[base .. "/api/charger/state"] =
-            '{"ChargingPower":7200,"TotalChargingEnergy":3500,"ChargingCurrent":31.3,"Voltage":230,"ChargerState":"charging"}'
     elseif driver_name == "hardybarth" then
         host._http_responses[base .. "/api/status"] =
             '{"power":3500,"energy":2500,"current":15.2,"voltage":230,"state":"charging"}'

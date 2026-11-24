@@ -17,10 +17,11 @@ and does not grant signed-channel activation or release rights.
 Support mixed makes and generations with explicit model/firmware evidence.
 Report identity, reliable measurements, known limits and structured command
 results so Core can distinguish read support from control support. A catalog
-entry or a simulated response does not establish working physical control.
-Heat telemetry helps planning first; active tank or hot-water control requires
-its separate safety and hardware evidence. Keep the existing host contracts
-and control acceptance gates below.
+entry or a simulated response does not establish working physical control, so
+a control path stays `experimental` until an owner reports it working on real
+hardware. Heat telemetry helps planning first; active tank or hot-water control
+requires its separate safety and hardware evidence. Keep the existing host
+contracts and the control rules below.
 
 ## Boundaries
 
@@ -30,9 +31,18 @@ and control acceptance gates below.
 - Public pull-request builds stay unsigned. The release workflow signs the FTW
   channel only after a reviewed change reaches `main`.
 - A catalog build never grants activation or control authority.
-- New drivers start read-only.
-- Control needs a safe default mode, bounded leases, structured results and HIL
-  acceptance for every target host.
+- A driver that can command its device ships with control on. People who find
+  a charger or battery in the catalog expect FTW to steer it, and a flag that
+  nobody turns on helps no one (Fredrik, 21 November 2026). Mark the control
+  path `verification_status = "experimental"` until a field report confirms
+  it, and record that report in the manifest's `tested_devices`.
+- Control needs a safe default mode that settles, bounded writes, structured
+  results (`false` when the device refuses) and limits that never exceed what
+  Core asked for. Write it from the vendor's documentation, and test it with
+  the Lua harness.
+- A driver that cannot command its device declares `read_only = true` and says
+  why in plain words in its `DRIVER` description, for example that the vendor
+  offers no control API. FTW and the catalog show that reason to the owner.
 
 ## Where a driver change has to land
 

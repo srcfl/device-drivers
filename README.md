@@ -51,9 +51,10 @@ For an issue, include the device model, protocol source and any observations
 you can safely share. Implementation PRs use the template and include
 sign checks and test evidence without credentials or private site data.
 
-New drivers start with telemetry only. Control support needs a later,
-separate review with a safe default mode, a bounded command lease, structured
-results and supervised hardware-in-the-loop evidence.
+A driver that can command its device ships with control on, marked
+experimental until an owner reports it working on real hardware. Control needs
+a safe default mode, bounded writes and structured results. A driver that
+cannot command its device says so, and why, in its description.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
@@ -119,10 +120,16 @@ promoted with `gh workflow run ftw-drivers-release.yml --ref main -f
 channel=stable`; it accepts only the exact commit `drivers-beta` carries, and
 serves installs that read the stable channel.
 
-The channel contains every catalog driver as its own signed Lua asset. A driver
-the catalog marks `control: true` keeps its control path; every other one is
-read-only. Refreshing the signed catalog never installs or activates code.
-FTW keeps its own safety, activation, rollback and bundled copies.
+The channel contains every catalog driver as its own signed Lua asset. A
+driver that can command its device ships with control: its `driver_command`
+writes to the device. A driver that cannot declares `read_only = true` in its
+`DRIVER` table and says why in its description, and ships read-only. A
+`driver_command` that only logs and refuses does not count as control. The
+manifest's `control:` field states the same, and `make check` fails when it
+disagrees with the code or when a stub ships as control. The catalog page
+shows each driver's answer. Refreshing the signed catalog never installs or
+activates code. FTW keeps its own safety, activation, rollback and bundled
+copies.
 
 Each asset name contains the driver ID, semantic version and source hash. FTW
 downloads only the selected driver. The release workflow never replaces a

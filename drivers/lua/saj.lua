@@ -48,7 +48,7 @@ DRIVER = {
   id           = "saj",
   name         = "SAJ H2/HS2 hybrid inverter",
   manufacturer = "SAJ",
-  version      = "1.2.0",
+  version      = "1.3.0",
   host_api_min = 1,
   host_api_max = 1,
   protocols    = { "modbus" },
@@ -107,6 +107,18 @@ local IDX_BAT1_A      = 16  -- 0xA00F
 local IDX_BAT1_TEMP   = 17  -- 0xA010
 local IDX_BAT1_CYCLES = 18  -- 0xA011
 
+-- BMS current limits at 0xA036 (discharge) and 0xA037 (charge), U16 × 0.1 A,
+-- at the end of the same 0xA000 BMS block (stanus74 modbus_readers.py:
+-- BatDisCurrLimit, BatChaCurrLimit). They sit beside the BMS's own charge
+-- voltage and cut-off voltage, apart from the charge current the owner sets
+-- at 0x4026, so they read as what the BMS allows now. The source does not
+-- say in words that they are live; this is unconfirmed until a capture shows
+-- them move with temperature or charge level.
+local REG_BMS_CURR_LIMITS = 40998  -- 0xA036
+
+-- Inverter heat sink temperature (SinkTemp), I16 × 0.1 C.
+local REG_SINK_TEMP = 16400  -- 0x4010
+
 -- Lifetime energy, U32 BE × 0.01 kWh.
 local REG_PV_ENERGY        = 16581  -- 0x40C5 Total_PVEnergy
 local REG_BAT_CHARGE_WH    = 16589  -- 0x40CD bat_total_charge
@@ -120,6 +132,28 @@ local function finite(value)
     if value ~= value then return nil end
     if value == math.huge or value == -math.huge then return nil end
     return value
+end
+
+-- What the battery can do now (docs/WRITING-A-DRIVER.md). A temperature
+-- outside -40..100 C or a power outside 0..100 kW is a sentinel or a
+-- misread, so it is dropped, never clamped.
+local function plausible_temp(c)
+    c = c and finite(c)
+    if c == nil or c < -40 or c > 100 then return nil end
+    return c
+end
+
+local function plausible_power(w)
+    w = w and finite(w)
+    if w == nil or w < 0 or w > 100000 then return nil end
+    return w
+end
+
+-- Watts the BMS allows now: its current limit times the battery voltage of
+-- this poll. Without a fresh voltage there is no figure.
+local function limit_w(amps, volts)
+    if amps == nil or volts == nil or volts <= 0 then return nil end
+    return plausible_power(amps * volts)
 end
 
 -- 0 and 0xFFFF are the usual "not present" sentinels on this map. A
@@ -318,6 +352,21 @@ function driver_poll()
     end
 
     ---------------------------------------------------------------------
+    -- Inverter heat sink temperature, for history. Asked only while the
+    -- live block answers, like the other optional reads, so an outage does
+    -- not use up its three tries.
+    ---------------------------------------------------------------------
+    if power then
+        local sink = probe_read(REG_SINK_TEMP, 1, "holding")
+        if sink then
+            local inv_temp = plausible_temp(host.decode_i16(sink[1]) * 0.1)
+            if inv_temp ~= nil then
+                host.emit_metric("inverter_temp_c", inv_temp)
+            end
+        end
+    end
+
+    ---------------------------------------------------------------------
     -- Battery, only when the BMS block says a pack is there.
     --
     -- Live battery power (0x40A6) answers on a string inverter too, usually
@@ -344,8 +393,9 @@ function driver_poll()
         end
 
         local v = bms[IDX_BAT1_V]
+        local volts
         if present_u16(v) then
-            local volts = finite(v * 0.1)
+            volts = finite(v * 0.1)
             if volts ~= nil then battery.V = volts end
         end
 
@@ -354,8 +404,29 @@ function driver_poll()
         local a = finite(host.decode_i16(bms[IDX_BAT1_A]) * 0.01)
         if a ~= nil then battery.A = -a end
 
-        local t = finite(host.decode_i16(bms[IDX_BAT1_TEMP]) * 0.1)
-        if t ~= nil then battery.temperature_C = t end
+        local t = plausible_temp(host.decode_i16(bms[IDX_BAT1_TEMP]) * 0.1)
+        if t ~= nil then
+            battery.temperature_C = t
+            host.emit_metric("battery_temp_c", t)
+        end
+
+        local lim = probe_read(REG_BMS_CURR_LIMITS, 2, "holding")
+        if lim then
+            local discharge_a = present_u16(lim[1]) and lim[1] * 0.1 or nil
+            local charge_a = present_u16(lim[2]) and lim[2] * 0.1 or nil
+            local charge_w = limit_w(charge_a, volts)
+            local discharge_w = limit_w(discharge_a, volts)
+            if charge_w ~= nil then
+                battery.available_charge_W = charge_w
+                host.emit_metric("battery_charge_limit_a", charge_a)
+                host.emit_metric("battery_available_charge_w", charge_w)
+            end
+            if discharge_w ~= nil then
+                battery.available_discharge_W = discharge_w
+                host.emit_metric("battery_discharge_limit_a", discharge_a)
+                host.emit_metric("battery_available_discharge_w", discharge_w)
+            end
+        end
 
         local chg = probe_read(REG_BAT_CHARGE_WH, 2, "holding")
         if chg then

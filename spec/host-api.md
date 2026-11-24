@@ -192,6 +192,9 @@ Drain all buffered messages since last call. Returns a table of `{topic=string, 
 ### `host.mqtt_publish(topic, payload)`
 Publish a message. Returns `true`/`false`.
 
+A read-only driver from the signed channel may publish only to the
+`mqtt_read_request_topics` its manifest declares (`docs/WRITING-A-DRIVER.md`).
+
 ## HTTP
 
 Available when `PROTOCOL = "http"`.

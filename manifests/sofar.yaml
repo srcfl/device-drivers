@@ -1,5 +1,5 @@
 name: "sofar"
-version: "2.1.2"
+version: "2.2.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -28,10 +28,19 @@ tested_devices:
     firmware_versions: ""
     notes: "Community driver, untested"
     min_driver_version: "1.0.0"
+upstream_docs:
+  - url: "https://community.jeedom.com/uploads/short-url/iYlPDAz5JyuRMlRd6TS8qHnc987.pdf"
+    title: "SofarSolar Modbus Communication Protocol V1.2 (2 Dec 2020), public copy"
+    kind: register_map
+    url_stability: unknown
+  - url: "https://raw.githubusercontent.com/wills106/homeassistant-solax-modbus/main/custom_components/solax_modbus/plugin_sofar.py"
+    title: "homeassistant-solax-modbus Sofar register map"
+    kind: register_map
+    url_stability: volatile
 min_host_version: "2.0.0"
-size_bytes: 9106
+size_bytes: 10623
 dkb_id: ""
-sha256: "b818b0a0633d73d5588f5957e3b3935884b34dac2fea3e1ae30063be92cfe5d8"
+sha256: "3d46ca3533216cf1b5a2bda2992a9ea22d0923935234299b122e5233c72a111e"
 signature: ""
 
 bytecode_sha256: ""

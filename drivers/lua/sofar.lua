@@ -26,7 +26,7 @@ DRIVER = {
   id           = "sofar",
   name         = "Sofar hybrid inverter",
   manufacturer = "Sofar Solar",
-  version      = "2.1.2",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -73,6 +73,27 @@ local function probe_read(addr, count, kind)
             "until restart", addr, GIVE_UP_AFTER))
     end
     return nil
+end
+
+----------------------------------------------------------------------------
+-- What the battery can do now (docs/WRITING-A-DRIVER.md)
+--
+-- SofarSolar's Modbus Communication Protocol (V1.2, 2 December 2020):
+--   0x0607 (1543)  Temperature_Env_Bat1   I16, 1 C, "battery ambient
+--                                         temperature, string 1"
+--   0x041A (1050)  Temperature_HeatSink1  I16, 1 C
+-- The map has no live BMS charge or discharge limit. 0x104B/0x104C
+-- (BatConfig current limits) are settings the installer writes, not what
+-- the BMS allows now, and the 0x9000 pack block needs a write to select a
+-- pack. So this driver reports no available_* figures.
+----------------------------------------------------------------------------
+
+-- A temperature outside -40..100 C is a sentinel or a misread, so it is
+-- dropped, never clamped.
+local function plausible_temp(c)
+    if c == nil or c ~= c then return nil end
+    if c < -40 or c > 100 then return nil end
+    return c
 end
 
 ----------------------------------------------------------------------------
@@ -167,11 +188,13 @@ function driver_poll()
         bat_w = host.decode_i16(bw_regs[1]) * 10
     end
 
-    -- Battery temperature: 1543 (0x0607). I16, °C.
+    -- Battery temperature: 1543 (0x0607). I16, °C. Only with a battery
+    -- voltage in this poll: a hybrid without a pack answers 0, and 0 C
+    -- reads as a cold battery.
     local btemp_regs = probe_read(1543, 1, "holding")
-    local bat_temp = 0
-    if btemp_regs then
-        bat_temp = host.decode_i16(btemp_regs[1])
+    local bat_temp
+    if btemp_regs and bv_regs and bat_v > 0 then
+        bat_temp = plausible_temp(host.decode_i16(btemp_regs[1]))
     end
 
     -- Battery SoC: 1544 (0x0608). U16 percent → 0..1 fraction.
@@ -190,7 +213,18 @@ function driver_poll()
     })
     host.emit_metric("battery_dc_v",   bat_v)
     host.emit_metric("battery_dc_a",   bat_a)
-    host.emit_metric("battery_temp_c", bat_temp)
+    if bat_temp ~= nil then
+        host.emit_metric("battery_temp_c", bat_temp)
+    end
+
+    -- Inverter heat sink temperature: 1050 (0x041A). I16, °C.
+    local itemp_regs = probe_read(1050, 1, "holding")
+    if itemp_regs then
+        local inv_temp = plausible_temp(host.decode_i16(itemp_regs[1]))
+        if inv_temp ~= nil then
+            host.emit_metric("inverter_temp_c", inv_temp)
+        end
+    end
 
     -- ---- Meter ----
 

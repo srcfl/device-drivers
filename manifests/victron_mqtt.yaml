@@ -1,18 +1,19 @@
 name: "victron_mqtt"
-version: "1.0.3"
+version: "1.2.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
 connectivity: local
 ders: [pv, battery, meter]
 control: false
+mqtt_read_request_topics: ["R/+/keepalive"]
 tested_devices:
   - manufacturer: "Victron Energy"
     model_family: "GX Devices"
     variants: [Cerbo GX, Venus GX, Ekrano GX]
     regions: []
     firmware_versions: ""
-    notes: "Requires Venus OS with MQTT enabled on GX device"
+    notes: "Requires Venus OS with MQTT enabled on GX device. Battery limits come from the BMS the GX names in ActiveBmsInstance. With several battery services and that topic not yet received, no limits are sent. The driver sends the Venus keep-alive itself; where the host refuses MQTT publishing for a read-only driver, another client must keep the GX publishing."
     min_driver_version: "1.0.0"
   - manufacturer: "Victron Energy"
     model_family: "MultiPlus-II"
@@ -43,12 +44,26 @@ tested_devices:
     notes: "Requires Venus OS with MQTT enabled on GX device"
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 5779
+size_bytes: 21628
 dkb_id: ""
-sha256: "deb4dba9ef525a59c023939d95686f4b533ee5a9d39a34598e499323afb6535f"
+sha256: "b8fdaf360454ce04307d38b2587358c30680a482ec1f438f4ac5e48da3fb9cc4"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
-changelog: "Emit each stream only after a fresh power message for that stream."
+changelog: "Declare the Venus keep-alive topic R/+/keepalive as a read request, so FTW lets the driver send it from the signed channel."
+
+upstream_docs:
+  - url: "https://raw.githubusercontent.com/victronenergy/dbus-flashmq/master/README.md"
+    title: "Venus OS MQTT (dbus-flashmq): topic format, null and empty payloads, keep-alive"
+    kind: api_docs
+    url_stability: stable
+  - url: "https://github.com/victronenergy/venus/wiki/dbus"
+    title: "Venus OS D-Bus paths (battery /Info/MaxChargeCurrent, /Info/MaxDischargeCurrent, /System/MinCellTemperature)"
+    kind: api_docs
+    url_stability: stable
+  - url: "https://www.victronenergy.com/media/pg/CCGX/en/dvcc---distributed-voltage-and-current-control.html"
+    title: "Victron GX manual: DVCC, the BMS's charge and discharge current limits"
+    kind: manual
+    url_stability: unknown

@@ -11,7 +11,9 @@
 -- plug-in slider.
 --
 -- Telemetry only. No wake, charge_start, or other vehicle command. TeslaMate
--- MQTT is subscribe-only; this driver never publishes.
+-- is a data logger: its MQTT integration publishes values and has no command
+-- topic, so there is nothing to send a command to. This driver never
+-- publishes.
 --
 -- TeslaMate does not publish VIN on MQTT (privacy). Bind identity from YAML:
 -- host.set_make("Tesla"), host.set_sn(VIN). Car id selects the topic prefix.
@@ -73,11 +75,11 @@ DRIVER = {
   id           = "teslamate_vehicle",
   name         = "Tesla Vehicle (TeslaMate)",
   manufacturer = "Tesla",
-  version      = "0.2.0",
+  version      = "0.2.1",
   protocols    = { "mqtt" },
   capabilities = { "vehicle" },
   read_only    = true,
-  description  = "Read-only Tesla vehicle SoC, charge limit and charging state via TeslaMate MQTT. Optional next to tesla_vehicle (BLE). Does not wake or command the car.",
+  description  = "Reads a Tesla's charge level, limit, charging state, cable and place from TeslaMate over MQTT. Read-only: TeslaMate only logs the car and takes no commands, so FTW cannot start or stop charging through it. Use tesla_vehicle (BLE) to start the car's charge, or a charger FTW can control.",
   homepage     = "https://docs.teslamate.org/docs/integrations/mqtt",
   authors      = { "FTW contributors" },
   tested_models = { "Model Y", "Model 3" },

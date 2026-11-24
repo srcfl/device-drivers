@@ -1,5 +1,5 @@
 name: "foxess_h3_smart"
-version: "0.9.6"
+version: "0.10.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -31,9 +31,9 @@ upstream_docs:
     kind: register_map
     url_stability: stable
 min_host_version: "1.5.0"
-size_bytes: 40705
+size_bytes: 43733
 dkb_id: ""
-sha256: "c7dd1abf8069785667f5a7e419a304a0550594f89620ef1c173ff3952a9e7675"
+sha256: "c7b3ce58731031340a76c21f15fb87cddb4b6a2cb6ac4320b39f748cf7eae9e9"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""

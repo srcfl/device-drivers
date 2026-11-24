@@ -1,5 +1,5 @@
 name: "teslamate_vehicle"
-version: "0.2.0"
+version: "0.2.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -13,7 +13,7 @@ tested_devices:
     variants: [Model Y, Model 3]
     regions: []
     firmware_versions: ""
-    notes: "Read-only vehicle SoC, charge limit, charging state, charge cable and place via TeslaMate MQTT. Set geofence to this site's TeslaMate geofence for the place. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+    notes: "Read-only. FTW reads the car's charge level, charge limit, charging state, charge cable and place from TeslaMate over MQTT. FTW cannot control the car through it: TeslaMate only logs data and takes no commands. Use tesla_vehicle (BLE proxy) to start the car's charge, or a charger FTW can control. Set geofence to this site's TeslaMate geofence for the place. Does not wake the car. Not yet run against a car."
     min_driver_version: "0.1.0"
 upstream_docs:
   - url: "https://docs.teslamate.org/docs/integrations/mqtt"
@@ -21,9 +21,9 @@ upstream_docs:
     kind: api_docs
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 18280
+size_bytes: 18520
 dkb_id: "teslamate_vehicle"
-sha256: "b9f50760f46ab5e5f41f7a552136a77b44ba0d5fa3a85a2d6976f60a9d1e3679"
+sha256: "28ad494dbebea9a02e11bc5d2c028cbfeb4b81e7cc13c8777c1b57baf8f0359e"
 signature: ""
 
 bytecode_sha256: ""

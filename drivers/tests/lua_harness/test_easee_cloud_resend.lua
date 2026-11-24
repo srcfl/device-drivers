@@ -38,8 +38,12 @@ local function commands()
     return out
 end
 
+-- Power carries an advancing source time: the driver rejects power without one.
+local observation_sequence = 0
 local function poll(mode, dyn, cur)
-    local obs = {{id=109,value=mode}, {id=120,value=0}, {id=121,value=1}, {id=124,value=100}}
+    observation_sequence = observation_sequence + 1
+    local stamp = string.format("2026-01-01T08:00:00.%06dZ", observation_sequence)
+    local obs = {{id=109,value=mode}, {id=120,value=0,timestamp=stamp}, {id=121,value=1}, {id=124,value=100}}
     if dyn then table.insert(obs, {id=48,value=dyn}) end
     if cur then table.insert(obs, {id=183,value=cur}) end
     host._http_responses["/observations?ids="] = host.json_encode(obs)
