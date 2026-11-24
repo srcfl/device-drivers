@@ -10,7 +10,7 @@ DRIVER = {
   id           = "kostal",
   name         = "Kostal Plenticore",
   manufacturer = "Kostal",
-  version      = "2.1.2",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "meter", "pv", "battery" },
   read_only    = true,
@@ -98,6 +98,112 @@ local function read_u32_be(addr, default)
 end
 
 ----------------------------------------------------------------------------
+-- What the battery can do now
+--
+-- From KOSTAL's own register table, "PIKO IQ/PLENTICORE KOSTAL Interface
+-- description MODBUS (TCP) & SunSpec with control information", revision
+-- 2.10 (12.11.2026). These are KOSTAL's registers, not SunSpec ones, and the
+-- addresses are the ones sent on the wire.
+--
+--   0x05   (5)     MODBUS Byte Order, U16: 0 = little-endian (CDAB, the
+--                  default), 1 = big-endian (ABCD). It decides how the two
+--                  words of every Float below are ordered.
+--   0x24C  (588)   Battery type, U16 (U32 from firmware 3.07.03):
+--                  0 = "No battery (PV-Functionality)".
+--   0xD6   (214)   Battery temperature, Float, °C, read-only.
+--   0x434  (1076)  Maximum charge power limit (read-out from battery),
+--                  Float, W, read-only.
+--   0x436  (1078)  Maximum discharge power limit (read-out from battery),
+--                  Float, W, read-only.
+--
+-- 0x434/0x436 are the only limits KOSTAL marks as read from the battery.
+-- 0x40E/0x410 and 0x500/0x502 next to them are limits an external EMS
+-- writes, so they are not what the battery can do. KOSTAL does not say how
+-- often 0x434/0x436 refresh or what sign they carry; a negative value falls
+-- outside 0..100 kW and is left out. KOSTAL documents no cell temperatures
+-- and no grid import/export headroom.
+--
+-- Unverified on hardware: that register 5 gives the word order of every
+-- Float read here. KOSTAL says the setting matters for Float registers, but
+-- no site has confirmed it. A wrong order does not fail loudly. 21.5 °C in
+-- swapped words decodes as a tiny number near 0, which passes the range
+-- check, so a wrong order gives plausible but wrong values.
+--
+-- The word order and the battery type are learned once and held for the
+-- run. Changing the byte-order setting or fitting a battery on the inverter
+-- needs a driver restart before the driver sees it.
+----------------------------------------------------------------------------
+
+local REG_BYTE_ORDER     = 5
+local REG_BATTERY_TYPE   = 588
+local REG_BATTERY_TEMP   = 214
+local REG_BATTERY_LIMITS = 1076
+
+-- nil until register 5 has answered; then true for CDAB, false for ABCD.
+local float_low_word_first = nil
+-- nil until register 588 has answered.
+local battery_present = nil
+
+-- IEEE-754 float32 from two 16-bit words, high word first, or nil for NaN
+-- and infinity. Works on the halves so a 32-bit Lua build cannot flip the
+-- sign (docs/WRITING-A-DRIVER.md, "Numbers").
+local function f32_from_words(hi, lo)
+    hi = hi % 0x10000
+    lo = lo % 0x10000
+    local sign = 1
+    if hi >= 0x8000 then sign = -1; hi = hi - 0x8000 end
+    local exponent = math.floor(hi / 128)
+    local mantissa = (hi % 128) * 65536 + lo
+    if exponent == 0xFF then return nil end
+    if exponent == 0 then return sign * mantissa * 2 ^ -149 end
+    return sign * (1 + mantissa / 0x800000) * 2 ^ (exponent - 127)
+end
+
+-- The Float at regs[i], regs[i + 1] in the order register 5 reported.
+local function kostal_float(regs, i)
+    if float_low_word_first == nil or not regs then return nil end
+    local first, second = regs[i], regs[i + 1]
+    if first == nil or second == nil then return nil end
+    if float_low_word_first then return f32_from_words(second, first) end
+    return f32_from_words(first, second)
+end
+
+-- A value outside these bounds is a sentinel or a decoding slip, not a
+-- reading, so it is left out rather than sent.
+local function plausible_temp_c(v)
+    if v == nil or v ~= v or v < -40 or v > 100 then return nil end
+    return v
+end
+
+local function plausible_power_w(v)
+    if v == nil or v ~= v or v < 0 or v > 100000 then return nil end
+    return v
+end
+
+-- Learn the word order and whether a battery is fitted. Both are settings,
+-- so each is read until it answers once (bounded by probe_read) and kept
+-- for the run; a change on the inverter takes effect after a driver
+-- restart, which reads them again.
+local function learn_battery_setup()
+    if float_low_word_first == nil then
+        local regs = probe_read(REG_BYTE_ORDER, 1, "holding")
+        if regs then
+            if regs[1] == 0 then float_low_word_first = true
+            elseif regs[1] == 1 then float_low_word_first = false end
+        end
+    end
+    if battery_present == nil then
+        -- One word only. Older firmware has a U16 here. On 3.07.03 and later
+        -- it is a U32: with the default CDAB order the first word is the low
+        -- one, which holds every type code but M-TEC's. With ABCD it is the
+        -- high word, 0 for those types, so the battery reads as absent and
+        -- its fields are left out rather than guessed.
+        local regs = probe_read(REG_BATTERY_TYPE, 1, "holding")
+        if regs then battery_present = (regs[1] ~= 0) end
+    end
+end
+
+----------------------------------------------------------------------------
 -- Lifecycle
 ----------------------------------------------------------------------------
 
@@ -137,7 +243,7 @@ function driver_poll()
     local ac_power_sf = read_i16(40084, 0)  -- AC power SF
     local hz_sf       = read_i16(40086, 0)  -- Hz SF
     local energy_sf   = read_i16(40095, 0)  -- Lifetime energy SF
-    local temp_sf     = read_i16(40106, 0)  -- Heatsink temp SF
+    local temp_sf     = read_i16(40106, nil)  -- Heatsink temp SF
 
     -- MPPT scale factors (SunSpec model 160, base 40253)
     local mppt_a_sf   = read_i16(40255, 0)  -- DCA_SF (+2 from base)
@@ -155,8 +261,15 @@ function driver_poll()
     local lifetime_raw = read_u32_be(40093, 0)
     local lifetime_wh  = apply_sf(lifetime_raw, energy_sf)
 
-    local temp_raw = read_i16(40103, 0)
-    local temp_c   = apply_sf(temp_raw, temp_sf)
+    -- Inverter temperature: value and scale factor both have to answer, and
+    -- -32768 (0x8000) is SunSpec's "not implemented". Left out otherwise:
+    -- 0 °C is a reading, not a placeholder.
+    local temp_raw = read_i16(40103, nil)
+    local temp_c   = nil
+    if temp_raw ~= nil and temp_sf ~= nil
+        and temp_raw ~= -32768 and temp_sf ~= -32768 then
+        temp_c = plausible_temp_c(apply_sf(temp_raw, temp_sf))
+    end
 
     -- MPPT1: module 1 current @ 40260, voltage @ 40261
     local mppt1_a = apply_sf(read_u16(40260, 0), mppt_a_sf)
@@ -180,7 +293,9 @@ function driver_poll()
     host.emit_metric("pv_mppt1_a",      mppt1_a)
     host.emit_metric("pv_mppt2_v",      mppt2_v)
     host.emit_metric("pv_mppt2_a",      mppt2_a)
-    host.emit_metric("inverter_temp_c", temp_c)
+    if temp_c ~= nil then
+        host.emit_metric("inverter_temp_c", temp_c)
+    end
     host.emit_metric("grid_hz",         hz)
 
     -- -----------------------------------------------------------------
@@ -198,10 +313,35 @@ function driver_poll()
         bat_w = host.decode_i16(bw_regs[1])
     end
 
+    -- What the battery can do now; see the register list near the top.
+    -- Each field is left out when its read fails, when the word order is
+    -- not yet known, or when no battery is fitted.
+    learn_battery_setup()
+    local bat_temp, avail_charge_w, avail_discharge_w = nil, nil, nil
+    if battery_present and float_low_word_first ~= nil then
+        bat_temp = plausible_temp_c(kostal_float(
+            probe_read(REG_BATTERY_TEMP, 2, "holding"), 1))
+        local lim_regs = probe_read(REG_BATTERY_LIMITS, 4, "holding")
+        avail_charge_w    = plausible_power_w(kostal_float(lim_regs, 1))
+        avail_discharge_w = plausible_power_w(kostal_float(lim_regs, 3))
+    end
+
     host.emit("battery", {
-        w   = bat_w,
-        soc = bat_soc,
+        w                     = bat_w,
+        soc                   = bat_soc,
+        temperature_C         = bat_temp,
+        available_charge_W    = avail_charge_w,
+        available_discharge_W = avail_discharge_w,
     })
+    if bat_temp ~= nil then
+        host.emit_metric("battery_temp_c", bat_temp)
+    end
+    if avail_charge_w ~= nil then
+        host.emit_metric("battery_available_charge_w", avail_charge_w)
+    end
+    if avail_discharge_w ~= nil then
+        host.emit_metric("battery_available_discharge_w", avail_discharge_w)
+    end
 
     -- -----------------------------------------------------------------
     -- Meter (SunSpec meter model 203 — Kostal custom offsets)
@@ -293,5 +433,6 @@ function driver_default_mode()
 end
 
 function driver_cleanup()
-    -- Nothing to clean up.
+    float_low_word_first = nil
+    battery_present = nil
 end

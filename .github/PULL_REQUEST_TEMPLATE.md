@@ -18,7 +18,7 @@ See CONTRIBUTING.md. -->
 
 ## Safety
 
-- [ ] The driver starts read-only, or this is a separately reviewed control change.
+- [ ] A driver that can command its device has control on, or says in its description why it cannot.
 - [ ] Vendor signs are converted at the driver boundary.
 - [ ] Cached telemetry becomes stale instead of being re-emitted as fresh.
 - [ ] No credentials, serial numbers, private addresses or site data are included.
@@ -28,8 +28,8 @@ See CONTRIBUTING.md. -->
 Complete this part when a control path changes. Use `not applicable` for a
 read-only change.
 
-- HIL evidence or `required`:
-- [ ] Control changes include default-mode, lease-expiry and HIL evidence.
+- Hardware evidence, or `not yet` (the path stays `experimental`):
+- [ ] Control changes include default-mode, refused-write and harness test evidence.
 
 ## Checks
 

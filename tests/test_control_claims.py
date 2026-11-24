@@ -18,9 +18,13 @@ cannot call anything cannot actuate anything, whatever the manifest says.
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+
+from ftw_repository import driver_controls  # noqa: E402
 
 # Keywords that open a Lua block, for balancing against `end`.
 OPENERS = re.compile(r"\b(function|if|for|while|do)\b")
@@ -28,6 +32,10 @@ CLOSERS = re.compile(r"\bend\b")
 ELSEIF = re.compile(r"\belseif\b")
 CALL = re.compile(r"\b([A-Za-z_][A-Za-z_0-9.]*)\s*\(")
 NOT_A_CALL = {"function", "if", "while", "for", "return", "and", "or", "not"}
+# Calls that cannot reach the device. A stub that logs "not yet implemented"
+# and refuses is still a refusal: alphaess, kstar, solax and varta shipped as
+# controlling that way.
+CANNOT_ACTUATE = {"host.log", "tostring", "tonumber", "type"}
 
 
 def control_flag(manifest: Path) -> str:
@@ -66,7 +74,8 @@ def is_inert(body: str) -> bool:
     # signature, not a call, and counting it made every body look busy.
     lines = re.sub(r"--.*$", "", body, flags=re.M).split("\n")[1:]
     code = "\n".join(line for line in lines if line.strip())
-    calls = [c for c in CALL.findall(code) if c not in NOT_A_CALL]
+    calls = [c for c in CALL.findall(code)
+             if c not in NOT_A_CALL and c not in CANNOT_ACTUATE]
     return not calls
 
 
@@ -116,8 +125,52 @@ def test_a_refusal_stub_is_recognised_as_inert() -> None:
         '    if action == "init" or action == "deinit" then return true end\n'
         "    return false\n"
         "end")
+    # Logging the refusal does not make it a control path.
+    assert is_inert(
+        "function driver_command(action, power_w, cmd)\n"
+        '    host.log("AlphaESS control not yet implemented: " .. action)\n'
+        "    return false\n"
+        "end")
     # Reaching any call at all is not.
     assert not is_inert(
         "function driver_command(action, value)\n"
         "    return host.modbus_write(40001, value)\n"
         "end")
+
+
+def test_the_manifest_control_flag_matches_the_code() -> None:
+    """`control:` in a manifest says what the signed channel ships.
+
+    The channel decides control from the code (`driver_controls`), and
+    index.yaml and devices.yaml copy the manifest's flag. Seven manifests said
+    control: false for drivers the channel shipped with control, so those two
+    files told a reader less than FTW would do. A driver that gains or loses
+    its control path changes this flag in the same pull request.
+    """
+    wrong = []
+    for manifest in sorted((ROOT / "manifests").glob("*.yaml")):
+        source = ROOT / "drivers" / "lua" / f"{manifest.stem}.lua"
+        code = driver_controls(source.read_text(encoding="utf-8"))
+        if (control_flag(manifest) == "true") is not code:
+            wrong.append(f"{manifest.stem} (manifest {control_flag(manifest)}, code {str(code).lower()})")
+    assert not wrong, "control: disagrees with the driver code: " + ", ".join(wrong)
+
+
+def test_a_logging_stub_cannot_be_published_as_control() -> None:
+    """A driver whose driver_command only logs and refuses must say read_only.
+
+    The channel counts any driver_command as control, so a stub without
+    read_only = true ships as controlling and the catalog says so. Every such
+    driver has to declare read_only, which keeps its manifest at control:
+    false through the agreement check above.
+    """
+    stubs = []
+    for source in sorted((ROOT / "drivers" / "lua").glob("*.lua")):
+        text = source.read_text(encoding="utf-8")
+        body = function_source(text, "driver_command")
+        if body is not None and is_inert(body) and driver_controls(text):
+            stubs.append(source.stem)
+    assert not stubs, (
+        "these drivers ship as controlling but their driver_command only "
+        f"refuses: {stubs}. Declare read_only = true in the DRIVER table and "
+        "say why in its description.")

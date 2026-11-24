@@ -5,6 +5,22 @@
 -- Port: 502
 -- Community tier (untested)
 
+-- No control code has been written for this storage yet: driver_command
+-- only refuses. It says read_only so FTW and the catalog tell the owner
+-- plainly, instead of offering control that cannot work.
+DRIVER = {
+  host_api_min = 1,
+  host_api_max = 1,
+  id           = "varta",
+  name         = "VARTA storage",
+  manufacturer = "VARTA",
+  version      = "1.1.2",
+  protocols    = { "modbus" },
+  capabilities = { "battery", "meter" },
+  read_only    = true,
+  description  = "VARTA pulse neo, element and link storage via Modbus TCP. Read-only: no control code has been written for it yet, so FTW reads it but cannot charge or discharge the battery.",
+}
+
 PROTOCOL = "modbus"
 
 -- The host counts every failed modbus_read against the poll whether or not

@@ -34,6 +34,8 @@ from ftw_repository import (  # noqa: E402
     verify_manifest,
     verify_stable_promotion,
 )
+from manifest_parser import mqtt_read_request_topic_error  # noqa: E402
+from validate_manifest import validate_manifest  # noqa: E402
 
 
 COMMIT = "a" * 40
@@ -176,10 +178,12 @@ def test_publication_contains_the_full_read_only_catalog(
     # driver_command, and publishing them unable to use it was the whole
     # problem: the same file could drive a battery bundled and not downloaded.
     controlling = {d["id"] for d in manifest["drivers"] if d["control_enabled"]}
-    assert {"sungrow", "pixii", "alphaess", "ferroamp"} <= controlling
+    assert {"sungrow", "pixii", "deye", "ferroamp"} <= controlling
     # And a driver that declares read_only in its own DRIVER table stays a
-    # meter, whatever anything else says.
-    assert not ({"sdm630", "zap", "esphome_dsmr", "myuplink"} & controlling)
+    # meter, whatever anything else says. alphaess, kstar, solax and varta
+    # declare it because their driver_command only refuses.
+    assert not ({"sdm630", "zap", "esphome_dsmr", "myuplink",
+                 "alphaess", "kstar", "solax", "varta"} & controlling)
     # nibe_local dropped read_only for its opt-in Solar PV surplus feed and
     # declares write_capabilities, so the channel must publish it as control.
     assert "nibe_local" in controlling
@@ -284,6 +288,31 @@ def test_manifest_requires_exact_canonical_envelope_bytes(
                 permissions=["http.get", "http.post"],
             ),
             "read-only driver has a write-capable permission",
+        ),
+        # Declared read requests grant no write permission. mqtt.publish is
+        # refused on a read-only driver with or without them, and they need
+        # mqtt.subscribe.
+        (
+            lambda driver: driver.update(permissions=["mqtt.subscribe", "mqtt.publish"]),
+            "read-only driver has a write-capable permission",
+        ),
+        (
+            lambda driver: (
+                driver.update(permissions=["mqtt.subscribe", "mqtt.publish"]),
+                driver["metadata"].update(mqtt_read_request_topics=["R/+/keepalive"]),
+            ),
+            "read-only driver has a write-capable permission",
+        ),
+        (
+            lambda driver: driver["metadata"].update(mqtt_read_request_topics=["R/+/keepalive"]),
+            "declared MQTT read requests need mqtt.subscribe",
+        ),
+        (
+            lambda driver: (
+                driver.update(permissions=["mqtt.subscribe"]),
+                driver["metadata"].update(mqtt_read_request_topics=["R/#"]),
+            ),
+            "has level '#'",
         ),
         (
             lambda driver: driver["metadata"].update(read_only=False),
@@ -1130,3 +1159,246 @@ def test_auth_post_path_must_be_a_path_and_must_mean_something(
         _load_channel(config_path, repo)
 
     source.write_text(original, encoding="utf-8")
+
+
+# ---- MQTT read requests ---------------------------------------------------
+#
+# Venus OS on a Victron GX publishes its MQTT values only while a client sends
+# R/<portal ID>/keepalive. A read-only MQTT driver may declare such read
+# requests in its catalog manifest; the generated guard and FTW Core both hold
+# its publishes to exactly those topics.
+
+KEEPALIVE = 'mqtt_read_request_topics: ["R/+/keepalive"]\n'
+
+
+def declare_read_requests(repo: Path, driver_id: str, line: str = KEEPALIVE) -> None:
+    """Set a driver's mqtt_read_request_topics line, replacing any it has."""
+    path = repo / "manifests" / f"{driver_id}.yaml"
+    text = re.sub(r"^mqtt_read_request_topics:.*\n", "", path.read_text(encoding="utf-8"),
+                  flags=re.M)
+    text = re.sub(r"^(ders:.*\n)", lambda match: match.group(1) + line, text,
+                  count=1, flags=re.M)
+    path.write_text(text, encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        "R/+/keepalive",
+        "R/c0619ab1234/keepalive",
+        "R/+/system/0/Serial",
+        "R/+/" + "a" * 252,  # 256 bytes, the limit Core uses
+    ],
+)
+def test_read_request_topic_rule_accepts(topic: str) -> None:
+    assert mqtt_read_request_topic_error(topic) == ""
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        "",
+        "#",
+        "R/#",
+        "R/+/keep#alive",
+        "R/+x/keepalive",
+        "+/+/keepalive",
+        "R//keepalive",
+        "R/+/",
+        "/R/keepalive",
+        "$SYS/+/keepalive",
+        # The first level must be R, Venus's read-request namespace. A literal
+        # first level is not enough: W/ is Venus's write namespace.
+        "W/+/settings/0/Settings/CGwacs/AcPowerSetPoint",
+        "W/+/x",
+        "X/+/keepalive",
+        "r/+/keepalive",
+        "+/abc123/keepalive",
+        "R",
+        "keepalive",
+        # Core refuses a trailing newline; so must this.
+        "R/+/keepalive\n",
+        "R/+/keep alive",
+        "R/\x00/keepalive",
+        "R/é/keepalive",
+        "R/+/" + "a" * 253,
+        None,
+        7,
+    ],
+)
+def test_read_request_topic_rule_refuses(topic: object) -> None:
+    assert mqtt_read_request_topic_error(topic)
+
+
+def test_a_declared_read_request_reaches_the_policy_and_the_guard(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path, "victron_mqtt")
+    declare_read_requests(repo, "victron_mqtt")
+    entry = _load_channel(config_path, repo)[0]
+    artifact = entry["raw"].decode("utf-8")
+
+    assert entry["controls"] is False
+    assert entry["metadata"]["read_only"] is True
+    assert entry["metadata"]["mqtt_read_request_topics"] == ["R/+/keepalive"]
+    # A read request is not a write: no write permission, so an FTW Core that
+    # does not know the field runs the driver read-only, as before.
+    assert entry["permissions"] == ["mqtt.subscribe"]
+    assert 'local __sourceful_ftw_read_requests = { "R/+/keepalive" }' in artifact
+    assert "host.mqtt_publish = __sourceful_ftw_write_denied" not in artifact
+    assert "host.mqtt_pub = __sourceful_ftw_write_denied" not in artifact
+    for denied in ("http_post", "modbus_write", "modbus_write_multi",
+                   "modbus_write_multiple", "serial_write"):
+        assert f"host.{denied} = __sourceful_ftw_write_denied" in artifact, denied
+
+    # The signed manifest carries it, and verifies.
+    _, output = build(tmp_path / "signed", keypair, repo_root=repo, config_path=config_path)
+    manifest = verify_manifest(output / "manifest.json", key_id=KEY_ID,
+                               public_key_base64=keypair[1])
+    driver = manifest["drivers"][0]
+    assert driver["metadata"]["mqtt_read_request_topics"] == ["R/+/keepalive"]
+    assert driver["permissions"] == ["mqtt.subscribe"]
+
+
+@pytest.mark.skipif(not (ROOT / "lua55").exists(), reason="run make check to build ./lua55")
+def test_the_read_request_guard_passes_only_declared_topics(tmp_path: Path) -> None:
+    repo, config_path = single_driver_repo(tmp_path, "victron_mqtt")
+    declare_read_requests(repo, "victron_mqtt")
+    artifact_path = tmp_path / "victron_mqtt.lua"
+    artifact_path.write_bytes(_load_channel(config_path, repo)[0]["raw"])
+    script = "\n".join(
+        (
+            "sent = {}",
+            "host = { log = function() end }",
+            "host.mqtt_publish = function(topic, payload) sent[#sent + 1] = topic end",
+            "host.mqtt_pub = host.mqtt_publish",
+            f"dofile({json.dumps(str(artifact_path))})",
+            "local function sends(publish, topic, payload)",
+            "  local ok, err = pcall(publish, topic, payload)",
+            "  assert(ok or tostring(err):find('declared read request', 1, true), err)",
+            "  return ok",
+            "end",
+            "assert(sends(host.mqtt_publish, 'R/abc123/keepalive', ''))",
+            "assert(sends(host.mqtt_publish, 'R/abc123/keepalive',"
+            " '{\"keepalive-options\":[\"suppress-republish\"]}'))",
+            "assert(sends(host.mqtt_pub, 'R/abc123/keepalive', ''))",
+            "assert(sends(host.mqtt_publish, 'R/abc123/keepalive', string.rep('x', 1024)))",
+            "for _, topic in ipairs({",
+            "  'W/abc123/settings/0/Settings/CGwacs/AcPowerSetPoint',",
+            "  'R/abc123/system/0/Serial', 'R/abc123/keepalive/x', 'R/abc123',",
+            "  'R/#', 'R/#/keepalive', 'R/+/keepalive', 'R//keepalive', 'R/a b/keepalive', '',",
+            "}) do",
+            "  assert(not sends(host.mqtt_publish, topic, ''), topic)",
+            "  assert(not sends(host.mqtt_pub, topic, ''), topic)",
+            "end",
+            "assert(not sends(host.mqtt_publish, 'R/abc123/keepalive', string.rep('x', 1025)))",
+            "assert(not sends(host.mqtt_publish, nil, ''))",
+            "assert(#sent == 4, #sent)",
+        )
+    )
+    runtime = subprocess.run(
+        [str(ROOT / "lua55"), "-e", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert runtime.returncode == 0, runtime.stderr
+
+
+@pytest.mark.skipif(not (ROOT / "lua55").exists(), reason="run make check to build ./lua55")
+def test_the_read_request_guard_holds_to_the_read_namespace(tmp_path: Path) -> None:
+    """The guard refuses a topic outside R/ even if a W/ pattern reached it.
+
+    The build refuses such a pattern first; this checks the guard does not
+    depend on that.
+    """
+    metadata = {"id": "victron_mqtt", "name": "Victron", "version": "9.9.9",
+                "protocols": ["mqtt"], "capabilities": ["meter"]}
+    artifact = _ftw_artifact(
+        b"function driver_init(config) end\nfunction driver_poll() return 1000 end\n",
+        metadata, read_only=True, mqtt_read_request_topics=["W/+/x", "R/+/keepalive"])
+    artifact_path = tmp_path / "guard.lua"
+    artifact_path.write_bytes(artifact)
+    script = "\n".join(
+        (
+            "sent = {}",
+            "host = { log = function() end }",
+            "host.mqtt_publish = function(topic, payload) sent[#sent + 1] = topic end",
+            f"dofile({json.dumps(str(artifact_path))})",
+            "assert(not pcall(host.mqtt_publish, 'W/abc123/x', ''))",
+            "assert(pcall(host.mqtt_publish, 'R/abc123/keepalive', ''))",
+            "assert(#sent == 1 and sent[1] == 'R/abc123/keepalive', #sent)",
+        )
+    )
+    runtime = subprocess.run(
+        [str(ROOT / "lua55"), "-e", script], check=False, capture_output=True, text=True
+    )
+    assert runtime.returncode == 0, runtime.stderr
+
+
+@pytest.mark.parametrize(
+    ("driver_id", "line", "message"),
+    [
+        ("victron_mqtt", 'mqtt_read_request_topics: ["R/#"]\n', "has level '#'"),
+        ("victron_mqtt", 'mqtt_read_request_topics: ["+/+/keepalive"]\n',
+         "must start with R/"),
+        ("victron_mqtt",
+         'mqtt_read_request_topics: ["W/+/settings/0/Settings/CGwacs/AcPowerSetPoint"]\n',
+         "must start with R/"),
+        ("victron_mqtt", 'mqtt_read_request_topics: ["R/+x/keepalive"]\n',
+         "a wildcard is a whole '+' level"),
+        ("victron_mqtt", 'mqtt_read_request_topics: "R/+/keepalive"\n', "must be a list"),
+        # Declared where it cannot mean a read request: a Modbus meter, and an
+        # MQTT driver that controls and so already holds mqtt.publish.
+        ("sdm630", KEEPALIVE, "only for an MQTT driver"),
+        ("ferroamp", KEEPALIVE, "only means anything for a read-only driver"),
+    ],
+)
+def test_read_request_topics_must_be_valid_and_mean_something(
+    tmp_path: Path, driver_id: str, line: str, message: str
+) -> None:
+    repo, config_path = single_driver_repo(tmp_path, driver_id)
+    declare_read_requests(repo, driver_id, line)
+    with pytest.raises(RepositoryError, match=re.escape(message)):
+        _load_channel(config_path, repo)
+
+
+def test_publishing_is_declared_or_it_does_not_happen(
+    tmp_path: Path, keypair: tuple[str, str]
+) -> None:
+    """A read-only driver that declares no read request keeps the blanket denial."""
+    manifest, output = build(tmp_path, keypair)
+    exempt = []
+    for driver in manifest["drivers"]:
+        if not driver["read_only"]:
+            continue
+        artifact = (output / Path(driver["url"]).name).read_text()
+        # No read-only driver holds the write permission, declared or not.
+        assert "mqtt.publish" not in driver["permissions"], driver["id"]
+        if "host.mqtt_publish = __sourceful_ftw_write_denied" not in artifact:
+            exempt.append(driver["id"])
+        else:
+            assert "mqtt_read_request_topics" not in driver["metadata"], driver["id"]
+    assert exempt == ["victron_mqtt"], f"unexpected drivers allowed to publish: {exempt}"
+    victron = next(d for d in manifest["drivers"] if d["id"] == "victron_mqtt")
+    assert victron["metadata"]["mqtt_read_request_topics"] == ["R/+/keepalive"]
+    assert victron["permissions"] == ["mqtt.subscribe"]
+
+
+def test_manifest_check_holds_read_request_topics_to_the_rule(tmp_path: Path) -> None:
+    def errors(driver_id: str, line: str) -> list[str]:
+        repo = tmp_path / driver_id
+        (repo / "manifests").mkdir(parents=True, exist_ok=True)
+        (repo / "manifests" / f"{driver_id}.yaml").write_bytes(
+            (ROOT / "manifests" / f"{driver_id}.yaml").read_bytes())
+        declare_read_requests(repo, driver_id, line)
+        return validate_manifest(repo / "manifests" / f"{driver_id}.yaml",
+                                 ROOT / "drivers" / "lua")
+
+    assert errors("victron_mqtt", KEEPALIVE) == []
+    assert any("has level '#'" in e for e in errors(
+        "victron_mqtt", 'mqtt_read_request_topics: ["R/#"]\n'))
+    assert any("non-empty list" in e for e in errors(
+        "victron_mqtt", "mqtt_read_request_topics: []\n"))
+    assert any("only for an MQTT driver" in e for e in errors("sdm630", KEEPALIVE))
+    assert any("only for a read-only driver" in e for e in errors("ferroamp", KEEPALIVE))

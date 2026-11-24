@@ -224,6 +224,16 @@ expect(idle({alloc=false, reason=28, reason_at="23:54:22"}), 0, "load_balancer",
 expect(idle({alloc=false, reason=10, reason_at="23:40:00"}), nil, nil, "Equalizer reason older than the state")
 expect(idle({alloc={0, 0, false}, reason=10, reason_at="23:54:22"}), 0, "load_balancer", "two phases and the reason")
 expect(idle({alloc={12, 12, 12}, reason=10, reason_at="23:54:22"}), nil, nil, "the allocation outweighs the reason")
+-- Once the order has stood 30 s an untimed value answers it, but an
+-- Equalizer reason without a readable time is still not evidence.
+boot()
+order(12)
+idle({alloc=false})
+later(31000)
+expect(idle({alloc=false, reason=10, reason_at="99:99:99"}), nil, nil, "Equalizer reason without a readable time")
+expect(idle({alloc=false, reason=10, reason_at="23:54:22"}), 0, "load_balancer", "the same reason with its time")
+boot()
+order(12)
 -- Not a hold: FTW's own low order or pause, a charger holding another
 -- order, a car that stopped asking, a finished or faulted charger, or a car
 -- that draws.

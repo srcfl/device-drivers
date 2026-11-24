@@ -19,11 +19,11 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "abb_terra"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.1"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from ABB's TAC Modbus Communication v1.7 (July 2022); not yet confirmed on hardware. Modbus TCP is enabled in the Terra Config app. Set phases: 1 for a single-phase installation."
   - name: "ATMOCE"
     model_families:
       - name: "MC100 M-Combiner"
@@ -116,17 +116,17 @@ manufacturers:
         notes: "2400 baud, 8E1, HDLC/DLMS/COSEM"
   - name: "Alfen"
     model_families:
-      - name: "Eve Series"
+      - name: "Eve Series (NG9xx)"
         variants: [NG910, NG920]
         regions: []
         protocols:
           - protocol: modbus
             driver: "alfen"
-            version: "1.0.4"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.1"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from Alfen's Modbus for ACE configuration guide v1.0 (May 2025); not yet confirmed on hardware. Needs Active Load Balancing (a paid licence) with data source Energy Management System, and Allow writing maximum currents, set in ACE Service Installer. Set phases: 1 for a single-phase installation."
   - name: "AlphaESS"
     model_families:
       - name: "G2 Series"
@@ -135,7 +135,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.1.1"
+            version: "1.3.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -146,7 +146,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "alphaess"
-            version: "1.1.1"
+            version: "1.3.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -257,9 +257,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye"
-            version: "2.1.1"
+            version: "2.2.0"
             ders: [battery, meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Single-phase hybrid with LV battery"
       - name: "SUN String (Grid-Tie)"
@@ -268,9 +268,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye"
-            version: "2.1.1"
+            version: "2.2.0"
             ders: [battery, meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Three-phase grid-tie string inverter (PV + meter only)"
       - name: "SUN Three-Phase HV Hybrid"
@@ -279,9 +279,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye"
-            version: "2.1.1"
+            version: "2.2.0"
             ders: [battery, meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Three-phase hybrid with HV battery"
       - name: "SUN Three-Phase Hybrid"
@@ -290,9 +290,9 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "deye"
-            version: "2.1.1"
+            version: "2.2.0"
             ders: [battery, meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Three-phase hybrid, supports LV and HV variants with runtime detection"
       - name: "SUN-xK-SG0xLP3 / HP3 hybrid"
@@ -321,24 +321,13 @@ manufacturers:
         notes: "Name-derived phase object_ids live-validated on SlimmeLezer+; explicit Sourceful aliases retained."
   - name: "Easee"
     model_families:
-      - name: "Easee"
-        variants: [Easee Charge, Easee Home]
-        regions: []
-        protocols:
-          - protocol: modbus
-            driver: "easee"
-            version: "1.0.4"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, may require specific firmware for Modbus TCP"
       - name: "Easee Cloud"
         variants: [Charge, Home]
         regions: []
         protocols:
           - protocol: http
             driver: "easee_cloud"
-            version: "1.4.4"
+            version: "1.4.5"
             ders: [ev]
             control: true
         firmware_versions: ""
@@ -359,16 +348,16 @@ manufacturers:
   - name: "Etrel"
     model_families:
       - name: "INCH"
-        variants: [INCH DUO, INCH HOME, INCH PRO]
+        variants: [INCH Duo, INCH Home, INCH Pro]
         regions: []
         protocols:
           - protocol: modbus
             driver: "etrel"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from Etrel's INCH SmartHome Modbus TCP register list; not yet confirmed on hardware. Duo: connector 1 only."
   - name: "Ferroamp"
     model_families:
       - name: "DC2 V2X"
@@ -393,7 +382,7 @@ manufacturers:
             control: true
           - protocol: modbus
             driver: "ferroamp_modbus"
-            version: "2.1.3"
+            version: "2.2.2"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -406,7 +395,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.9.6"
+            version: "0.10.0"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
@@ -417,7 +406,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "foxess_h3_smart"
-            version: "0.9.6"
+            version: "0.10.0"
             ders: [pv, battery, meter]
             control: true
         firmware_versions: ""
@@ -430,7 +419,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.3.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -441,7 +430,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.3.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -452,7 +441,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.3.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -463,7 +452,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.3.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -474,7 +463,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.3.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -507,7 +496,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "fronius"
-            version: "2.1.2"
+            version: "2.3.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -533,7 +522,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.1.3"
+            version: "2.2.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -544,7 +533,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.1.3"
+            version: "2.2.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -555,7 +544,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.1.3"
+            version: "2.2.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -566,7 +555,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.1.3"
+            version: "2.2.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -577,7 +566,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.1.3"
+            version: "2.2.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -588,24 +577,24 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "growatt"
-            version: "2.1.3"
+            version: "2.2.2"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
         notes: "Community driver, untested"
   - name: "HardyBarth"
     model_families:
-      - name: "cPH / Salia"
-        variants: [Salia, cPH1]
+      - name: "eCB1 and Salia controllers"
+        variants: [cPH1, cPH2, cPu2]
         regions: []
         protocols:
           - protocol: http
             driver: "hardybarth"
-            version: "1.0.1"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.1"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from the eCB1 REST API 1.3 (apidoc.ecb1.de) and the eCharge Salia REST API (docs.echarge.de); not yet confirmed on hardware. eCB1: sets manual mode, manualmodeamp, start and stop. Salia: sets grid_current_limit; firmware 2.3.81 and later needs api_key from the web UI, and power needs the station's meter. Earlier releases read /api/status, which neither controller documents."
   - name: "Home Assistant"
     model_families:
       - name: "Vehicle (Home Assistant MQTT)"
@@ -614,11 +603,11 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "home_assistant_vehicle"
-            version: "0.1.0"
+            version: "0.1.1"
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only vehicle level, charge limit, charging state, charge cable and place from a JSON message a Home Assistant automation publishes. Tested with recorded messages from a Model Y on the Tesla Custom Integration; the cable and place fields have not run on a car. Does not wake or command the car."
+        notes: "Read-only. FTW reads the car's charge level, charge limit, charging state, charge cable and place from a message a Home Assistant automation publishes over MQTT. FTW cannot control the car through it: the driver only listens and sends nothing back to Home Assistant. Control the charge with a charger FTW can control. Tested with recorded messages from a Model Y on the Tesla Custom Integration; the cable and place fields have not run on a car. Does not wake the car."
   - name: "Hoymiles"
     model_families:
       - name: "HM Series"
@@ -689,18 +678,18 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
-        notes: "High-voltage lithium battery modules (5/10/15 kWh)"
+        notes: "High-voltage lithium battery modules (5/10/15 kWh). From 2.2.0 the driver reports 37046/37048 (maximum charge/discharge power) as available power; they are not shown to be live on hardware. Battery temperature, power and SoC come from energy storage unit 1 only. Temperature and limits are read only once unit 1 reports a rated power above 0."
       - name: "SUN2000 (Single-Phase)"
         variants: [SUN2000-2KTL-L1, SUN2000-3KTL-L1, SUN2000-4KTL-L1, SUN2000-5KTL-L1, SUN2000-6KTL-L1]
         regions: [EU]
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -711,7 +700,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -722,7 +711,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -733,7 +722,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "huawei"
-            version: "2.1.3"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -772,7 +761,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kstar"
-            version: "1.1.1"
+            version: "1.3.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -783,7 +772,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kstar"
-            version: "1.1.1"
+            version: "1.3.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -849,11 +838,11 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "keba"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from KEBA's P30 Modbus TCP Programmers Guide V1.07; not yet confirmed on hardware. Needs c-series firmware 3.10.16 or x-series 1.11, DIP switch DSW1.3 ON and Modbus unit ID 255."
   - name: "Konja Power"
     model_families:
       - name: "MG series"
@@ -862,7 +851,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "konja-261-svk"
-            version: "0.3.2"
+            version: "0.4.0"
             ders: [battery, meter]
             control: true
         firmware_versions: ""
@@ -875,7 +864,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kostal"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -886,7 +875,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kostal"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -897,22 +886,22 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "kostal"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
-        notes: "SunSpec compliant, port 1502"
+        notes: "SunSpec compliant, port 1502. From 2.2.0 the driver reports the battery's own maximum charge/discharge power limit (0x434/0x436) as available power; how often it refreshes is unconfirmed on hardware."
       - name: "Plenticore Plus"
         variants: [Plenticore Plus 10.0, Plenticore Plus 3.0, Plenticore Plus 4.2, Plenticore Plus 5.5, Plenticore Plus 7.0, Plenticore Plus 8.5]
         regions: []
         protocols:
           - protocol: modbus
             driver: "kostal"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
-        notes: "SunSpec compliant, port 1502"
+        notes: "SunSpec compliant, port 1502. From 2.2.0 the driver reports the battery's own maximum charge/discharge power limit (0x434/0x436) as available power; how often it refreshes is unconfirmed on hardware."
   - name: "Landis+Gyr"
     model_families:
       - name: "E350"
@@ -950,17 +939,28 @@ manufacturers:
         notes: "2400 baud, 8E1, HDLC/DLMS/COSEM, may require encryption key"
   - name: "Mennekes"
     model_families:
-      - name: "AMTRON"
-        variants: [AMTRON Charge Control, AMTRON Premium]
+      - name: "AMTRON / AMEDIO with ECU charge controller"
+        variants: [AMEDIO Professional, AMTRON Charge Control, AMTRON Professional]
         regions: []
         protocols:
           - protocol: modbus
             driver: "mennekes"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.1"
+            ders: [ev]
+            control: true
+        firmware_versions: ">= 5.12"
+        notes: "Control written from Mennekes' ECU Modbus TCP Server Specification rev 1.07; not yet confirmed on hardware. Turn on Modbus TCP Server in the charger's web interface."
+      - name: "AMTRON with HCC3 controller"
+        variants: [AMTRON Premium, AMTRON Xtra]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "mennekes"
+            version: "1.1.1"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from Mennekes' AMTRON Modbus description v1.031; not yet confirmed on hardware. The Modbus server is off in the Energy Manager and SCU operation modes. The charger keeps the last limit written, with no timeout: when Core stops or updates it writes 0 A, and the car waits until Core sends a new order, as with easee_cloud. Set phases: 1 for a single-phase installation."
   - name: "MyUplink (NIBE, Bosch, Atlantic, Daikin, ...)"
     model_families:
       - name: "MyUplink Heat Pump (telemetry)"
@@ -1002,17 +1002,17 @@ manufacturers:
         notes: "NIBE S-series heat-pump telemetry over the on-prem Local REST API (HTTPS + Basic auth, self-signed cert pinned via tls_pin_sha256). Emits compressor/used power, lifetime energy meters, and the full ~980-point register map. Read-only by default; opt-in write path feeds the pump's native Solar PV surplus input (2107/2109)."
   - name: "OpenEVSE"
     model_families:
-      - name: "OpenEVSE"
-        variants: []
+      - name: "OpenEVSE WiFi"
+        variants: [OpenEVSE WiFi]
         regions: []
         protocols:
           - protocol: http
             driver: "openevse"
-            version: "1.0.1"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
+            version: "1.1.0"
+            ders: [ev]
+            control: true
+        firmware_versions: "WiFi 4.1.9 and later"
+        notes: "Control written from OpenEVSE's WiFi firmware API description (api.yml); not yet confirmed on hardware. Claims the current at the API priority with POST /claims; a claim below the minimum becomes disabled. Optional username and password for an admin password."
   - name: "Panasonic"
     model_families:
       - name: "Panasonic Aquarea (Heishamon)"
@@ -1021,7 +1021,7 @@ manufacturers:
         protocols:
           - protocol: mqtt
             driver: "heishamon"
-            version: "0.8.0"
+            version: "0.8.1"
             ders: [heatpump]
             control: true
         firmware_versions: ""
@@ -1047,7 +1047,7 @@ manufacturers:
             driver: "pixii"
             version: "2.1.9"
             ders: [battery, meter]
-            control: false
+            control: true
         firmware_versions: ""
         notes: ""
   - name: "Remne Technologies"
@@ -1071,7 +1071,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "saj"
-            version: "1.2.0"
+            version: "1.3.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1082,7 +1082,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "saj"
-            version: "1.2.0"
+            version: "1.3.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1093,7 +1093,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "saj"
-            version: "1.2.0"
+            version: "1.3.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1117,7 +1117,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1139,7 +1139,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1150,7 +1150,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1161,7 +1161,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1172,7 +1172,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1183,7 +1183,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1194,7 +1194,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sma"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: false
         firmware_versions: ""
@@ -1251,17 +1251,17 @@ manufacturers:
         notes: "Community driver, untested"
   - name: "Schrack"
     model_families:
-      - name: "i-CHARGE"
-        variants: [i-CHARGE CION, i-CHARGE CION PRO]
+      - name: "i-CHARGE CION"
+        variants: [i-CHARGE CION Home, i-CHARGE CION Semipublic]
         regions: []
         protocols:
           - protocol: modbus
             driver: "schrack_ev"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
+            version: "1.1.0"
+            ders: [ev]
+            control: true
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Control written from Schrack's CION Home and Semipublic Modbus register table; not yet confirmed on hardware. Modbus RTU through a Modbus TCP gateway. No power reading. CION Pro not covered: use OCPP."
   - name: "Shelly"
     model_families:
       - name: "1PM Gen3"
@@ -1417,44 +1417,44 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sigenergy"
-            version: "1.1.3"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Single-phase hybrid inverter"
+        notes: "Single-phase hybrid inverter. From 1.2.0 the driver reports plant registers 30047/30049 (ESS available max charging/discharging power) as available power; how they follow the BMS is unconfirmed on hardware."
       - name: "Sigen Hybrid Three-Phase (5-30kW)"
         variants: [Sigen-Hybrid-10.0-TP, Sigen-Hybrid-12.0-TP, Sigen-Hybrid-15.0-TP, Sigen-Hybrid-17.0-TP, Sigen-Hybrid-20.0-TP, Sigen-Hybrid-25.0-TP, Sigen-Hybrid-30.0-TP, Sigen-Hybrid-5.0-TP, Sigen-Hybrid-6.0-TP, Sigen-Hybrid-8.0-TP]
         regions: [EU, INT]
         protocols:
           - protocol: modbus
             driver: "sigenergy"
-            version: "1.1.3"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Three-phase hybrid inverter"
+        notes: "Three-phase hybrid inverter. From 1.2.0 the driver reports plant registers 30047/30049 (ESS available max charging/discharging power) as available power; how they follow the BMS is unconfirmed on hardware."
       - name: "SigenStor EC Single-Phase (3-12kW)"
         variants: [SigenStor-EC-10.0-SP, SigenStor-EC-12.0-SP, SigenStor-EC-3.0-SP, SigenStor-EC-3.6-SP, SigenStor-EC-4.0-SP, SigenStor-EC-4.6-SP, SigenStor-EC-5.0-SP, SigenStor-EC-6.0-SP, SigenStor-EC-8.0-SP]
         regions: [EU, INT]
         protocols:
           - protocol: modbus
             driver: "sigenergy"
-            version: "1.1.3"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Single-phase hybrid inverter with ESS"
+        notes: "Single-phase hybrid inverter with ESS. From 1.2.0 the driver reports plant registers 30047/30049 (ESS available max charging/discharging power) as available power; how they follow the BMS is unconfirmed on hardware."
       - name: "SigenStor EC Three-Phase (5-30kW)"
         variants: [SigenStor-EC-10.0-TP, SigenStor-EC-12.0-TP, SigenStor-EC-15.0-TP, SigenStor-EC-17.0-TP, SigenStor-EC-20.0-TP, SigenStor-EC-25.0-TP, SigenStor-EC-30.0-TP, SigenStor-EC-5.0-TP, SigenStor-EC-6.0-TP, SigenStor-EC-8.0-TP]
         regions: [EU, INT]
         protocols:
           - protocol: modbus
             driver: "sigenergy"
-            version: "1.1.3"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Three-phase hybrid inverter with ESS, includes TPLV series"
+        notes: "Three-phase hybrid inverter with ESS, includes TPLV series. From 1.2.0 the driver reports plant registers 30047/30049 (ESS available max charging/discharging power) as available power; how they follow the BMS is unconfirmed on hardware."
   - name: "Socomec"
     model_families:
       - name: "Diris / countis"
@@ -1476,7 +1476,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sofar"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1487,7 +1487,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sofar"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1498,7 +1498,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sofar"
-            version: "2.1.2"
+            version: "2.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1511,7 +1511,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1522,7 +1522,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1533,7 +1533,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1544,7 +1544,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solax"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -1559,7 +1559,7 @@ manufacturers:
             driver: "solaredge"
             version: "2.1.1"
             ders: [meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Single-phase string inverters, port 1502"
       - name: "SE Series (Three-Phase)"
@@ -1570,7 +1570,7 @@ manufacturers:
             driver: "solaredge"
             version: "2.1.1"
             ders: [meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Three-phase string inverters, port 1502"
       - name: "SolarEdge Home"
@@ -1581,7 +1581,7 @@ manufacturers:
             driver: "solaredge"
             version: "2.1.1"
             ders: [meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Residential single-phase series"
       - name: "SolarEdge inverter (PV only)"
@@ -1614,7 +1614,7 @@ manufacturers:
             driver: "solaredge"
             version: "2.1.1"
             ders: [meter, pv]
-            control: false
+            control: true
         firmware_versions: ""
         notes: "Hybrid inverters with battery support"
   - name: "Solinteg"
@@ -1625,7 +1625,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solinteg"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1636,7 +1636,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solinteg"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1647,7 +1647,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solinteg"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1658,7 +1658,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solinteg"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1669,7 +1669,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solinteg"
-            version: "1.1.1"
+            version: "1.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1682,7 +1682,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.1"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1693,7 +1693,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.1"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1704,7 +1704,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.1"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1715,17 +1715,17 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "50-125k-svk-ac-slew"
-            version: "0.2.5"
+            version: "0.3.0"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk-slew"
-            version: "0.1.13"
+            version: "0.2.0"
             ders: [battery]
             control: true
           - protocol: modbus
             driver: "50-125k-svk"
-            version: "0.2.4"
+            version: "0.3.0"
             ders: [battery]
             control: true
         firmware_versions: ""
@@ -1736,7 +1736,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.1"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1747,7 +1747,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "solis"
-            version: "2.1.1"
+            version: "2.2.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1760,7 +1760,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "zap"
-            version: "3.1.3"
+            version: "3.2.0"
             ders: [meter, pv, battery]
             control: false
         firmware_versions: ""
@@ -1773,7 +1773,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1784,7 +1784,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
@@ -1795,33 +1795,33 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Single-phase hybrid inverter"
+        notes: "Single-phase hybrid inverter. From 1.7.0 the driver reports the BMS's max charge and discharge current (documented 5635/5636) as available power; whether these follow the BMS live is unconfirmed on hardware."
       - name: "SH-RT (Three-Phase Hybrid)"
         variants: [SH10RT, SH5.0RT, SH6.0RT, SH8.0RT]
         regions: [EU]
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "Three-phase hybrid inverter, tested"
+        notes: "Three-phase hybrid inverter, tested. From 1.7.0 the driver reports the BMS's max charge and discharge current (documented 5635/5636) as available power; whether these follow the BMS live is unconfirmed on hardware."
       - name: "SH-T (Three-Phase Hybrid High-Power)"
         variants: [SH10RT, SH15T, SH20T, SH25T, SH8.0RT]
         regions: [EU]
         protocols:
           - protocol: modbus
             driver: "sungrow"
-            version: "1.6.1"
+            version: "1.7.0"
             ders: [battery, meter, pv]
             control: true
         firmware_versions: ""
-        notes: "High-power three-phase hybrid"
+        notes: "High-power three-phase hybrid. From 1.7.0 the driver reports the BMS's max charge and discharge current (documented 5635/5636) as available power; whether these follow the BMS live is unconfirmed on hardware."
   - name: "Tesla"
     model_families:
       - name: "Tesla Vehicle (BLE Proxy)"
@@ -1841,33 +1841,33 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "tesla_cloud"
-            version: "0.2.0"
+            version: "0.2.1"
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only vehicle SoC, charge limit, charging state and charge cable via the official Tesla Fleet API. Grant the optional vehicle_location scope to report the car's distance from the site; the coordinates stay in the driver. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+        notes: "Read-only. FTW reads the car's charge level, charge limit, charging state and charge cable from the official Tesla Fleet API. FTW cannot control the car through it: Tesla accepts a command only when it is signed with a key paired to the car, and this driver cannot sign. Use tesla_vehicle (BLE proxy) to start the car's charge, or a charger FTW can control. Grant the optional vehicle_location scope to report the car's distance from the site; the coordinates stay in the driver. Does not wake the car. Not yet run against a car."
       - name: "Tesla Vehicle (TeslaMate)"
         variants: [Model 3, Model Y]
         regions: []
         protocols:
           - protocol: mqtt
             driver: "teslamate_vehicle"
-            version: "0.2.0"
+            version: "0.2.1"
             ders: [vehicle]
             control: false
         firmware_versions: ""
-        notes: "Read-only vehicle SoC, charge limit, charging state, charge cable and place via TeslaMate MQTT. Set geofence to this site's TeslaMate geofence for the place. Optional next to tesla_vehicle (BLE proxy). Does not wake or command the car. Not yet run against a car."
+        notes: "Read-only. FTW reads the car's charge level, charge limit, charging state, charge cable and place from TeslaMate over MQTT. FTW cannot control the car through it: TeslaMate only logs data and takes no commands. Use tesla_vehicle (BLE proxy) to start the car's charge, or a charger FTW can control. Set geofence to this site's TeslaMate geofence for the place. Does not wake the car. Not yet run against a car."
       - name: "Tesla Wall Connector"
         variants: [Wall Connector Gen 3]
         regions: []
         protocols:
           - protocol: http
             driver: "tesla_wall_connector"
-            version: "0.1.2"
+            version: "0.2.0"
             ders: [ev]
             control: false
         firmware_versions: ""
-        notes: "Tesla Wall Connector Gen 3 on the LAN. Observation only; no local current setpoint."
+        notes: "Read-only. FTW reads power, current and session energy from the charger on your network, with no cloud account. FTW cannot control it: Tesla offers no way for another system to set its current or start and stop it. Its own current control is an installer setting fed by a Tesla energy meter. Control goes through the car (tesla_vehicle) or a charger FTW can control, such as one on OCPP."
   - name: "Tibber"
     model_families:
       - name: "Tibber Pulse"
@@ -1889,7 +1889,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
@@ -1900,7 +1900,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
@@ -1911,7 +1911,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "varta"
-            version: "1.1.1"
+            version: "1.1.2"
             ders: [battery, meter]
             control: false
         firmware_versions: ""
@@ -2006,12 +2006,12 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.2"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.3"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -2022,12 +2022,12 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.2"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.3"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -2038,12 +2038,12 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.2"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.3"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -2054,12 +2054,12 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.2"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.3"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -2070,12 +2070,12 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "victron"
-            version: "2.1.2"
+            version: "2.2.1"
             ders: [pv, battery, meter]
             control: false
           - protocol: mqtt
             driver: "victron_mqtt"
-            version: "1.0.3"
+            version: "1.2.1"
             ders: [pv, battery, meter]
             control: false
         firmware_versions: ""
@@ -2101,35 +2101,24 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "wallbox"
-            version: "1.0.3"
-            ders: [v2x_charger]
+            version: "1.1.0"
+            ders: [ev]
             control: false
         firmware_versions: ""
-        notes: "Community driver, untested"
+        notes: "Cannot control: we found no documented local Modbus interface for these chargers. The power and energy this driver reports come from an unverified register map. Use FTW's built-in OCPP central system (Wallbox supports OCPP 1.6J) to read and control them."
   - name: "Zaptec"
     model_families:
-      - name: "Zaptec"
-        variants: [Zaptec GO, Zaptec PRO]
-        regions: []
-        protocols:
-          - protocol: http
-            driver: "zaptec"
-            version: "1.0.1"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
       - name: "Zaptec Cloud"
         variants: [Go, Go 2, Pro]
         regions: []
         protocols:
           - protocol: http
             driver: "zaptec_cloud"
-            version: "0.1.1"
+            version: "0.2.2"
             ders: [ev]
-            control: false
+            control: true
         firmware_versions: ""
-        notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial."
+        notes: "Zaptec Go / Go 2 / Pro via Zaptec Cloud REST API. Email + password; optional charger serial. Control written from Zaptec's API docs; not yet confirmed on hardware."
   - name: "Zuidwijk"
     model_families:
       - name: "Zuidwijk P1 Reader Ethernet"
@@ -2145,28 +2134,28 @@ manufacturers:
         notes: "Dutch DSMR P1 smart-meter via Zuidwijk Serial-to-Ethernet bridge (raw TCP, port 23)."
   - name: "go-e"
     model_families:
-      - name: "Gemini"
-        variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
-        regions: []
-        protocols:
-          - protocol: modbus
-            driver: "goe"
-            version: "1.0.3"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
-      - name: "Gemini HTTP"
+      - name: "go-e Charger (HTTP API v2)"
         variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
         regions: []
         protocols:
           - protocol: http
             driver: "goe_http"
-            version: "1.0.1"
-            ders: [v2x_charger]
-            control: false
-        firmware_versions: ""
-        notes: "HTTP alternative to Modbus driver"
+            version: "1.1.0"
+            ders: [ev]
+            control: true
+        firmware_versions: "051.4 and later"
+        notes: "Control written from go-e's HTTP API v2 documentation (http-en.md, apikeys-en.md); not yet confirmed on hardware. Turn on HTTP API v2 in the go-e app. Sets amp and frc; frc=1 stops the charger and stays until FTW or the owner changes it."
+      - name: "go-e Charger (Modbus TCP)"
+        variants: [Gemini flex 11kW, Gemini flex 22kW, go-e Pro]
+        regions: []
+        protocols:
+          - protocol: modbus
+            driver: "goe"
+            version: "1.1.0"
+            ders: [ev]
+            control: true
+        firmware_versions: "55.6 and later"
+        notes: "Control written from go-e's Modbus documentation for API v2 firmware (modbus-en.md); not yet confirmed on hardware. Turn on Modbus in the go-e app. Writes AMPERE_VOLATILE (299) and FORCE_STATE (337, firmware 55.6 and later) with function 16. Earlier releases read registers go-e does not document."
   - name: "sonnen"
     model_families:
       - name: "sonnenBatterie"

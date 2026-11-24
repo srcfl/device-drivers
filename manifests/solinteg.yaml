@@ -1,5 +1,5 @@
 name: "solinteg"
-version: "1.1.1"
+version: "1.2.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -42,10 +42,19 @@ tested_devices:
     firmware_versions: ""
     notes: "Gen2 single-phase hybrid inverter"
     min_driver_version: "1.0.0"
+upstream_docs:
+  - url: "https://forum.iobroker.net/assets/uploads/files/1688649086143-20221125_mtec-energybutler_modbus_rtu_protkoll.pdf"
+    title: "M-TEC Energy Butler RTU Protocol GEN2 + GEN3 V1.0 (a rebadged Solinteg), public copy"
+    kind: register_map
+    url_stability: unknown
+  - url: "https://raw.githubusercontent.com/croedel/MTECmqtt/main/src/mtecmqtt/registers.yaml"
+    title: "croedel/MTECmqtt register map"
+    kind: register_map
+    url_stability: volatile
 min_host_version: "2.0.0"
-size_bytes: 8837
+size_bytes: 10729
 dkb_id: "solinteg"
-sha256: "8529406d47253a42a360ff77ff527679587eb24a78241f0ee66e6274818ac67b"
+sha256: "ffa7d8654ea8ecd6e990bcc5ac76f8926632541a78ff697b8f9cba1d29ea77da"
 signature: ""
 
 bytecode_sha256: ""
