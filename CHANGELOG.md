@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.4.5
+
+Report when Easee's load balancing holds a start. While the car draws nothing
+and the charger holds an order a car can start on, the driver reports
+`current_limit_a` as the allocated current and `current_limited_by =
+"load_balancer"` when that current is below 6 A. Evidence is the circuit
+allocation on all three phases, or else a ReasonForNoCurrent that names the
+Equalizer (10 or 28) in the charger's current state. Reason 78 is not
+evidence: FTW writes that setting too. Easee support says the Equalizer
+raises the current again up to 15 minutes after household use falls
+(srcfl/ftw#1948); FTW Core waits that long before it reports a failed start.
+A reason or charger state without a readable source time is not evidence.
+
 ### easee_cloud 1.4.4
 
 Report the current Easee signals below FTW's order (observation 114, the

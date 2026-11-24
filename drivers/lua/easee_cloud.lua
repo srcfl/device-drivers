@@ -29,7 +29,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.4.4",
+  version      = "1.4.5",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -870,6 +870,51 @@ local order_seen_a, order_seen_ms = nil, 0
 local LIMIT_RELEASE_HOLD_MS = 20000
 local last_limit_a, last_limited_by, last_limit_ms = nil, nil, nil
 
+-- A car cannot charge on less than 6 A per phase (IEC 61851-1).
+local START_A = 6
+-- ReasonForNoCurrent codes in which Easee names its Equalizer: 10 "no
+-- current, Equalizer current too low" and 28 "current limited by Equalizer"
+-- (developer.easee.com/docs/enumerations).
+local EQUALIZER_REASONS = { [10] = true, [28] = true }
+
+-- start_held_a returns the current Easee's load balancing lets the car take
+-- when that is too little to start, while the car draws nothing and the
+-- charger holds FTW's order, which a car could start on. Evidence is the
+-- circuit allocation on all three phases (as below: a three-phase car gets
+-- the lowest share of the phases in use, a one-phase car the highest; no
+-- allocation on any phase is 0 A), or failing that a reason in which Easee
+-- names its Equalizer, recorded no earlier than the charger's state; a
+-- reason or state without a readable time is not evidence. Both
+-- must answer the order. A reason that names FTW's own setting (78) is not
+-- evidence: FTW writes that setting too.
+local function start_held_a(obs, timestamps, answering, dyn_current, power_w, op_mode, request_active)
+    if not (op_mode == 2 or op_mode == 3 or op_mode == 6) or not request_active or power_w >= 100 then return nil end
+    if type(dyn_current) ~= "number" or last_amps_set == nil or math.abs(last_amps_set - dyn_current) > 0.5 or
+       dyn_current < START_A then
+        return nil
+    end
+    local low, high, n = nil, nil, 0
+    for id = OBS_ALLOCATED_L1, OBS_ALLOCATED_L1 + 2 do
+        local a = answering(id)
+        if a then
+            n, high = n + 1, math.max(high or a, a)
+            if a > 0 then low = math.min(low or a, a) end
+        end
+    end
+    if n == 3 then
+        local allocated_a = (phases == 1) and high or (low or 0)
+        if allocated_a < START_A and allocated_a < dyn_current - 0.5 then return allocated_a end
+        return nil
+    end
+    local reason = answering(OBS_REASON_NO_CUR)
+    local reason_at = source_time_key(timestamps[OBS_REASON_NO_CUR])
+    local state_at = source_time_key(timestamps[OBS_OP_MODE])
+    if reason and EQUALIZER_REASONS[reason] and reason_at and state_at and reason_at >= state_at then
+        return 0
+    end
+    return nil
+end
+
 local email, password, configured_max_a
 local device_limit_a, device_limit_read_ms
 local settings_poll_ms = 0
@@ -1285,6 +1330,17 @@ function driver_poll()
     elseif last_limit_ms and now - last_limit_ms < LIMIT_RELEASE_HOLD_MS and charging and
            type(dyn_current) == "number" and actual_amps_per_phase and actual_amps_per_phase < dyn_current - 1 then
         current_limit_a, current_limited_by = last_limit_a, last_limited_by
+    end
+    -- Easee's load balancing can also hold the start: the car draws nothing
+    -- while the charger holds an order a car starts on. Easee support
+    -- (srcfl/ftw#1948, 18 Nov 2026): the Equalizer lowers the current at
+    -- once, raises it again up to 15 minutes after household use falls, and
+    -- three-phase charging needs START_A on each phase. In a field trace
+    -- (srcfl/ftw#1948, 12 Nov 2026) FTW ordered 12 A, the charger read back
+    -- 12 A, and the allocation was 0 A on all three phases for minutes.
+    if current_limit_a == nil then
+        local held_a = start_held_a(obs, timestamps, answering, dyn_current, power_w, op_mode, request_active)
+        if held_a then current_limit_a, current_limited_by = held_a, "load_balancer" end
     end
 
     local limit_age_s = device_limit_read_ms and (host.millis() - device_limit_read_ms) / 1000

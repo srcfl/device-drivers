@@ -327,7 +327,7 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "easee_cloud"
-            version: "1.4.4"
+            version: "1.4.5"
             ders: [ev]
             control: true
         firmware_versions: ""
