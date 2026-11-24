@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.4.3
+
+The driver re-sends its current limit as a charger command. Easee puts the
+limit back at its maximum when charging resumes (32 A reported, #225). The
+settings write reaches the charger only when the cloud's stored value
+changes, so re-sending the same order never undid that. On a 16 A fuse a
+7 A order drew 16 A for about 10 s.
+
+- 3 s after a resume or start, and after a phaseMode write, the order goes
+  out as `set_dynamic_charger_current` with `minutes: 0`.
+- When the charger reports a higher limit than ordered, or draws more than
+  2 A over the order, the order is re-sent as a command, at most every 10 s.
+- `minutes: 0` holds the limit until the next one, as Easee documents. A 0 A
+  order goes out as a 0 A command too, the limit a pause sets.
+- A failed re-send is retried every 10 s, not on every poll.
+- When a lower order's settings write fails, re-sends use that lower order,
+  not the earlier, higher one.
+
 ### easee_cloud 1.4.2
 
 REST and SignalR compare TotalPower source times on the same UTC timeline.
