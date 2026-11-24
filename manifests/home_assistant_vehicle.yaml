@@ -1,5 +1,5 @@
 name: "home_assistant_vehicle"
-version: "0.1.0"
+version: "0.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: mqtt
@@ -13,12 +13,12 @@ tested_devices:
     variants: [Model Y]
     regions: []
     firmware_versions: ""
-    notes: "Read-only vehicle level, charge limit, charging state, charge cable and place from a JSON message a Home Assistant automation publishes. Tested with recorded messages from a Model Y on the Tesla Custom Integration; the cable and place fields have not run on a car. Does not wake or command the car."
+    notes: "Read-only. FTW reads the car's charge level, charge limit, charging state, charge cable and place from a message a Home Assistant automation publishes over MQTT. FTW cannot control the car through it: the driver only listens and sends nothing back to Home Assistant. Control the charge with a charger FTW can control. Tested with recorded messages from a Model Y on the Tesla Custom Integration; the cable and place fields have not run on a car. Does not wake the car."
     min_driver_version: "0.1.0"
 min_host_version: "2.0.0"
-size_bytes: 12635
+size_bytes: 13488
 dkb_id: "home_assistant_vehicle"
-sha256: "a61c473a0f984f0cc8229e15472222e1c135b39c38ab2d2630b173afa8b7ca25"
+sha256: "5916c510d6d646a34516d7a887dab4518ba7587be160e16c788a6081e0334eab"
 signature: ""
 
 bytecode_sha256: ""

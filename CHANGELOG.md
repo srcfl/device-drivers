@@ -2,13 +2,1099 @@
 
 ## [Unreleased]
 
+### easee_cloud 1.4.4
+
+Report the current Easee signals below FTW's order (observation 114, the
+pilot), and attribute the limit to load balancing when the circuit
+allocation (observations 70-72) supports it. Require a usable allocation on
+all three phases when the active phase of a one-phase car is unknown.
+ReasonForNoCurrent labels now follow Easee's enumeration table
+(developer.easee.com/docs/enumerations). Power ordering is the one from
+1.4.2 (#183).
+
 ### easee_cloud 1.4.3
 
-Report the current Easee signals below FTW's order. Attribute the limit to
-load balancing when the circuit allocation supports it. Require a usable
-allocation on all three phases when the active phase of a one-phase car is
-unknown. Reject out-of-order REST power observations and keep the coarse
-session energy counter declaration.
+The driver re-sends its current limit as a charger command. Easee puts the
+limit back at its maximum when charging resumes (32 A reported, #225). The
+settings write reaches the charger only when the cloud's stored value
+changes, so re-sending the same order never undid that. On a 16 A fuse a
+7 A order drew 16 A for about 10 s.
+
+- 3 s after a resume or start, and after a phaseMode write, the order goes
+  out as `set_dynamic_charger_current` with `minutes: 0`.
+- When the charger reports a higher limit than ordered, or draws more than
+  2 A over the order, the order is re-sent as a command, at most every 10 s.
+- `minutes: 0` holds the limit until the next one, as Easee documents. A 0 A
+  order goes out as a 0 A command too, the limit a pause sets.
+- A failed re-send is retried every 10 s, not on every poll.
+- When a lower order's settings write fails, re-sends use that lower order,
+  not the earlier, higher one.
+
+### easee_cloud 1.4.2
+
+REST and SignalR compare TotalPower source times on the same UTC timeline.
+Older readings and conflicting values at one instant cannot replace newer
+power. A disconnect clears the power watermark. If the source clock moves
+back, advancing readings on the lower timeline can restore telemetry after
+30 seconds.
+
+### victron_mqtt 1.2.1
+
+The manifest declares `R/+/keepalive` in `mqtt_read_request_topics`, so the
+keep-alive 1.2.0 sends can reach a GX from the signed channel. Before, the
+channel's guard and FTW refused every publish from this read-only driver,
+and the GX went quiet 60 s after the last keep-alive from anyone.
+
+The channel's guard now lets the driver publish to that topic alone, with at
+most 1 KiB of payload, and an FTW Core with srcfl/ftw#2071 allows six such
+requests a minute. Every other publish is still refused. A read request is
+not a write, so the driver still holds only `mqtt.subscribe`. The Lua source
+is unchanged.
+
+A Core without srcfl/ftw#2071 runs this version as it runs 1.2.0: it refuses
+the keep-alive, the driver logs one warning and keeps reading, and the GX
+publishes only while another client keeps it awake. Not yet checked on a
+real GX.
+
+### alphaess 1.3.0, kstar 1.3.0
+
+Both drivers read the registers their vendor's own Modbus map gives
+(srcfl/device-drivers#257). Earlier releases read addresses no source
+supports, so their PV, battery and meter values were probably wrong. Each
+stream now goes out only when its read answered, never as zeros. Written
+from the sources in each manifest's `upstream_docs`. Not yet checked on
+hardware.
+
+- **alphaess 1.3.0** follows AlphaESS's parameter address table. Grid meter:
+  total power at 0x0021 (S32, positive when drawing from the grid), phase A
+  current at 0x0017, frequency at 0x001A. Battery: power at 0x0126, which
+  AlphaESS counts positive when discharging, so the driver negates it;
+  voltage at 0x0100 and SoC at 0x0102 (0.1 %). PV: the sum of the six string
+  powers at 0x041F-0x0433, with string 1 voltage and current. Earlier
+  releases read meter energy counters and voltages at 0x0010-0x0028 as PV,
+  battery and meter values. The grid phase voltage is no longer sent: the
+  sources disagree on its scale. 0x0111/0x0112 are still not used as live
+  BMS limits. The meter and PV strings 4 to 6 are read only once 0x074E
+  (Protocol Version, in the System info block V1.20 added) answers; firmware
+  on the 2020 map (V1.17, meter at 0x0000-0x0019) gets PV strings 1 to 3
+  and no meter.
+- **kstar 1.3.0** reads KSTAR's input registers (function 04H) from 3000, as
+  KSTAR's Hybrid Inverter Modbus V2.9.1 gives them for the KSE, BluE-S and
+  E-series three-phase models: PV at 3000-3025, battery voltage, power and
+  SoC at 3063-3066 (beside the temperatures it already read) and the grid
+  meter at 3097-3108. KSTAR gives no signs; following ha-solarman, the
+  meter power (positive when exporting) and the battery power (positive
+  when discharging) are negated. The model at 3045 says whether the S and
+  T phases exist; a code KSTAR's model table does not name sends no meter.
+  Earlier releases read holding registers 10-54, which no source has.
+
+In both drivers, battery voltage and SoC both 0 means no pack is connected,
+so the battery stream is left out rather than sent as an empty pack.
+Neither vendor map has a flag that says a grid meter is fitted, so with no
+meter both drivers send whatever the meter registers hold: 0 W there cannot
+be told from a balanced site.
+
+### fronius 2.3.0
+
+Battery power, voltage and SoC now come from the registers Fronius's GEN24
+and Verto storage maps give them (register map bundle 1.2.7-2, float maps).
+Not yet checked on hardware (srcfl/device-drivers#260).
+
+- **Where the battery is.** Earlier releases read model 124 at fixed
+  addresses that assume a model 160 with two inputs. With storage, Fronius's
+  model 160 has two more, for the battery, so those reads landed inside
+  model 160's battery blocks. The driver now reads model 160's header,
+  learns its length, and finds model 124 directly after it.
+- **Battery power** is the charge input's DC power minus the discharge
+  input's (the last two blocks of model 160, "StCha" and "StDisCha"),
+  positive when charging. Earlier releases took it from OutWRte and InWRte
+  times WChaMax, which are rate setpoints and a rating, not a measurement.
+- **Voltage** is the larger of the two inputs' DC voltage (before firmware
+  1.31 only the active input carries it), and is left out when both read 0.
+  **SoC** is model 124's ChaState with its scale factor.
+- **No storage, no battery.** Model 124 exists only with storage. Without it
+  the driver sends no battery, where earlier releases sent 0 W, 0 V and 0 %.
+- **Floats.** The float decoder works on the 16-bit halves. It joined the
+  words into one 32-bit number first, so on 32-bit Lua every float came out
+  negative (FTW and Blixt L1 use 64-bit integers and were not affected). NaN
+  and infinity are now left out instead of sent as 0.
+- **Failed reads are left out.** PV is sent only when DC power answered, and
+  each other PV field and metric only when its own read did. The MPPT values
+  come from one read of model 160, with the scale factors that go with them.
+  `fronius` leaves `invented-number-baseline.json` (10 to 0).
+- **PV power with storage** is the sum of the MPPT blocks before the
+  battery blocks, as evcc's GEN24 template reads it. Fronius's map does not
+  say whether model 113's DC power includes the battery input, so a 3 kW
+  discharge could have shown as 3 kW of sun. Model 113's DC power is used
+  only where there is no battery input.
+- **A battery fitted later is found.** While no storage model is known the
+  driver looks for it again every five minutes, and at once when model
+  160's length changes.
+- **Not changed.** In the int+SF setting model 160 starts at 40254; the
+  driver reads only the float maps, so it now sends no DC input or battery
+  values there rather than wrong ones.
+
+### ferroamp_modbus 2.2.2
+
+A float that answers NaN or infinity is now left out instead of sent as 0
+(docs/WRITING-A-DRIVER.md, "Never fabricate" and "Numbers"). The EnergyHub
+uses them for "not present", and the decoder turned them into 0, so a NaN
+grid power went out as a 0 W meter and a NaN SoC as an empty pack. The
+same rule now covers a reply that is missing a word, also on the battery
+reads, and a value that only becomes infinite after scaling, as float32's
+largest value times 1000 does where Lua numbers are 32-bit floats. The
+meter and PV readings still go out only with their power, and each
+per-phase watt figure only with that phase's voltage and current. A real
+0.0 is still a reading. Not yet checked on hardware.
+
+### growatt 2.2.2
+
+A failed read no longer becomes 0 (docs/WRITING-A-DRIVER.md, "Never
+fabricate"). Up to 2.2.1 every PV, battery and meter value started at 0, so a
+read that did not answer sent 0 W, 0 V or 0 % SoC. A 0 W meter looks like a
+site in balance, a 0 % SoC like an empty pack.
+
+- Each field comes only from a read that answered with every register asked
+  for; metrics likewise.
+- PV goes out only when its power (1-2) answers, and the meter only when its
+  power (1015-1016) answers. So a failed power read also drops that
+  stream's energy counter and its MPPT or phase values for that poll; the
+  phase values still reach history as metrics.
+- The battery follows "A hybrid inverter may have no battery": each field
+  only from a read that answered, and the stream when what answered shows a
+  battery. Its power needs both 1009 and 1011, since either alone is not the
+  net.
+
+This is the never-fabricate half of srcfl/device-drivers#263. Which
+registers the meter should read is srcfl/device-drivers#271 and is not
+changed here. growatt leaves `drivers/tests/invented-number-baseline.json`.
+Not yet checked on hardware.
+
+### victron 2.2.1, ferroamp_modbus 2.2.1
+
+A failed read no longer sends 0 on the meter and PV streams
+(docs/WRITING-A-DRIVER.md, "Never fabricate"). A 0 W meter reading looks
+like a site in balance. Each field now comes only from a register that
+answered, and each stream only from its power read. 2.2.0 did the same for
+the battery.
+
+- **victron 2.2.1** sends the meter reading only when the grid power read
+  (820-822) answers. PV is the sum of the AC-coupled (808-810) and
+  DC-coupled (850) parts that answered; with neither, there is no PV
+  reading. So a one-off failure of the AC-coupled read (808) while 850
+  answers sends a PV figure without the AC-coupled part until the next
+  poll. That is the cost of serving a GX that has only one of the two.
+- **ferroamp_modbus 2.2.1** sends the meter reading only when the grid
+  power (3100) answers, and the PV reading only when the solar power (5100)
+  answers. Frequency, voltages, currents and energy counters are left out
+  when their read fails; per-phase watts need both voltage and current. A
+  reply with fewer registers than asked for counts as failed, since the
+  missing word decoded as 0. Fields that did answer still go to history as
+  metrics.
+
+Both drivers leave `drivers/tests/invented-number-baseline.json`. Not yet
+checked on hardware.
+
+### victron_mqtt 1.2.0
+
+Venus OS publishes MQTT values only while some client sends a keep-alive to
+`R/<portal ID>/keepalive` (victronenergy/dbus-flashmq README). The driver
+sent none, so on a GX with no other MQTT client its values stopped after
+60 s. It now sends one itself.
+
+- The driver learns the portal ID from the topics it receives.
+  dbus-flashmq publishes `N/<portal ID>/system/0/Serial` retained, so it
+  arrives as soon as the driver subscribes. When that topic names another
+  portal ID, the driver follows the new GX, forgets the old one's values and
+  asks the new one for all of them.
+- A keep-alive goes out every 30 s, the interval in Victron's example, also
+  on polls that bring no messages. Victron suggests the
+  `suppress-republish` option on the timer; the driver uses it, and sends an
+  empty payload, which asks for a full republish, at first, when the GX
+  speaks again after 60 s of silence, and every 120 s.
+- A full republish resends every value the GX has and ends with
+  `N/<portal ID>/full_publish_completed`. The system's SoC, voltage,
+  current and battery temperature are now left out once a full republish
+  has not resent them, so a value whose device left while the driver was
+  not listening no longer stays forever. A value counts as resent when it
+  arrived within two polls or 5 s before the completion, so a republish
+  that straddles a poll on a host polling every 5 s or slower is not
+  misread. Without a completed full republish they behave as before.
+- FTW refuses `host.mqtt_publish` from a driver it runs read-only, which is
+  how it runs a `control: false` driver installed from the signed channel.
+  The driver then logs one warning, keeps reading, and tries again every
+  30 s; the GX publishes only while another client keeps it awake, as
+  before.
+
+Not yet checked on a real GX.
+
+### victron_mqtt 1.1.1
+
+Battery power had the wrong sign: a charging battery showed as discharging
+and the reverse. Victron's D-Bus documentation gives battery power as
+"positive when charged, negative when discharged", and dbus-systemcalc-py
+copies that value into `system/0/Dc/Battery/Power`, the topic this driver
+reads. That is already the site convention, but the driver negated it. It
+now passes it through, as `victron` does with the same value at Modbus
+register 842. Battery current was already passed through unchanged. The
+driver is read-only, so no command went the wrong way.
+
+Not yet measured on a real GX. An owner can check it: while the battery
+charges and its SoC rises, the battery `W` in FTW should be positive; while
+it discharges, negative.
+
+### growatt 2.2.1
+
+`battery.w` had the wrong sign: a charging battery showed as discharging and
+the reverse. Growatt's Modbus RTU Protocol II V1.39 puts discharge power
+(Pdischarge1) at 1009-1010 and charge power (Pcharge1) at 1011-1012, and
+Growatt-Local-Modbus maps them the same way. The driver read them the other
+way round. It now reads them as the protocol says, so charge is positive.
+The driver is read-only, so no command went the wrong way. Not yet checked
+on hardware: on a Growatt, `battery.w` should be positive while the SoC
+rises.
+
+### goodwe 2.3.0
+
+The driver now reads PV, battery and meter values from the registers in
+GoodWe's own map, "Modbus Protocol Hybrid for Energy Storage Inverters"
+(2 February 2024). evcc's goodwe-hybrid template and the goodwe library read
+the same registers and give the signs (srcfl/device-drivers#264). Not yet
+checked on hardware.
+
+- **Battery.** Power is the S32 at 35182-35183, voltage 35180, current
+  35181, SoC 37007 from the BMS block. GoodWe counts discharge as positive,
+  so the driver turns power and current round. Earlier releases read power
+  from 35180 (the battery voltage), voltage and current from 35178/35179
+  (the BUS and NBUS voltages) and SoC from 35182. SoC is sent only while
+  the BMS talks to the inverter (37011), like the other BMS figures. When
+  35184 says there is no battery, no battery stream goes out.
+- **PV.** Power is the sum of the four MPPT powers (U32 W at 35105, 35109,
+  35113, 35117). Earlier releases read PV1 power alone and scaled it by 0.1.
+  PV2 voltage and current are 35107/35108, not 35109/35110. Grid frequency
+  is 35123, not 35113 (PV3 power).
+- **Meter.** The meter comes from the meter block: total power 36025, power
+  per phase 36019/36021/36023 (S32), frequency 36014, energy sold and bought
+  36015/36017 (float32 Wh), and voltage and current per phase 36052-36057.
+  GoodWe counts export as positive; the driver turns it round. Earlier
+  releases read the inverter's own phase registers at 35121-35141 and the
+  energy counters at 35195/35199, which are inverter counters at best and,
+  for 35199, a daily value. No meter is sent while 36004 says the inverter
+  does not hear its meter.
+- **Never fabricate.** A read that fails is left out, never sent as 0. The
+  driver is clean in `invented-number-baseline.json` (was 23 fields).
+- **Old firmware.** GoodWe's map puts meter power at 36019-36041 only
+  above ARM firmware version 9 (35019, read once), and at 36005-36008
+  before that. No source gives the sign of the old registers, so on ARM 9
+  or older, or while the version is unknown, no meter is sent rather than
+  a 0 W one.
+- **No-value sentinels.** A PV power or PV energy of 0xFFFFFFFF (as evcc
+  reads them) is left out, and an MPPT without a value adds nothing to PV
+  power. A SoC above 100 % (0xFFFF) is left out.
+- **Tests.** `test_goodwe_map.py` encodes the map. The four Lua files under
+  `drivers/tests/lua_harness/` for the `community-v1` and `gw8kn-et-hk3000`
+  profiles are removed: no test ran them, and the driver lost those
+  profiles in #27. So is the `THIRD_PARTY_NOTICES.md` entry for the
+  `gw8kn-et-hk3000` profile, since no file derives from it any more.
+
+### goodwe 2.2.0, solis 2.2.0, sofar 2.2.0, solax 1.2.0, saj 1.3.0, growatt 2.2.0, solinteg 1.2.0
+
+These drivers report what the battery can do now, where the device says so
+(docs/WRITING-A-DRIVER.md, "What a battery can do now"). A limit in amps
+becomes `available_charge_W` or `available_discharge_W` only with a battery
+voltage from the same poll. A temperature outside -40 to 100 °C or a power
+outside 0 to 100 kW is dropped. A read that fails is left out, never sent as
+0. Temperatures and limits also go to history as metrics. Written from the
+sources in each manifest's `upstream_docs`. Not yet checked on hardware.
+
+- **goodwe 2.2.0** reads GoodWe's BMS block (37000-37023) while 35184 says a
+  battery is connected, and uses it only while 37011 names a BMS protocol
+  (not 0 or 0x11F, "no direct communication"): pack temperature (37003), the
+  BMS's charge and discharge current limits (37004, 37005) and the cell
+  temperature extremes.
+  The limits are multiplied by the battery 1 voltage at 35180. The heat sink
+  temperature (35176) goes to `inverter_temp_c`. Earlier releases sent
+  register 35183 as the battery temperature, and 0 °C when it failed; in
+  GoodWe's map 35183 is the low word of battery power. GoodWe's map also
+  disagrees with the driver's other battery, PV and meter reads (35178 is the
+  BUS voltage, for example; srcfl/device-drivers#264). This release leaves
+  those reads as they were.
+- **solis 2.2.0** reports the BMS charge and discharge current limits (33143,
+  33144, "From BMS" in Solis's map) times the battery voltage at 33133, only
+  while the battery model (33160) names a battery maker, not "no battery",
+  "User define", lead-acid or a generic battery. 33096 is Solis's lead-acid
+  battery probe, not a BMS value, and reads 200.2 °C when no probe is
+  fitted; that value is now dropped. The battery and inverter temperatures
+  are no longer sent as 0 when their reads fail.
+- **sofar 2.2.0** sends the battery temperature (0x0607) only when it
+  answered and the pack reports a voltage, and the heat sink temperature
+  (0x041A) as `inverter_temp_c`. Sofar's map has no live BMS limit, so the
+  driver sends no `available_*` figures.
+- **solax 1.2.0** reports the BMS charge and discharge max current (0x0024,
+  0x0025, "real time" in SolaX's V3.28 map) times the battery voltage at
+  0x0014, and the radiator temperature (0x0008) as `inverter_temp_c`. The
+  battery temperature (0x0018) is whole degrees: earlier releases scaled it
+  by 0.1, so 25 °C showed as 2.5 °C.
+- **saj 1.3.0** reports the current limits at 0xA036 (discharge) and 0xA037
+  (charge) in the BMS block, times the battery 1 voltage. The community map
+  names them but does not say they are live; that is unconfirmed. The heat
+  sink temperature (0x4010) goes to `inverter_temp_c`.
+- **growatt 2.2.0** reports the BMS's max and min cell temperature (1114,
+  1115) and the inverter temperature (93). Growatt's one BMS current figure
+  (1090) covers both directions and has no documented unit, so the driver
+  sends no `available_*` figures. Growatt's protocol puts discharge power at
+  1009 and charge power at 1011, the other way round from this driver, so
+  `battery.w` has the wrong sign. This release does not change that.
+- **solinteg 1.2.0** reports the max and min cell temperature (33009, 33011)
+  and sends the inverter temperature (11032) as `inverter_temp_c`. The pack
+  temperature needs a pack voltage in the same poll. No source settles where
+  a live charge or discharge limit is, so the driver sends no `available_*`
+  figures.
+
+### huawei 2.2.0
+
+The battery says what it may charge and discharge at now. The driver reads
+37046 and 37048, "[Energy storage] Maximum charge/discharge power" (U32, W),
+and sends them as `available_charge_W` and `available_discharge_W`, with the
+history metrics `battery_available_charge_w` and
+`battery_available_discharge_w`. Huawei defines each as the smaller of the
+inverter's and the battery's capability and keeps the rated power apart
+(37007/37009). These values are not shown to be live on hardware: Huawei
+does not say they follow the BMS, and no one has seen them move. If a site
+shows them flat while the battery is held back, they are a rating.
+
+The battery's temperature and limits are read only once energy storage
+unit 1 reports a rated charge or discharge power above 0 (37007/37009). A
+SUN2000 with no LUNA2000 may answer the battery registers with 0, and 0 W
+would read as "may not charge now". Only unit 1 is read, as for power and
+SoC; a second unit is not.
+
+The battery temperature (37022) and the inverter temperature (32087) are
+left out when the read fails, or when the value is outside -40 to 100 °C.
+Earlier releases sent 0 °C, which looks like a cold battery. Per-pack
+temperatures (38452 to 38463) are documented but not read, since Huawei does
+not say what an empty pack slot answers. Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### sma 2.2.0
+
+The battery temperature (30849) and the inverter temperature (30953) are
+left out when the read fails, when SMA answers NaN, or when the value is
+outside -40 to 100 °C. Earlier releases sent 0 °C. SMA documents no live
+charge or discharge limit for these devices: 40189/40191 sit with the
+device's ratings, so nothing is sent as `available_*`. Not yet checked on
+hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### fronius 2.2.0
+
+The inverter temperature comes from TmpCab, the cabinet temperature at
+address 40109. Earlier releases read 40111, which is TmpSnk; Fronius marks
+it "not supported" on GEN24, Tauro and Verto, so it answered NaN and the
+driver sent 0 °C. A failed read, NaN or a value outside -40 to 100 °C is now
+left out of `temp_c` and `inverter_temp_c`. Fronius documents no battery
+temperature and no live charge or discharge limit over Modbus, so none is
+sent. Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### kostal 2.2.0
+
+The battery reports its temperature and what it may charge and discharge at
+now, from KOSTAL's own registers: `temperature_C` from 0xD6 (214), and
+`available_charge_W` / `available_discharge_W` from 0x434/0x436
+(1076/1078), "Maximum charge/discharge power limit (read-out from battery)".
+Each is a Float in the word order KOSTAL's byte-order register (0x05)
+reports. The values are read only once that register has answered and the
+battery type (0x24C) shows a battery, and each also goes to history
+(`battery_temp_c`, `battery_available_charge_w`,
+`battery_available_discharge_w`). The inverter temperature is left out when
+its value or scale factor does not answer, instead of being sent as 0 °C.
+Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### sigenergy 1.2.0
+
+The battery reports what the plant may charge and discharge at now, from
+30047 and 30049, "[ESS] Available max charging/discharging power" (Sigenergy
+Modbus Protocol V2.9), and its average cell temperature from 30286, as
+`available_charge_W`, `available_discharge_W` and `temperature_C`, with the
+matching history metrics. They are read only when the ESS answered that
+poll, so a PV-only plant is not asked. 30286 is new in V2.9; older firmware
+that does not answer it is left alone after three tries. Not yet checked on
+hardware.
+
+### 50-125k-svk 0.2.5, 50-125k-svk-slew 0.1.14
+
+With control on, a failed battery-power read (34755) made the self-heal
+check raise: `math.abs(nil)` in 50-125k-svk and `nil - committed` in the
+slew driver. The whole poll failed, so one missed read cost all telemetry
+for that poll. The check now skips a poll with no battery reading and
+starts its count of disagreeing polls again. With a reading, the self-heal
+works as before. 50-125k-svk-ac-slew already checked its AC reading and is
+unchanged. Not yet checked on hardware.
+
+### deye 2.2.0, foxess_h3_smart 0.10.0, alphaess 1.2.0, kstar 1.2.0
+
+These drivers now report what the battery can do now, so Core can tell a
+battery held back by its BMS from one that is out of control. See "What a
+battery can do now" in `docs/WRITING-A-DRIVER.md` (#250). A value that fails to
+read, or falls outside -40 to 100 °C or 0 to 100 kW, is left out. None of
+this is checked on hardware yet.
+
+- **deye**: on three-phase hybrids (device type 0x0005, 0x0500 or 0x0006)
+  whose battery runs on its BMS (register 111 = 1), the BMS charge and
+  discharge current limits (212, 213) go out as `available_charge_W` and
+  `available_discharge_W`, at the battery voltage read in the same poll.
+  The heatsink temperature (541) now takes off Deye's offset of 1000;
+  earlier releases reported it 100 °C too high. A failed battery or
+  heatsink temperature read is left out; earlier releases sent 0 °C.
+- **foxess_h3_smart**: register 46018 goes out as `available_charge_W` when
+  it reads above 0. A 0 is left out, since this unit reads 0 while an idle
+  pack still charges when asked. No discharge limit is documented for this
+  map. The cell temperature range (37617, 37618) goes to history every
+  sixth poll.
+- **alphaess**: the lowest and highest cell temperature (0x010D, 0x0110) go
+  to history. Two open maps place the battery and grid meter elsewhere than
+  the driver's other reads assume; that needs its own check.
+- **kstar**: the battery temperature (input 3067) goes out as
+  `temperature_C`, and the inverter radiator temperature (input 3055) to
+  history. As for alphaess, KSTAR's own map does not match the driver's
+  other reads.
+
+### sungrow 1.7.0
+
+The battery now says what it can do now, so FTW Core can tell a device
+limit from lost control (docs/WRITING-A-DRIVER.md, "What a battery can do
+now"). On one SH-RT with an SBR096 pack, forced discharge stayed at 21.6 to
+23.1 A DC whatever the order, and 14 times in 30 days the inverter went to
+standby and then startup for 2 to 9 minutes while an order stood.
+
+- `temperature_C`: the pack temperature, documented register 13025 (host
+  13024), S16 × 0.1 °C.
+- `available_charge_W` and `available_discharge_W`: the BMS's max charge and
+  discharge current, documented 5635 and 5636 (host 5634 and 5635), times the
+  battery voltage read in the same poll. Whether 5635 and 5636 follow the
+  BMS live is unconfirmed on hardware: Sungrow does not say whether they
+  move with temperature and charge level.
+- `device_state`: `"standby"` or `"starting"` while the running state
+  (documented 13000) says so. The values come from Appendix 2 of Sungrow's
+  protocol V1.1.9 and are matched whole, not as bits. The owner's box
+  confirms the low codes: in all 14 episodes the state went 0x0800 (forced
+  mode), 0x0008, 0x0020, 0x0800, and 0x0010 showed in 3 of them.
+
+The same values go to `battery_temp_c`, `battery_charge_limit_a`,
+`battery_discharge_limit_a`, `battery_available_charge_w` and
+`battery_available_discharge_w`. Two reads join the full poll every five
+seconds; fast polls carry the last values only while the battery read
+succeeds. A failed read leaves its field out. A temperature outside -40 to
+100 °C, a current above 1000 A and a power above 100 kW are dropped, which
+also drops Sungrow's "not available" values. No `available_import_W`:
+Sungrow's protocol has no register for it. No control, write or command
+changed. Not yet checked on hardware.
+
+FTW's bundled copy does not move with this commit. Bump the pin and run
+`scripts/sync-bundled-drivers.sh`.
+
+### victron_mqtt 1.1.0
+
+The driver reports what the battery's BMS allows now, so FTW can tell a
+battery at its limit from one out of control.
+
+- `available_charge_W` and `available_discharge_W` are the BMS's charge and
+  discharge current limits (CCL and DCL, `/Info/MaxChargeCurrent` and
+  `/Info/MaxDischargeCurrent` on the battery service) times the voltage the
+  same BMS reports. A DCL of 0 sends 0 W: the BMS allows no discharge now.
+  Without that voltage the watts are left out.
+- With more than one battery service, the driver uses the BMS the GX names in
+  `system/0/ActiveBmsInstance`. Until the GX names one, it uses the only
+  service that sent a limit, and none when two or more did.
+- New metrics: `battery_temp_c`, `battery_charge_limit_a`,
+  `battery_discharge_limit_a`, `battery_available_charge_w`,
+  `battery_available_discharge_w`, `battery_cell_temp_min_c` and
+  `battery_cell_temp_max_c`.
+- SoC, voltage, current and temperature stay out until the GX sends them.
+  They used to start at 0, so a GX that sent only power showed an empty pack
+  at 0 °C. A `{"value": null}` or an empty payload now clears a value instead
+  of keeping the last one.
+- A temperature outside -40 to 100 °C and a limit outside 0 to 100 kW are
+  dropped.
+- Venus sends a value only when it changes, so a quiet topic is not a stale
+  one. The watts need the BMS's voltage from the last 60 s. The BMS's limits
+  and cell temperatures count only while that BMS has sent something in the
+  last 60 s. When nothing at all arrives for 60 s, the driver forgets every
+  battery value, since a null sent meanwhile is lost. A tighter bound per
+  value would need a keep-alive that asks for a full republish; the driver
+  sends none.
+
+Victron says some BMS makes send fixed limits and others dynamic ones, and
+does not say how often they change. Not yet checked on hardware.
+
+### victron 2.2.0
+
+Register 844 on the GX system service is the battery state (0 idle,
+1 charging, 2 discharging), not a temperature. The driver read it as 0.1 °C
+and reported a battery at 0.0 to 0.2 °C. It now reports no battery
+temperature, because the system service has none. A battery read that fails
+now sends no battery reading and no battery metrics, where it sent 0 V, 0 A,
+0 W and 0 % SoC.
+
+The BMS's own current limits and cell temperatures are on the battery
+service, which the GX serves on another unit ID. This driver reads one unit
+ID and the host cannot read a second, so it cannot report them;
+`victron_mqtt` does. Not yet checked on hardware.
+
+### ferroamp_modbus 2.2.0
+
+A battery register that does not answer now leaves its field out instead of
+sending 0. The driver sends whatever answered, and no battery reading when
+nothing did. Ferroamp's
+Modbus map (Revision D) has no battery temperature and no live limit, so the
+driver reports nothing new.
+
+The float decoder now works on 16-bit halves. On a host with 32-bit Lua
+integers it decoded every float wrong; FTW and Blixt L1 were not affected.
+Not yet checked on hardware.
+
+### zap 3.2.0
+
+- The battery temperature now comes only from the battery's `temperature_C`
+  in Zap data model 2.7.0, which the Zap firmware defines as the cell or pack
+  temperature. Older firmware sent `heatsink_C` instead. That held the
+  battery's temperature on some profiles but Pixii's cabinet and Ferroamp's
+  converter temperature on others, so the driver no longer reports it as the
+  battery's.
+- New metric `inverter_temp_c` from the inverter DER's `temperature_C`.
+- A temperature outside -40 to 100 °C is dropped.
+- Zap's battery `upper_limit_W` and `lower_limit_W` are not reported as
+  available power: the Zap works them out from ratings, PV output and the SoC
+  window.
+
+Not yet checked on hardware.
+
+### 50-125k-svk 0.3.0, 50-125k-svk-slew 0.2.0, 50-125k-svk-ac-slew 0.3.0
+
+The three Solis 50-125 kW drivers stop resending old limits and send them
+to history, so Core can tell a device limit from lost control.
+
+- `available_charge_W` and `available_discharge_W` on `battery`, and
+  `available_import_W` and `available_export_W` on `inverter`, keep their
+  source: the parallel-system figure (25012-25019) first, then this unit's
+  (25004-25011), read about every 60 s as before. A value is held until the
+  next read. A read that fails now clears it; earlier versions sent the last
+  values again for as long as the block stayed silent.
+- A power above 1000 kW, such as the 0xFFFFFFFF not-present value, is left
+  out. 0 W is kept: it means the device does not allow that direction now.
+- `temperature_C` on `battery`: the middle of the lowest and highest cell
+  temperature (34350/34351, 0.1 °C), read on the same poll as the limits.
+  That is two small reads a minute more on the bus.
+- Metrics `battery_available_charge_w`, `battery_available_discharge_w`,
+  `battery_temp_c`, `battery_cell_temp_min_c`, `battery_cell_temp_max_c`
+  and `inverter_temp_c` (33093) on each read.
+- A temperature outside -40 to 100 °C (inverter: -40 to 150 °C) is left
+  out, and so is a failed temperature read.
+- A SoC that did not answer is left out instead of sent as 0 %, and so is
+  the energy headroom without a SoC or a configured capacity.
+
+This unit's own registers exist and would match `battery.W` more closely,
+but switching to them is a decision for the Solis site owners. The
+temperature addresses come from the full Blixt Solis driver, which cites
+Solis documents we could not read. The vendor's notes do not say outright
+that 25004-25019 are live limits. Control, slew and writes are unchanged.
+Not yet checked on hardware.
+
+### konja-261-svk 0.4.0
+
+The driver reports what the battery can do now from the BMS and PCS blocks
+it already reads, with no new reads.
+
+- `temperature_C`, `available_charge_W` and `available_discharge_W` come from
+  this poll's BMS block. A failed BMS read now leaves them out; earlier
+  versions sent the last limits again.
+- Metrics `battery_temp_c`, `battery_available_charge_w`,
+  `battery_available_discharge_w` and `inverter_temp_c` (PCS IGBT, 8059),
+  once every 10 s rather than at the 20 Hz poll.
+- A battery temperature outside -40 to 100 °C, an IGBT temperature outside
+  -40 to 150 °C or a power above 1000 kW is left out.
+- Battery `W` is left out when the PCS did not answer, instead of 0 W. A SoC
+  that never answered is left out instead of 0 %, and so is the energy
+  headroom without a SoC or a configured capacity.
+
+The workbook rows quoted in the driver do not say outright that the BMS
+powers (2758-2761) are live. Control, slew and writes are unchanged. Not yet
+checked on hardware.
+
+### hardybarth 1.1.1
+
+A Salia station FTW left on now stops when the car leaves, as eCB1 already
+did. When a poll shows no car and FTW's last write left a limit above 0 A,
+the driver sets `grid_current_limit` to 0 once, so the next car waits for
+FTW. A refused stop is tried again at most once a minute. A station FTW
+never set is left alone. Not yet checked on hardware.
+
+### goe 1.1.0
+
+The driver controls the charger and reads the registers go-e documents. It
+reports as a charger (`ev`), so FTW can use it as a loadpoint.
+
+- Earlier releases read holding registers 0 to 15. go-e's Modbus map for API
+  v2 firmware has nothing there. The driver now reads the car state (input
+  100), voltage, current and power (input 107 to 121), energy (input 128 and
+  132) and the owner's maximum current (holding 211).
+- An order becomes whole amps per phase, rounded down, and goes to
+  AMPERE_VOLATILE (299) with function 16. go-e does not save that register to
+  EEPROM. Start and stop go to FORCE_STATE (337), which needs firmware 55.6 or
+  later.
+- The current never exceeds Core's `max_amps_per_phase` or
+  `cap_amps_per_phase`, the owner's maximum or 32 A. Below 6 A the driver
+  stops the charger and never rounds up.
+- The driver writes only registers that differ from the charger's last report.
+  A setpoint it could not read back counts as unknown and is written again.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- FORCE_STATE=2 forces charging past the charger's RFID check and schedules.
+  When a car leaves and FTW left the charger on, the driver stops it once,
+  so the next car waits for FTW.
+- Default mode stops the charger, but only after FTW has written to it in
+  this run, since Core runs it at every start. It returns true only when the
+  charger took the stop. A refused stop returns false and is tried again at
+  most once a minute.
+- A stop stays on the charger, as with Zaptec and Easee. The owner sets the
+  charger back to neutral in the go-e app.
+
+Written from go-e's documentation. Not yet checked on hardware.
+
+### goe_http 1.1.0
+
+The driver controls the charger through go-e's HTTP API v2 and reports as a
+charger (`ev`).
+
+- An order becomes whole amps per phase, rounded down. The driver writes
+  `amp`, and `frc=2` only once the charger confirmed `amp`; `frc=1` stops. A
+  key the charger does not confirm with `true` fails the command. go-e takes
+  these writes as GET requests.
+- The current never exceeds Core's caps, the owner's `ama` or the unit's
+  rating (`var`). Below `mca` (at least 6 A) the driver stops the charger.
+- The driver reports `acu` as `current_limit_a`, `ama` as `device_limit_a` and
+  the reason from `modelStatus` when a car waits.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- `frc=2` forces charging past the charger's RFID check and schedules. When
+  a car leaves and FTW left the charger on, the driver stops it once, so the
+  next car waits for FTW.
+- Default mode stops the charger, but only after FTW has written to it in
+  this run, since Core runs it at every start. It returns true only when the
+  charger took the stop. A refused stop returns false and is tried again at
+  most once a minute.
+- `frc` is a setting, so a stop stays on the charger, as with Zaptec and
+  Easee. The owner sets it back to neutral in the go-e app.
+
+Written from go-e's documentation. Not yet checked on hardware.
+
+### openevse 1.1.0
+
+The driver controls the charger through the WiFi firmware's claims and
+reports as a charger (`ev`).
+
+- Earlier releases read `amp` as amps. The firmware sends milliamps, so
+  power read a thousand times too high. They also read `watt_seconds`, which
+  the firmware does not send. Power now comes from `power` and session energy
+  from `session_energy`.
+- An order becomes whole amps per phase, rounded down, and goes out as a claim
+  at the API priority: `POST /claims/1179910145`. Below the charger's minimum
+  the claim is `disabled`, because the firmware would raise a smaller current
+  to the minimum.
+- The driver reads its claim back on every poll and claims again after a
+  reboot drops it.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the charger's `/config` says it is not three-phase. An
+  unknown setup divides by three. OpenEVSE reports one current, so Core's
+  `1p` alone does not divide by one.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- When a car leaves and FTW's claim left the charger on, the driver claims
+  `disabled` once, so the next car waits for FTW. The claim keeps
+  `auto_release` off.
+- Default mode claims `disabled`, but only after FTW has written to the
+  charger in this run, since Core runs it at every start. It returns true
+  only when the charger accepted the claim. A refused claim returns false and
+  is tried again at most once a minute.
+- A stand-down stays on the charger, as with Zaptec and Easee, until FTW
+  claims again, the owner uses the manual override, or the charger reboots.
+- An optional `username` and `password` cover chargers with an admin password.
+
+Written from OpenEVSE's API description. Not yet checked on hardware.
+
+### hardybarth 1.1.0
+
+Earlier releases read `/api/status`, which neither Hardy Barth controller
+documents. The driver now finds the eCB1 controller (cPH1) or the Salia
+controller (cPH2, cPu2) and uses each one's own API. It reports as a charger
+(`ev`).
+
+- eCB1: the first order that needs current sets the mode to manual, which
+  stays. The driver then writes `manualmodeamp` and sends start and stop,
+  form-encoded. A socket that reports itself stopped (state id 17) is
+  started again by the next order that needs current. When a car leaves and
+  FTW left the socket started, the driver stops it once.
+- Salia: the driver writes `grid_current_limit` with `POST /api/`; 0 stops
+  charging. Firmware 2.3.81 and later needs `api_key`. The limit is a ceiling:
+  eco mode or the web slider can hold the car lower, and the driver says so.
+  Power needs the station's meter.
+- An order becomes whole amps per phase, rounded down, within Core's caps and
+  the station's own limits.
+- An order divides by one phase only when the installation is one-phase
+  (`phases: 1`) and the car is not measured on more, or Core asks for `1p`
+  and the car is measured on exactly one. An idle charger counts as
+  three-phase, so a three-phase car never gets a one-phase sum.
+- A resume carries no order from Core. It uses the last order if that is at
+  most 30 s old, else the minimum, and never more than Core's last cap. With
+  no room for the minimum it does not start and returns false.
+- Default mode stops the station, but only after FTW has written to it in
+  this run, since Core runs it at every start. It returns true only when the
+  station took the stop. A refused stop returns false and is tried again at
+  most once a minute.
+- A stop stays on the station, as with Zaptec and Easee, until FTW orders
+  current again or the owner changes it.
+
+Written from the eCB1 REST API 1.3 and the eCharge Salia REST API. Not yet
+checked on hardware.
+
+### zaptec_cloud 0.2.2
+
+A refused stand-down now returns `false`. Before, `driver_default_mode`
+returned nothing, which Core reads as "stood down", so a charger that kept
+charging after a failed 0 A write and a failed pause looked held, and Core
+unblocked control and stopped retrying. The driver now returns `true` only
+when the 0 A write or the pause held, or when FTW wrote nothing in this run,
+and it retries a refused stand-down once a minute instead of every five.
+When the pause held but the 0 A write did not, a later resume offers 6 A
+instead of the current the charger had before.
+
+`docs/WRITING-A-DRIVER.md` now says that "report held after giving up" is for
+a device FTW never steered, not for a charger it commanded.
+### alfen 1.1.1, abb_terra 1.1.1, mennekes 1.1.1
+
+Default mode no longer reports a refused stand-down as done. Core reads
+`true` as "the charger is stood down": it unblocks control and stops
+recovery. After three refused writes these drivers said `true`, so Core could
+believe a car had stopped while it was still charging at FTW's last current.
+
+- `true` now means FTW wrote nothing in this process, or the charger took
+  0 A.
+- Once FTW has written, a refused or failed stand-down returns `false`. The
+  write is tried again at most once a minute, and calls in between return
+  `false` without writing, so the watchdog does not repeat it on every tick.
+- The "report held after three refusals" rule is for registers a device
+  does not have, where it was never under control. It does not fit a
+  charger FTW has steered.
+
+### alfen 1.1.0
+
+The driver can now steer the charger. It emits `ev` with `DRIVER.capabilities
+= { "ev" }`, so FTW can use it as a loadpoint, and it writes the socket's
+Modbus server max current (1210) from Alfen's Modbus for ACE configuration
+guide. Not yet confirmed on hardware; `verification_status` is experimental.
+
+- Watts become amps per phase, rounded down to 0.1 A. The driver does not
+  switch phases, and a 1p order alone proves nothing: a three-phase car
+  would draw the 1p current on every phase. So it divides by one phase only
+  when config says `phases: 1` and the charger shows no more, or when Core
+  orders 1p and the car is measured drawing on exactly one phase. Otherwise
+  it divides by three. Register 1215 is a floor. The fuse,
+  `cap_amps_per_phase`, 32 A and an optional `max_a` cap the result. Below
+  6 A the driver writes 0 A.
+- The charger drops a setpoint when its validity time (60 s by default) runs
+  out. While Core sends orders the driver rewrites the setpoint every 15 s,
+  sooner when register 1208 shows less than 20 s left, and again when a
+  reboot lost it.
+- Pause writes 0 A and holds it for 10 s, through Core's contactor cycle.
+  Resume restores Core's last order; with no order yet it returns false.
+- Default mode writes 0 A once, and only after FTW wrote a setpoint in this
+  process. The charger then returns to its installer's safe current when the
+  validity time runs out. It stops after three refused writes.
+- A refused write returns false.
+- A block that does not answer is asked again once a minute, so a charger
+  offline at boot comes back. The measurement block is asked every poll.
+
+Readings are fixed. Earlier versions read 326 as voltage (it is current sum),
+346 as session energy (apparent power L1) and 1201 as a number (a 5-register
+Mode 3 string), and reported NaN as 0. Voltages now come from 306, lifetime
+energy from 374 as `total_charge_wh`, and the state from the Mode 3 string.
+A NaN stays nil.
+
+The 2025 guide says 32-bit values come low word first; evcc and the Home
+Assistant driver use high word first. In the wrong order 6.2 A reads as about
+2.7e23 A, so the driver does not guess. It learns the order from a value that
+is plausible in only one order (a phase voltage, the safe current, the
+applied or written current). Until then it reports nothing and refuses every
+current above 0 A. 0 A reads the same in both orders.
+
+### abb_terra 1.1.0
+
+The driver can now steer the charger. It emits `ev` with `DRIVER.capabilities
+= { "ev" }` and writes the charging current limit (0x4100, mA) from ABB's TAC
+Modbus Communication v1.7. Not yet confirmed on hardware.
+
+- Earlier versions read registers 1000-1037, which are not in ABB's map. All
+  readings now come from 0x4000-0x401F: state, the limit the charger chose
+  (0x400E, emitted as `max_a` and `current_limit_a`), phase currents and
+  voltages, power and session energy. The serial number is reported.
+- Watts become amps per phase with the same phase rule as alfen 1.1.0,
+  also capped at the charger's own ceiling (0x4006). Below 6 A the driver
+  writes 0 A, which ABB documents as a pause.
+- The charger counts reads as contact, so no refresh write is needed. The
+  main block is read every poll; the serial is retried once a minute. A
+  limit the charger lost is written again.
+- Default mode writes 0 A once, and only after FTW wrote a limit. It stops
+  after three refused writes. A refused write returns false, and so does a
+  resume with no order yet.
+
+### mennekes 1.1.0
+
+The driver can now steer the charger, on both of Mennekes' Modbus maps. It
+emits `ev` with `DRIVER.capabilities = { "ev" }`. Not yet confirmed on
+hardware.
+
+- ECU (AMTRON Professional, AMTRON Charge Control, AMEDIO Professional),
+  from the ECU Modbus TCP Server Specification rev 1.07: writes
+  HEMS_CURRENT_LIMIT (1000). The charger falls back to its SAFE_CURRENT when
+  the master goes quiet, so the driver rewrites the limit every 15 s, or a
+  third of COMM_TIMEOUT, while Core sends orders.
+- HCC3 (AMTRON Xtra, AMTRON Premium), from the AMTRON Modbus description
+  v1.031: writes the customer current limitation (0x0400). This charger keeps
+  the last value with no timeout. When Core stops or updates, default mode
+  leaves it at 0 A and the car waits for the next order, as with
+  easee_cloud. After a Core crash it keeps FTW's last limit.
+- The driver tells the two apart on the first polls, or takes `family:
+  ecu|hcc3` from config. The default unit id is 255: the ECU answers any
+  id, and 255 is the one HCC3 integrations use.
+- Whole amps per phase, rounded down, with the same phase rule, caps,
+  pause, resume and default-mode rules as alfen 1.1.0. The HCC3 measures no
+  currents, and its phase count (0x0308) is a floor.
+- Detection and absent blocks are retried once a minute, so a charger
+  offline at boot comes back.
+- Earlier versions read registers 100-300, which are in neither map. All
+  readings now come from the vendor maps, and the ECU's 0xFFFFFFFF "no meter"
+  value stays nil.
+
+### alphaess 1.1.2, kstar 1.1.2, solax 1.1.2, varta 1.1.2
+
+These four declare `read_only = true` and say why in their new `DRIVER`
+table: no control code has been written for them. Their `driver_command`
+only logs and refuses, yet the signed channel shipped them as controlling,
+because it counts any `driver_command` as control. FTW then offered control
+that could not work. Reading is unchanged. Their channel artifacts change:
+the generated header now marks them read-only and drops their write
+permissions.
+
+### zaptec_cloud 0.2.1
+
+The stand-down now acts only after FTW has written a current in this run.
+Core runs it at every start, and `maxChargeCurrent` is stored on the
+charger, so 0.2.0 would have set 0 A and paused a charger FTW never
+steered, for example one added only to watch it. That charger now keeps
+the owner's own setting. The same rule as heishamon 0.8.1.
+
+### zaptec_cloud 0.2.0
+
+FTW now controls a Zaptec Go, Go 2 or Pro. Before this, the driver read the
+charger but declared itself read-only, so FTW accepted the charger and never
+steered it, and an owner whose fuse was overloaded had no way to see why.
+
+- Current goes to the charger's `maxChargeCurrent`. Zaptec asks callers not to
+  change the installation's `AvailableCurrent` more than once every 15
+  minutes, too slow for a fuse guard. The installation's own limit still
+  applies on top.
+- Amps never exceed what Core budgeted per phase. The driver assumes three
+  phases unless the installation has one, or Core asks for one and the
+  charger is drawing on exactly one. It rounds down, writes 0 A below 6 A,
+  and keeps Core's last cap when an order carries none.
+- Pause sets 0 A and sends command 506. Resume offers 6 A, never above Core's
+  last cap, and sends 507. A positive order on a paused charger also resumes
+  it, so a stand-down never strands the car. Code 528 counts as done unless
+  the driver paused the charger itself; 520 means the command never reached
+  the charger and comes back false, as does a 200 that carries an error code.
+- A 401 signs in again once and retries.
+- Stand-alone mode, where the charger ignores current from the API, refuses
+  current orders and resumes and says so.
+- The stand-down sets 0 A and pauses once, then waits for a new order. A
+  failed stand-down tries again after five minutes.
+- Missing readings stay empty instead of 0. Phase currents and voltages are
+  reported, and every request carries an FTW User-Agent.
+
+Written from Zaptec's API documentation. Not yet confirmed on hardware.
+### Removed: local `easee` and local `zaptec`
+
+Both read a device API that does not exist, so the catalog stops listing
+them. `easee` read an invented Modbus map: Easee documents no local Modbus or
+REST API. `zaptec` read `/api/charger/state` over HTTP: Zaptec documents no
+local API on Go, Go 2 or Pro. On a real charger they read nothing, and
+`easee` then sent 0 W as if the charger had said so. Neither was ever run on
+hardware.
+
+Use `easee_cloud` or `zaptec_cloud` instead. For local control, point the
+charger's OCPP at FTW: Easee from firmware 344 and Zaptec Go, Go 2 and Pro
+can connect to an OCPP 1.6J server of the owner's choice, and FTW has one
+built in (FTW `docs/ocpp.md`). `driver-history.json` keeps their record,
+as it did for `foxess`.
+
+### tesla_wall_connector 0.2.0
+
+The driver says plainly that FTW can read the charger but not control it:
+Tesla offers no way for another system to set its current or start and stop
+it. Tesla's own current control is Dynamic Power Management, an installer
+setting fed by a Tesla energy meter; its application note is now in
+`upstream_docs`. Control goes through the car (`tesla_vehicle`) or a charger
+FTW can control, such as one on OCPP.
+
+`driver_command` now refuses every control action with `false`. It used to
+answer `true` to `ev_set_current`, `ev_pause`, `ev_resume` and `ev_start`
+while writing nothing. FTW Core never sent those to this read-only driver,
+so nothing changes there, but no host may now read a refusal as success.
+
+### teslamate_vehicle 0.2.1, home_assistant_vehicle 0.1.1, tesla_cloud 0.2.1
+
+Each description and manifest note now says why FTW cannot control the car
+through it, and where control goes instead. TeslaMate only logs data and
+takes no commands. The Home Assistant driver only listens and sends nothing
+back. Tesla's Fleet API accepts a command only when it is signed with a key
+paired to the car, and a Lua driver cannot sign. To start a Tesla's charge,
+add `tesla_vehicle` (BLE proxy). No behaviour changes.
+
+### etrel 1.1.0
+
+The driver now controls the charger, so FTW can use it as a loadpoint. It
+emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
+
+- Registers come from Etrel's INCH SmartHome Modbus TCP register list. The old
+  map (holding 300-312) was in no Etrel document and is gone. Readings are
+  Float32 input registers 0-31; identity is 990-1019.
+- An order becomes a current per phase: power over voltage and phases. It is
+  one phase only when config says `phases: 1` and the car has not drawn on
+  more than one phase since it was plugged in, or when Core orders `1p` and
+  the car draws on exactly one. Otherwise, idle or just started too, it is
+  three, so a three-phase car never gets a one-phase sum on each phase. The
+  current never exceeds Core's `max_amps_per_phase` or `cap_amps_per_phase`,
+  the installer's custom max current or 32 A. It rounds down to 0.1 A, and
+  below 6 A it writes 0 A.
+- Pause writes a 0 A setpoint. Core sends resume and start without a budget,
+  so resume writes an order back only when it is under 30 s old. Otherwise it
+  writes 6 A, and only when the limit named with the last positive order
+  allows 6 A (a 0 W order carries no cap, so it does not replace that limit).
+  With a limit below 6 A it writes nothing and returns false. With no limit
+  known, after a reload for example, it writes nothing, accepts the resume and
+  logs once that the charger waits for Core's next order. The pause and stop
+  registers are one-way triggers with no documented undo, so they are never
+  written.
+- Default mode acts only after a command wrote in this run. Core runs it at
+  every start, so a charger FTW never steered keeps its own setpoint and a
+  charge already running goes on, as in heishamon 0.8.1. After that it writes
+  0 A once, and returns true only when that lands. A refused stand-down
+  returns false and is tried again at most once a minute.
+- A charger that holds the charge paused against an order for 30 s reports
+  `command_stalled`, and the next order writes the setpoint again, at most
+  every 30 s.
+- A failed read is left out, not reported as 0. Session energy of 0 is left
+  out, since some firmware never moves it (evcc-io/evcc#5346).
+- The second connector of an INCH Duo is not covered.
+
+Not yet confirmed on hardware.
+
+### keba 1.1.0
+
+The driver now controls a KeContact P30, so FTW can use it as a loadpoint. It
+emits `ev` instead of `v2x_charger` and declares `capabilities = { "ev" }`.
+
+- Registers follow KEBA's P30 Modbus TCP Programmers Guide V1.07. The old map
+  read the error code as L1 current, lifetime energy as session energy, and
+  voltages from the current, serial and product registers. Each value is now
+  read on its own, as the guide requires. The unit ID default is 255.
+- An order writes 5004 (mA) and then enables with 5014. Phases, caps,
+  rounding, resume and the default-mode rule work as in etrel 1.1.0, with the
+  hardware limit from 1110. A resume of an old order writes 5004 = 6000 mA
+  before the enable. Below 6 A, pause and default mode disable with
+  5014 = 0, since 5004 takes nothing under 6000 mA.
+- Phases count as measured only when all three phase currents answered in
+  that poll; otherwise orders use three. A phase current that stops answering
+  is tried again once a minute.
+- A charger that offers more than the order, or charges while disabled, gets
+  the order again after 30 s. One that stays suspended against an enable for
+  30 s gets the enable again, at most every 30 s.
+- A configured failsafe timeout is refreshed at half its length while FTW
+  steers, paused or not, and while FTW holds the charger disabled after a
+  stand-down, so the failsafe current cannot start a charge FTW stopped.
+  After three refused refreshes it is tried once a minute. Whether the
+  failsafe current overrides a disable once FTW stops is not verified.
+- A charger whose product code is not a P30 is not controlled.
+- The UDP interface is not used: FTW's driver host has no UDP, and KEBA
+  forbids using both. A c-series below firmware 3.10.16 needs an update.
+
+Not yet confirmed on hardware.
+
+### schrack_ev 1.1.0
+
+The driver now controls a CION Home or Semipublic, so FTW can use it as a
+loadpoint. It emits `ev` instead of `v2x_charger` and declares
+`capabilities = { "ev" }`.
+
+- Registers follow Schrack's CION Home and Semipublic Modbus table. The old map
+  read the charging authorisation as a state and power from registers Schrack
+  does not list. These chargers speak Modbus RTU, so FTW needs a Modbus TCP to
+  RTU gateway.
+- An order writes the current to 101 (whole A) and then authorises with
+  100 = 1. A void authorisation is cleared with 100 = 0 first, as the table
+  says, at most every 30 s while the charger calls it void. With no car
+  plugged in only the current is set.
+  Below 6 A, pause and default mode write 100 = 0. Resume and default mode
+  work as in etrel 1.1.0; a resume of an old order writes 101 = 6 first.
+- The charger reports no power and no phase currents, so `w` stays empty and
+  orders are split over the phases in config only (`phases`, default 3).
+- The CION Pro is not covered: it speaks OCPP, which FTW handles itself.
+
+Not yet confirmed on hardware.
+
+### wallbox 1.1.0
+
+The driver says it cannot control the charger: `read_only = true`, with the
+reason in its description. We found no documented local Modbus interface for
+the Pulsar Plus, Pulsar Max, Commander 2 or Copper SB, and the registers this
+driver reads come from no Wallbox document, so its power and energy are
+unverified. Wallbox documents OCPP 1.6J, and FTW's built-in OCPP central
+system reads and controls these chargers without a driver.
+
+The driver emits `ev` instead of `v2x_charger`, and only fields whose register
+answered. It no longer reports 0 W, 0 Wh or 0 A for registers that did not
+answer.
+
+### heishamon 0.8.1
+
+Default mode and cleanup reset `Z1_Heat_Request_Temp` to `safe_offset` only
+after FTW wrote an offset. Core runs default mode at every start and on
+watchdog trips, so an offset the owner set from Home Assistant was put back
+to 0 each time, even on a site where FTW never commanded the pump (#233).
+A failed reset keeps trying on the next default mode. After a Core crash the
+driver no longer knows FTW wrote, so that offset stays; today only the
+operator's control on the heating card writes it. Not yet checked on
+hardware.
 
 ### easee_cloud 1.4.1
 

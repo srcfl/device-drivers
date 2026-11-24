@@ -1,26 +1,41 @@
 name: "schrack_ev"
-version: "1.0.3"
+version: "1.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
 connectivity: local
-ders: [v2x_charger]
-control: false
+setup: [bridge, installer]
+ders: [ev]
+control: true
 tested_devices:
   - manufacturer: "Schrack"
-    model_family: "i-CHARGE"
-    variants: [i-CHARGE CION, i-CHARGE CION PRO]
+    model_family: "i-CHARGE CION"
+    variants: [i-CHARGE CION Home, i-CHARGE CION Semipublic]
     regions: []
     firmware_versions: ""
-    notes: "Community driver, untested"
+    notes: "Control written from Schrack's CION Home and Semipublic Modbus register table; not yet confirmed on hardware. Modbus RTU through a Modbus TCP gateway. No power reading. CION Pro not covered: use OCPP."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 3554
+size_bytes: 19195
 dkb_id: ""
-sha256: "652db1569e74d8a451ddfcefb4f55d897e144b9a955608d20b4278ed6b9a2fdd"
+sha256: "2efa740660f9205aa2d85a210c9bfc98e6bcb00b4fa75f67df7d4f230b8d1f90"
 signature: ""
 
 bytecode_sha256: ""
 bytecode_signature: ""
 bytecode_size: 0
 changelog: ""
+
+upstream_docs:
+  - url: "https://image.schrackcdn.com/bedienungsanleitungen/a_emcionxxxx_modbus_lookup_table_de.pdf"
+    title: "Schrack CION Home and Semipublic Modbus register table (2023)"
+    kind: register_map
+    url_stability: stable
+  - url: "https://image.schrack.com/bedienungsanleitungen/a_emcion_homecontroller_modbus_lookup_table_de.pdf"
+    title: "Schrack CION Home and Semipublic Modbus register table (2022)"
+    kind: register_map
+    url_stability: stable
+  - url: "https://image.schrackcdn.com/bedienungsanleitungen/a_emcionxxxx_icc_v2.2_en.pdf"
+    title: "Schrack i-CHARGE CION operating manual V2.2"
+    kind: manual
+    url_stability: stable

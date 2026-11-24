@@ -3,9 +3,7 @@
 dofile("drivers/tests/lua_harness/host_mock.lua")
 local driver = "drivers/lua/easee_cloud.lua"
 
-local sample = 0
 local function boot(cfg, config_body)
-    sample = 0
     host.reset()
     host._http_responses["/accounts/login"] = '{"accessToken":"test","expiresIn":3600}'
     host._http_responses["/config"] = config_body or '{"maxChargerCurrent":16}'
@@ -24,6 +22,8 @@ local function amps_writes()
         if call.func == "http_post" and call.args[1]:find("/settings", 1, true) then
             local body = host.json_decode(call.args[2])
             if body.dynamicChargerCurrent ~= nil then table.insert(out, body.dynamicChargerCurrent) end
+        elseif call.func == "http_post" and call.args[1]:find("/commands/set_dynamic_charger_current", 1, true) then
+            table.insert(out, host.json_decode(call.args[2]).amps)
         end
     end
     return out
@@ -37,9 +37,10 @@ local function count_cmd(path)
     return n
 end
 
+local observation_sequence = 0
 local function poll(mode, kw, stamp)
-    sample = sample + 1
-    stamp = stamp or string.format("2026-10-23T10:00:%02dZ", sample)
+    observation_sequence = observation_sequence + 1
+    stamp = stamp or string.format("2026-01-01T08:00:00.%06dZ", observation_sequence)
     host._http_responses["/observations?ids="] = host.json_encode({
         {id=109,value=mode}, {id=120,value=kw or 0,timestamp=stamp}, {id=121,value=1}, {id=124,value=100},
     })
@@ -250,7 +251,7 @@ assert(order(4140)); assert(last_amps() == 6, "invalid first observation enabled
 poll(2)
 assert(order(4140)); assert(last_amps() == 7)
 local rows = #(host._emitted.ev or {})
-poll(3, 4.8, "2026-10-23T10:00:01Z")
+poll(3, 4.8, "2025-12-31T10:00:01Z")
 assert(#(host._emitted.ev or {}) == rows, "stale power emitted during boost")
 assert(last_amps() == 7, "stale charging observation ended boost")
 poll(3, 4.8)
@@ -261,7 +262,7 @@ boot()
 poll(2)
 assert(order(4140)); assert(last_amps() == 7)
 later(91000)
-poll(2, 0, "2026-10-23T10:00:00Z")
+poll(2, 0, "2025-12-31T10:00:00Z")
 assert(last_amps() == 6, "rejected observation extended boost past timeout")
 assert(order(4140)); assert(last_amps() == 6, "boost restarted after rejection and timeout")
 
