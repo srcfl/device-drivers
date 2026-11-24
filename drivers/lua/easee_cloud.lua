@@ -29,7 +29,7 @@ DRIVER = {
   id           = "easee_cloud",
   name         = "Easee Cloud",
   manufacturer = "Easee",
-  version      = "1.4.1",
+  version      = "1.5.0",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Easee Home/Charge via Cloud REST API. No local protocol needed.",
@@ -65,6 +65,8 @@ local last_phase_change_ms = 0 -- monotonic ms of the last phase flip (hysteresi
 -- when an operator config field requests it (see driver_init below).
 local pending_amp_resend = false
 local pending_amp_resend_at_ms = 0
+local last_reassert_ms = -1e12  -- when a poll last re-sent the order as a command
+local REASSERT_MS = 10000
 local last_amps_set = nil
 
 -- paused_state tracks whether the LAST command we successfully sent was
@@ -292,9 +294,11 @@ end
 
 -- Observation IDs (from developer.easee.com/docs/charger-observation-ids)
 local OBS_DYN_CURRENT     = 48
+local OBS_ALLOCATED_L1    = 70   -- circuit total allocated current L1; L2 71, L3 72
 local OBS_REASON_NO_CUR   = 96
 local OBS_CABLE_LOCKED    = 103
 local OBS_OP_MODE         = 109
+local OBS_OUTPUT_CURRENT  = 114  -- current signalled to the car with the pilot
 local OBS_TOTAL_POWER     = 120
 local OBS_SESSION_ENERGY  = 121
 local OBS_LIFETIME_ENERGY = 124
@@ -302,7 +306,7 @@ local OBS_CURRENT         = 183
 local OBS_VOLTAGE         = 194
 local OBS_SESSION_START   = 223
 
-local OBS_IDS = "48,96,103,109,120,121,124,183,194,223"
+local OBS_IDS = "48,70,71,72,96,103,109,114,120,121,124,183,194,223"
 local OBS_WANTED = {}
 for id in OBS_IDS:gmatch("%d+") do OBS_WANTED[tonumber(id)] = true end
 
@@ -311,34 +315,113 @@ for id in OBS_IDS:gmatch("%d+") do OBS_WANTED[tonumber(id)] = true end
 -- stays current until a newer one arrives.
 local latest, latest_at, latest_pushed = {}, {}, {}
 
--- source_time_key makes an RFC 3339 UTC time comparable as a string,
--- whatever its fractional precision: "…:05Z" and "…:05.120+00:00" become
--- "…:05.120000000" and "…:05.120000000". Other offsets give nil.
+-- Compare RFC3339 source instants independently of fractional precision and
+-- UTC offset. Wall-clock receipt time must not make an old packet current.
 local function source_time_key(stamp)
     if type(stamp) ~= "string" then return nil end
-    local base, frac, zone = stamp:match("^(%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d)(%.?%d*)(.*)$")
-    if not base or (zone ~= "Z" and zone ~= "+00:00") then return nil end
-    return base .. "." .. (frac:sub(2) .. "000000000"):sub(1, 9)
+    local year, month, day, hour, minute, second, suffix = stamp:match(
+        "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)(.*)$")
+    if not year then return nil end
+    year, month, day = tonumber(year), tonumber(month), tonumber(day)
+    hour, minute, second = tonumber(hour), tonumber(minute), tonumber(second)
+    if year < 1970 or month < 1 or month > 12 or hour > 23 or minute > 59 or second > 59 then return nil end
+    local leap = year % 4 == 0 and (year % 100 ~= 0 or year % 400 == 0)
+    local lengths = {31, leap and 29 or 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+    if day < 1 or day > lengths[month] then return nil end
+    local fraction = ""
+    if suffix:sub(1, 1) == "." then
+        local digits, zone = suffix:match("^%.(%d+)(.*)$")
+        if not digits then return nil end
+        fraction, suffix = digits:gsub("0+$", ""), zone
+    end
+    local offset = 0
+    if suffix ~= "Z" then
+        local sign, oh, om = suffix:match("^([+-])(%d%d):(%d%d)$")
+        if not sign then return nil end
+        oh, om = tonumber(oh), tonumber(om)
+        if oh > 23 or om > 59 then return nil end
+        offset = (oh * 60 + om) * 60 * (sign == "+" and 1 or -1)
+    end
+    local function leaps(y)
+        return math.floor(y / 4) - math.floor(y / 100) + math.floor(y / 400)
+    end
+    local days = 365 * (year - 1970) + leaps(year - 1) - leaps(1969) + day - 1
+    for m = 1, month - 1 do days = days + lengths[m] end
+    local seconds = hour * 3600 + minute * 60 + second - offset
+    days = days + math.floor(seconds / 86400)
+    if days < 0 then return nil end
+    return string.format("%07d%05d", days, seconds % 86400) .. "." .. fraction
+end
+-- source_key_unix_ms turns a source_time_key back into Unix milliseconds,
+-- whole seconds only: the key is seven digits of days, five of seconds.
+local function source_key_unix_ms(key)
+    -- Floats: the host's integers may be 32-bit.
+    return (tonumber(key:sub(1, 7)) * 86400.0 + tonumber(key:sub(8, 12))) * 1000.0
 end
 
--- note_observation records a sample. SignalR delivers one connection's
--- messages in order, so a pushed sample always applies. A REST reply can be
--- older than what the stream pushed since, cached before the change; then it
--- does not apply. Otherwise REST applies as it always has, so one bad stamp
--- cannot hold a value. The same instant keeps its first spelling, so a
--- source time never looks new because the other source wrote it
--- differently. Returns true when REST brought a newer, different value.
-local function note_observation(id, value, at, pushed)
-    if not OBS_WANTED[id] then return false end
-    local new_key, old_key = source_time_key(at), source_time_key(latest_at[id])
-    local newer = false
-    if new_key and old_key then
-        if not pushed and latest_pushed[id] and new_key < old_key then return false end
-        if new_key == old_key then at = latest_at[id] end
-        newer = new_key > old_key
+local POWER_CLOCK_RECOVERY_MS = 30000
+local power_key, power_value, power_stamp
+local recovery_key, recovery_since
+local stream_power_problem
+local last_power_observed_at
+
+local function reset_power_order()
+    power_key, power_value, power_stamp = nil, nil, nil
+    recovery_key, recovery_since = nil, nil
+    stream_power_problem, last_power_observed_at = nil, nil
+    latest[OBS_TOTAL_POWER], latest_at[OBS_TOTAL_POWER], latest_pushed[OBS_TOTAL_POWER] = nil, nil, nil
+end
+
+local observation_confirmed_ms, observation_confirmed_wall_ms = {}, {}
+
+-- A repeated cached reading cannot move the clock back. Require a
+-- strictly advancing source instant after 30 s on the lower timeline.
+local function power_problem(value, key, now)
+    if type(value) ~= "number" or not key then
+        return "missing or invalid power observation"
     end
-    local changed = value ~= latest[id]
+    if power_key and key < power_key then
+        if not recovery_key or key < recovery_key then
+            recovery_key, recovery_since = key, now
+        elseif key > recovery_key and now - recovery_since >= POWER_CLOCK_RECOVERY_MS then
+            return nil
+        else
+            recovery_key = key
+        end
+        return "out-of-order power observation"
+    end
+    if key == power_key and value ~= power_value then
+        return "conflicting power at one source timestamp"
+    end
+    return nil
+end
+
+-- Apply power ordering across both transports. REST fallback replaces the
+-- snapshot but keeps the ordering watermark until an explicit disconnect.
+local function note_observation(id, value, at, pushed, now)
+    local key, held = source_time_key(at), source_time_key(latest_at[id])
+    local newer, changed = false, value ~= latest[id]
+    if id == OBS_TOTAL_POWER then
+        if latest[OBS_OP_MODE] == 1 then return false end
+        local problem = power_problem(value, key, now)
+        if problem then return false, problem end
+        newer, changed = power_key ~= nil and key > power_key, value ~= power_value
+        if key == power_key then at = power_stamp end
+        if power_key and key < power_key then
+            host.log("info", "Easee: power source clock recovered")
+        end
+        power_key, power_value, power_stamp = key, value, at
+        recovery_key, recovery_since, stream_power_problem = nil, nil, nil
+        if not pushed and key == held and latest_pushed[id] then return false end
+    elseif key and held then
+        if not pushed and latest_pushed[id] and key < held then return false end
+        if key == held then at = latest_at[id] end
+        newer = key > held
+    end
     latest[id], latest_at[id], latest_pushed[id] = value, at, pushed
+    if id == OBS_OP_MODE and value == 1 then reset_power_order() end
+    observation_confirmed_ms[id] = host.millis()
+    observation_confirmed_wall_ms[id] = host.unix_ms and host.unix_ms() or nil
     return not pushed and newer and changed
 end
 
@@ -353,7 +436,6 @@ local function observation_value(value)
     return tonumber(value) or value
 end
 
-local last_power_observed_at = nil
 local validated_session_id = nil
 local observed_session_id = nil
 local departed_session_id = nil
@@ -613,7 +695,7 @@ local function owe(id, key, value, now, why)
 end
 
 -- stream_update records a pushed sample. One Core could not read, with a
--- time that is not RFC 3339 UTC, is skipped, and so is a state, power or
+-- time that is not RFC 3339, is skipped, and so is a state, power or
 -- energy reading that is not a number; the stream then owes that reading.
 -- Before the subscription completes the stream replays its current state,
 -- which can be older than a REST read just before it; the newer one stays.
@@ -622,11 +704,24 @@ local function stream_update(id, value, at, now)
     local key = source_time_key(at)
     if not key or (owed_kind(id) and type(value) ~= "number") then
         if owed_kind(id) then owe(id, "", nil, now, "sent a reading it cannot use") end
+        if id == OBS_TOTAL_POWER and stream_state == "up" and latest[OBS_OP_MODE] ~= 1 then
+            stream_power_problem = "missing or invalid power observation"
+        end
         return
     end
     local held = source_time_key(latest_at[id])
     if stream_state ~= "up" and held and key < held then return end
-    note_observation(id, value, at, true)
+    if id == OBS_TOTAL_POWER and stream_owed and stream_owed.id == id and
+       power_key and key < power_key and value == stream_owed.value and value == power_value then
+        -- A coarser timestamp can settle the stream debt without replacing power.
+        stream_owed = nil
+        return
+    end
+    local _, problem = note_observation(id, value, at, true, now)
+    if problem then
+        stream_power_problem = problem
+        return
+    end
     if stream_owed and stream_owed.id == id and (key >= stream_owed.key or value == stream_owed.value) then
         stream_owed = nil
     end
@@ -733,18 +828,18 @@ local REASON_LABELS = {
     [3]   = "offline fallback circuit current too low",
     [4]   = "circuit fuse too low",
     [5]   = "waiting in queue",
-    [6]   = "waiting (other cars fully charged)",
+    [6]   = "waiting in fully charged queue",
     [7]   = "illegal grid type",
-    [8]   = "no current request from primary",
-    [9]   = "max dynamic charger current too low",
-    [10]  = "phase imbalance",
-    [11]  = "equalizer communication lost",
-    [25]  = "equalizer dynamic limit too low",
-    [26]  = "equalizer static limit too low",
-    [27]  = "offline fallback equalizer too low",
-    [28]  = "fuse limit reached",
-    [29]  = "current limited by equalizer",
-    [30]  = "current limited by offline equalizer",
+    [8]   = "no current request from car",
+    [9]   = "master communication lost",
+    [10]  = "equalizer current too low",
+    [11]  = "phase not connected",
+    [25]  = "current limited by circuit fuse",
+    [26]  = "current limited by circuit max current",
+    [27]  = "current limited by dynamic circuit current",
+    [28]  = "current limited by equalizer",
+    [29]  = "current limited by circuit load balancing",
+    [30]  = "current limited by offline settings",
     [50]  = "secondary unit not requesting current",
     [51]  = "max charger current too low",
     [52]  = "max dynamic charger current too low",
@@ -755,7 +850,7 @@ local REASON_LABELS = {
     [57]  = "erratic EV",
     [75]  = "limited by cable rating",
     [76]  = "limited by schedule",
-    [77]  = "limited by charger current",
+    [77]  = "limited by charger max current",
     [78]  = "limited by dynamic charger current",
     [79]  = "car not drawing current",
     [80]  = "current ramping",
@@ -768,6 +863,68 @@ local REASON_LABELS = {
     -- problem when the wallbox is fine.
     [100] = "EV not accepting current",
 }
+
+-- Easee's own load balancing can hold the car below FTW's order. In a field
+-- trace (srcfl/ftw#1763, 23 Oct 2026) FTW ordered 15 A and the charger read
+-- back 15 A (observation 48), while the circuit's allocated current (70-72)
+-- and the current signalled to the car (114) fell to 12, 14 and 13 A; the
+-- car took 8.2-8.9 kW instead of 10.4 kW. Easee records a value when it
+-- changes, so a value answers the order when it was recorded at or after
+-- the order, or when the order has stood ORDER_SETTLE_MS since the driver
+-- saw it and the value has not moved.
+local ORDER_SETTLE_MS = 30000
+local order_seen_a, order_seen_ms = nil, 0
+-- When Easee lets the car take the order again, the car needs a few seconds
+-- to draw it and the cloud to report that. Until then the reading still
+-- shows the old limit's draw, so the old limit is kept for up to
+-- LIMIT_RELEASE_HOLD_MS while the car charges below the order.
+local LIMIT_RELEASE_HOLD_MS = 20000
+local last_limit_a, last_limited_by, last_limit_ms = nil, nil, nil
+
+-- A car cannot charge on less than 6 A per phase (IEC 61851-1).
+local START_A = 6
+-- ReasonForNoCurrent codes in which Easee names its Equalizer: 10 "no
+-- current, Equalizer current too low" and 28 "current limited by Equalizer"
+-- (developer.easee.com/docs/enumerations).
+local EQUALIZER_REASONS = { [10] = true, [28] = true }
+
+-- start_held_a returns the current Easee's load balancing lets the car take
+-- when that is too little to start, while the car draws nothing and the
+-- charger holds FTW's order, which a car could start on. Evidence is the
+-- circuit allocation on all three phases (as below: a three-phase car gets
+-- the lowest share of the phases in use, a one-phase car the highest; no
+-- allocation on any phase is 0 A), or failing that a reason in which Easee
+-- names its Equalizer, recorded no earlier than the charger's state; a
+-- reason or state without a readable time is not evidence. Both
+-- must answer the order. A reason that names FTW's own setting (78) is not
+-- evidence: FTW writes that setting too.
+local function start_held_a(obs, timestamps, answering, dyn_current, power_w, op_mode, request_active)
+    if not (op_mode == 2 or op_mode == 3 or op_mode == 6) or not request_active or power_w >= 100 then return nil end
+    if type(dyn_current) ~= "number" or last_amps_set == nil or math.abs(last_amps_set - dyn_current) > 0.5 or
+       dyn_current < START_A then
+        return nil
+    end
+    local low, high, n = nil, nil, 0
+    for id = OBS_ALLOCATED_L1, OBS_ALLOCATED_L1 + 2 do
+        local a = answering(id)
+        if a then
+            n, high = n + 1, math.max(high or a, a)
+            if a > 0 then low = math.min(low or a, a) end
+        end
+    end
+    if n == 3 then
+        local allocated_a = (phases == 1) and high or (low or 0)
+        if allocated_a < START_A and allocated_a < dyn_current - 0.5 then return allocated_a end
+        return nil
+    end
+    local reason = answering(OBS_REASON_NO_CUR)
+    local reason_at = source_time_key(timestamps[OBS_REASON_NO_CUR])
+    local state_at = source_time_key(timestamps[OBS_OP_MODE])
+    if reason and EQUALIZER_REASONS[reason] and reason_at and state_at and reason_at >= state_at then
+        return 0
+    end
+    return nil
+end
 
 local email, password, configured_max_a
 local device_limit_a, device_limit_read_ms
@@ -799,6 +956,34 @@ local function write_setting(serial, body_table)
         BASE_URL .. "/chargers/" .. serial .. "/settings",
         host.json_encode(body_table), auth_headers())
     return err
+end
+
+-- command_current sends the current limit as a charger command. The settings
+-- write reaches the charger only when the cloud's stored value changes ("Will
+-- only forward commands to device if new value != old value",
+-- developer.easee.com/reference/charger_setchargersetting). A resume or a
+-- phaseMode write puts the charger back at its maximum (32 A reported, #225)
+-- while the cloud still stores our order, so re-sending that order as a
+-- setting never reaches the charger. A command always does. minutes = 0
+-- "results in a limit being applied until another one is set"
+-- (developer.easee.com/reference/charger_set_dynamic_charger_current).
+-- amps = 0 sets the limit a pause sets ("Limits dynamic charger current to
+-- 0", charger_pausesession); Easee accepted every 0 A command on a real
+-- charger.
+local function command_current(serial, amps)
+    local _, err = host.http_post(
+        BASE_URL .. "/chargers/" .. serial .. "/commands/set_dynamic_charger_current",
+        host.json_encode({amps = amps, minutes = 0}), auth_headers())
+    return err
+end
+
+-- resend_after_resume schedules the order as a command once Easee has had
+-- time to apply the resume's reset.
+local function resend_after_resume()
+    if last_amps_set ~= nil then
+        pending_amp_resend = true
+        pending_amp_resend_at_ms = host.millis() + 3000
+    end
 end
 
 -- start_boost_fits: 7 A per phase fits when Core's cap for this charger
@@ -964,24 +1149,41 @@ function driver_poll()
     local rest_read = false
     if rest_due then
         local problem = err or state_problem(values)
+        if not problem then
+            -- Apply mode first so a disconnect clears the previous session's power.
+            if not streaming then latest, latest_at, latest_pushed = {}, {}, {} end
+            local function apply(id)
+                local changed, rejected = note_observation(id, values[id], stamps[id], false, now)
+                if changed and streaming and owed_kind(id) then
+                    owe(id, source_time_key(stamps[id]), values[id], now, "missed a change REST saw")
+                end
+                return rejected
+            end
+            apply(OBS_OP_MODE)
+            if values[OBS_OP_MODE] ~= 1 then
+                problem = apply(OBS_TOTAL_POWER)
+                -- Older REST data can be normal while a newer stream is healthy.
+                if problem == "out-of-order power observation" and streaming and
+                   latest_pushed[OBS_TOTAL_POWER] and not stream_power_problem then
+                    problem = nil
+                end
+            end
+            -- Apply independent readings even if this poll cannot confirm power.
+            for id in pairs(OBS_WANTED) do
+                if id ~= OBS_OP_MODE and id ~= OBS_TOTAL_POWER and
+                   (values[id] ~= nil or stamps[id] ~= nil) then
+                    apply(id)
+                end
+            end
+            if not problem then
+                if streaming and not stream_owed then stream_failures = 0 end
+                heard_ms, rest_read = now, true
+            end
+        end
         rest_next_ms = now + (problem and 10000 or REST_CONFIRM_MS)
         if problem then
             host.log("warn", "Easee: observations poll failed: " .. (err and redact_http_err(err) or problem))
-            -- The cloud answered that it does not hear the charger.
             if not err then heard_ms = nil end
-        else
-            -- Without the stream the reply is the whole state, as before.
-            if not streaming then latest, latest_at, latest_pushed = {}, {}, {} end
-            for id in pairs(OBS_WANTED) do
-                if values[id] ~= nil or stamps[id] ~= nil then
-                    if note_observation(id, values[id], stamps[id], false) and streaming and owed_kind(id) then
-                        owe(id, source_time_key(stamps[id]), values[id], now, "missed a change REST saw")
-                    end
-                end
-            end
-            -- A REST read that finds the stream complete resets its back-off.
-            if streaming and not stream_owed then stream_failures = 0 end
-            heard_ms, rest_read = now, true
         end
     end
 
@@ -990,7 +1192,7 @@ function driver_poll()
     -- nothing, as before, so stale values never look current.
     local vouched = rest_read or
         (stream_state == "up" and heard_ms ~= nil and now - heard_ms <= REST_FRESH_MS)
-    local blocked = vouched and state_problem(latest)
+    local blocked = vouched and (state_problem(latest) or stream_power_problem)
     if blocked and blocked ~= last_blocked then
         host.log("warn", "Easee: not reporting streamed state: " .. blocked)
     end
@@ -1093,6 +1295,74 @@ function driver_poll()
         request_active = false
     end
 
+    -- current_limit_a is the current signalled to the car while it is below
+    -- the order the charger holds and answers it. current_limited_by names
+    -- the load balancer only when the circuit's allocation is below the order
+    -- too and no higher than that current, so the allocation explains it.
+    -- ReasonForNoCurrent is not used here: an older reason is not proof.
+    if dyn_current ~= order_seen_a then order_seen_a, order_seen_ms = dyn_current, now end
+    local order_at = source_time_key(timestamps[OBS_DYN_CURRENT])
+    local order_settled = now - order_seen_ms >= ORDER_SETTLE_MS
+    local function confirmed_current(id)
+        local value, value_at = obs[id], source_time_key(timestamps[id])
+        if type(value) ~= "number" or value ~= value or value < 0 or value > 80 or not value_at then return nil end
+        local confirmed = observation_confirmed_ms[id]
+        if not confirmed or now - confirmed > REST_FRESH_MS then return nil end
+        local wall = host.unix_ms and host.unix_ms() or nil
+        if wall and source_key_unix_ms(value_at) > wall then return nil end
+        return value, value_at
+    end
+    local function answering(id)
+        local value, value_at = confirmed_current(id)
+        if value ~= nil and (order_settled or (value_at and order_at and value_at >= order_at)) then return value end
+        return nil
+    end
+    -- The charger must hold FTW's last order: while it reads back an older
+    -- one, the pilot may be following the new order. The charger's own
+    -- static limit is device_limit_a, not its load balancing.
+    local current_limit_a, current_limited_by = nil, nil
+    local pilot_a = answering(OBS_OUTPUT_CURRENT)
+    if charging and type(dyn_current) == "number" and last_amps_set ~= nil and
+       math.abs(last_amps_set - dyn_current) <= 0.5 and
+       pilot_a and pilot_a > 0 and pilot_a < dyn_current - 0.5 then
+        current_limit_a = pilot_a
+        local low, high, n = nil, nil, 0
+        for id = OBS_ALLOCATED_L1, OBS_ALLOCATED_L1 + 2 do
+            local a = answering(id)
+            if a then
+                n, high = n + 1, math.max(high or a, a)
+                if a > 0 then low = math.min(low or a, a) end
+            end
+        end
+        -- A three-phase car gets the lowest share of the phases it uses; a
+        -- phase with none is not one of them. For a one-phase car the
+        -- active phase is unknown, so use the highest of all three.
+        local allocated_a = n == 3 and ((phases == 1) and high or low) or nil
+        local own_limit = device_limit_a ~= nil and pilot_a >= device_limit_a - 0.5
+        if allocated_a and allocated_a > 0 and allocated_a < dyn_current - 0.5 and allocated_a <= pilot_a + 0.5 and
+           not own_limit then
+            current_limited_by = "load_balancer"
+        end
+    end
+    if current_limit_a then
+        last_limit_a, last_limited_by, last_limit_ms = current_limit_a, current_limited_by, now
+    elseif last_limit_ms and now - last_limit_ms < LIMIT_RELEASE_HOLD_MS and charging and
+           type(dyn_current) == "number" and actual_amps_per_phase and actual_amps_per_phase < dyn_current - 1 then
+        current_limit_a, current_limited_by = last_limit_a, last_limited_by
+    end
+    -- Easee's load balancing can also hold the start: the car draws nothing
+    -- while the charger holds an order a car starts on. Easee support
+    -- (srcfl/ftw#1948, 18 Nov 2026): the Equalizer lowers the current at
+    -- once, raises it again up to 15 minutes after household use falls, and
+    -- three-phase charging needs START_A on each phase. In a field trace
+    -- (srcfl/ftw#1948, 12 Nov 2026) FTW ordered 12 A, the charger read back
+    -- 12 A, and the allocation was 0 A on all three phases for minutes.
+    if current_limit_a == nil then
+        local held_a = start_held_a(obs, timestamps, answering, dyn_current, power_w, op_mode, request_active)
+        if held_a then current_limit_a, current_limited_by = held_a, "load_balancer" end
+    end
+
+    local raw_pilot = confirmed_current(OBS_OUTPUT_CURRENT)
     local limit_age_s = device_limit_read_ms and (host.millis() - device_limit_read_ms) / 1000
     host.emit("ev", {
         w                       = power_w,
@@ -1127,6 +1397,12 @@ function driver_poll()
         cable_locked            = cable_locked,
         device_limit_a          = device_limit_a,
         device_limit_age_s      = limit_age_s,
+        current_limit_a         = current_limit_a,             -- A signalled to the car, below the order
+        current_limited_by      = current_limited_by,          -- "load_balancer" or nil
+        pilot_a                 = raw_pilot,
+        pilot_observed_at       = raw_pilot ~= nil and timestamps[OBS_OUTPUT_CURRENT] or nil,
+        pilot_confirmed_at_ms   = raw_pilot ~= nil and observation_confirmed_wall_ms[OBS_OUTPUT_CURRENT] or 0,
+        dynamic_limit_a         = dyn_current,
         max_a                   = dyn_current,                 -- last-set dynamic limit (echoes our write, may lag)
         actual_amps_per_phase   = actual_amps_per_phase,       -- live per-phase A derived from totalPower
         phases                  = phases,                      -- our committed phase count (1 or 3)
@@ -1141,20 +1417,37 @@ function driver_poll()
     -- as the controller would issue on its next 5 s tick, just earlier.
     --
     -- Only clear the flag on success. A transient network failure or
-    -- 5xx leaves it pending so the NEXT poll retries instead of
-    -- silently leaving the charger pinned at maxChargerCurrent. The
+    -- 5xx leaves it pending, retried every REASSERT_MS instead of on
+    -- every poll, so the charger is not left pinned at
+    -- maxChargerCurrent and the cloud is not hammered. The
     -- controller's own 5 s tick is the safety floor; this just
     -- accelerates convergence in the common case.
     if pending_amp_resend and last_amps_set ~= nil and host.millis() >= pending_amp_resend_at_ms then
-        local werr = write_setting(charger_serial, {dynamicChargerCurrent = last_amps_set})
+        local werr = command_current(charger_serial, last_amps_set)
         if werr == nil then
             host.log("info", "Easee: re-asserted dynamicChargerCurrent=" .. tostring(last_amps_set) ..
-                " A after phaseMode reset")
+                " A as a command after a phaseMode write or resume")
             pending_amp_resend = false
         else
-            host.log("warn", "Easee: dynamicChargerCurrent re-assert failed (will retry next poll): " ..
+            pending_amp_resend_at_ms = host.millis() + REASSERT_MS
+            host.log("warn", "Easee: dynamicChargerCurrent re-assert failed (will retry in 10 s): " ..
                 redact_http_err(werr))
         end
+    end
+
+    -- A charger that allows more than we ordered gets the order again as a
+    -- command, at most every REASSERT_MS: Easee resets its limit by itself
+    -- (see command_current). On a 16 A fuse a 7 A order drew 16 A for 10 s.
+    local current_a = obs[OBS_CURRENT]
+    if connected and last_amps_set ~= nil and now - last_reassert_ms >= REASSERT_MS and
+        ((dyn_current and dyn_current > last_amps_set + 0.5) or
+         (charging and current_a and current_a > last_amps_set + 2)) then
+        last_reassert_ms = now
+        local cerr = command_current(charger_serial, last_amps_set)
+        host.log("warn", string.format(
+            "Easee: charger allows %s A / draws %s A over our %s A order; re-sent it as a command%s",
+            tostring(dyn_current), tostring(current_a), tostring(last_amps_set),
+            cerr and (" (failed: " .. redact_http_err(cerr) .. ")") or ""))
     end
 
     -- 6 A start boost: step down to the ordered 6 A as soon as the charger
@@ -1207,7 +1500,7 @@ function driver_command(action, power_w, cmd)
 
     if action == "ev_start" then
         local ok = post_command("/commands/start_charging")
-        if ok then paused_state = false end
+        if ok then paused_state = false; resend_after_resume() end
         return ok
     elseif action == "ev_pause" then
         local ok = post_command("/commands/pause_charging")
@@ -1220,7 +1513,7 @@ function driver_command(action, power_w, cmd)
         return ok
     elseif action == "ev_resume" then
         local ok = post_command("/commands/resume_charging")
-        if ok then paused_state = false end
+        if ok then paused_state = false; resend_after_resume() end
         return ok
     elseif action == "ev_set_current" then
         -- Driver-level phase decision: read the operator's preferences
@@ -1342,10 +1635,15 @@ function driver_command(action, power_w, cmd)
             if amps > 0 and paused_state then
                 if post_command("/commands/resume_charging") then
                     paused_state = false
+                    resend_after_resume()
                     host.log("info", "Easee: auto-resumed after pause (offer=" ..
                         tostring(amps) .. " A)")
                 end
             end
+        elseif last_amps_set ~= nil and write_a < last_amps_set then
+            -- A failed cut is still the order: re-sending the earlier,
+            -- higher one would undo it.
+            last_amps_set = write_a
         end
         return err == nil
     end

@@ -464,6 +464,23 @@ all modes. They never grant control or replace a safety limit:
   from the dynamic offer in `max_a`. `device_limit_age_s` is time since the
   successful settings read. Failed reads must not reset its age. Core stops
   treating it as a current limit after two minutes.
+- `current_limit_a`: the current per phase the charger lets the car take
+  now, while the car charges and that current is below the host's last
+  order, which the charger reads back. Set it only from a value that
+  answers that order: one the charger reported at or after it took the
+  order, or any once the order has stood long enough for the value to
+  move. Leave it nil otherwise.
+- `current_limited_by`: `"load_balancer"` when the charger's own load
+  balancing sets `current_limit_a`, shown by an allocation that is below
+  the order and explains the limit. Leave it nil when the cause is not
+  shown. An older vendor reason code is not proof of a cause. Core says
+  the car is limited only when its measured power also falls short.
+- A start held by load balancing: while the car draws nothing and the
+  charger reads back an order of at least 6 A, set `current_limit_a` to the
+  current the load balancing allows and `current_limited_by` to
+  `"load_balancer"` when that current is below 6 A, the least a car charges
+  on. Use the same evidence rule. Core then shows a wait of up to 15 minutes
+  instead of a failed start, and reports a start still missing after that.
 
 A device reading makes a response measured, nothing more. Core calls it
 confirmed only when an identified, separate site meter shows a matching
@@ -478,6 +495,17 @@ for power calculated from the inverter's own battery, PV or load readings.
 Use `power_origin="derived"` for such calculated meter values. Failed reads
 must set `control_power_available=false`; sensor identity alone cannot
 confirm a command.
+
+### Effective EV pilot evidence
+
+`pilot_a` is the current physically signalled to the vehicle, including zero;
+`dynamic_limit_a` is the separately read back dynamic setting. Keep `max_a`
+for older hosts. `pilot_observed_at` is the vendor RFC 3339 value-change time;
+`pilot_confirmed_at_ms` is the Unix-millisecond time a successful REST read or
+stream update confirmed that specific value (zero when unavailable). Do not
+refresh that confirmation merely because another observation or poll arrived.
+An unchanged old source value may still be confirmed by a new read. A missing,
+invalid, future-dated or unconfirmed pilot must not explain a control failure.
 
 ### What a battery can do now
 

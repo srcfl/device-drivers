@@ -8,6 +8,66 @@ Recognize battery calibration from Pixii's running-service register when
 the SunSpec charge status is unsupported. Keep measurements live and
 suspend FTW dispatch until calibration ends.
 
+### easee_cloud 1.5.0
+
+Expose the actual pilot current and its source/change timestamp separately
+from the dynamic current setting. Record a fresh confirmation only when
+that observation is accepted from REST or SignalR; a poll of other values
+does not refresh the pilot. Reject unusable, future or expired pilot and
+allocation evidence before it can explain a charging shortfall. Unchanged
+pilot values may retain an old source timestamp when freshly confirmed.
+Paired Core feedback changes distinguish a proven load-balancing limit
+from an otherwise unexplained pilot limit (srcfl/ftw#1874).
+
+### easee_cloud 1.4.5
+
+Report when Easee's load balancing holds a start. While the car draws nothing
+and the charger holds an order a car can start on, the driver reports
+`current_limit_a` as the allocated current and `current_limited_by =
+"load_balancer"` when that current is below 6 A. Evidence is the circuit
+allocation on all three phases, or else a ReasonForNoCurrent that names the
+Equalizer (10 or 28) in the charger's current state. Reason 78 is not
+evidence: FTW writes that setting too. Easee support says the Equalizer
+raises the current again up to 15 minutes after household use falls
+(srcfl/ftw#1948); FTW Core waits that long before it reports a failed start.
+A reason or charger state without a readable source time is not evidence.
+
+### easee_cloud 1.4.4
+
+Report the current Easee signals below FTW's order (observation 114, the
+pilot), and attribute the limit to load balancing when the circuit
+allocation (observations 70-72) supports it. Require a usable allocation on
+all three phases when the active phase of a one-phase car is unknown.
+ReasonForNoCurrent labels now follow Easee's enumeration table
+(developer.easee.com/docs/enumerations). Power ordering is the one from
+1.4.2 (#183).
+
+### easee_cloud 1.4.3
+
+The driver re-sends its current limit as a charger command. Easee puts the
+limit back at its maximum when charging resumes (32 A reported, #225). The
+settings write reaches the charger only when the cloud's stored value
+changes, so re-sending the same order never undid that. On a 16 A fuse a
+7 A order drew 16 A for about 10 s.
+
+- 3 s after a resume or start, and after a phaseMode write, the order goes
+  out as `set_dynamic_charger_current` with `minutes: 0`.
+- When the charger reports a higher limit than ordered, or draws more than
+  2 A over the order, the order is re-sent as a command, at most every 10 s.
+- `minutes: 0` holds the limit until the next one, as Easee documents. A 0 A
+  order goes out as a 0 A command too, the limit a pause sets.
+- A failed re-send is retried every 10 s, not on every poll.
+- When a lower order's settings write fails, re-sends use that lower order,
+  not the earlier, higher one.
+
+### easee_cloud 1.4.2
+
+REST and SignalR compare TotalPower source times on the same UTC timeline.
+Older readings and conflicting values at one instant cannot replace newer
+power. A disconnect clears the power watermark. If the source clock moves
+back, advancing readings on the lower timeline can restore telemetry after
+30 seconds.
+
 ### victron_mqtt 1.2.1
 
 The manifest declares `R/+/keepalive` in `mqtt_read_request_topics`, so the
