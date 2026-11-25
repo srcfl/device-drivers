@@ -758,15 +758,15 @@ drivers:
     size_bytes: 9242
     sha256: "eccb983120f597a8256b5dacdd20ca456f3152dba571f45c2bff942cfc052d02"
   - name: "teslamate_vehicle"
-    version: "0.2.1"
+    version: "0.2.2"
     tier: community
     protocol: mqtt
     connectivity: local
     setup: [bridge]
     ders: [vehicle]
     control: false
-    size_bytes: 18520
-    sha256: "28ad494dbebea9a02e11bc5d2c028cbfeb4b81e7cc13c8777c1b57baf8f0359e"
+    size_bytes: 19687
+    sha256: "2b315f2f2c1d2ecb86a7bfef0f56e30e9b2aec6255e28ff4cbf5112be63c1fc9"
   - name: "tibber"
     version: "1.1.2"
     tier: core
@@ -833,15 +833,15 @@ drivers:
     size_bytes: 31972
     sha256: "81cde7bbbf8188d32ee79ef4f2451308e05ae1b677651e23c9de087580890f5b"
   - name: "zaptec_cloud"
-    version: "0.2.2"
+    version: "0.3.0"
     tier: community
     protocol: http
     connectivity: cloud
     setup: [vendor_portal]
     ders: [ev]
     control: true
-    size_bytes: 23059
-    sha256: "a438e7b2c28c17be1d0eca6511e2e67157dbc1510966ef95ceebe872e24aff58"
+    size_bytes: 28625
+    sha256: "95189f737ee72a741cb38e011b1cffe0c74b0cfcf017b677fdb9138a9cc8a1ee"
   - name: "zuidwijk_p1"
     version: "1.1.2"
     tier: core

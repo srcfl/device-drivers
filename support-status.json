@@ -1703,7 +1703,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.1",
+      "catalog_version": "0.2.2",
       "driver_id": "teslamate_vehicle",
       "targets": {
         "blixt-l1": {
@@ -1871,7 +1871,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.2",
+      "catalog_version": "0.3.0",
       "driver_id": "zaptec_cloud",
       "targets": {
         "blixt-l1": {

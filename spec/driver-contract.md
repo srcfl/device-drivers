@@ -60,6 +60,14 @@ Parameters:
 
 Return: `true` on success, `false` on failure.
 
+### `driver_release()` *(optional, FTW)*
+
+Called instead of `driver_default_mode()` when the owner removes or disables
+the driver, so FTW is done with the device. Give back what the owner had, for
+example a charger's own maximum current instead of FTW's 0 A. Return `true`
+when it held and `false` when the device refused. A driver without it is
+stopped with `driver_default_mode()`.
+
 ### `driver_default_mode()`
 
 Called when the EMS heartbeat watchdog expires (60s without heartbeat). Should revert the device to safe autonomous operation (e.g., auto mode).

@@ -166,8 +166,8 @@ Catalog source is not proof that a target can install or run a driver.
 | tesla_vehicle | 0.2.6 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | tesla_wall_connector | 0.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | tesla_wall_connector | 0.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| teslamate_vehicle | 0.2.1 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| teslamate_vehicle | 0.2.1 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| teslamate_vehicle | 0.2.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| teslamate_vehicle | 0.2.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | tibber | 1.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | tibber | 1.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | vag_vehicle | 0.3.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
@@ -182,7 +182,7 @@ Catalog source is not proof that a target can install or run a driver.
 | wallbox | 1.1.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | zap | 3.2.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | zap | 3.2.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
-| zaptec_cloud | 0.2.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
-| zaptec_cloud | 0.2.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
+| zaptec_cloud | 0.3.0 | ftw-core | not_assessed | — | not_recorded | not_assessed |
+| zaptec_cloud | 0.3.0 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |
 | zuidwijk_p1 | 1.1.2 | ftw-core | not_assessed | — | not_recorded | not_assessed |
 | zuidwijk_p1 | 1.1.2 | blixt-l1 | not_assessed | — | not_recorded | not_assessed |

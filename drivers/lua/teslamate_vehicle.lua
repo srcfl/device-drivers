@@ -63,11 +63,17 @@
 -- reconnects, comes without one, and its time is unknown.
 --
 -- The place: with `geofence` set to the name of this site's geofence in
--- TeslaMate, the geofence topic gives at_site. Without it, latitude and
--- longitude, with the site position from the host (host.site_location),
--- give site_distance_m; the car's coordinates are not emitted. The
+-- TeslaMate, the geofence topic gives at_site. Without it, the car's
+-- position, with the site position from the host (host.site_location),
+-- gives site_distance_m; the car's coordinates are not emitted. The
 -- geofence is the better of the two: the site position is a weather pin.
 -- All of this comes with the updates TeslaMate already sends.
+--
+-- The position comes from the location topic, JSON {"latitude": <float>,
+-- "longitude": <float>}, or from the latitude and longitude topics, which
+-- TeslaMate now marks deprecated but older versions still send. The driver
+-- reads all three, and the newest message sets the position. A location it
+-- cannot read leaves the last position as it was.
 
 DRIVER = {
   host_api_min = 1,
@@ -75,7 +81,7 @@ DRIVER = {
   id           = "teslamate_vehicle",
   name         = "Tesla Vehicle (TeslaMate)",
   manufacturer = "Tesla",
-  version      = "0.2.1",
+  version      = "0.2.2",
   protocols    = { "mqtt" },
   capabilities = { "vehicle" },
   read_only    = true,
@@ -236,6 +242,24 @@ local function distance_m(lat1, lon1, lat2, lon2)
   return 2 * 6371000 * math.asin(math.min(1, math.sqrt(a)))
 end
 
+-- n when it is a real number within ±limit degrees, else nil.
+local function coordinate(n, limit)
+  if not finite(n) or math.abs(n) > limit then return nil end
+  return n
+end
+
+-- TeslaMate's location topic. Both coordinates, or nil when the payload is
+-- not JSON or either one is missing or out of range: a bad message must
+-- not move the car, and must never put it at 0,0.
+local function location(p)
+  if type(p) ~= "string" then return nil end
+  local ok, obj = pcall(host.json_decode, p)
+  if not ok or type(obj) ~= "table" then return nil end
+  local lat, lon = coordinate(obj.latitude, 90), coordinate(obj.longitude, 180)
+  if lat == nil or lon == nil then return nil end
+  return lat, lon
+end
+
 local function site_distance()
   if not host.site_location or not finite(plug.lat) or not finite(plug.lon) then
     return nil
@@ -390,11 +414,14 @@ local function apply_message(msg)
     return false
   end
   if key == "latitude" or key == "longitude" then
-    local n = tonumber(p)
-    if n == nil or (key == "latitude" and math.abs(n) > 90) or math.abs(n) > 180 then
-      return false
-    end
+    local n = coordinate(tonumber(p), key == "latitude" and 90 or 180)
+    if n == nil then return false end
     if key == "latitude" then plug.lat = n else plug.lon = n end
+    return false
+  end
+  if key == "location" then
+    local lat, lon = location(p)
+    if lat ~= nil then plug.lat, plug.lon = lat, lon end
     return false
   end
   if key == "model" then
