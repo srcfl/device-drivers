@@ -42,6 +42,13 @@ it rather than asking the operator to configure a number the device knows.
 Hold off the first poll for this many seconds after start. Use it for a device
 that answers Modbus before its values are meaningful.
 
+### `host.set_command_timeout_s(seconds)` *(FTW)*
+Ask for this long per driver call, up to 30 s, instead of 5 s. Call it from
+`driver_init` in a driver whose vendor cloud answers slowly. The control tick
+does not wait longer; the call finishes in the driver's own queue, and only a
+call that runs past this time counts as failed. Guard it with
+`type(host.set_command_timeout_s) == "function"`: older hosts lack it.
+
 ### `host.set_poll_interval(milliseconds)`
 Change the interval before the next poll. `driver_poll()`'s return value already
 does this; use the call when the interval changes outside a poll.

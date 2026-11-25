@@ -31,7 +31,7 @@ changelog, the API reference you decoded the device from — record those in the
 manifest so the driver can be checked against them again later. See
 [Record what you decoded it from](#record-what-you-decoded-it-from).
 
-## The five entry points
+## The entry points
 
 | Function | When |
 |---|---|
@@ -39,7 +39,13 @@ manifest so the driver can be checked against them again later. See
 | `driver_poll()` | repeatedly; returns milliseconds until the next call |
 | `driver_command(action, power_w, cmd)` | when the host wants the device to act |
 | `driver_default_mode()` | hand the device back to itself |
+| `driver_release()` | optional: the owner removed the driver; give back their settings |
 | `driver_cleanup()` | once, when the driver stops |
+
+A safe stop that stays on the device, such as a charger held at 0 A, must not
+outlive FTW. `driver_release()` puts the owner's setting back; `zaptec_cloud`
+is the worked example. A driver whose vendor cloud is slow asks for more time
+per call with `host.set_command_timeout_s(seconds)` in `driver_init`.
 
 Only `driver_poll` is required. A read-only driver defines the first two and
 stops there — and most drivers should. A driver that cannot write cannot break

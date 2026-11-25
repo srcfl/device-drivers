@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### zaptec_cloud 0.3.0
+
+First field test (Zaptec Go, 20 A main fuse, two one-phase cars) found
+three faults that kept the car from charging:
+
+- A one-phase order on an idle three-phase charger was divided over three
+  phases, so anything up to 18 A came out below 6 A and was written as 0 A.
+  When Core asks for one phase, the charger draws on none and its state is
+  fresh, the driver now offers the charger's minimum, as a resume does. Once
+  the car draws on one phase it gets its full one-phase current. A car seen
+  on three phases never gets this start.
+- The driver wrote 0 A on every stop and left it on the charger. The owner
+  found "Max Current lower than Min Current" in the Zaptec portal, and
+  neither the Zaptec app nor another load balancer could start the charger.
+  The new `driver_release` puts back the maximum found before FTW's first
+  write, or 32 A when that is unknown, and resumes a charger FTW paused.
+  Core calls it when the owner removes or disables the driver
+  (srcfl/ftw, paired PR); a restart still stands down at 0 A.
+- Zaptec Cloud calls took longer than the host's 5 s. The driver asks for
+  20 s per call with `host.set_command_timeout_s` and retries a request once
+  after a server error or a lost connection.
+
+The driver also reads the charger's own minimum (observation 511) and never
+writes a positive current below it.
+
 ### easee_cloud 1.5.0
 
 Expose the actual pilot current and its source/change timestamp separately

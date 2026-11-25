@@ -193,14 +193,16 @@ poll(CONNECTED)
 post_fail["/sendCommand/507"] = 'HTTP 400: {"Code":528}'
 assert(order(11040, THREE), "a 528 resume after a turned-away pause must hold")
 post_fail = {}
--- A failing resume is retried no faster than every 30 s.
+-- A failing resume is retried no faster than every 30 s. Each try sends 507
+-- twice: a server error gets one more request before it counts.
 boot()
 poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})
 post_fail["/sendCommand/507"] = 'HTTP 500: {"Code":520}'
 assert(order(11040, THREE) == false, "a resume that never reached the charger must fail")
-assert(order(11040, THREE)); assert(count("/sendCommand/507") == 1, "resume retried at once")
+assert(count("/sendCommand/507") == 2, "a server error was not retried once")
+assert(order(11040, THREE)); assert(count("/sendCommand/507") == 2, "resume retried at once")
 later(31000)
-assert(order(11040, THREE) == false); assert(count("/sendCommand/507") == 2)
+assert(order(11040, THREE) == false); assert(count("/sendCommand/507") == 4)
 post_fail = {}
 -- Resume never offers more than Core's last cap, and nothing below 6 A.
 boot()
@@ -305,11 +307,12 @@ for _ = 1, 5 do assert(driver_default_mode() == false) end
 assert(count("/update") == tries, "a refused stand-down retried at once")
 later(61000)
 assert(driver_default_mode() == false)
-assert(count("/update") == tries + 1, "the stand-down never retried")
+-- Each try is the write and one more after the server error.
+assert(count("/update") == tries + 2, "the stand-down never retried")
 post_fail = {}
 later(61000)
 assert(driver_default_mode() == true, "a stand-down that held must report it")
-assert(driver_default_mode() == true and count("/update") == tries + 2, "a held stand-down wrote again")
+assert(driver_default_mode() == true and count("/update") == tries + 3, "a held stand-down wrote again")
 -- A pause that held is enough even when the 0 A write failed.
 boot()
 poll(CONNECTED)
@@ -352,5 +355,171 @@ for _, call in ipairs(sent) do
     assert(call.args[3] and tostring(call.args[3]["User-Agent"]):find("FTW%-zaptec_cloud"),
         "missing User-Agent on " .. call.args[1])
 end
+
+-- 10. A one-phase car on an idle three-phase charger starts at the minimum.
+-- Field case (JimmyE, Zaptec Go, 20 A fuse, Volvo V60 on one phase): Core
+-- asked for 6-17 A on one phase, each order came out as 0 A, and the car
+-- never started.
+local ONE = function(cap) return {phase_mode = "1p", voltage = 230, max_amps_per_phase = cap} end
+boot()
+poll(CONNECTED)
+assert(order(1380, ONE(6))); assert(last_current() == 6, "6 A on one phase must start the car")
+assert(order(3910, ONE(17))); assert(last_current() == 6, "an idle charger starts at the minimum, not 17 A")
+assert(order(2760, ONE(12))); assert(last_current() == 6)
+assert(order(1000, ONE(17))); assert(last_current() == 0, "4.3 A on one phase is below the minimum")
+assert(order(3910, ONE(5))); assert(last_current() == 0, "a cap below the minimum must stay 0 A")
+assert(order(3000, THREE)); assert(last_current() == 0, "a three-phase order is unchanged")
+-- While the car ramps up, nothing on any phase yet: still the minimum.
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 0.4, [508] = 0, [509] = 0, [510] = 6})
+assert(order(2760, ONE(12))); assert(last_current() == 6, "a ramping car was cut to 0 A")
+-- Once it draws on one phase it gets its full one-phase current.
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 5.8, [508] = 0, [509] = 0, [510] = 6})
+assert(order(3910, ONE(17))); assert(last_current() == 17, "a one-phase car drawing did not get 17 A")
+-- A car seen on three phases never gets a one-phase start.
+boot()
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 6, [508] = 6, [509] = 6, [510] = 6})
+assert(order(3910, ONE(17))); assert(last_current() == 0, "a three-phase car got the one-phase start")
+-- Without a fresh poll there is no start either.
+boot()
+assert(order(1380, ONE(6))); assert(last_current() == 0, "a start before any poll")
+
+-- 11. A charger minimum above 6 A is the floor; nothing positive goes below it.
+boot()
+poll({[710] = 2, [718] = 0, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 16, [511] = 10})
+assert(order(2760, ONE(12))); assert(last_current() == 10, "the start must use the charger's 10 A minimum")
+assert(order(1380, ONE(12))); assert(last_current() == 0, "6 A is below this charger's minimum")
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 10, [508] = 0, [509] = 0, [510] = 10, [511] = 10})
+assert(order(2070, ONE(12))); assert(last_current() == 0, "9 A would set the maximum below the minimum")
+assert(order(2760, ONE(12))); assert(last_current() == 12)
+assert(driver_command("ev_pause", 0, nil))
+poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0, [511] = 10})
+assert(driver_command("ev_resume", 0, nil)); assert(last_current() == 10, "resume below the charger's minimum")
+local logged_min = false
+for _, line in ipairs(host._logs) do
+    if tostring(line):find("minimum current is 10 A", 1, true) then logged_min = true end
+end
+assert(logged_min, "the charger's minimum was not logged")
+
+-- 12. A server error or a lost connection gets one more request; a refusal does not.
+boot()
+poll(CONNECTED)
+local failed_once = false
+local inner_post = host.http_post
+host.http_post = function(url, body, headers)
+    if not failed_once and string.find(url, "/update", 1, true) then
+        failed_once = true
+        table.insert(host._calls, {func = "http_post", args = {url, body, headers}})
+        return nil, "HTTP 503: busy"
+    end
+    return inner_post(url, body, headers)
+end
+assert(order(11040, THREE), "a 503 followed by success must hold")
+assert(count("/update") == 2 and last_current() == 16)
+host.http_post = inner_post
+boot()
+poll(CONNECTED)
+failed_once = false
+inner_post = host.http_post
+host.http_post = function(url, body, headers)
+    if not failed_once and string.find(url, "/sendCommand/506", 1, true) then
+        failed_once = true
+        table.insert(host._calls, {func = "http_post", args = {url, body, headers}})
+        return nil, "connection reset by peer"
+    end
+    return inner_post(url, body, headers)
+end
+assert(order(11040, THREE)); assert(driver_command("ev_pause", 0, nil))
+assert(count("/sendCommand/506") == 2, "a lost connection was not retried")
+host.http_post = inner_post
+boot()
+poll(CONNECTED)
+post_fail["/update"] = 'HTTP 400: {"Code":529}'
+assert(order(11040, THREE) == false); assert(count("/update") == 1, "a refusal was retried")
+post_fail = {}
+
+-- 13. The driver asks the host for time a cloud call needs.
+local asked = nil
+host.set_command_timeout_s = function(s) asked = s end
+boot()
+assert(asked == 20, "the driver did not ask for 20 s per call")
+host.set_command_timeout_s = nil
+
+-- 14. driver_release hands the charger back when the owner removes the driver.
+-- After FTW paused it: the owner's 16 A and a resume.
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE)); assert(driver_command("ev_pause", 0, nil))
+poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})
+assert(driver_release() == true)
+assert(last_current() == 16, "release must put back the owner's 16 A")
+assert(count("/sendCommand/507") == 1, "release must resume a charger FTW paused")
+-- After a stand-down in this run.
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE)); driver_default_mode()
+assert(driver_release() == true); assert(last_current() == 16 and count("/sendCommand/507") == 1)
+-- The owner's maximum is the one found before FTW's first write.
+boot()
+poll(CONNECTED)
+assert(order(4500, THREE)); assert(last_current() == 6.5)
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 6.5, [508] = 6.5, [509] = 6.5, [510] = 6.5})
+assert(driver_release() == true); assert(last_current() == 16, "release used FTW's own 6.5 A")
+assert(count("/sendCommand/507") == 0, "release resumed a charger FTW never paused")
+-- Left at 0 A by an earlier run: no cap (32 A) and a resume.
+boot()
+poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})
+assert(driver_release() == true)
+assert(last_current() == 32, "a charger left below its minimum must get the 32 A hand-back")
+assert(count("/sendCommand/507") == 1)
+-- A charger FTW never touched is left alone.
+boot()
+poll(CONNECTED)
+assert(driver_release() == true)
+assert(#current_writes() == 0 and count("/sendCommand/507") == 0, "release touched a charger FTW never steered")
+-- No car to resume (528) is fine; a refused write is not.
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE)); assert(driver_command("ev_pause", 0, nil))
+post_fail["/sendCommand/507"] = 'HTTP 400: {"Code":528}'
+assert(driver_release() == true, "528 on release means nothing to resume")
+post_fail = {}
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE))
+post_fail["/update"] = "HTTP 503: down"
+assert(driver_release() == false, "a refused hand-back must report false")
+post_fail = {}
+
+-- A pause whose reply was lost and whose retry got 528 is still FTW's.
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE))
+local tries_506 = 0
+inner_post = host.http_post
+host.http_post = function(url, body, headers)
+    if string.find(url, "/sendCommand/506", 1, true) then
+        tries_506 = tries_506 + 1
+        table.insert(host._calls, {func = "http_post", args = {url, body, headers}})
+        if tries_506 == 1 then return nil, "timeout awaiting response" end
+        return nil, 'HTTP 400: {"Code":528}'
+    end
+    return inner_post(url, body, headers)
+end
+assert(driver_command("ev_pause", 0, nil))
+host.http_post = inner_post
+poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})
+assert(driver_release() == true)
+assert(count("/sendCommand/507") == 1, "release left a charger paused after a lost pause reply")
+-- A poll that still shows charging just after FTW's pause does not forget it.
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE)); assert(driver_command("ev_pause", 0, nil))
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 16, [508] = 16, [509] = 16, [510] = 0})
+assert(driver_release() == true); assert(count("/sendCommand/507") == 1, "a late poll cleared FTW's pause")
+-- A state document without 511 keeps the charger's known minimum.
+boot()
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 10, [508] = 0, [509] = 0, [510] = 10, [511] = 10})
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 10, [508] = 0, [509] = 0, [510] = 10})
+assert(order(2070, ONE(12))); assert(last_current() == 0, "a poll without 511 let 9 A through")
 
 print("zaptec_cloud control: ok")

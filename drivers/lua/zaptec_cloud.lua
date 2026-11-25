@@ -22,13 +22,35 @@
 -- on exactly one. A single-phase car can then only draw less than Core
 -- budgeted, never more. With no cap in an order it keeps Core's last one.
 --
+-- One exception lets a single-phase car start. Below the charger's minimum
+-- (observation 511, usually 6 A) Zaptec allocates nothing, so a one-phase
+-- order of up to 18 A on an idle three-phase charger came out as 0 A and the
+-- car never started. When Core asks for one phase, the charger draws on no
+-- phase, its state is fresh and the order is at least the minimum on one
+-- phase, the driver offers that minimum, as a resume does. Once the car draws
+-- on one phase, the next order gets its full one-phase current.
+--
+-- The driver never writes a positive current below the charger's minimum.
+-- Zaptec documents that a maximum below the minimum allocates no current; an
+-- owner saw that as "Max Current lower than Min Current" in the portal.
+--
 -- Stand-alone mode (observation 712) makes the charger ignore current set
 -- through the API. The driver then refuses current orders and says why.
 --
 -- When FTW can no longer steer (driver_default_mode) it pauses and sets
 -- 0 A, as easee_cloud does, but only once FTW has written a current in this
--- run. maxChargeCurrent is stored on the charger, so an owner who stops
--- using FTW sets it again in the Zaptec app or portal.
+-- run. maxChargeCurrent is stored on the charger. Core runs driver_release
+-- instead when the owner removes or disables this driver: the driver puts
+-- back the maximum it found before FTW's first write in this run, or 32 A
+-- (no charger cap; the installation's own limits still apply) when that is
+-- unknown or below the minimum, and resumes a charger FTW paused. Without
+-- that, the charger stayed at 0 A and neither the Zaptec app nor another
+-- load balancer could start it.
+--
+-- Zaptec Cloud often takes a few seconds per call. The driver asks the host
+-- for 20 s per call (host.set_command_timeout_s), and retries a request once
+-- after a server error or a lost connection. Both writes are idempotent: a
+-- repeated command that changes nothing comes back 528.
 --
 -- Sign convention: positive W is charging (power into the vehicle).
 --
@@ -45,7 +67,7 @@ DRIVER = {
   id           = "zaptec_cloud",
   name         = "Zaptec Cloud",
   manufacturer = "Zaptec",
-  version      = "0.2.2",
+  version      = "0.3.0",
   protocols    = { "http" },
   capabilities = { "ev" },
   description  = "Zaptec Go / Go 2 / Pro via Zaptec Cloud. Email + password; optional charger serial. FTW sets the charging current and pauses or resumes.",
@@ -71,6 +93,7 @@ local OBS_CURRENT_L1     = 507
 local OBS_CURRENT_L2     = 508
 local OBS_CURRENT_L3     = 509
 local OBS_MAX_CURRENT    = 510
+local OBS_MIN_CURRENT    = 511
 local OBS_CHARGE_POWER   = 513
 local OBS_SESSION_ENERGY = 553
 local OBS_OP_MODE        = 710
@@ -91,10 +114,17 @@ local CMD_RESUME = 507
 -- command never reached the charger, so it is a failure.
 local CODE_REJECTED = 528
 
--- Charger limits. Below MIN_A a charger allocates no current, so the driver
--- writes 0 rather than rounding a small order up.
+-- Charger limits. Below its minimum a charger allocates no current, so the
+-- driver writes 0 rather than rounding a small order up. MIN_A is Zaptec's
+-- default minimum; a charger that reports a higher one (511) uses that.
 local MIN_A = 6
 local MAX_A = 32
+-- What driver_release writes when the owner's own maximum is unknown: no cap
+-- on the charger, so the installation's limits govern as before FTW.
+local HANDBACK_A = 32
+-- Time per driver call asked of the host, and the wait before one retry.
+local COMMAND_TIMEOUT_S = 20
+local RETRY_WAIT_MS = 1000
 -- A live phase counts when it carries at least this much current.
 local LIVE_PHASE_A = 1.0
 -- Rewrite an unchanged current at most this often; small rises wait for it.
@@ -120,6 +150,12 @@ local stand_alone    = false
 local op_mode        = nil
 local OBS_FINAL_STOP = 718
 local phase_currents = { nil, nil, nil }
+local state_fresh    = false -- the last state poll succeeded
+local charger_min_a  = nil   -- observation 511
+local charger_max_a  = nil   -- observation 510
+local final_stop     = false -- observation 718
+local owner_max_a    = nil   -- 510 before FTW's first write in this run
+local warned_min     = false
 local variant_logged = false
 
 -- What the driver last wrote.
@@ -127,6 +163,7 @@ local last_written_a  = nil   -- nil until the first write this run
 local last_write_ms   = 0
 local last_cap_a      = nil   -- Core's last max_amps_per_phase
 local paused          = false -- the charger is paused (506 or the poll says so)
+local ftw_paused      = false -- FTW sent a 506 that held; only a resume clears it
 local resume_try_ms   = nil
 local stood_down      = false
 local stand_down_try_ms = nil
@@ -335,6 +372,11 @@ local function post(path, body, content_type)
     access_token = nil
     token_expiry = 0
     if ensure_auth() then err = once() end
+  elseif err and (tostring(err):match("^HTTP 5%d%d") or not tostring(err):match("^HTTP %d")) then
+    -- A server error or a lost connection: Zaptec Cloud has these now and
+    -- then. Try once more; both writes are safe to repeat.
+    host.sleep(RETRY_WAIT_MS)
+    err = once()
   end
   return err
 end
@@ -384,11 +426,21 @@ local function live_phase_count()
   return n
 end
 
+-- floor_a is the least current the charger allocates: its own minimum
+-- (511) when it reports one at or above Zaptec's 6 A default, else 6 A.
+local function floor_a()
+  if charger_min_a and charger_min_a > MIN_A and charger_min_a <= MAX_A then
+    return charger_min_a
+  end
+  return MIN_A
+end
+
 -- amps_for turns Core's watts into amps per phase, never above Core's cap.
 -- It divides by three phases unless the installation has one phase and the
 -- charger is not drawing on more, or Core asks for one and the charger is
 -- drawing on exactly one. An idle charger
--- proves nothing, so a three-phase car can never get a one-phase sum.
+-- proves nothing, so a three-phase car can never get a one-phase sum. It
+-- can still start a one-phase car at the minimum; see the header.
 local function amps_for(power_w, cmd, cap)
   local voltage = as_number(cmd.voltage)
   if not voltage or voltage <= 0 then voltage = 230 end
@@ -396,10 +448,18 @@ local function amps_for(power_w, cmd, cap)
   local phases = 3
   local live = live_phase_count()
   if (phases_cfg == 1 and live <= 1) or (mode == "1p" and live == 1) then phases = 1 end
-  local amps = (as_number(power_w) or 0) / (voltage * phases)
+  local w = as_number(power_w) or 0
+  local amps = w / (voltage * phases)
   if cap and amps > cap then amps = cap end
   if amps > MAX_A then amps = MAX_A end
-  if amps < MIN_A then return 0 end
+  local floor = floor_a()
+  if amps < floor then
+    if phases == 3 and mode == "1p" and live == 0 and state_fresh
+        and w / voltage >= floor and (cap == nil or cap >= floor) then
+      return floor
+    end
+    return 0
+  end
   return math.floor(amps * 10 + 1e-9) / 10
 end
 
@@ -417,7 +477,7 @@ end
 local function send_resume()
   resume_try_ms = host.millis()
   local ok = send_command(CMD_RESUME)
-  if ok then paused = false end
+  if ok then paused = false; ftw_paused = false end
   return ok
 end
 
@@ -445,7 +505,7 @@ local function set_current(power_w, cmd)
     end
   end
   if write then wrote = write_current(amps) end
-  if amps < MIN_A or not wrote then return wrote end
+  if amps < floor_a() or not wrote then return wrote end
   if paused and (resume_try_ms == nil or now - resume_try_ms >= RESUME_RETRY_MS) then
     return send_resume()
   end
@@ -456,6 +516,9 @@ local function pause()
   local wrote = write_current(0)
   local sent, applied = send_command(CMD_PAUSE)
   if applied then paused = true end
+  -- A 528 can be the answer to a retry whose first try already paused the
+  -- charger, so any pause that held counts as FTW's.
+  if sent then ftw_paused = true end
   -- 0 A alone is enough: below 6 A the charger allocates nothing.
   return wrote or sent
 end
@@ -464,9 +527,10 @@ end
 -- than Core's last cap, and Core's next order sets the level.
 local function resume()
   if stand_alone then return refuse_stand_alone() end
-  if (last_written_a == nil or last_written_a < MIN_A)
-      and (last_cap_a == nil or last_cap_a >= MIN_A) then
-    if not write_current(MIN_A) then return false end
+  local floor = floor_a()
+  if (last_written_a == nil or last_written_a < floor)
+      and (last_cap_a == nil or last_cap_a >= floor) then
+    if not write_current(floor) then return false end
   end
   -- Always send the command: the last poll may predate a pause.
   return send_resume()
@@ -486,6 +550,10 @@ function driver_init(config)
   end
   local p = as_number(config.phases)
   if p == 1 or p == 3 then phases_cfg = p end
+  -- Older hosts have no set_command_timeout_s and keep their 5 s.
+  if type(host.set_command_timeout_s) == "function" then
+    host.set_command_timeout_s(COMMAND_TIMEOUT_S)
+  end
 
   if not email or not password then
     error("Zaptec: email/username and password required")
@@ -528,14 +596,32 @@ function driver_poll()
     auth_headers())
   if err then
     phase_currents = { nil, nil, nil }
+    state_fresh = false
     host.log("warn", "Zaptec: state poll failed: " .. redact_http_err(err))
     return 10000
   end
   local obs, oerr = observation_map(resp)
   if oerr or not obs then
     phase_currents = { nil, nil, nil }
+    state_fresh = false
     host.log("warn", "Zaptec: state decode failed")
     return 10000
+  end
+  state_fresh = true
+  -- A state document that leaves one out keeps the last known value: losing
+  -- the minimum would let a write fall below it.
+  charger_max_a = as_number(obs[OBS_MAX_CURRENT]) or charger_max_a
+  charger_min_a = as_number(obs[OBS_MIN_CURRENT]) or charger_min_a
+  final_stop = as_flag(obs[OBS_FINAL_STOP]) == true
+  if charger_min_a and charger_min_a > MIN_A and not warned_min then
+    warned_min = true
+    host.log("info", string.format(
+      "Zaptec: the charger's minimum current is %.0f A; FTW starts the car there", charger_min_a))
+  end
+  -- The owner's own maximum, as found before FTW wrote in this run. A value
+  -- under the minimum allocates nothing, so it is not worth handing back.
+  if last_written_a == nil and charger_max_a and charger_max_a >= floor_a() then
+    owner_max_a = charger_max_a
   end
 
   log_variant(obs[OBS_CAPABILITIES])
@@ -632,8 +718,9 @@ function driver_default_mode()
   stand_down_try_ms = now
   if not ensure_auth() then return false end
   local wrote = write_current(0)
-  local _, applied = send_command(CMD_PAUSE)
+  local sent, applied = send_command(CMD_PAUSE)
   if applied then paused = true end
+  if sent then ftw_paused = true end
   -- Either holds the car: below 6 A Zaptec allocates nothing, and a paused
   -- charger draws nothing.
   if wrote or applied then
@@ -645,6 +732,31 @@ function driver_default_mode()
     return true
   end
   return false
+end
+
+function driver_release()
+  -- Core calls this, not driver_default_mode, when the owner removes or
+  -- disables the driver. Give the charger back: its own maximum and, if FTW
+  -- paused it, a resume. A charger FTW never touched in this run is left
+  -- alone unless its maximum sits below its minimum, which only an earlier
+  -- FTW stand-down leaves behind and which stops every charger app.
+  if not charger_id or not email or not password then return true end
+  local below_floor = charger_max_a ~= nil and charger_max_a < floor_a()
+  local held_by_ftw = ftw_paused or (below_floor and final_stop)
+  if last_written_a == nil and not below_floor and not held_by_ftw then return true end
+  if not ensure_auth() then return false end
+  local amps = owner_max_a or HANDBACK_A
+  local ok = write_current(amps)
+  if not ok then return false end
+  if held_by_ftw then
+    -- 528 means there was nothing to resume, which is fine here.
+    paused = false
+    local resumed = send_command(CMD_RESUME)
+    if not resumed then return false end
+    ftw_paused = false
+  end
+  host.log("info", string.format("Zaptec: handed the charger back at %.0f A", amps))
+  return true
 end
 
 function driver_cleanup()
