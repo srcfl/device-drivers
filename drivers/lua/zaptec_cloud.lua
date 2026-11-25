@@ -163,7 +163,7 @@ local last_written_a  = nil   -- nil until the first write this run
 local last_write_ms   = 0
 local last_cap_a      = nil   -- Core's last max_amps_per_phase
 local paused          = false -- the charger is paused (506 or the poll says so)
-local ftw_paused      = false -- FTW's own 506 holds the charger
+local ftw_paused      = false -- FTW sent a 506 that held; only a resume clears it
 local resume_try_ms   = nil
 local stood_down      = false
 local stand_down_try_ms = nil
@@ -515,7 +515,10 @@ end
 local function pause()
   local wrote = write_current(0)
   local sent, applied = send_command(CMD_PAUSE)
-  if applied then paused = true; ftw_paused = true end
+  if applied then paused = true end
+  -- A 528 can be the answer to a retry whose first try already paused the
+  -- charger, so any pause that held counts as FTW's.
+  if sent then ftw_paused = true end
   -- 0 A alone is enough: below 6 A the charger allocates nothing.
   return wrote or sent
 end
@@ -605,8 +608,10 @@ function driver_poll()
     return 10000
   end
   state_fresh = true
-  charger_max_a = as_number(obs[OBS_MAX_CURRENT])
-  charger_min_a = as_number(obs[OBS_MIN_CURRENT])
+  -- A state document that leaves one out keeps the last known value: losing
+  -- the minimum would let a write fall below it.
+  charger_max_a = as_number(obs[OBS_MAX_CURRENT]) or charger_max_a
+  charger_min_a = as_number(obs[OBS_MIN_CURRENT]) or charger_min_a
   final_stop = as_flag(obs[OBS_FINAL_STOP]) == true
   if charger_min_a and charger_min_a > MIN_A and not warned_min then
     warned_min = true
@@ -623,7 +628,6 @@ function driver_poll()
   op_mode = as_number(obs[OBS_OP_MODE])
   if op_mode == OP_CHARGING then
     paused = false
-    ftw_paused = false
   elseif op_mode == OP_FINISHED and as_flag(obs[OBS_FINAL_STOP]) == true then
     paused = true
   end
@@ -714,8 +718,9 @@ function driver_default_mode()
   stand_down_try_ms = now
   if not ensure_auth() then return false end
   local wrote = write_current(0)
-  local _, applied = send_command(CMD_PAUSE)
-  if applied then paused = true; ftw_paused = true end
+  local sent, applied = send_command(CMD_PAUSE)
+  if applied then paused = true end
+  if sent then ftw_paused = true end
   -- Either holds the car: below 6 A Zaptec allocates nothing, and a paused
   -- charger draws nothing.
   if wrote or applied then

@@ -490,4 +490,36 @@ post_fail["/update"] = "HTTP 503: down"
 assert(driver_release() == false, "a refused hand-back must report false")
 post_fail = {}
 
+-- A pause whose reply was lost and whose retry got 528 is still FTW's.
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE))
+local tries_506 = 0
+inner_post = host.http_post
+host.http_post = function(url, body, headers)
+    if string.find(url, "/sendCommand/506", 1, true) then
+        tries_506 = tries_506 + 1
+        table.insert(host._calls, {func = "http_post", args = {url, body, headers}})
+        if tries_506 == 1 then return nil, "timeout awaiting response" end
+        return nil, 'HTTP 400: {"Code":528}'
+    end
+    return inner_post(url, body, headers)
+end
+assert(driver_command("ev_pause", 0, nil))
+host.http_post = inner_post
+poll({[710] = 5, [718] = 1, [712] = 0, [507] = 0, [508] = 0, [509] = 0, [510] = 0})
+assert(driver_release() == true)
+assert(count("/sendCommand/507") == 1, "release left a charger paused after a lost pause reply")
+-- A poll that still shows charging just after FTW's pause does not forget it.
+boot()
+poll(CONNECTED)
+assert(order(11040, THREE)); assert(driver_command("ev_pause", 0, nil))
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 16, [508] = 16, [509] = 16, [510] = 0})
+assert(driver_release() == true); assert(count("/sendCommand/507") == 1, "a late poll cleared FTW's pause")
+-- A state document without 511 keeps the charger's known minimum.
+boot()
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 10, [508] = 0, [509] = 0, [510] = 10, [511] = 10})
+poll({[710] = 3, [718] = 0, [712] = 0, [507] = 10, [508] = 0, [509] = 0, [510] = 10})
+assert(order(2070, ONE(12))); assert(last_current() == 0, "a poll without 511 let 9 A through")
+
 print("zaptec_cloud control: ok")
