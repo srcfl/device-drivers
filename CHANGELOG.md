@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### teslamate_vehicle 0.2.2
+
+TeslaMate's MQTT page now marks the `latitude` and `longitude` topics
+deprecated in favour of `location`, a JSON object with `latitude` and
+`longitude` (#278). Without a geofence, the driver uses the car's position
+to work out how far it is from the site. It now reads `location` with
+`host.json_decode` and still reads the old topics, so older TeslaMate
+versions keep working. The newest message sets the position. A `location`
+that is not JSON, lacks a key, or holds a value that is not a finite
+number in range leaves the last position as it was, so a bad message never
+moves the car or puts it at 0,0. The position still does not make the
+charge level fresh, and the coordinates still stay in the driver.
+
 ### zaptec_cloud 0.3.0
 
 First field test (Zaptec Go, 20 A main fuse, two one-phase cars) found
