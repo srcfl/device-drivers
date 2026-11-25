@@ -224,10 +224,11 @@ end
 
 -- Read a single i16-typed scale factor register. SF=0 (x1 scaling) is the
 -- right fallback when the register is absent, and matches units where it
--- exists but reads zero.
+-- exists but reads zero. SunSpec marks an unimplemented scale factor 0x8000;
+-- read as -32768 it would scale every value to zero.
 local function read_sf(addr)
     local regs = probe_read(addr, 1, "holding")
-    if regs then return host.decode_i16(regs[1]) end
+    if regs and regs[1] ~= 0x8000 then return host.decode_i16(regs[1]) end
     return 0
 end
 
@@ -392,31 +393,32 @@ end
 -- A Pixii can stop charging below 100 %. On one site the SoC register held
 -- at 90 while charge orders went undelivered and the Pixii app showed 100 %
 -- (srcfl/device-drivers#175). Pixii's Modbus mapping (U8022_06ENG rev 2.20)
--- gives the SoC register as "State of charge in %" and 39915 as the gross
--- SoC, so the SoC is reported as read. The same document names the upper
--- limits, on the same scale:
+-- gives the SoC register as "State of charge in %", so the SoC is reported
+-- as read. On the same scale it names the upper limits:
 --
 --   40128  SoCMax     maximum state of charge            (SoC_SF, 40177)
 --   40129  SoCMin     minimum state of charge            (SoC_SF, 40177)
 --   40130  SoCRsvMax  maximum reserved state of charge   (SoC_SF, 40177)
 --   40131  SoCRsvMin  minimum reserved state of charge   (SoC_SF, 40177)
---   39915  average battery SoC, gross                    (per mille)
---   39916  battery minimum SoC safety limit, gross       (per mille)
---   39917  battery maximum SoC safety limit, gross: "regulation will stop"
 --
 -- Its remaining charging energy (39932) is SoH x (Max Reserved SoC - SoC) x
--- nominal energy, so charging ends at the reserved maximum. The lowest valid
--- upper limit goes to Core as max_soc_fract, the @srcful/data-models name
--- for a battery's own maximum SoC. How the Pixii app turns the gross SoC
--- into its 100 % is not documented, so no remap is made here. Every limit
--- also goes to history, which shows a field check which one holds.
+-- nominal energy, so charging ends at the reserved maximum. The lower of
+-- SoCMax and SoCRsvMax goes to Core as max_soc_fract, the
+-- @srcful/data-models name for a battery's own maximum SoC.
+--
+-- 39915-39917 are the gross SoC and its minimum and maximum safety limits,
+-- in tenths of a percent. How gross relates to the SoC above is not
+-- documented, so they go to history only, never into the ceiling. Nor is
+-- it documented how the Pixii app turns a SoC into its 100 %, so no remap
+-- is made. Every value goes to history, which shows a field check which
+-- limit holds.
 local REG_SOC_LIMITS = 40128 -- SoCMax, SoCMin, SoCRsvMax, SoCRsvMin
 local REG_GROSS_SOC = 39915  -- gross SoC, min and max safety limits
-local CEILING_METRICS = {
-    "battery_soc_max_pct",
-    "battery_soc_reserve_max_pct",
-    "battery_soc_safety_max_pct",
-}
+local CEILING_METRICS = { "battery_soc_max_pct", "battery_soc_reserve_max_pct" }
+-- Real ceilings sit around 80-100 %. A limit below this is taken as a
+-- misread, not a ceiling: it would stop all charging. Core applies the same
+-- bound.
+local MIN_CEILING_PCT = 50
 local last_ceiling_key = nil
 
 local function soc_point_pct(raw, soc_sf)
@@ -430,7 +432,8 @@ local function per_mille_pct(raw)
 end
 
 -- Returns the charge ceiling as a fraction, or nil when no limit was read.
--- A limit of 0, above 100 % or marked unsupported (0xffff) is not one.
+-- A limit below MIN_CEILING_PCT, above 100 % or marked unsupported (0xffff)
+-- is not one.
 local function read_charge_ceiling(soc_sf)
     local limits = {}
     local regs = probe_read(REG_SOC_LIMITS, 4, "holding")
@@ -453,7 +456,7 @@ local function read_charge_ceiling(soc_sf)
     local ceiling, source = nil, nil
     for _, name in ipairs(CEILING_METRICS) do
         local pct = limits[name]
-        if pct ~= nil and pct > 0 and pct <= 100 and (ceiling == nil or pct < ceiling) then
+        if pct ~= nil and pct >= MIN_CEILING_PCT and pct <= 100 and (ceiling == nil or pct < ceiling) then
             ceiling, source = pct, name
         end
     end

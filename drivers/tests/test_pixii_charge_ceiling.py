@@ -2,10 +2,10 @@
 
 On one site the Pixii SoC register held at 90 while charge orders went
 undelivered, and the Pixii app showed 100 % (srcfl/device-drivers#175). Pixii's
-Modbus mapping names its upper SoC limits on the same scale as the SoC: SunSpec
-SoCMax (40128) and SoCRsvMax (40130), and the maximum SoC safety limit (39917)
-in tenths of a percent. The driver passes the lowest valid one to Core as
-max_soc_fract and leaves the SoC as read.
+Modbus mapping names its upper SoC limits on the same scale as the SoC, SunSpec
+SoCMax (40128) and SoCRsvMax (40130). The driver passes the lower valid one to
+Core as max_soc_fract and leaves the SoC as read. The gross safety limits
+(39915-39917) are on an undocumented scale and go to history only.
 """
 
 from pathlib import Path
@@ -64,12 +64,21 @@ assert(logged, "the ceiling and its source were not logged")
 ''')
 
 
-def test_lowest_upper_limit_wins_and_safety_limit_is_per_mille() -> None:
+def test_lower_of_soc_max_and_reserved_maximum_wins() -> None:
+    run_lua('''
+host._modbus_registers.holding[40128] = {92, 5, 95, 10}
+local battery = poll()
+assert(near(battery.max_soc_fract, 0.92), "ceiling " .. tostring(battery.max_soc_fract))
+''')
+
+
+def test_gross_safety_limits_are_history_only() -> None:
     run_lua('''
 host._modbus_registers.holding[40128] = {100, 5, 95, 10}
 host._modbus_registers.holding[39915] = {899, 50, 900}
 local battery = poll()
-assert(near(battery.max_soc_fract, 0.90), "ceiling " .. tostring(battery.max_soc_fract))
+assert(near(battery.max_soc_fract, 0.95), "a gross safety limit set the ceiling: "
+    .. tostring(battery.max_soc_fract))
 assert(near(host._metrics.battery_soc_gross_pct.value, 89.9))
 assert(near(host._metrics.battery_soc_safety_min_pct.value, 5))
 assert(near(host._metrics.battery_soc_safety_max_pct.value, 90))
@@ -87,11 +96,21 @@ assert(near(battery.max_soc_fract, 0.90), "ceiling " .. tostring(battery.max_soc
 ''')
 
 
-@pytest.mark.parametrize("raw", ["0", "0xffff", "1010"])
-def test_zero_unsupported_or_impossible_limits_are_not_a_ceiling(raw: str) -> None:
+def test_unimplemented_scale_factor_does_not_zero_the_soc() -> None:
+    run_lua('''
+host._modbus_registers.holding[40177] = 0x8000 -- SunSpec: not implemented
+host._modbus_registers.holding[40128] = {100, 5, 90, 10}
+local battery = poll()
+assert(near(battery.soc, 0.90), "SoC " .. tostring(battery.soc))
+assert(near(battery.max_soc_fract, 0.90), "ceiling " .. tostring(battery.max_soc_fract))
+''')
+
+
+@pytest.mark.parametrize("raw", ["0", "0xffff", "1010", "49"])
+def test_zero_unsupported_implausible_or_impossible_limits_are_not_a_ceiling(raw: str) -> None:
     run_lua(f'''
 host._modbus_registers.holding[40128] = {{{raw}, 0, {raw}, 0}}
-host._modbus_registers.holding[39915] = {{0, 0, {raw}}}
+host._modbus_registers.holding[39915] = {{0, 0, 900}}
 local battery = poll()
 assert(battery.max_soc_fract == nil, "invented ceiling " .. tostring(battery.max_soc_fract))
 assert(near(battery.soc, 0.90), "SoC changed without a ceiling")

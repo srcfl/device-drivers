@@ -560,9 +560,9 @@ and, when the device reports them, `battery_cell_temp_min_c`,
 ### The battery's own charge ceiling
 
 Some batteries stop charging below 100 % at a limit of their own. When the
-device reports that limit, send it as `max_soc_fract` on `battery`, 0..1, on
-the same scale as `soc`. It is the name @srcful/data-models gives a battery's
-own maximum SoC. Core plans and dispatches to the lower of it and its own
-ceiling. Leave it out when the read fails, and never rescale `soc` to make the
-limit read as 100 % unless the vendor documents that mapping. `pixii` is the
-worked example.
+device reports that limit on the same scale as `soc`, send it as
+`max_soc_fract` on `battery`, 0..1. It is the name @srcful/data-models gives a
+battery's own maximum SoC. Core plans and dispatches to the lower of it and
+its own ceiling. Leave it out when the read fails or the value is below 50 %,
+which Core takes as a misread. Never rescale `soc` to make the limit read as
+100 % unless the vendor documents that mapping. `pixii` is the worked example.

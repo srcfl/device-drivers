@@ -32,9 +32,9 @@ upstream_docs:
     title: "SunSpec model 802: battery charge and control states"
     kind: register_map
     url_stability: stable
-size_bytes: 36493
+size_bytes: 36746
 dkb_id: "pixii"
-sha256: "76b886fdd20e89f7fd2752ce4e1689c0545dccf0f3e02c6ee124478653e92615"
+sha256: "11a8e4e952f00746107d5760fdde2efb22befd25fca06792b23e4caf6b74b6a6"
 signature: ""
 
 bytecode_sha256: ""
