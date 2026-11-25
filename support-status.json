@@ -1871,7 +1871,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.2.2",
+      "catalog_version": "0.3.0",
       "driver_id": "zaptec_cloud",
       "targets": {
         "blixt-l1": {
