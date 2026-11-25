@@ -84,6 +84,10 @@ VALID_FIELDS = {
         # "standby" or "starting" (docs/WRITING-A-DRIVER.md, What a battery
         # can do now).
         "device_state",
+        # The battery's own upper SoC limit, 0..1. @srcful/data-models has it
+        # as battery metadata; FTW has no metadata channel, so it rides on the
+        # reading (docs/WRITING-A-DRIVER.md, The battery's own charge ceiling).
+        "max_soc_fract",
     },
     "v2x_charger": {
         "w", "a", "v", "hz",

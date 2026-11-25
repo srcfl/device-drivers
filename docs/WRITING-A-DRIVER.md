@@ -556,3 +556,13 @@ and, when the device reports them, `battery_cell_temp_min_c`,
 `battery_cell_temp_max_c`, `battery_charge_limit_a` and
 `battery_discharge_limit_a`. The inverter's own temperature goes in
 `inverter_temp_c`.
+
+### The battery's own charge ceiling
+
+Some batteries stop charging below 100 % at a limit of their own. When the
+device reports that limit, send it as `max_soc_fract` on `battery`, 0..1, on
+the same scale as `soc`. It is the name @srcful/data-models gives a battery's
+own maximum SoC. Core plans and dispatches to the lower of it and its own
+ceiling. Leave it out when the read fails, and never rescale `soc` to make the
+limit read as 100 % unless the vendor documents that mapping. `pixii` is the
+worked example.
