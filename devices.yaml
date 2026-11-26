@@ -1045,7 +1045,7 @@ manufacturers:
         protocols:
           - protocol: modbus
             driver: "pixii"
-            version: "2.1.9"
+            version: "2.1.10"
             ders: [battery, meter]
             control: true
         firmware_versions: ""

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### pixii 2.1.10
+
+Recognize battery calibration from Pixii's running-service register when
+the SunSpec charge status is unsupported. Keep measurements live and
+suspend FTW dispatch until calibration ends.
+
 ### teslamate_vehicle 0.2.2
 
 TeslaMate's MQTT page now marks the `latitude` and `longitude` topics
