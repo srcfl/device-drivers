@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### pixii 2.2.0
+
+A Pixii can stop charging below 100 %. On one site its SoC held at 90 while
+Core kept planning and ordering charge to 95 %, and the Pixii app showed
+100 % (#175). The driver now reads the upper SoC limits Pixii documents on the
+same scale as its SoC, SoCMax (40128) and SoCRsvMax (40130), and reports the
+lower as `max_soc_fract`. A limit below 50 % is taken as a misread and left
+out. Core plans and dispatches to it (srcfl/ftw#2083). The SoC is still
+reported as read: Pixii does not document how its app maps it to 100 %. The
+lower limits and the gross SoC with its safety limits (39915-39917, on a scale
+Pixii does not relate to the SoC) go to history only, so a field check can
+show which limit holds. An unimplemented SunSpec scale factor (0x8000) now
+reads as no scaling instead of scaling every value to zero.
+
 ### pixii 2.1.10
 
 Recognize battery calibration from Pixii's running-service register when

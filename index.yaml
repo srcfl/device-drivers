@@ -508,14 +508,14 @@ drivers:
     size_bytes: 19344
     sha256: "29f2bd2f73c0d39d809839ca60b40c3e4281f1dda267ba2b26e66bd9ab80c27b"
   - name: "pixii"
-    version: "2.1.10"
+    version: "2.2.0"
     tier: core
     protocol: modbus
     connectivity: local
     ders: [battery, meter]
     control: true
-    size_bytes: 33031
-    sha256: "30cbb86aa19b8f9176e02cf5a751e11b73135ac78a7b7432b7bc587cc94f8e0d"
+    size_bytes: 37257
+    sha256: "d475f68d9812ca3afd6e00d130c5e38ead01b9d95083aab9fb81f4ca88d82143"
   - name: "pixii_pv"
     version: "0.3.3"
     tier: core

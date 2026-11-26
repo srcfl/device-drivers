@@ -1,5 +1,5 @@
 name: "pixii"
-version: "2.1.10"
+version: "2.2.0"
 tier: core
 author: "Sourceful Labs AB and community contributors"
 protocol: modbus
@@ -17,6 +17,10 @@ tested_devices:
 min_host_version: "2.0.0"
 upstream_docs:
   - url: "https://www.pixii.com/wp-content/uploads/2026/06/U8022_06ENG_2v20_Configuration_Guide_Pixii_Powershaper_Modbus_Mapping.pdf"
+    title: "Pixii PowerShaper Modbus Mapping: SoC limits 40128-40131 and 39915-39917"
+    kind: register_map
+    url_stability: stable
+  - url: "https://www.pixii.com/wp-content/uploads/2026/06/U8022_06ENG_2v20_Configuration_Guide_Pixii_Powershaper_Modbus_Mapping.pdf"
     title: "Pixii PowerShaper Modbus Mapping, Table 23: StVnd service types"
     kind: register_map
     url_stability: stable
@@ -28,9 +32,9 @@ upstream_docs:
     title: "SunSpec model 802: battery charge and control states"
     kind: register_map
     url_stability: stable
-size_bytes: 33031
+size_bytes: 37257
 dkb_id: "pixii"
-sha256: "30cbb86aa19b8f9176e02cf5a751e11b73135ac78a7b7432b7bc587cc94f8e0d"
+sha256: "d475f68d9812ca3afd6e00d130c5e38ead01b9d95083aab9fb81f4ca88d82143"
 signature: ""
 
 bytecode_sha256: ""

@@ -29,7 +29,7 @@ DRIVER = {
   id           = "pixii",
   name         = "Pixii PowerShaper",
   manufacturer = "Pixii",
-  version      = "2.1.10",
+  version      = "2.2.0",
   protocols    = { "modbus" },
   capabilities = { "battery", "meter" },
   description  = "Pixii PowerShaper commercial battery storage via Modbus TCP.",
@@ -224,10 +224,11 @@ end
 
 -- Read a single i16-typed scale factor register. SF=0 (x1 scaling) is the
 -- right fallback when the register is absent, and matches units where it
--- exists but reads zero.
+-- exists but reads zero. SunSpec marks an unimplemented scale factor 0x8000;
+-- read as -32768 it would scale every value to zero.
 local function read_sf(addr)
     local regs = probe_read(addr, 1, "holding")
-    if regs then return host.decode_i16(regs[1]) end
+    if regs and regs[1] ~= 0x8000 then return host.decode_i16(regs[1]) end
     return 0
 end
 
@@ -384,6 +385,93 @@ local function emit_troubleshooting_metrics(setpoint_pixii_w)
             host.emit_metric("pixii_last_command_age_s", (host.millis() - last_command_ms) / 1000)
         end
     end
+end
+
+----------------------------------------------------------------------------
+-- Charge ceiling
+----------------------------------------------------------------------------
+-- A Pixii can stop charging below 100 %. On one site the SoC register held
+-- at 90 while charge orders went undelivered and the Pixii app showed 100 %
+-- (srcfl/device-drivers#175). Pixii's Modbus mapping (U8022_06ENG rev 2.20)
+-- gives the SoC register as "State of charge in %", so the SoC is reported
+-- as read. On the same scale it names the upper limits:
+--
+--   40128  SoCMax     maximum state of charge            (SoC_SF, 40177)
+--   40129  SoCMin     minimum state of charge            (SoC_SF, 40177)
+--   40130  SoCRsvMax  maximum reserved state of charge   (SoC_SF, 40177)
+--   40131  SoCRsvMin  minimum reserved state of charge   (SoC_SF, 40177)
+--
+-- Its remaining charging energy (39932) is SoH x (Max Reserved SoC - SoC) x
+-- nominal energy, so charging ends at the reserved maximum. The lower of
+-- SoCMax and SoCRsvMax goes to Core as max_soc_fract, the
+-- @srcful/data-models name for a battery's own maximum SoC.
+--
+-- 39915-39917 are the gross SoC and its minimum and maximum safety limits,
+-- in tenths of a percent. How gross relates to the SoC above is not
+-- documented, so they go to history only, never into the ceiling. Nor is
+-- it documented how the Pixii app turns a SoC into its 100 %, so no remap
+-- is made. Every value goes to history, which shows a field check which
+-- limit holds.
+local REG_SOC_LIMITS = 40128 -- SoCMax, SoCMin, SoCRsvMax, SoCRsvMin
+local REG_GROSS_SOC = 39915  -- gross SoC, min and max safety limits
+local CEILING_METRICS = { "battery_soc_max_pct", "battery_soc_reserve_max_pct" }
+-- Real ceilings sit around 80-100 %. A limit below this is taken as a
+-- misread, not a ceiling: it would stop all charging. Core applies the same
+-- bound.
+local MIN_CEILING_PCT = 50
+local last_ceiling_key = nil
+
+local function soc_point_pct(raw, soc_sf)
+    if raw == nil or raw == 0xffff then return nil end
+    return scale(raw, soc_sf)
+end
+
+local function per_mille_pct(raw)
+    if raw == nil or raw == 0xffff then return nil end
+    return raw / 10
+end
+
+-- Returns the charge ceiling as a fraction, or nil when no limit was read.
+-- A limit below MIN_CEILING_PCT, above 100 % or marked unsupported (0xffff)
+-- is not one.
+local function read_charge_ceiling(soc_sf)
+    local limits = {}
+    local regs = probe_read(REG_SOC_LIMITS, 4, "holding")
+    if regs and regs[4] ~= nil then
+        limits.battery_soc_max_pct = soc_point_pct(regs[1], soc_sf)
+        limits.battery_soc_min_pct = soc_point_pct(regs[2], soc_sf)
+        limits.battery_soc_reserve_max_pct = soc_point_pct(regs[3], soc_sf)
+        limits.battery_soc_reserve_min_pct = soc_point_pct(regs[4], soc_sf)
+    end
+    local gross = probe_read(REG_GROSS_SOC, 3, "holding")
+    if gross and gross[3] ~= nil then
+        limits.battery_soc_gross_pct = per_mille_pct(gross[1])
+        limits.battery_soc_safety_min_pct = per_mille_pct(gross[2])
+        limits.battery_soc_safety_max_pct = per_mille_pct(gross[3])
+    end
+    for name, value in pairs(limits) do
+        host.emit_metric(name, value)
+    end
+
+    local ceiling, source = nil, nil
+    for _, name in ipairs(CEILING_METRICS) do
+        local pct = limits[name]
+        if pct ~= nil and pct >= MIN_CEILING_PCT and pct <= 100 and (ceiling == nil or pct < ceiling) then
+            ceiling, source = pct, name
+        end
+    end
+    local key = ceiling and (tostring(ceiling) .. "/" .. source) or "none"
+    if key ~= last_ceiling_key then
+        if ceiling ~= nil then
+            host.log("info", "Pixii: charge ceiling " .. tostring(ceiling)
+                .. " % from " .. source)
+        elseif last_ceiling_key ~= nil then
+            host.log("info", "Pixii: no charge ceiling read; Core uses its own")
+        end
+        last_ceiling_key = key
+    end
+    if ceiling == nil then return nil end
+    return ceiling / 100
 end
 
 ----------------------------------------------------------------------------
@@ -593,6 +681,8 @@ function driver_poll()
         battery_event1       = status.event1,
     }
     if bat_soc ~= nil then battery.soc = bat_soc end
+    local soc_ceiling = read_charge_ceiling(soc_sf)
+    if soc_ceiling ~= nil then battery.max_soc_fract = soc_ceiling end
     host.emit("battery", battery)
     -- Diagnostics: long-format TS DB
     host.emit_metric("battery_dc_v",      bat_v)
