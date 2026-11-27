@@ -6,11 +6,13 @@
 --   capabilities:
 --     http:
 --       allowed_hosts: ["api.tibber.com"]
---     websocket:
---       allowed_hosts: ["websocket-api.tibber.com"]
 --   config:
 --     api_key: <Tibber personal access token>
 --     home_id: <optional — auto-resolved from /viewer/homes on first poll>
+--
+-- Core grants the WebSocket to websocket-api.tibber.com from ws_hosts in
+-- the DRIVER table, because the config grants HTTP (srcfl/ftw#1822). A Core
+-- older than that needs a capabilities.websocket entry that lists the host.
 --
 -- Getting an API key:
 --   Generate a personal access token at
@@ -34,11 +36,12 @@ DRIVER = {
   id           = "tibber",
   name         = "Tibber Pulse",
   manufacturer = "Tibber",
-  version      = "1.1.2",
+  version      = "1.1.3",
   protocols    = { "websocket", "http" },
   capabilities = { "meter" },
   read_only    = true,
   http_hosts   = { "api.tibber.com" },
+  ws_hosts     = { "websocket-api.tibber.com" },
   description  = "Tibber Pulse grid meter via GraphQL-transport-ws liveMeasurement stream.",
   homepage     = "https://tibber.com",
   authors      = { "FTW contributors" },
