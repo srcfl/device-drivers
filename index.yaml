@@ -768,15 +768,15 @@ drivers:
     size_bytes: 19687
     sha256: "2b315f2f2c1d2ecb86a7bfef0f56e30e9b2aec6255e28ff4cbf5112be63c1fc9"
   - name: "tibber"
-    version: "1.1.2"
+    version: "1.1.3"
     tier: core
     protocol: http
     connectivity: cloud
     setup: [vendor_portal]
     ders: [meter]
     control: false
-    size_bytes: 12472
-    sha256: "3cf10b93755fa8b840375f53343e91b5efa98ddffe119a5679b43ee4bfb61c88"
+    size_bytes: 12681
+    sha256: "d3c542f2b0cc78024ddc6e5c0b1eaec838f22c31cca1ef61b5acb3afbb938b90"
   - name: "vag_vehicle"
     version: "0.3.0"
     tier: community

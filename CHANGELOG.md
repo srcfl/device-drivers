@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### tibber 1.1.3
+
+A box set up from the UI could not open Tibber's live stream. After the
+owner entered an API key, the driver logged `Tibber WS dial failed: ws:
+capability not granted` and never read the meter (27 November 2026). Since
+srcfl/ftw#1822, Core grants a driver's WebSocket only from `ws_hosts` in its
+`DRIVER` table, for a config that grants HTTP, or from a
+`capabilities.websocket` entry in the config. The UI writes no such entry,
+and the driver declared no `ws_hosts`. It now declares
+`ws_hosts = { "websocket-api.tibber.com" }`, so the HTTP grant the UI already
+writes is enough, and the signed channel's copy carries it in its header. A
+Core older than srcfl/ftw#1822 still needs the `capabilities.websocket`
+entry. A new test fails any driver that opens a WebSocket to a host its
+`ws_hosts` leaves out. Checked by the driver and channel tests; not yet run
+against Tibber's servers.
+
 ### pixii 2.2.0
 
 A Pixii can stop charging below 100 %. On one site its SoC held at 90 while
