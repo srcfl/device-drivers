@@ -2,6 +2,57 @@
 
 ## [Unreleased]
 
+### sonnen 2.1.0
+
+The driver can set sonnenBatterie charge and discharge power. It needs FTW's
+`host.http_put`: sonnen changes its operating mode only through
+`PUT /api/v2/configurations`, and answers PATCH and POST there with 404.
+Without that function, or without `capabilities.http.allow_write`, the
+driver refuses commands and keeps reporting telemetry.
+
+- A battery command puts the unit in manual mode (`EM_OperatingMode` 1) and
+  posts `/setpoint/charge/<W>` or `/discharge/<W>`, limited to the unit's
+  `IC_InverterMaxPower_w` and an optional `max_power_w` set by the owner. If the
+  unit has left manual mode, the driver enters it again once and retries.
+- A manual setpoint holds until it is replaced. Without a battery command for
+  60 s, the driver clears the setpoint and returns the unit to the automatic
+  mode it ran before. That mode is self-consumption (2) or time-of-use (10).
+  Default mode and `deinit` do the same and read the mode back. At start, the
+  driver clears a manual setpoint other than 0 that a stopped FTW left
+  behind. It leaves a manual mode with setpoint 0 alone, because that may be
+  the owner's idle and moves no power. After three handovers the unit
+  refuses, the unprompted paths stop writing; an unreachable unit does not
+  count toward the three.
+- Every control session starts with a confirmed `PUT`. `host.http_post` is
+  not gated by `allow_write`, so without write access the driver posts
+  nothing, even when the unit already reports manual mode.
+- `{"error": ...}` replies, such as a wrong token's `Unauthorized`, are failed
+  reads, not `w = 0`.
+- Emits `control_power_w` and `control_power_observed_at` from
+  `/latestdata` for control feedback. It emits `setpoint_w` only after the
+  driver's own setpoint `POST` was confirmed in this session and a fresh read
+  confirms manual mode. In the automatic modes `SetPoint_W` is the unit's
+  own load-following target (1255 W was seen in self-consumption), not a
+  command. In a manual mode the driver has not yet written, it is what the
+  unit held before; the first poll after start reported -1622 and -942 W. A
+  `/configurations` reply without `EM_OperatingMode` is a failed read, so no
+  decision rests on a mode from an earlier read.
+
+None of these safeguards runs when FTW itself is gone. The HIL gate for host
+loss while the unit holds a manual setpoint is still open.
+
+### sonnen 2.0.4
+
+Battery power has the site sign. sonnen reports `Pac_total_W` positive while
+discharging and negative while charging; the driver passed it through, so
+FTW showed every charge as a discharge and the reverse. It now negates the
+value: charging is positive. On a sonnenBatterie with software 1.40.5 on
+2026-11-13, in manual mode, a 500 W charge setpoint read back over six reads
+as `Pac_total_W` -495 to -504 W, `SetPoint_W` -500 and `BatteryCharging`
+true. `battery_pac_w` keeps the vendor's own sign. The driver stays
+read-only. Verified on one unit and one firmware (1.40.5); other firmware
+versions are unverified.
+
 ### tibber 1.1.3
 
 A box set up from the UI could not open Tibber's live stream. After the

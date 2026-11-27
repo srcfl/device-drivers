@@ -1,24 +1,24 @@
 name: "sonnen"
-version: "2.0.3"
+version: "2.1.0"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
 connectivity: local
 setup: [device_ui]
 ders: [battery, meter]
-control: false
+control: true
 tested_devices:
   - manufacturer: "sonnen"
     model_family: "sonnenBatterie"
     variants: [sonnenBatterie eco 8.0, sonnenBatterie 10 performance, sonnenBatterie FlexStack]
     regions: []
-    firmware_versions: ""
-    notes: "Community driver, untested"
+    firmware_versions: "1.40.5"
+    notes: "Battery sign and manual-mode setpoints measured on one unit (software 1.40.5). Control is not yet HIL-accepted."
     min_driver_version: "1.0.0"
 min_host_version: "2.1.0"
-size_bytes: 6631
+size_bytes: 20590
 dkb_id: ""
-sha256: "94ae5e0065f5793051acb89b7ef04a679b2898908dfac6f4ffd6e8deb77fa2c0"
+sha256: "563440b14f5ad8231a24a6be43d8ad70a110bff25a5e8b9d321e96980042e137"
 signature: ""
 
 bytecode_sha256: ""

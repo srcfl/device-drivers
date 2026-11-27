@@ -2164,8 +2164,8 @@ manufacturers:
         protocols:
           - protocol: http
             driver: "sonnen"
-            version: "2.0.3"
+            version: "2.1.0"
             ders: [battery, meter]
-            control: false
-        firmware_versions: ""
-        notes: "Community driver, untested"
+            control: true
+        firmware_versions: "1.40.5"
+        notes: "Battery sign and manual-mode setpoints measured on one unit (software 1.40.5). Control is not yet HIL-accepted."
