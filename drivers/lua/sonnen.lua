@@ -19,10 +19,11 @@
 --
 -- Sign convention (site: positive W flows INTO the site):
 --   battery.w: positive = charging (sink), negative = discharging (source).
---   Sonnen Pac_total_W is reported positive=charging, so it passes through
---   unchanged. This is from community-contributed sample code; verify
---   on first install by checking that battery.w is positive while the
---   site is exporting and the Sonnen is taking the surplus.
+--   sonnen reports Pac_total_W positive while DISCHARGING and negative while
+--   charging, so the driver negates it. Measured on a sonnenBatterie with
+--   software 1.40.5 on 2026-11-13: in manual mode, a 500 W charge setpoint
+--   read back over six reads as Pac_total_W -495 to -504 W, SetPoint_W -500
+--   and BatteryCharging true.
 
 DRIVER = {
   host_api_min = 1,
@@ -30,7 +31,7 @@ DRIVER = {
   id           = "sonnen",
   name         = "sonnenBatterie (local API)",
   manufacturer = "sonnen",
-  version      = "2.0.3",
+  version      = "2.0.4",
   protocols    = { "http" },
   capabilities = { "battery" },
   read_only    = true,
@@ -182,7 +183,7 @@ function driver_poll()
 
     local soc_pct = usoc or rsoc or 0
     local battery = {
-        w   = pac_w,
+        w   = -pac_w,  -- sonnen: + = discharge; site: + = charge
         soc = soc_pct / 100.0,
     }
     if cap_wh then

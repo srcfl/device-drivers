@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### sonnen 2.0.4
+
+Battery power has the site sign. sonnen reports `Pac_total_W` positive while
+discharging and negative while charging; the driver passed it through, so
+FTW showed every charge as a discharge and the reverse. It now negates the
+value: charging is positive. On a sonnenBatterie with software 1.40.5 on
+2026-11-13, in manual mode, a 500 W charge setpoint read back over six reads
+as `Pac_total_W` -495 to -504 W, `SetPoint_W` -500 and `BatteryCharging`
+true. `battery_pac_w` keeps the vendor's own sign. The driver stays
+read-only. Verified on one unit and one firmware (1.40.5); other firmware
+versions are unverified.
+
 ### tibber 1.1.3
 
 A box set up from the UI could not open Tibber's live stream. After the
