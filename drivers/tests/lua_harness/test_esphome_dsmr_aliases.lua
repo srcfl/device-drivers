@@ -28,7 +28,7 @@ end
 
 dofile("drivers/lua/esphome_dsmr.lua")
 
-if type(DRIVER) ~= "table" or DRIVER.id ~= "esphome_dsmr" or DRIVER.version ~= "1.0.7" then
+if type(DRIVER) ~= "table" or DRIVER.id ~= "esphome_dsmr" or DRIVER.version ~= "1.0.8" then
     error("ESPHome DSMR identity metadata is wrong")
 end
 -- FTW setup seeds config.host only for drivers that declare this key.

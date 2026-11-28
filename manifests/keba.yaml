@@ -1,5 +1,5 @@
 name: "keba"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Control written from KEBA's P30 Modbus TCP Programmers Guide V1.07; not yet confirmed on hardware. Needs c-series firmware 3.10.16 or x-series 1.11, DIP switch DSW1.3 ON and Modbus unit ID 255."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 23439
+size_bytes: 23567
 dkb_id: ""
-sha256: "1cb5b73fe49525d1d2500eca0d3d18b340e83fc7a0943fb63c3c568113069f49"
+sha256: "bc68bc266384ce916126fc20408109ea7ae8fffeb9de840aae28ea53d7bc18e7"
 signature: ""
 
 bytecode_sha256: ""

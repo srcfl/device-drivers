@@ -1,5 +1,5 @@
 name: "esphome_dsmr"
-version: "1.0.7"
+version: "1.0.8"
 tier: core
 author: "Sourceful Labs AB"
 protocol: http
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Name-derived phase object_ids live-validated on SlimmeLezer+; explicit Sourceful aliases retained."
     min_driver_version: "1.0.1"
 min_host_version: "2.0.0"
-size_bytes: 17074
+size_bytes: 17208
 dkb_id: "esphome_dsmr"
-sha256: "4fabecf0f5f2f276e7393d104330314d3453f19ad2905a51d1ffa306372a71ad"
+sha256: "5f6dfe45548b3bc05424802a4a0e0a6184fca9a3b46290a6fed7dfe02372c7e2"
 signature: ""
 
 bytecode_sha256: ""

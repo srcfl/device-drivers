@@ -2,6 +2,64 @@
 
 ## [Unreleased]
 
+### New DRIVER field: `setup_hint`
+
+A new owner adds an inverter, FTW cannot reach it, and nothing says that
+Modbus TCP is off in the inverter. A driver may now say
+what to switch on, in one sentence of the device's own menu words, as
+`setup_hint` in its `DRIVER` table. FTW can show it on the device card and
+when a connection test fails.
+
+`make check` holds the field to what FTW Core can read: one double-quoted
+string on one line, no double quote or backslash inside, one sentence ending
+with a full stop, at most 140 characters. The signed channel copies it into
+the header Core reads, as it does `ws_hosts`. A driver without a hint keeps
+its published bytes. FTW Core ignores the field until it learns to read it.
+See `spec/manifest-v2.md`.
+
+### sungrow 1.7.1, huawei 2.2.1, fronius 2.3.1, sma 2.2.1, sma_pv 1.1.2, kostal 2.2.1, goodwe 2.3.1, solis 2.2.1, victron 2.2.2
+
+Each inverter driver now carries a `setup_hint`, taken from the vendor's own
+document:
+
+- sungrow: the WiNet-S manual says port 502 for Modbus TCP is closed by
+  default.
+- huawei: Huawei's dongle guide sets Modbus TCP on the SDongle to "Enable
+  (unrestricted)" in FusionSolar, with an installer account.
+- fronius: Communication > Modbus, TCP server, port 502 or 1502 (Fronius
+  GEN24 Modbus TCP & RTU manual).
+- sma, sma_pv: Modbus TCP is off by default. An Installer turns it on under
+  Device Parameters > External Communication > Modbus > TCP Server (SMA
+  Modbus technical information).
+- kostal: Settings > Modbus/SunSpec (TCP) > Activate Modbus, port 1502.
+- goodwe: Modbus TCP needs a LAN module or a WiFi/LAN Kit-20 on a cable.
+- solis: Modbus TCP needs an S2-WL-ST Wi-Fi/LAN logger, on port 502.
+- victron: Settings > Integrations > Modbus TCP Server, or Settings >
+  Services on older Venus OS.
+
+No register or reading changed.
+
+### goe 1.1.1, goe_http 1.1.1, keba 1.1.1, alfen 1.1.2, abb_terra 1.1.2, mennekes 1.1.2, etrel 1.1.1, ctek 0.3.4, ctek_v2 0.3.4, ctek_hybrid 0.3.3
+
+Each charger driver now carries a `setup_hint`: Modbus or HTTP API v2 in
+the go-e app, DIP switch DSW1.3 on the KEBA, Active Load Balancing in Alfen's
+ACE Service Installer, Load Balance in ABB's TerraConfig app, Modbus TCP
+Server on a Mennekes ECU, Modbus in the Etrel web interface, and
+Automation > ModbusTCPEnable on a CTEK Chargestorm. The go-e, KEBA, Alfen,
+ABB and Mennekes words come from the vendors' documents; the Etrel and CTEK
+words come from the drivers' own notes. No register or command changed.
+
+### nibe_local 1.2.2
+
+`setup_hint`: menu 7.5.15 Local REST API on the heat pump, from NIBE's
+installer manual. Nothing else changed.
+
+### zap 3.2.1, remne_p1ib 0.1.1, esphome_dsmr 1.0.8
+
+`setup_hint`: ask the grid company to open the meter's HAN/P1 port if it is
+closed. Ellevio in Sweden and Fluvius in Belgium keep the port closed until
+the customer asks. Nothing else changed.
+
 ### sonnen 2.0.4
 
 Battery power has the site sign. sonnen reports `Pac_total_W` positive while

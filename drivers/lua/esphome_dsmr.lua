@@ -62,7 +62,7 @@ DRIVER = {
   id           = "esphome_dsmr",
   name         = "ESPHome DSMR (P1)",
   manufacturer = "ESPHome",
-  version      = "1.0.7",
+  version      = "1.0.8",
   host_api_min = 1,
   host_api_max = 1,
   -- This driver replaces the catalog entry of the same device published as
@@ -71,6 +71,7 @@ DRIVER = {
   protocols    = { "http" },
   capabilities = { "meter" },
   description  = "Smart meter via ESPHome web_server v3 + dsmr component (Sourceful Zap on open firmware, DIY ESP32+P1, etc.).",
+  setup_hint   = "Ask your grid company to open the HAN/P1 port on your meter if it is closed; some let you do it on their website.",
   homepage     = "https://github.com/erikarenhill/sourceful-zap-esphome",
   authors      = { "FTW contributors" },
   tested_models = {

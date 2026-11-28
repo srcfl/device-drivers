@@ -1,5 +1,5 @@
 name: "kostal"
-version: "2.2.0"
+version: "2.2.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -41,9 +41,9 @@ upstream_docs:
     kind: register_map
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 17688
+size_bytes: 17818
 dkb_id: ""
-sha256: "a5ea16a0f5a3315487384589589e14a3c0ef0407339997a0251dc5b50039008e"
+sha256: "cb4b68c0f22bdce7f3eb9deed573ed2841c657daa8c6bd8a8247807b38ce1f91"
 signature: ""
 
 bytecode_sha256: ""

@@ -1,5 +1,5 @@
 name: "goe_http"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: http
@@ -25,9 +25,9 @@ upstream_docs:
     kind: api_docs
     url_stability: stable
 min_host_version: "2.1.0"
-size_bytes: 17091
+size_bytes: 17181
 dkb_id: ""
-sha256: "f289d0ba9fbb7a20e48ba26d0c93c44af541cb4cc3fb62576a6a4e1fb21fe002"
+sha256: "8b7a14e35385ae3748e6cfc3b3aac61f9320ad15aec6e24f86e969f5d316dcd3"
 signature: ""
 
 bytecode_sha256: ""

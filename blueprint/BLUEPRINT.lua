@@ -110,6 +110,12 @@ DRIVER = {
   name         = "Blueprint reference inverter",
   manufacturer = "Sourceful",
   description  = "The reference driver. Copy it; do not deploy it.",
+
+  -- Optional: what the owner switches on in the device before FTW can reach
+  -- it, in the device's own menu words and from the vendor's manual. One
+  -- sentence, at most 140 characters, no double quote inside. Leave it out
+  -- when there is nothing to switch on. See spec/manifest-v2.md.
+  setup_hint   = "In the inverter web page, open Settings > Modbus and turn on Modbus TCP.",
   protocols    = { "modbus" },
 
   -- What this driver emits. Must be DER types the host knows: meter, pv,

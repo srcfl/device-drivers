@@ -1,5 +1,5 @@
 name: "solis"
-version: "2.2.0"
+version: "2.2.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -52,9 +52,9 @@ upstream_docs:
     kind: register_map
     url_stability: volatile
 min_host_version: "2.0.0"
-size_bytes: 21699
+size_bytes: 21827
 dkb_id: "solis"
-sha256: "1de2925f7b683854e66fc62fb16914dda0a2994fdc4f9bd574bfcfd6ca15e21b"
+sha256: "c5032c8908238819f01974bc440ca1417c01fc18c08dd52cc7499c3861c4b74d"
 signature: ""
 
 bytecode_sha256: ""

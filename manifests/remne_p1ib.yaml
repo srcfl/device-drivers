@@ -1,5 +1,5 @@
 name: "remne_p1ib"
-version: "0.1.0"
+version: "0.1.1"
 tier: community
 author: "Andy Lyeklint Hancock with the help of Claude Code"
 protocol: http
@@ -25,9 +25,9 @@ upstream_docs:
     kind: firmware_notes
     url_stability: committed
 min_host_version: "2.0.0"
-size_bytes: 10858
+size_bytes: 10990
 dkb_id: ""
-sha256: "38749fb157e0929c26c31ccb9e8013e3ee81f584349be1dd7cc60792b9e3adeb"
+sha256: "63f0a76ac3da0be9968bae27d845489f7543d6809f055614665baf37331094ff"
 signature: ""
 bytecode_sha256: ""
 bytecode_signature: ""
