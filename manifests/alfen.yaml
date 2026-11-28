@@ -1,5 +1,5 @@
 name: "alfen"
-version: "1.1.1"
+version: "1.1.2"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Control written from Alfen's Modbus for ACE configuration guide v1.0 (May 2025); not yet confirmed on hardware. Needs Active Load Balancing (a paid licence) with data source Energy Management System, and Allow writing maximum currents, set in ACE Service Installer. Set phases: 1 for a single-phase installation."
     min_driver_version: "1.1.0"
 min_host_version: "2.0.0"
-size_bytes: 23895
+size_bytes: 24051
 dkb_id: ""
-sha256: "e38da421ba6e5d3ceed2e9c6b7fdd620537b34e63ca48da14ac1e42080b133d0"
+sha256: "297418652c17311bec05c10a9d012ff65d7b639df94d1eda9bb633d162c995b3"
 signature: ""
 
 bytecode_sha256: ""

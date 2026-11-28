@@ -216,3 +216,52 @@ def mqtt_read_request_topic_error(topic: object) -> str:
             return (f"MQTT read-request topic {topic!r} has level {level!r}; a level is "
                     "printable ASCII without spaces, and a wildcard is a whole '+' level")
     return ""
+
+
+# A driver may tell a new owner what to switch on in the device before FTW can
+# reach it: `setup_hint` in its DRIVER table, one plain sentence in the
+# device's own menu words. FTW shows it on the device card and when a
+# connection test fails. The signed channel copies it into the header Core
+# reads; Core reads a bundled copy's DRIVER table with the pattern below
+# (go/internal/drivers/catalog.go, driverBlockRe and pickString), which stops
+# at the first double quote. So the hint is one double-quoted string with no
+# double quote or backslash inside, and this check reads it the way Core does.
+SETUP_HINT_MAX_CHARS = 140
+_DRIVER_BLOCK_RE = re.compile(r"^[ \t]*DRIVER\s*=\s*\{(.*?)\n\}", re.M | re.S)
+_SETUP_HINT_LINE_RE = re.compile(r"^[ \t]*setup_hint\s*=(.*)$", re.M)
+_SETUP_HINT_VALUE_RE = re.compile(r'\s*"([^"\\\n]*)"\s*,?\s*(?:--.*)?')
+
+
+def setup_hint(source: str) -> tuple[str, str]:
+    """The DRIVER table's setup_hint and why it is invalid.
+
+    Returns ("", "") when the driver declares none, (hint, "") when it
+    declares a valid one, and ("", reason) when the declaration is wrong.
+    """
+    blocks = _DRIVER_BLOCK_RE.findall(source)
+    if not blocks:
+        if re.search(r"^[ \t]*setup_hint\s*=", source, re.M):
+            return "", "setup_hint must sit in a DRIVER table"
+        return "", ""
+    lines = _SETUP_HINT_LINE_RE.findall(blocks[-1])
+    if not lines:
+        return "", ""
+    if len(lines) > 1:
+        return "", "DRIVER declares setup_hint more than once"
+    match = _SETUP_HINT_VALUE_RE.fullmatch(lines[0])
+    if not match:
+        return "", ("setup_hint must be one double-quoted string on one line, "
+                    "with no double quote or backslash inside")
+    hint = match.group(1)
+    if not hint.strip():
+        return "", "setup_hint is empty: omit it, or say what to switch on"
+    if hint != hint.strip() or "  " in hint:
+        return "", "setup_hint has stray spaces"
+    if any(ord(char) < 32 or ord(char) == 127 for char in hint):
+        return "", "setup_hint holds a control character"
+    if len(hint) > SETUP_HINT_MAX_CHARS:
+        return "", (f"setup_hint is {len(hint)} characters; "
+                    f"keep it to {SETUP_HINT_MAX_CHARS}")
+    if not hint.endswith("."):
+        return "", "setup_hint is one sentence and ends with a full stop"
+    return hint, ""

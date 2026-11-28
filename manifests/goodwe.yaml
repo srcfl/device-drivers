@@ -1,5 +1,5 @@
 name: "goodwe"
-version: "2.3.0"
+version: "2.3.1"
 tier: community
 author: "frekes81 and Sourceful contributors"
 protocol: modbus
@@ -22,9 +22,9 @@ upstream_docs:
     kind: register_map
     url_stability: volatile
 min_host_version: "1.10.0-beta.1"
-size_bytes: 18014
+size_bytes: 18136
 dkb_id: ""
-sha256: "2c38be160885144bf9baf1ab7f481de9f84bc38e22a5a9e9ba11991e4bdb1637"
+sha256: "57bd990473f9d061d344cc01862526ef832c89c8188e05905b113d66fc7ccb8f"
 signature: ""
 
 bytecode_sha256: ""

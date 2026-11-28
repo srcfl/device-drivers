@@ -1,5 +1,5 @@
 name: "goe"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -25,9 +25,9 @@ upstream_docs:
     kind: register_map
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 17765
+size_bytes: 17870
 dkb_id: ""
-sha256: "fedbe0e1724b062928bccb26f80bef973fd9a9df318eb592ff51696e037fc08a"
+sha256: "862b05d018a4166b04a1ac510fbc5547d80995226a4feb1a9e96802fa1d3271e"
 signature: ""
 
 bytecode_sha256: ""

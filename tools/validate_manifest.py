@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from manifest_parser import (mqtt_read_request_topic_error, parse_tested_devices,
-                             parse_upstream_docs, parse_yaml_simple)
+                             parse_upstream_docs, parse_yaml_simple, setup_hint)
 
 REQUIRED_FIELDS = ["name", "version", "tier", "protocol", "ders", "size_bytes",
                    "connectivity"]
@@ -159,6 +159,12 @@ def validate_manifest(yaml_path: Path, drivers_dir: Path) -> list[str]:
     driver_path = drivers_dir / f"{yaml_path.stem}.lua"
     if not driver_path.exists():
         errors.append(f"driver file not found: {driver_path.name}")
+    else:
+        # The DRIVER table's setup_hint: what a new owner switches on in the
+        # device before FTW can reach it. See manifest_parser.setup_hint.
+        _, problem = setup_hint(driver_path.read_text(encoding="utf-8"))
+        if problem:
+            errors.append(f"{driver_path.name}: {problem}")
 
     # Core tier must have author
     if tier == "core" and not data.get("author"):

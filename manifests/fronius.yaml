@@ -1,5 +1,5 @@
 name: "fronius"
-version: "2.3.0"
+version: "2.3.1"
 tier: core
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -59,9 +59,9 @@ upstream_docs:
     kind: register_map
     url_stability: stable
 min_host_version: "2.0.0"
-size_bytes: 21704
+size_bytes: 21818
 dkb_id: "fronius_symo_gen24"
-sha256: "63472dda17a0ed32c167dadb4ecf02f032bf4fb2e648df046a56de818124d16c"
+sha256: "dd3783f5692cec902e32ee8cc2eb86168dad721855d8afe6cb569233f4d8a918"
 signature: ""
 
 bytecode_sha256: ""

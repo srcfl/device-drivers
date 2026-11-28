@@ -1,5 +1,5 @@
 name: "etrel"
-version: "1.1.0"
+version: "1.1.1"
 tier: community
 author: "Sourceful Labs AB"
 protocol: modbus
@@ -16,9 +16,9 @@ tested_devices:
     notes: "Control written from Etrel's INCH SmartHome Modbus TCP register list; not yet confirmed on hardware. Duo: connector 1 only."
     min_driver_version: "1.0.0"
 min_host_version: "2.0.0"
-size_bytes: 21562
+size_bytes: 21631
 dkb_id: ""
-sha256: "7ab3c7f28f3df5d75c491d589a751183dc5c2deac0f6b96212f79c39be668d9c"
+sha256: "3c8584894e432b016743d9133fb901fbd2b7368c87ff6d89e1c9a203ad92d6cb"
 signature: ""
 
 bytecode_sha256: ""

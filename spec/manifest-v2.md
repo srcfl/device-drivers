@@ -74,6 +74,29 @@ and the `DRIVER` table) into the published metadata, and these two are not in
 it. So correcting one does **not** need a version bump, unlike the fields listed
 in CONTRIBUTING.
 
+### The words for that step: `setup_hint`
+
+`setup` names who to ask. The `DRIVER` table may also say what to switch on, in
+one sentence an owner can follow:
+
+```lua
+setup_hint = "Ask your installer to set Modbus TCP on the SDongle to Enable (unrestricted) in FusionSolar.",
+```
+
+- Use the device's own menu words, from the vendor's manual or the driver's
+  notes, and name the source in the pull request.
+- One sentence, ending with a full stop, at most 140 characters.
+- One double-quoted string on one line, with no double quote or backslash
+  inside. FTW Core reads the field with a pattern that stops at the first
+  double quote.
+- Leave it out when the device needs nothing switched on, or when no vendor
+  document states the step.
+
+FTW shows the hint on the device card and when a connection test fails. It sits
+in the `DRIVER` table, so the signed artifact's header carries it, and a change
+to it needs a version bump. `make check` enforces the form
+(`manifest_parser.setup_hint`).
+
 ## DER Types
 
 `ders` states which kinds of distributed energy resource a driver covers.

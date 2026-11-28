@@ -86,7 +86,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "abb_terra",
       "targets": {
         "blixt-l1": {
@@ -149,7 +149,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "alfen",
       "targets": {
         "blixt-l1": {
@@ -317,7 +317,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.3",
+      "catalog_version": "0.3.4",
       "driver_id": "ctek",
       "targets": {
         "blixt-l1": {
@@ -338,7 +338,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.2",
+      "catalog_version": "0.3.3",
       "driver_id": "ctek_hybrid",
       "targets": {
         "blixt-l1": {
@@ -359,7 +359,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.3.3",
+      "catalog_version": "0.3.4",
       "driver_id": "ctek_v2",
       "targets": {
         "blixt-l1": {
@@ -443,7 +443,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.0.7",
+      "catalog_version": "1.0.8",
       "driver_id": "esphome_dsmr",
       "targets": {
         "blixt-l1": {
@@ -464,7 +464,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "etrel",
       "targets": {
         "blixt-l1": {
@@ -569,7 +569,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.3.0",
+      "catalog_version": "2.3.1",
       "driver_id": "fronius",
       "targets": {
         "blixt-l1": {
@@ -632,7 +632,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "goe",
       "targets": {
         "blixt-l1": {
@@ -653,7 +653,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "goe_http",
       "targets": {
         "blixt-l1": {
@@ -674,7 +674,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.3.0",
+      "catalog_version": "2.3.1",
       "driver_id": "goodwe",
       "targets": {
         "blixt-l1": {
@@ -800,7 +800,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.2.0",
+      "catalog_version": "2.2.1",
       "driver_id": "huawei",
       "targets": {
         "blixt-l1": {
@@ -842,7 +842,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.0",
+      "catalog_version": "1.1.1",
       "driver_id": "keba",
       "targets": {
         "blixt-l1": {
@@ -884,7 +884,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.2.0",
+      "catalog_version": "2.2.1",
       "driver_id": "kostal",
       "targets": {
         "blixt-l1": {
@@ -926,7 +926,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "mennekes",
       "targets": {
         "blixt-l1": {
@@ -968,7 +968,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.2.1",
+      "catalog_version": "1.2.2",
       "driver_id": "nibe_local",
       "targets": {
         "blixt-l1": {
@@ -1178,7 +1178,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "0.1.0",
+      "catalog_version": "0.1.1",
       "driver_id": "remne_p1ib",
       "targets": {
         "blixt-l1": {
@@ -1367,7 +1367,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.2.0",
+      "catalog_version": "2.2.1",
       "driver_id": "sma",
       "targets": {
         "blixt-l1": {
@@ -1388,7 +1388,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.1.1",
+      "catalog_version": "1.1.2",
       "driver_id": "sma_pv",
       "targets": {
         "blixt-l1": {
@@ -1556,7 +1556,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.2.0",
+      "catalog_version": "2.2.1",
       "driver_id": "solis",
       "targets": {
         "blixt-l1": {
@@ -1619,7 +1619,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "1.7.0",
+      "catalog_version": "1.7.1",
       "driver_id": "sungrow",
       "targets": {
         "blixt-l1": {
@@ -1787,7 +1787,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "2.2.1",
+      "catalog_version": "2.2.2",
       "driver_id": "victron",
       "targets": {
         "blixt-l1": {
@@ -1850,7 +1850,7 @@
     },
     {
       "catalog_source": true,
-      "catalog_version": "3.2.0",
+      "catalog_version": "3.2.1",
       "driver_id": "zap",
       "targets": {
         "blixt-l1": {

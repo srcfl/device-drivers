@@ -36,6 +36,7 @@ from manifest_parser import (
     mqtt_read_request_topic_error,
     parse_tested_devices,
     parse_yaml_simple,
+    setup_hint,
 )
 
 
@@ -503,6 +504,9 @@ def _ftw_artifact(
         fields.append(f"    config_secrets = {_lua_string_list(config_secrets)},")
     if ws_hosts:
         fields.append(f"    ws_hosts = {_lua_string_list(ws_hosts)},")
+    hint = metadata.get("setup_hint")
+    if isinstance(hint, str) and hint:
+        fields.append(f"    setup_hint = {_lua_string(hint)},")
     # A driver that declares itself read-only keeps the guards: those are
     # meters and telemetry gateways stating what they are. A driver the catalog
     # marks control: true keeps the control path it was ported with.
@@ -920,6 +924,14 @@ def _load_channel(config_path: Path, repo_root: Path) -> list[dict[str, Any]]:
             ws_hosts = _lua_top_level_string_list(body, "ws_hosts")
             if ws_hosts:
                 metadata["ws_hosts"] = ws_hosts
+        # setup_hint tells a new owner what to switch on in the device before
+        # FTW can reach it. Core reads it from this header, as it reads
+        # ws_hosts; only drivers that declare one change bytes.
+        hint, hint_problem = setup_hint(source)
+        if hint_problem:
+            raise RepositoryError(f"{driver_id}: {hint_problem}")
+        if hint:
+            metadata["setup_hint"] = hint
 
         if auth_post_path and not controls:
             metadata["auth_post_path"] = auth_post_path
